@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` headers to all responses
 - Guard AI settings `base_url` against SSRF — validates against private/loopback/link-local IPs at both request time and write time for ollama and custom providers
 - Add `CORS_ALLOWED_ORIGINS` config variable to replace the `allow_origins=["*"]` placeholder
+- **Stored XSS in legacy document embed nodes.** The Lexical `EmbedNode` (kept around for backwards compatibility with documents that used the old generic embed type before `YouTubeNode` / `TweetNode` existed) rendered its stored `html` field via `dangerouslySetInnerHTML` without sanitization. A user able to write a document — i.e. any guild member with edit access — could craft a serialized JSON payload containing `{ "type": "embed", "html": "<script>…</script>" }`, save the document, and have the script run in every other viewer's session. The constructor now passes the html through DOMPurify before storing it on `__html`, so all entry paths (importJSON of legacy data, paste-conversion via `convertEmbedElement`, programmatic creation) are sanitized at the same boundary. Default DOMPurify config strips `<script>`, event handler attributes, `javascript:` URLs, and `<iframe>`; legacy YouTube embeds may render empty after the fix and should be re-added with the dedicated `YouTubeNode` insert tool.
 
 ## [0.43.2] - 2026-05-03
 
