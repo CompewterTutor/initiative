@@ -11,7 +11,7 @@ async def test_todoist_parse_bad_csv_opaque_error(client: AsyncClient, session: 
     """Malformed Todoist CSV returns the constant, not a raw exception string."""
     user = await create_user(session)
     response = await client.post(
-        "/api/v1/import/todoist/parse",
+        "/api/v1/imports/todoist/parse",
         headers={**get_auth_headers(user), "Content-Type": "text/plain"},
         content=b"\x00\x01\x02\x03binary garbage",
     )
@@ -27,7 +27,7 @@ async def test_vikunja_parse_bad_json_opaque_error(client: AsyncClient, session:
     """Malformed Vikunja JSON returns the constant, not a raw exception."""
     user = await create_user(session)
     response = await client.post(
-        "/api/v1/import/vikunja/parse",
+        "/api/v1/imports/vikunja/parse",
         headers={**get_auth_headers(user), "Content-Type": "text/plain"},
         content=b"this is not json }{{{",
     )
@@ -40,7 +40,7 @@ async def test_ticktick_parse_bad_csv_opaque_error(client: AsyncClient, session:
     """Malformed TickTick CSV returns the constant, not a raw exception."""
     user = await create_user(session)
     response = await client.post(
-        "/api/v1/import/ticktick/parse",
+        "/api/v1/imports/ticktick/parse",
         headers={**get_auth_headers(user), "Content-Type": "text/plain"},
         content=b"\x00\x01\x02\x03binary garbage",
     )

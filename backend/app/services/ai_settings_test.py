@@ -1,6 +1,6 @@
 """Tests for AI settings SSRF guard on base_url."""
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.ai_settings import (
     _test_ollama_connection,
@@ -22,7 +22,7 @@ async def test_ollama_test_connection_blocks_private_ip():
 async def test_ollama_test_connection_allows_no_base_url():
     """_test_ollama_connection with no base_url uses the localhost default (not SSRF-guarded)."""
     with patch("app.services.ai_settings.httpx.AsyncClient") as mock_client:
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"models": [{"name": "llama3"}]}
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client.return_value)
@@ -71,7 +71,7 @@ async def test_custom_test_connection_returns_error_without_base_url():
 async def test_fetch_ollama_models_allows_no_base_url():
     """_fetch_ollama_models with no base_url uses localhost default (not SSRF-guarded)."""
     with patch("app.services.ai_settings.httpx.AsyncClient") as mock_client:
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"models": [{"name": "llama3"}]}
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client.return_value)
