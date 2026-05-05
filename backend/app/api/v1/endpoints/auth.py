@@ -216,9 +216,17 @@ async def login_access_token(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
 
     if password_needs_rehash(user.hashed_password):
-        user.hashed_password = get_password_hash(form_data.password)
-        session.add(user)
-        await session.commit()
+        # Best-effort: a transient DB error or argon2 hashing failure here
+        # must not turn a successful authentication into a 500. The next
+        # login will retry the upgrade, and the legacy bcrypt hash keeps
+        # working until then.
+        try:
+            user.hashed_password = get_password_hash(form_data.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
 
     access_token = create_access_token(subject=str(user.id), token_version=user.token_version)
     response.set_cookie(
@@ -294,9 +302,14 @@ async def create_device_token(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
 
     if password_needs_rehash(user.hashed_password):
-        user.hashed_password = get_password_hash(payload.password)
-        session.add(user)
-        await session.commit()
+        # Best-effort upgrade — see login_access_token for rationale.
+        try:
+            user.hashed_password = get_password_hash(payload.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
 
     device_token = await user_tokens.create_device_token(
         session,

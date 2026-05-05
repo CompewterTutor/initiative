@@ -6,7 +6,7 @@ from typing import Any
 import bcrypt
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from app.core.config import settings
 
@@ -31,7 +31,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         try:
             _argon2_hasher.verify(hashed_password, plain_password)
             return True
-        except (VerifyMismatchError, InvalidHashError):
+        except (VerifyMismatchError, VerificationError, InvalidHashError):
             return False
     if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
         try:
