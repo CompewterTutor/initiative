@@ -102,7 +102,7 @@ jobs:
           fi
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v8
+        uses: actions/upload-artifact@v7
         with:
           name: android-apk
           path: artifacts/*.apk
@@ -194,7 +194,7 @@ jobs:
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v8
+        uses: actions/upload-artifact@v7
         with:
           name: digests-release-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
@@ -209,7 +209,7 @@ jobs:
       packages: write
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           path: ${{ runner.temp }}/digests
           pattern: digests-release-*
@@ -258,7 +258,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download Android APK
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           name: android-apk
           path: artifacts
