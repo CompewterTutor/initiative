@@ -47,6 +47,16 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Function form still works — Rollup-compat
+        manualChunks(id) {
+          if (id.includes("/lucide-react/")) return "lucide-react";
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,
