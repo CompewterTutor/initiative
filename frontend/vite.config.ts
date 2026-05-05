@@ -50,9 +50,13 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // Function form still works — Rollup-compat
-        manualChunks(id) {
-          if (id.includes("/lucide-react/")) return "lucide-react";
+        codeSplitting: {
+          groups: [
+            {
+              name: "lucide-react",
+              test: /\/lucide-react\//,
+            },
+          ],
         },
       },
     },
