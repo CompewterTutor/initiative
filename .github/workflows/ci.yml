@@ -155,7 +155,7 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         run: |
           cd frontend
-          pnpm tsc --noEmit
+          pnpm tsgo --noEmit
 
       - name: Run tests
         if: steps.filter.outputs.skip != 'true'
