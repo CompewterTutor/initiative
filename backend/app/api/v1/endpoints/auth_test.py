@@ -454,6 +454,51 @@ async def test_login_email_case_insensitive(client: AsyncClient, session: AsyncS
 
 @pytest.mark.integration
 @pytest.mark.auth
+async def test_login_rehashes_legacy_bcrypt_password(client: AsyncClient, session: AsyncSession):
+    """A user whose stored hash predates the argon2 migration should still
+    log in successfully, and the hash should be rewritten as argon2id on
+    the way out so the bcrypt verify path eventually disappears for active
+    users.
+    """
+    import bcrypt as _bcrypt
+
+    password = "legacy-bcrypt-password"
+    legacy_hash = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+    assert legacy_hash.startswith("$2"), "test setup expected a real bcrypt hash"
+
+    user = User(
+        email_hash=hash_email("legacy@example.com"),
+        email_encrypted=encrypt_field("legacy@example.com", SALT_EMAIL),
+        full_name="Legacy User",
+        hashed_password=legacy_hash,
+        status=UserStatus.active,
+        email_verified=True,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={"username": "legacy@example.com", "password": password},
+    )
+    assert response.status_code == 200
+
+    await session.refresh(user)
+    assert user.hashed_password.startswith("$argon2"), (
+        "expected legacy bcrypt hash to be rewritten as argon2id after a successful login"
+    )
+
+    # Second login must verify against the new argon2 hash.
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={"username": "legacy@example.com", "password": password},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.integration
+@pytest.mark.auth
 async def test_malformed_jwt_returns_401(client: AsyncClient):
     """A garbage bearer token should be rejected as 401 Unauthorized with
     a WWW-Authenticate challenge, not 403. The SPA's 401 interceptor
