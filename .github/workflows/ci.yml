@@ -137,7 +137,7 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         uses: pnpm/action-setup@v6
         with:
-          version: 9
+          package_json_file: frontend/package.json
 
       - name: Install dependencies
         if: steps.filter.outputs.skip != 'true'
@@ -217,7 +217,7 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         uses: pnpm/action-setup@v6
         with:
-          version: 9
+          package_json_file: frontend/package.json
 
       - name: Install frontend dependencies
         if: steps.filter.outputs.skip != 'true'
