@@ -177,7 +177,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts frontend/package.json || true)
           else
-            CHANGED=$(git diff --name-only HEAD~1...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts || true)
+            CHANGED=$(git diff --name-only HEAD~1...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts frontend/package.json || true)
           fi
           if [[ -z "$CHANGED" ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
