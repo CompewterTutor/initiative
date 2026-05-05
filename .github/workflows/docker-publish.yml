@@ -48,7 +48,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 10
+          package_json_file: frontend/package.json
 
       - name: Install frontend dependencies
         working-directory: frontend
