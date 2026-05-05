@@ -23,7 +23,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.rate_limit import limiter
 from app.core.encryption import decrypt_field, encrypt_field, encrypt_token, hash_email, SALT_EMAIL, SALT_OIDC_CLIENT_SECRET
 from app.core.messages import AuthMessages, OidcMessages
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import create_access_token, get_password_hash, password_needs_rehash, verify_password
 from app.core.user_input_validators import normalize_timezone
 from app.models.user import User, UserRole, UserStatus
 from app.models.guild import GuildRole
@@ -215,6 +215,19 @@ async def login_access_token(
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
 
+    if password_needs_rehash(user.hashed_password):
+        # Best-effort: a transient DB error or argon2 hashing failure here
+        # must not turn a successful authentication into a 500. The next
+        # login will retry the upgrade, and the legacy bcrypt hash keeps
+        # working until then.
+        try:
+            user.hashed_password = get_password_hash(form_data.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
+
     access_token = create_access_token(subject=str(user.id), token_version=user.token_version)
     response.set_cookie(
         key=settings.COOKIE_NAME,
@@ -287,6 +300,16 @@ async def create_device_token(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.INACTIVE_USER)
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
+
+    if password_needs_rehash(user.hashed_password):
+        # Best-effort upgrade — see login_access_token for rationale.
+        try:
+            user.hashed_password = get_password_hash(payload.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
 
     device_token = await user_tokens.create_device_token(
         session,

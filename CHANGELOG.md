@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate to typescript 7 beta. Decreases compile step from 25s to 5s.
 - Bump Dockerfile Node.js from v20 to v24.
 - Pin pnpm to 10.33.3 via the `packageManager` field in `frontend/package.json`. CI and the Dockerfile auto-detect it through corepack, so contributors no longer need to match versions manually — fresh clones with corepack enabled get the right pnpm on first invocation.
+- **Migrate password hashing from passlib[bcrypt] to argon2-cffi.** passlib's last release was Oct 2020; its bcrypt backend has been emitting `(trapped) error reading bcrypt version` ever since bcrypt 4.1 removed the `__about__` module, and the project's `bcrypt==4.0.1` pin existed only to keep passlib quiet. New password hashes are now argon2id (OWASP-aligned defaults), and existing bcrypt hashes are still verified directly through the `bcrypt` library so nobody is locked out. On the next successful login (standard form auth or device-token auth) any bcrypt hash is rewritten as argon2id transparently — no schema change, no migration, no operator action required. bcrypt itself bumps from 4.0.1 to 5.0.0 along the way, since the version pin was only there to dodge the passlib incompatibility.
 
 ## [0.43.2] - 2026-05-03
 
