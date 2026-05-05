@@ -14,6 +14,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write .",
+    "format:api": "prettier --write src/api/generated",
     "test": "vitest",
     "test:run": "vitest run",
     "generate:api": "./scripts/generate-api.sh",

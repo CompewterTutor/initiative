@@ -161,7 +161,7 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         run: |
           cd frontend
-          pnpm vitest run --passWithNoTests
+          pnpm test:run
 
   check-generated-types:
     name: Check Generated Types
@@ -171,7 +171,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for backend changes
+      - name: Check for backend or orval changes
         id: filter
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -230,7 +230,7 @@ jobs:
         run: |
           cd frontend
           pnpm orval
-          pnpm prettier --write src/api/generated/
+          pnpm format:api
 
       - name: Check for drift
         if: steps.filter.outputs.skip != 'true'
