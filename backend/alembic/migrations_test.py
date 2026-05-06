@@ -291,6 +291,13 @@ class TestMigrationsAgainstDatabase:
             parent = rev_obj.down_revision
             if parent is None:
                 break  # at base
+            # Fail loud on merge revisions (down_revision is a tuple) — the
+            # stamp-equality check below would silently false-fail otherwise.
+            assert isinstance(parent, str), (
+                f"Revision {current} has multiple parents {parent!r}; the "
+                "round-trip walk only handles linear chains. If a merge "
+                "migration is intentional, extend this loop to handle it."
+            )
             _run_alembic("downgrade", "-1")
             steps_taken += 1
             stamp = _current_alembic_revision()

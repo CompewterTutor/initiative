@@ -57,11 +57,18 @@ jobs:
           # Migration tests are slow (real upgrade/downgrade against
           # Postgres) and only relevant when the alembic/ folder itself
           # changes. Track them as a separate scope token so they're only
-          # appended when needed.
+          # appended when needed. Also expose a flag so we can skip the
+          # explicit `alembic upgrade head` step on non-alembic PRs —
+          # conftest.py already runs migrations as a pytest fixture, so
+          # the only value of the standalone step is an early failure
+          # signal when a migration is broken.
           ALEMBIC_SCOPE=""
           if echo "$CHANGED" | grep -q '^backend/alembic/'; then
             ALEMBIC_SCOPE="alembic/"
+            echo "alembic_changed=true" >> $GITHUB_OUTPUT
             echo "Alembic changes detected — including migration tests"
+          else
+            echo "alembic_changed=false" >> $GITHUB_OUTPUT
           fi
 
           NON_ALEMBIC=$(echo "$CHANGED" | grep -v '^backend/alembic/' || true)
@@ -105,7 +112,10 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov ruff
 
       - name: Run Alembic migrations
-        if: steps.changes.outputs.skip != 'true'
+        # conftest.py auto-applies migrations before tests run, so this
+        # explicit step is only valuable as an early-fail signal on PRs
+        # that actually touch alembic/.
+        if: steps.changes.outputs.skip != 'true' && steps.changes.outputs.alembic_changed == 'true'
         run: |
           cd backend
           alembic upgrade head
