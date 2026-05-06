@@ -54,19 +54,38 @@ jobs:
 
           echo "skip=false" >> $GITHUB_OUTPUT
 
+          # Migration tests are slow (real upgrade/downgrade against
+          # Postgres) and only relevant when the alembic/ folder itself
+          # changes. Track them as a separate scope token so they're only
+          # appended when needed.
+          ALEMBIC_SCOPE=""
+          if echo "$CHANGED" | grep -q '^backend/alembic/'; then
+            ALEMBIC_SCOPE="alembic/"
+            echo "Alembic changes detected — including migration tests"
+          fi
+
+          NON_ALEMBIC=$(echo "$CHANGED" | grep -v '^backend/alembic/' || true)
+
+          if [[ -z "$NON_ALEMBIC" ]]; then
+            # Only alembic/ changes — skip the app/ test pass entirely.
+            echo "scope=$ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
+            echo "Only alembic changes — running migration tests only"
+            exit 0
+          fi
+
           # Check if shared infra changed (requires full test run)
-          if echo "$CHANGED" | grep -qE '(app/testing/|app/models/|app/schemas/|app/core/|app/db/|conftest\.py)'; then
-            echo "scope=app/" >> $GITHUB_OUTPUT
+          if echo "$NON_ALEMBIC" | grep -qE '(app/testing/|app/models/|app/schemas/|app/core/|app/db/|conftest\.py)'; then
+            echo "scope=app/ $ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
             echo "Shared infrastructure changed — running all tests"
           else
             # Extract unique directories, strip backend/ prefix, and exclude non-code dirs
-            DIRS=$(echo "$CHANGED" | sed 's|^backend/||' | grep -v '^app/locales/' | xargs -I{} dirname {} | sort -u | tr '\n' ' ')
+            DIRS=$(echo "$NON_ALEMBIC" | sed 's|^backend/||' | grep -v '^app/locales/' | xargs -I{} dirname {} | sort -u | tr '\n' ' ')
             if [[ -z "${DIRS// }" ]]; then
-              echo "scope=app/" >> $GITHUB_OUTPUT
+              echo "scope=app/ $ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
               echo "Only non-code files changed — running all tests"
             else
-              echo "scope=$DIRS" >> $GITHUB_OUTPUT
-              echo "Running tests in: $DIRS"
+              echo "scope=$DIRS$ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
+              echo "Running tests in: $DIRS$ALEMBIC_SCOPE"
             fi
           fi
 
