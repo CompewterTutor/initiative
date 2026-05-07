@@ -117,13 +117,22 @@ def _parse_admin_url() -> dict:
     }
 
 
-async def _drop_and_create_db() -> None:
-    """Drop+recreate the dedicated migrations test database.
+async def _drop_db() -> None:
+    """Drop the dedicated migrations test database if it exists.
 
     ``DROP DATABASE`` requires no other sessions to be connected. We use
     ``WITH (FORCE)`` (PG 13+) to evict any leftover connections from a
     crashed prior run.
     """
+    conn = await asyncpg.connect(database="postgres", **_parse_admin_url())
+    try:
+        await conn.execute(f'DROP DATABASE IF EXISTS "{MIGRATIONS_DB_NAME}" WITH (FORCE)')
+    finally:
+        await conn.close()
+
+
+async def _drop_and_create_db() -> None:
+    """Drop+recreate the dedicated migrations test database."""
     conn = await asyncpg.connect(database="postgres", **_parse_admin_url())
     try:
         await conn.execute(f'DROP DATABASE IF EXISTS "{MIGRATIONS_DB_NAME}" WITH (FORCE)')
@@ -198,7 +207,7 @@ def migrations_db() -> Iterator[str]:
     asyncio.run(_drop_and_create_db())
     yield MIGRATIONS_TEST_DATABASE_URL
     try:
-        asyncio.run(_drop_and_create_db())
+        asyncio.run(_drop_db())
     except Exception:
         pass
 
@@ -253,6 +262,15 @@ class TestMigrationsAgainstDatabase:
         every step. Catches partial failures that ``upgrade head``
         might paper over."""
         revisions = _ordered_revisions_base_to_head()
+        # Make the chain-order invariant explicit: revisions[0] must be
+        # the baseline. Without this, a misconfigured chain that placed
+        # something before the baseline would cause the slice below to
+        # silently skip a real migration.
+        assert revisions[0] == BASELINE_REVISION, (
+            f"Expected first revision to be the baseline {BASELINE_REVISION!r}, "
+            f"got {revisions[0]!r}. The migration chain is misconfigured."
+        )
+
         _run_alembic("upgrade", BASELINE_REVISION)
         assert _current_alembic_revision() == BASELINE_REVISION
 
