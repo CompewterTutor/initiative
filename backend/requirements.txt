@@ -20,7 +20,7 @@ icalendar>=6.0.0  # iCal import/export
 
 # Collaboration (Yjs CRDT)
 pycrdt~=0.12.50
-pycrdt-websocket~=0.16.0
+pycrdt-websocket~=0.16.1
 
 # Testing dependencies
 pytest==9.0.3
