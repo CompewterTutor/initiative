@@ -1,11 +1,15 @@
 """Tests for SanitizedBaseModel."""
 from __future__ import annotations
 
+import importlib
+import pkgutil
 from enum import Enum
 from typing import Optional
 
 import pytest
+from pydantic import BaseModel
 
+import app.schemas as schemas_pkg
 from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 
@@ -84,3 +88,36 @@ def test_optional_str_none_passes_through() -> None:
 def test_javascript_url_stripped() -> None:
     m = _Model(name='<a href="javascript:bad()">link</a>')
     assert "javascript:" not in m.name
+
+
+@pytest.mark.unit
+def test_every_schema_extends_sanitized_base() -> None:
+    """Lint: every Pydantic class in app.schemas must extend SanitizedBaseModel.
+
+    Catches the case where a new schema is added that inherits directly from
+    pydantic.BaseModel, silently bypassing HTML sanitization on its str fields.
+    """
+    offenders: list[str] = []
+    for module_info in pkgutil.iter_modules(schemas_pkg.__path__):
+        if module_info.name.endswith("_test"):
+            continue
+        module = importlib.import_module(f"app.schemas.{module_info.name}")
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if not isinstance(attr, type):
+                continue
+            if attr is BaseModel or attr is SanitizedBaseModel:
+                continue
+            if not issubclass(attr, BaseModel):
+                continue
+            # Skip classes re-exported from elsewhere.
+            if not attr.__module__.startswith("app.schemas"):
+                continue
+            if not issubclass(attr, SanitizedBaseModel):
+                offenders.append(f"{attr.__module__}.{attr.__name__}")
+    assert not offenders, (
+        "These Pydantic classes in app.schemas do not extend SanitizedBaseModel:\n"
+        + "\n".join(f"  - {o}" for o in offenders)
+        + "\n\nInherit from SanitizedBaseModel (app.schemas.base) instead of"
+        " BaseModel so str fields are HTML-sanitized by default."
+    )
