@@ -1,8 +1,10 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import ConfigDict, EmailStr, Field
 
-class OIDCSettingsResponse(BaseModel):
+from app.schemas.base import SanitizedBaseModel
+
+class OIDCSettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     enabled: bool
@@ -15,7 +17,7 @@ class OIDCSettingsResponse(BaseModel):
     scopes: List[str] = Field(default_factory=list)
 
 
-class OIDCSettingsUpdate(BaseModel):
+class OIDCSettingsUpdate(SanitizedBaseModel):
     enabled: bool
     issuer: Optional[str] = None
     client_id: Optional[str] = None
@@ -26,19 +28,19 @@ class OIDCSettingsUpdate(BaseModel):
     scopes: List[str] = Field(default_factory=list)
 
 
-class InterfaceSettingsResponse(BaseModel):
+class InterfaceSettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     light_accent_color: str
     dark_accent_color: str
 
 
-class InterfaceSettingsUpdate(BaseModel):
+class InterfaceSettingsUpdate(SanitizedBaseModel):
     light_accent_color: str
     dark_accent_color: str
 
 
-class RoleLabelsResponse(BaseModel):
+class RoleLabelsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     admin: str
@@ -46,13 +48,13 @@ class RoleLabelsResponse(BaseModel):
     member: str
 
 
-class RoleLabelsUpdate(BaseModel):
+class RoleLabelsUpdate(SanitizedBaseModel):
     admin: Optional[str] = Field(default=None, min_length=1, max_length=64)
     project_manager: Optional[str] = Field(default=None, min_length=1, max_length=64)
     member: Optional[str] = Field(default=None, min_length=1, max_length=64)
 
 
-class EmailSettingsResponse(BaseModel):
+class EmailSettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     host: Optional[str] = None
@@ -65,7 +67,7 @@ class EmailSettingsResponse(BaseModel):
     test_recipient: Optional[EmailStr] = None
 
 
-class EmailSettingsUpdate(BaseModel):
+class EmailSettingsUpdate(SanitizedBaseModel):
     host: Optional[str] = None
     port: Optional[int] = Field(default=None, ge=1, le=65535)
     secure: bool = False
@@ -76,13 +78,13 @@ class EmailSettingsUpdate(BaseModel):
     test_recipient: Optional[EmailStr] = None
 
 
-class EmailTestRequest(BaseModel):
+class EmailTestRequest(SanitizedBaseModel):
     recipient: Optional[EmailStr] = None
 
 
 # --- OIDC Claim Mapping schemas ---
 
-class OIDCClaimMappingCreate(BaseModel):
+class OIDCClaimMappingCreate(SanitizedBaseModel):
     claim_value: str = Field(min_length=1, max_length=500)
     target_type: str  # "guild" or "initiative"
     guild_id: int
@@ -91,7 +93,7 @@ class OIDCClaimMappingCreate(BaseModel):
     initiative_role_id: Optional[int] = None
 
 
-class OIDCClaimMappingUpdate(BaseModel):
+class OIDCClaimMappingUpdate(SanitizedBaseModel):
     claim_value: Optional[str] = Field(default=None, min_length=1, max_length=500)
     target_type: Optional[str] = None
     guild_id: Optional[int] = None
@@ -100,7 +102,7 @@ class OIDCClaimMappingUpdate(BaseModel):
     initiative_role_id: Optional[int] = None
 
 
-class OIDCClaimMappingRead(BaseModel):
+class OIDCClaimMappingRead(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     id: int
@@ -115,11 +117,11 @@ class OIDCClaimMappingRead(BaseModel):
     initiative_role_name: Optional[str] = None
 
 
-class OIDCClaimPathUpdate(BaseModel):
+class OIDCClaimPathUpdate(SanitizedBaseModel):
     claim_path: Optional[str] = Field(default=None, max_length=500)
 
 
-class OIDCMappingsResponse(BaseModel):
+class OIDCMappingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     claim_path: Optional[str] = None

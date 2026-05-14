@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Dict, List, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 from app.models.initiative import InitiativeRole, PermissionKey
 from app.schemas.user import UserPublic
@@ -13,9 +15,9 @@ if TYPE_CHECKING:  # pragma: no cover
 HEX_COLOR_PATTERN = r"^#(?:[0-9a-fA-F]{3}){1,2}$"
 
 
-class InitiativeBase(BaseModel):
+class InitiativeBase(SanitizedBaseModel):
     name: str
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     color: Optional[str] = Field(default=None, pattern=HEX_COLOR_PATTERN)
     queues_enabled: bool = False
     events_enabled: bool = False
@@ -26,9 +28,9 @@ class InitiativeCreate(InitiativeBase):
     pass
 
 
-class InitiativeUpdate(BaseModel):
+class InitiativeUpdate(SanitizedBaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     color: Optional[str] = Field(default=None, pattern=HEX_COLOR_PATTERN)
     queues_enabled: Optional[bool] = None
     events_enabled: Optional[bool] = None
@@ -36,7 +38,7 @@ class InitiativeUpdate(BaseModel):
 
 
 # Role schemas
-class InitiativeRolePermissionRead(BaseModel):
+class InitiativeRolePermissionRead(SanitizedBaseModel):
     """Permission entry for a role."""
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
@@ -44,7 +46,7 @@ class InitiativeRolePermissionRead(BaseModel):
     enabled: bool
 
 
-class InitiativeRoleRead(BaseModel):
+class InitiativeRoleRead(SanitizedBaseModel):
     """Role definition with permissions."""
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
@@ -58,7 +60,7 @@ class InitiativeRoleRead(BaseModel):
     member_count: int = 0
 
 
-class InitiativeRoleCreate(BaseModel):
+class InitiativeRoleCreate(SanitizedBaseModel):
     """Create a new custom role."""
     name: str = Field(..., min_length=1, max_length=100)
     display_name: str = Field(..., min_length=1, max_length=100)
@@ -66,14 +68,14 @@ class InitiativeRoleCreate(BaseModel):
     permissions: Optional[Dict[PermissionKey, bool]] = None
 
 
-class InitiativeRoleUpdate(BaseModel):
+class InitiativeRoleUpdate(SanitizedBaseModel):
     """Update a role's display name and/or permissions."""
     display_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     is_manager: Optional[bool] = None
     permissions: Optional[Dict[PermissionKey, bool]] = None
 
 
-class AdvancedToolHandoffResponse(BaseModel):
+class AdvancedToolHandoffResponse(SanitizedBaseModel):
     """Short-lived bootstrap token for the embedded advanced-tool iframe.
 
     The SPA passes this to the iframe via postMessage. The iframe's backend
@@ -94,7 +96,7 @@ class AdvancedToolHandoffResponse(BaseModel):
     initiative_id: Optional[int] = None
 
 
-class MyInitiativePermissions(BaseModel):
+class MyInitiativePermissions(SanitizedBaseModel):
     """Current user's permissions for an initiative."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -110,25 +112,25 @@ class MyInitiativePermissions(BaseModel):
 
 
 # Member schemas - updated to work with role_id
-class InitiativeMemberBase(BaseModel):
+class InitiativeMemberBase(SanitizedBaseModel):
     user_id: int
     role_id: Optional[int] = None
     # Keep legacy role field for backward compatibility
     role: InitiativeRole = InitiativeRole.member
 
 
-class InitiativeMemberAdd(BaseModel):
+class InitiativeMemberAdd(SanitizedBaseModel):
     """Add a member to an initiative."""
     user_id: int
     role_id: Optional[int] = None
 
 
-class InitiativeMemberUpdate(BaseModel):
+class InitiativeMemberUpdate(SanitizedBaseModel):
     """Update a member's role."""
     role_id: int
 
 
-class InitiativeMemberRead(BaseModel):
+class InitiativeMemberRead(SanitizedBaseModel):
     """Member info including their role."""
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
+
+from app.schemas.base import SanitizedBaseModel
 
 
 EntityType = Literal[
@@ -19,7 +21,7 @@ EntityType = Literal[
 ]
 
 
-class TrashItem(BaseModel):
+class TrashItem(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     entity_type: EntityType
@@ -31,7 +33,7 @@ class TrashItem(BaseModel):
     purge_at: Optional[datetime] = None
 
 
-class TrashListResponse(BaseModel):
+class TrashListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: list[TrashItem]
@@ -39,11 +41,11 @@ class TrashListResponse(BaseModel):
     retention_days: Optional[int] = None
 
 
-class RestoreRequest(BaseModel):
+class RestoreRequest(SanitizedBaseModel):
     new_owner_id: Optional[int] = None
 
 
-class RestoreNeedsReassignmentResponse(BaseModel):
+class RestoreNeedsReassignmentResponse(SanitizedBaseModel):
     """409 payload when the entity's owner is no longer an active member of
     the relevant initiative. The client opens a picker seeded with
     ``valid_owner_ids`` and resubmits with the chosen one."""

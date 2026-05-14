@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class ApiKeyMetadata(BaseModel):
+class ApiKeyMetadata(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -16,18 +18,18 @@ class ApiKeyMetadata(BaseModel):
     expires_at: Optional[datetime] = None
 
 
-class ApiKeyListResponse(BaseModel):
+class ApiKeyListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     keys: list[ApiKeyMetadata] = Field(default_factory=list)
 
 
-class ApiKeyCreateRequest(BaseModel):
+class ApiKeyCreateRequest(SanitizedBaseModel):
     name: str = Field(min_length=1, max_length=100)
     expires_at: Optional[datetime] = None
 
 
-class ApiKeyCreateResponse(BaseModel):
+class ApiKeyCreateResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     api_key: ApiKeyMetadata

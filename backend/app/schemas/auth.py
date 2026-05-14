@@ -1,24 +1,26 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import ConfigDict, EmailStr, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class VerificationSendResponse(BaseModel):
+class VerificationSendResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     status: str
 
 
-class VerificationConfirmRequest(BaseModel):
+class VerificationConfirmRequest(SanitizedBaseModel):
     token: str = Field(min_length=10)
 
 
-class PasswordResetRequest(BaseModel):
+class PasswordResetRequest(SanitizedBaseModel):
     email: EmailStr
 
 
-class PasswordResetSubmit(BaseModel):
+class PasswordResetSubmit(SanitizedBaseModel):
     token: str = Field(min_length=10)
     password: str = Field(min_length=8, max_length=256)
 
@@ -26,7 +28,7 @@ class PasswordResetSubmit(BaseModel):
 # Device token schemas for mobile app authentication
 
 
-class DeviceTokenRequest(BaseModel):
+class DeviceTokenRequest(SanitizedBaseModel):
     """Request body for creating a device token."""
 
     email: EmailStr
@@ -34,7 +36,7 @@ class DeviceTokenRequest(BaseModel):
     device_name: str = Field(min_length=1, max_length=255)
 
 
-class DeviceTokenResponse(BaseModel):
+class DeviceTokenResponse(SanitizedBaseModel):
     """Response containing the device token."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -42,7 +44,7 @@ class DeviceTokenResponse(BaseModel):
     token_type: str = "device_token"
 
 
-class DeviceTokenInfo(BaseModel):
+class DeviceTokenInfo(SanitizedBaseModel):
     """Information about a device token (for listing/management)."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 

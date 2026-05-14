@@ -1,9 +1,11 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class PushTokenRegisterRequest(BaseModel):
+class PushTokenRegisterRequest(SanitizedBaseModel):
     """Request body for registering a push notification token."""
 
     push_token: str = Field(min_length=1, max_length=512)
@@ -11,20 +13,20 @@ class PushTokenRegisterRequest(BaseModel):
     device_token_id: Optional[int] = None
 
 
-class PushTokenUnregisterRequest(BaseModel):
+class PushTokenUnregisterRequest(SanitizedBaseModel):
     """Request body for unregistering a push notification token."""
 
     push_token: str = Field(min_length=1, max_length=512)
 
 
-class PushTokenResponse(BaseModel):
+class PushTokenResponse(SanitizedBaseModel):
     """Generic response for push token operations."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     status: str
 
 
-class FCMConfigResponse(BaseModel):
+class FCMConfigResponse(SanitizedBaseModel):
     """Public FCM configuration for mobile app initialization.
 
     Only exposes public fields (API key, project ID, sender ID).

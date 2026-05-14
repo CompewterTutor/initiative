@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.calendar_event import RSVPStatus
 from app.schemas.property import PropertySummary
@@ -19,11 +21,11 @@ if TYPE_CHECKING:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 
-class CalendarEventAttendeeCreate(BaseModel):
+class CalendarEventAttendeeCreate(SanitizedBaseModel):
     user_id: int
 
 
-class CalendarEventAttendeeRead(BaseModel):
+class CalendarEventAttendeeRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     user_id: int
@@ -32,7 +34,7 @@ class CalendarEventAttendeeRead(BaseModel):
     created_at: datetime
 
 
-class CalendarEventRSVPUpdate(BaseModel):
+class CalendarEventRSVPUpdate(SanitizedBaseModel):
     rsvp_status: RSVPStatus
 
 
@@ -41,7 +43,7 @@ class CalendarEventRSVPUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CalendarEventDocumentRead(BaseModel):
+class CalendarEventDocumentRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     document_id: int
@@ -54,7 +56,7 @@ class CalendarEventDocumentRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class EventRecurrence(BaseModel):
+class EventRecurrence(SanitizedBaseModel):
     frequency: str = Field(..., pattern="^(daily|weekly|monthly|yearly)$")
     interval: int = Field(default=1, ge=1, le=365)
     weekdays: Optional[List[str]] = None
@@ -75,7 +77,7 @@ class EventRecurrence(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CalendarEventBase(BaseModel):
+class CalendarEventBase(SanitizedBaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     location: Optional[str] = Field(default=None, max_length=500)
@@ -104,7 +106,7 @@ class CalendarEventCreate(CalendarEventBase):
     document_ids: Optional[List[int]] = None
 
 
-class CalendarEventUpdate(BaseModel):
+class CalendarEventUpdate(SanitizedBaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = None
     location: Optional[str] = Field(default=None, max_length=500)
@@ -115,7 +117,7 @@ class CalendarEventUpdate(BaseModel):
     recurrence: Optional[EventRecurrence] = None
 
 
-class CalendarEventAttendeePreview(BaseModel):
+class CalendarEventAttendeePreview(SanitizedBaseModel):
     """Compact per-attendee snapshot for list responses.
 
     Carries the id + avatar fields the SPA needs to render tinted,
@@ -147,7 +149,7 @@ class CalendarEventSummary(CalendarEventBase):
     updated_at: datetime
 
 
-class CalendarEventListResponse(BaseModel):
+class CalendarEventListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[CalendarEventSummary]

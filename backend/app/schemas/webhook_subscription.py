@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import ConfigDict, Field, HttpUrl
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class WebhookSubscriptionCreate(BaseModel):
+class WebhookSubscriptionCreate(SanitizedBaseModel):
     """Body for ``POST /api/v1/auto/subscriptions``.
 
     Initiative-id and guild-id are NOT taken from the body — they
@@ -22,13 +24,13 @@ class WebhookSubscriptionCreate(BaseModel):
     workflow_id: int | None = None
 
 
-class WebhookSubscriptionUpdate(BaseModel):
+class WebhookSubscriptionUpdate(SanitizedBaseModel):
     target_url: HttpUrl | None = None
     event_types: list[str] | None = Field(default=None, min_length=1)
     active: bool | None = None
 
 
-class WebhookSubscriptionRead(BaseModel):
+class WebhookSubscriptionRead(SanitizedBaseModel):
     """Public view. Notably ``hmac_secret`` is NOT in here — once minted
     on create it never leaves the DB again. Receivers either store the
     secret from the create response or rotate the subscription."""

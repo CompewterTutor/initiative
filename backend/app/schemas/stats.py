@@ -1,10 +1,12 @@
 from datetime import date
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class VelocityWeekData(BaseModel):
+class VelocityWeekData(SanitizedBaseModel):
     """Weekly velocity data showing tasks assigned vs completed."""
 
     week_start: date = Field(..., description="Start date of the week")
@@ -12,14 +14,14 @@ class VelocityWeekData(BaseModel):
     completed: int = Field(..., description="Number of tasks completed this week")
 
 
-class HeatmapDayData(BaseModel):
+class HeatmapDayData(SanitizedBaseModel):
     """Daily activity data for heatmap visualization."""
 
     day: date = Field(..., description="Date of activity", serialization_alias="date")
     activity_count: int = Field(..., description="Number of task activities on this date")
 
 
-class GuildTaskBreakdown(BaseModel):
+class GuildTaskBreakdown(SanitizedBaseModel):
     """Task completion breakdown by guild."""
 
     guild_id: int = Field(..., description="Guild ID")
@@ -27,7 +29,7 @@ class GuildTaskBreakdown(BaseModel):
     completed_count: int = Field(..., description="Number of completed tasks in this guild")
 
 
-class UserStatsResponse(BaseModel):
+class UserStatsResponse(SanitizedBaseModel):
     """Comprehensive user statistics response."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
