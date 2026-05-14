@@ -5,7 +5,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
 MAX_PAGE_SIZE = 100
@@ -32,7 +34,7 @@ class SortDir(str, Enum):
     desc = "desc"
 
 
-class FilterCondition(BaseModel):
+class FilterCondition(SanitizedBaseModel):
     """A single field comparison.
 
     Set ``negate=True`` to invert the result::
@@ -49,7 +51,7 @@ class FilterCondition(BaseModel):
     negate: bool = False
 
 
-class FilterGroup(BaseModel):
+class FilterGroup(SanitizedBaseModel):
     """Group of conditions combined with AND or OR logic.
 
     Set ``negate=True`` to invert the entire group::
@@ -86,12 +88,12 @@ class FilterGroup(BaseModel):
     conditions: list[FilterCondition | FilterGroup]
 
 
-class SortField(BaseModel):
+class SortField(SanitizedBaseModel):
     field: str
     dir: SortDir = SortDir.asc
 
 
-class PaginationParams(BaseModel):
+class PaginationParams(SanitizedBaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=0, le=MAX_PAGE_SIZE)
 
@@ -99,7 +101,7 @@ class PaginationParams(BaseModel):
 T = TypeVar("T")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse(SanitizedBaseModel, Generic[T]):
     items: list[T]
     total_count: int
     page: int

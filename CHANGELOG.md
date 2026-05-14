@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Auto-sanitize HTML on all API inputs.** Every Pydantic schema now extends `SanitizedBaseModel`, which runs `nh3.clean()` on every `str` field at validation time. Dangerous markup — `<script>`, `<iframe>`, `on*` event-handler attributes, `javascript:` URLs — is stripped before reaching services or the database. Safe formatting tags (`<b>`, `<i>`, `<a>`, `<p>`) pass through unchanged, and fields that must preserve user-authored content (descriptions, comments, document content, queue notes) opt out via the explicit `RichTextStr` type. Enum-typed fields are skipped automatically.
 - Limit image attachment uploads to 10 MB to prevent memory exhaustion
 - Block OIDC new-account creation when `ENABLE_PUBLIC_REGISTRATION` is disabled
 - Return opaque error codes from import parse endpoints instead of raw exception text

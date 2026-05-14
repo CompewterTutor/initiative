@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 from app.models.project import ProjectPermissionLevel
 from app.schemas.initiative import InitiativeRead
@@ -13,9 +15,9 @@ from app.schemas.user import UserPublic
 from app.schemas.comment import CommentAuthor
 
 
-class ProjectBase(BaseModel):
+class ProjectBase(SanitizedBaseModel):
     name: str
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     icon: Optional[str] = None
 
 
@@ -28,28 +30,28 @@ class ProjectCreate(ProjectBase):
     user_permissions: Optional[List[ProjectPermissionCreate]] = None
 
 
-class ProjectUpdate(BaseModel):
+class ProjectUpdate(SanitizedBaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     icon: Optional[str] = None
     is_template: Optional[bool] = None
     pinned: Optional[bool] = None
 
 
-class ProjectDuplicateRequest(BaseModel):
+class ProjectDuplicateRequest(SanitizedBaseModel):
     name: Optional[str] = None
 
 
-class ProjectRolePermissionCreate(BaseModel):
+class ProjectRolePermissionCreate(SanitizedBaseModel):
     initiative_role_id: int
     level: ProjectPermissionLevel = ProjectPermissionLevel.read
 
 
-class ProjectRolePermissionUpdate(BaseModel):
+class ProjectRolePermissionUpdate(SanitizedBaseModel):
     level: ProjectPermissionLevel
 
 
-class ProjectRolePermissionRead(BaseModel):
+class ProjectRolePermissionRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     initiative_role_id: int
@@ -59,7 +61,7 @@ class ProjectRolePermissionRead(BaseModel):
     created_at: datetime
 
 
-class ProjectPermissionBase(BaseModel):
+class ProjectPermissionBase(SanitizedBaseModel):
     user_id: int
     level: ProjectPermissionLevel = ProjectPermissionLevel.write
 
@@ -68,16 +70,16 @@ class ProjectPermissionCreate(ProjectPermissionBase):
     pass
 
 
-class ProjectPermissionBulkCreate(BaseModel):
+class ProjectPermissionBulkCreate(SanitizedBaseModel):
     user_ids: List[int]
     level: ProjectPermissionLevel = ProjectPermissionLevel.read
 
 
-class ProjectPermissionBulkDelete(BaseModel):
+class ProjectPermissionBulkDelete(SanitizedBaseModel):
     user_ids: List[int]
 
 
-class ProjectPermissionUpdate(BaseModel):
+class ProjectPermissionUpdate(SanitizedBaseModel):
     level: ProjectPermissionLevel
 
 
@@ -87,7 +89,7 @@ class ProjectPermissionRead(ProjectPermissionBase):
     created_at: datetime
 
 
-class ProjectTaskSummary(BaseModel):
+class ProjectTaskSummary(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     total: int = 0
@@ -119,7 +121,7 @@ class ProjectRead(ProjectBase):
     my_permission_level: Optional[str] = None
 
 
-class ProjectListResponse(BaseModel):
+class ProjectListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[ProjectRead]
@@ -129,34 +131,34 @@ class ProjectListResponse(BaseModel):
     has_next: bool
 
 
-class ProjectReorderRequest(BaseModel):
+class ProjectReorderRequest(SanitizedBaseModel):
     project_ids: List[int] = Field(default_factory=list)
 
 
-class ProjectFavoriteStatus(BaseModel):
+class ProjectFavoriteStatus(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     project_id: int
     is_favorited: bool
 
 
-class ProjectRecentViewRead(BaseModel):
+class ProjectRecentViewRead(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     project_id: int
     last_viewed_at: datetime
 
 
-class ProjectActivityEntry(BaseModel):
+class ProjectActivityEntry(SanitizedBaseModel):
     comment_id: int
-    content: str
+    content: RichTextStr
     created_at: datetime
     author: Optional[CommentAuthor] = None
     task_id: int
     task_title: str
 
 
-class ProjectActivityResponse(BaseModel):
+class ProjectActivityResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[ProjectActivityEntry]

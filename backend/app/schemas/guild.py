@@ -3,15 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import ConfigDict, EmailStr, Field
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 from app.models.guild import GuildRole
 from app.schemas.user import GuildRemovalProjectInfo
 
 
-class GuildBase(BaseModel):
+class GuildBase(SanitizedBaseModel):
     name: str
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     icon_base64: Optional[str] = None
 
 
@@ -30,13 +32,13 @@ class GuildRead(GuildBase):
     retention_days: Optional[int] = None
 
 
-class GuildInviteCreate(BaseModel):
+class GuildInviteCreate(SanitizedBaseModel):
     expires_at: Optional[datetime] = None
     max_uses: Optional[int] = Field(default=1, ge=1)
     invitee_email: Optional[EmailStr] = None
 
 
-class GuildInviteRead(BaseModel):
+class GuildInviteRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -50,11 +52,11 @@ class GuildInviteRead(BaseModel):
     created_at: datetime
 
 
-class GuildInviteAcceptRequest(BaseModel):
+class GuildInviteAcceptRequest(SanitizedBaseModel):
     code: str
 
 
-class GuildInviteStatus(BaseModel):
+class GuildInviteStatus(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     code: str
@@ -67,9 +69,9 @@ class GuildInviteStatus(BaseModel):
     uses: Optional[int] = None
 
 
-class GuildUpdate(BaseModel):
+class GuildUpdate(SanitizedBaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     icon_base64: Optional[str] = None
     # Trash retention period in days. None means "never auto-purge".
     # Sentinel "unset" semantics: explicitly omit the field to leave the
@@ -77,12 +79,12 @@ class GuildUpdate(BaseModel):
     retention_days: Optional[int] = Field(default=None, ge=1, le=3650)
 
 
-class GuildOrderUpdate(BaseModel):
+class GuildOrderUpdate(SanitizedBaseModel):
     model_config = ConfigDict(populate_by_name=True)
     guild_ids: list[int] = Field(min_length=1, alias="guildIds")
 
 
-class GuildSummary(BaseModel):
+class GuildSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -90,12 +92,12 @@ class GuildSummary(BaseModel):
     icon_base64: Optional[str] = None
 
 
-class GuildMembershipUpdate(BaseModel):
+class GuildMembershipUpdate(SanitizedBaseModel):
     """Schema for updating a user's guild membership role."""
     role: GuildRole
 
 
-class LeaveGuildEligibilityResponse(BaseModel):
+class LeaveGuildEligibilityResponse(SanitizedBaseModel):
     """Response for checking if a user can leave a guild.
 
     ``owned_projects`` lists projects in this guild whose ``owner_id``
@@ -115,7 +117,7 @@ class LeaveGuildEligibilityResponse(BaseModel):
     owned_projects: list[GuildRemovalProjectInfo] = Field(default_factory=list)
 
 
-class LeaveGuildRequest(BaseModel):
+class LeaveGuildRequest(SanitizedBaseModel):
     """Body for ``DELETE /guilds/{id}/leave``.
 
     Every project the leaving user owns in this guild must appear in

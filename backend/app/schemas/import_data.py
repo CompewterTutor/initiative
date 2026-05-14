@@ -1,9 +1,11 @@
 from typing import Dict, List
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class TodoistImportRequest(BaseModel):
+class TodoistImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from Todoist CSV export."""
 
     project_id: int = Field(..., description="Target project to import tasks into")
@@ -13,7 +15,7 @@ class TodoistImportRequest(BaseModel):
     )
 
 
-class ImportResult(BaseModel):
+class ImportResult(SanitizedBaseModel):
     """Result of an import operation."""
 
     tasks_created: int = Field(default=0, description="Number of tasks successfully created")
@@ -22,14 +24,14 @@ class ImportResult(BaseModel):
     errors: List[str] = Field(default_factory=list, description="List of error messages")
 
 
-class TodoistSection(BaseModel):
+class TodoistSection(SanitizedBaseModel):
     """A section detected in the Todoist CSV."""
 
     name: str
     task_count: int
 
 
-class TodoistParseResult(BaseModel):
+class TodoistParseResult(SanitizedBaseModel):
     """Result of parsing a Todoist CSV file."""
 
     sections: List[TodoistSection] = Field(
@@ -42,7 +44,7 @@ class TodoistParseResult(BaseModel):
 # Vikunja import schemas
 
 
-class VikunjaImportRequest(BaseModel):
+class VikunjaImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from Vikunja JSON export."""
 
     project_id: int = Field(..., description="Target Initiative project to import into")
@@ -53,7 +55,7 @@ class VikunjaImportRequest(BaseModel):
     )
 
 
-class VikunjaBucket(BaseModel):
+class VikunjaBucket(SanitizedBaseModel):
     """A bucket (status column) from a Vikunja project."""
 
     id: int
@@ -61,7 +63,7 @@ class VikunjaBucket(BaseModel):
     task_count: int
 
 
-class VikunjaProject(BaseModel):
+class VikunjaProject(SanitizedBaseModel):
     """A project detected in the Vikunja export."""
 
     id: int
@@ -70,7 +72,7 @@ class VikunjaProject(BaseModel):
     buckets: List[VikunjaBucket] = Field(default_factory=list)
 
 
-class VikunjaParseResult(BaseModel):
+class VikunjaParseResult(SanitizedBaseModel):
     """Result of parsing a Vikunja JSON export."""
 
     projects: List[VikunjaProject] = Field(
@@ -82,7 +84,7 @@ class VikunjaParseResult(BaseModel):
 # TickTick import schemas
 
 
-class TickTickImportRequest(BaseModel):
+class TickTickImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from TickTick CSV export."""
 
     project_id: int = Field(..., description="Target Initiative project to import into")
@@ -93,14 +95,14 @@ class TickTickImportRequest(BaseModel):
     )
 
 
-class TickTickColumn(BaseModel):
+class TickTickColumn(SanitizedBaseModel):
     """A column (status) from a TickTick list."""
 
     name: str
     task_count: int
 
 
-class TickTickList(BaseModel):
+class TickTickList(SanitizedBaseModel):
     """A list detected in the TickTick export."""
 
     name: str
@@ -108,7 +110,7 @@ class TickTickList(BaseModel):
     columns: List[TickTickColumn] = Field(default_factory=list)
 
 
-class TickTickParseResult(BaseModel):
+class TickTickParseResult(SanitizedBaseModel):
     """Result of parsing a TickTick CSV export."""
 
     lists: List[TickTickList] = Field(

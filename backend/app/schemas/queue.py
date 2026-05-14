@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 from app.models.queue import QueuePermissionLevel
 from app.schemas.tag import TagSummary
@@ -18,12 +20,12 @@ if TYPE_CHECKING:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 
-class QueuePermissionCreate(BaseModel):
+class QueuePermissionCreate(SanitizedBaseModel):
     user_id: int
     level: QueuePermissionLevel = QueuePermissionLevel.write
 
 
-class QueuePermissionRead(BaseModel):
+class QueuePermissionRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     user_id: int
@@ -31,12 +33,12 @@ class QueuePermissionRead(BaseModel):
     created_at: datetime
 
 
-class QueueRolePermissionCreate(BaseModel):
+class QueueRolePermissionCreate(SanitizedBaseModel):
     initiative_role_id: int
     level: QueuePermissionLevel = QueuePermissionLevel.read
 
 
-class QueueRolePermissionRead(BaseModel):
+class QueueRolePermissionRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     initiative_role_id: int
@@ -51,7 +53,7 @@ class QueueRolePermissionRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class QueueItemDocumentRead(BaseModel):
+class QueueItemDocumentRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     document_id: int
@@ -59,7 +61,7 @@ class QueueItemDocumentRead(BaseModel):
     attached_at: datetime
 
 
-class QueueItemTaskRead(BaseModel):
+class QueueItemTaskRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     task_id: int
@@ -72,11 +74,11 @@ class QueueItemTaskRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class QueueItemBase(BaseModel):
+class QueueItemBase(SanitizedBaseModel):
     label: str = Field(..., min_length=1, max_length=255)
     position: int = 0
     color: Optional[str] = None
-    notes: Optional[str] = None
+    notes: Optional[RichTextStr] = None
     is_visible: bool = True
 
 
@@ -87,12 +89,12 @@ class QueueItemCreate(QueueItemBase):
     task_ids: Optional[List[int]] = None
 
 
-class QueueItemUpdate(BaseModel):
+class QueueItemUpdate(SanitizedBaseModel):
     label: Optional[str] = None
     position: Optional[int] = None
     user_id: Optional[int] = None
     color: Optional[str] = None
-    notes: Optional[str] = None
+    notes: Optional[RichTextStr] = None
     is_visible: Optional[bool] = None
 
 
@@ -109,8 +111,8 @@ class QueueItemRead(QueueItemBase):
     created_at: datetime
 
 
-class QueueItemReorderRequest(BaseModel):
-    class ReorderItem(BaseModel):
+class QueueItemReorderRequest(SanitizedBaseModel):
+    class ReorderItem(SanitizedBaseModel):
         id: int
         position: int
 
@@ -122,7 +124,7 @@ class QueueItemReorderRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class QueueBase(BaseModel):
+class QueueBase(SanitizedBaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
 
@@ -133,7 +135,7 @@ class QueueCreate(QueueBase):
     user_permissions: Optional[List[QueuePermissionCreate]] = None
 
 
-class QueueUpdate(BaseModel):
+class QueueUpdate(SanitizedBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
 
@@ -153,7 +155,7 @@ class QueueSummary(QueueBase):
     my_permission_level: Optional[str] = None
 
 
-class QueueListResponse(BaseModel):
+class QueueListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[QueueSummary]

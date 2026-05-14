@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class TagBase(BaseModel):
+class TagBase(SanitizedBaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     color: str = Field(default="#6366F1", pattern=r"^#[0-9A-Fa-f]{6}$")
 
@@ -20,7 +22,7 @@ class TagCreate(TagBase):
     pass
 
 
-class TagUpdate(BaseModel):
+class TagUpdate(SanitizedBaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     color: Optional[str] = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
 
@@ -33,7 +35,7 @@ class TagUpdate(BaseModel):
         return v
 
 
-class TagSummary(BaseModel):
+class TagSummary(SanitizedBaseModel):
     """Lightweight tag representation for embedding in other schemas."""
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
@@ -51,12 +53,12 @@ class TagRead(TagBase):
     updated_at: datetime
 
 
-class TagSetRequest(BaseModel):
+class TagSetRequest(SanitizedBaseModel):
     """Request body for setting tags on an entity."""
     tag_ids: List[int] = Field(default_factory=list)
 
 
-class TaggedEntitiesResponse(BaseModel):
+class TaggedEntitiesResponse(SanitizedBaseModel):
     """Response for GET /tags/{id}/entities - all entities with a given tag."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -65,7 +67,7 @@ class TaggedEntitiesResponse(BaseModel):
     documents: List["TaggedDocumentSummary"] = Field(default_factory=list)
 
 
-class TaggedTaskSummary(BaseModel):
+class TaggedTaskSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -74,7 +76,7 @@ class TaggedTaskSummary(BaseModel):
     project_name: Optional[str] = None
 
 
-class TaggedProjectSummary(BaseModel):
+class TaggedProjectSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -83,7 +85,7 @@ class TaggedProjectSummary(BaseModel):
     initiative_name: Optional[str] = None
 
 
-class TaggedDocumentSummary(BaseModel):
+class TaggedDocumentSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -92,7 +94,7 @@ class TaggedDocumentSummary(BaseModel):
     initiative_name: Optional[str] = None
 
 
-class TaggedEventSummary(BaseModel):
+class TaggedEventSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int

@@ -5,33 +5,6 @@ import HttpBackend from "i18next-http-backend";
 
 import { getItem, setItem } from "@/lib/storage";
 
-export const defaultNS = "common";
-export const namespaces = [
-  "common",
-  "auth",
-  "nav",
-  "projects",
-  "tasks",
-  "documents",
-  "initiatives",
-  "settings",
-  "tags",
-  "guilds",
-  "import",
-  "notifications",
-  "queues",
-  "events",
-  "stats",
-  "landing",
-  "errors",
-  "dates",
-  "dashboard",
-  "command",
-  "properties",
-] as const;
-
-const LANGUAGE_STORAGE_KEY = "initiative-language";
-
 /**
  * Custom language detector that uses the app's storage abstraction
  * instead of accessing localStorage directly. This ensures language
@@ -42,18 +15,17 @@ const storageLanguageDetector: LanguageDetectorModule = {
   type: "languageDetector",
   init() {},
   detect() {
-    const stored = getItem(LANGUAGE_STORAGE_KEY);
+    const stored = getItem("initiative-language");
     if (stored) {
       return stored;
     }
-    // Fall back to browser language
     if (typeof navigator !== "undefined") {
       return navigator.language;
     }
     return undefined;
   },
   cacheUserLanguage(lng: string) {
-    setItem(LANGUAGE_STORAGE_KEY, lng);
+    setItem("initiative-language", lng);
   },
 };
 
@@ -64,7 +36,9 @@ void i18n
   .init({
     load: "languageOnly",
     fallbackLng: "en",
-    defaultNS,
+    supportedLngs: ["en", "es", "fr"],
+    nonExplicitSupportedLngs: true,
+    defaultNS: "common",
     fallbackNS: "common",
     // ``errors`` is preloaded alongside ``common`` because
     // ``getErrorMessage`` (in ``@/lib/errorMessage``) is invoked from

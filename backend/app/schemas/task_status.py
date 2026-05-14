@@ -1,6 +1,8 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.task import TaskStatusCategory
 
@@ -10,7 +12,7 @@ from app.models.task import TaskStatusCategory
 HEX_COLOR_PATTERN = r"^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"
 
 
-class TaskStatusBase(BaseModel):
+class TaskStatusBase(SanitizedBaseModel):
     name: str = Field(min_length=1, max_length=100)
     category: TaskStatusCategory
     position: int = Field(ge=0)
@@ -19,7 +21,7 @@ class TaskStatusBase(BaseModel):
     icon: str = Field(min_length=1, max_length=64)
 
 
-class TaskStatusCreate(BaseModel):
+class TaskStatusCreate(SanitizedBaseModel):
     name: str = Field(min_length=1, max_length=100)
     category: TaskStatusCategory
     position: Optional[int] = Field(default=None, ge=0)
@@ -30,7 +32,7 @@ class TaskStatusCreate(BaseModel):
     icon: Optional[str] = Field(default=None, min_length=1, max_length=64)
 
 
-class TaskStatusUpdate(BaseModel):
+class TaskStatusUpdate(SanitizedBaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     category: Optional[TaskStatusCategory] = None
     position: Optional[int] = Field(default=None, ge=0)
@@ -48,14 +50,14 @@ class TaskStatusRead(TaskStatusBase):
     project_id: int
 
 
-class TaskStatusDeleteRequest(BaseModel):
+class TaskStatusDeleteRequest(SanitizedBaseModel):
     fallback_status_id: Optional[int] = None
 
 
-class TaskStatusReorderItem(BaseModel):
+class TaskStatusReorderItem(SanitizedBaseModel):
     id: int
     position: int
 
 
-class TaskStatusReorderRequest(BaseModel):
+class TaskStatusReorderRequest(SanitizedBaseModel):
     items: List[TaskStatusReorderItem]

@@ -3,7 +3,9 @@
 from datetime import datetime
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.property import PropertyType
 
@@ -12,7 +14,7 @@ _HEX_COLOR_PATTERN = r"^#[0-9A-Fa-f]{6}$"
 _SELECT_TYPES = {PropertyType.select, PropertyType.multi_select}
 
 
-class PropertyOption(BaseModel):
+class PropertyOption(SanitizedBaseModel):
     """One option entry for select / multi_select property definitions."""
 
     value: str = Field(..., min_length=1, max_length=64, pattern=_SLUG_PATTERN)
@@ -20,7 +22,7 @@ class PropertyOption(BaseModel):
     color: Optional[str] = Field(default=None, pattern=_HEX_COLOR_PATTERN)
 
 
-class PropertyDefinitionBase(BaseModel):
+class PropertyDefinitionBase(SanitizedBaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     type: PropertyType
     position: float = 0.0
@@ -53,7 +55,7 @@ class PropertyDefinitionCreate(PropertyDefinitionBase):
     initiative_id: int
 
 
-class PropertyDefinitionUpdate(BaseModel):
+class PropertyDefinitionUpdate(SanitizedBaseModel):
     """Mutable fields on a property definition.
 
     ``type`` is deliberately excluded — type changes require a dedicated
@@ -95,7 +97,7 @@ class PropertyDefinitionRead(PropertyDefinitionBase):
     updated_at: datetime
 
 
-class PropertyDefinitionUpdateResponse(BaseModel):
+class PropertyDefinitionUpdateResponse(SanitizedBaseModel):
     """Envelope for PATCH /property-definitions/{id}.
 
     Always returns ``orphaned_value_count`` so the SPA can surface a
@@ -109,7 +111,7 @@ class PropertyDefinitionUpdateResponse(BaseModel):
     orphaned_value_count: int = 0
 
 
-class PropertyValueInput(BaseModel):
+class PropertyValueInput(SanitizedBaseModel):
     """A single (property_id, value) pair submitted by the client.
 
     The value is polymorphic because the Pydantic layer can't know the
@@ -121,7 +123,7 @@ class PropertyValueInput(BaseModel):
     value: Any = None
 
 
-class PropertyValuesSetRequest(BaseModel):
+class PropertyValuesSetRequest(SanitizedBaseModel):
     """Replace-all payload for PUT /{entity}/{id}/properties.
 
     An empty list clears every property value on the entity.
@@ -130,7 +132,7 @@ class PropertyValuesSetRequest(BaseModel):
     values: List[PropertyValueInput] = Field(default_factory=list)
 
 
-class PropertySummary(BaseModel):
+class PropertySummary(SanitizedBaseModel):
     """Lightweight property value for embedding in entity reads.
 
     ``value`` is rehydrated from the correct typed column by the service

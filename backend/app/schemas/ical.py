@@ -2,10 +2,12 @@
 
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
-class ICalEventPreview(BaseModel):
+class ICalEventPreview(SanitizedBaseModel):
     summary: str
     start_at: str
     end_at: Optional[str] = None
@@ -13,22 +15,22 @@ class ICalEventPreview(BaseModel):
     has_recurrence: bool
 
 
-class ICalParseResult(BaseModel):
+class ICalParseResult(SanitizedBaseModel):
     event_count: int
     events: List[ICalEventPreview]
     has_recurring: bool
 
 
-class ICalParseRequest(BaseModel):
+class ICalParseRequest(SanitizedBaseModel):
     ics_content: str = Field(..., max_length=2_000_000)
 
 
-class ICalImportRequest(BaseModel):
+class ICalImportRequest(SanitizedBaseModel):
     initiative_id: int
     ics_content: str = Field(..., max_length=2_000_000)
 
 
-class ICalImportResult(BaseModel):
+class ICalImportResult(SanitizedBaseModel):
     events_created: int = 0
     events_failed: int = 0
     errors: List[str] = Field(default_factory=list)

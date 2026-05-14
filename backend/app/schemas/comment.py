@@ -4,7 +4,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 
 class MentionEntityType(str, Enum):
@@ -14,7 +16,7 @@ class MentionEntityType(str, Enum):
     project = "project"
 
 
-class CommentAuthor(BaseModel):
+class CommentAuthor(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -24,8 +26,8 @@ class CommentAuthor(BaseModel):
     avatar_base64: Optional[str] = None
 
 
-class CommentBase(BaseModel):
-    content: str
+class CommentBase(SanitizedBaseModel):
+    content: RichTextStr
 
     @field_validator("content")
     @classmethod
@@ -70,9 +72,9 @@ class CommentRead(CommentBase):
     project_id: Optional[int] = None
 
 
-class RecentActivityEntry(BaseModel):
+class RecentActivityEntry(SanitizedBaseModel):
     comment_id: int
-    content: str
+    content: RichTextStr
     created_at: datetime
     author: Optional[CommentAuthor] = None
     task_id: Optional[int] = None
@@ -83,7 +85,7 @@ class RecentActivityEntry(BaseModel):
     project_name: Optional[str] = None
 
 
-class MentionSuggestion(BaseModel):
+class MentionSuggestion(SanitizedBaseModel):
     """A suggestion for mention autocomplete."""
 
     type: MentionEntityType

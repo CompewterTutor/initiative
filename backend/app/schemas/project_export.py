@@ -11,7 +11,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.property import PropertyType
 from app.models.task import TaskPriority, TaskStatusCategory
@@ -24,7 +26,7 @@ MIN_SUPPORTED_IMPORT_VERSION = 1
 """Imports below this version are rejected. Future migrations may bridge older versions."""
 
 
-class ProjectExportProject(BaseModel):
+class ProjectExportProject(SanitizedBaseModel):
     name: str
     icon: Optional[str] = None
     description: Optional[str] = None
@@ -32,12 +34,12 @@ class ProjectExportProject(BaseModel):
     is_archived: bool = False
 
 
-class ProjectExportTag(BaseModel):
+class ProjectExportTag(SanitizedBaseModel):
     name: str
     color: str
 
 
-class ProjectExportTaskStatus(BaseModel):
+class ProjectExportTaskStatus(SanitizedBaseModel):
     name: str
     category: TaskStatusCategory
     position: int = 0
@@ -46,7 +48,7 @@ class ProjectExportTaskStatus(BaseModel):
     is_default: bool = False
 
 
-class ProjectExportPropertyDefinition(BaseModel):
+class ProjectExportPropertyDefinition(SanitizedBaseModel):
     name: str
     type: PropertyType
     position: float = 0.0
@@ -54,7 +56,7 @@ class ProjectExportPropertyDefinition(BaseModel):
     options: Optional[List[dict]] = None
 
 
-class ProjectExportPropertyValue(BaseModel):
+class ProjectExportPropertyValue(SanitizedBaseModel):
     """Typed property value snapshot.
 
     ``property_type`` is repeated alongside the value so the importer can
@@ -81,13 +83,13 @@ class ProjectExportPropertyValue(BaseModel):
     value_json: Optional[Any] = None
 
 
-class ProjectExportSubtask(BaseModel):
+class ProjectExportSubtask(SanitizedBaseModel):
     content: str
     is_completed: bool = False
     position: int = 0
 
 
-class ProjectExportTask(BaseModel):
+class ProjectExportTask(SanitizedBaseModel):
     title: str
     description: Optional[str] = None
     priority: TaskPriority = TaskPriority.medium
@@ -110,7 +112,7 @@ class ProjectExportTask(BaseModel):
     property_values: List[ProjectExportPropertyValue]
 
 
-class ProjectExportEnvelope(BaseModel):
+class ProjectExportEnvelope(SanitizedBaseModel):
     """Top-level export document. Versioned so the importer can refuse
     or migrate older / unknown formats.
 
@@ -134,7 +136,7 @@ class ProjectExportEnvelope(BaseModel):
     tasks: List[ProjectExportTask]
 
 
-class ProjectImportRequest(BaseModel):
+class ProjectImportRequest(SanitizedBaseModel):
     """Body for ``POST /api/v1/projects/import``.
 
     The envelope is included inline rather than as multipart so the API
@@ -153,7 +155,7 @@ class ProjectImportRequest(BaseModel):
     envelope: dict
 
 
-class ProjectImportResult(BaseModel):
+class ProjectImportResult(SanitizedBaseModel):
     """Summary of what happened during an import. Surfaced in the UI so
     the user can see how many references were dropped or remapped."""
 
