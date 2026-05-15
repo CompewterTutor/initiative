@@ -289,92 +289,93 @@ export function WikilinksPlugin({
       onSelectOption={onSelectOption}
       triggerFn={checkForTriggerMatch}
       options={options}
+      anchorClassName="z-[60]"
       menuRenderFn={(
-          anchorElementRef,
-          { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }
-        ) => {
-          if (!anchorElementRef.current) {
-            return null;
-          }
+        anchorElementRef,
+        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }
+      ) => {
+        if (!anchorElementRef.current) {
+          return null;
+        }
 
-          // Don't show menu if no query yet
-          if (queryString === null) {
-            return null;
-          }
+        // Don't show menu if no query yet
+        if (queryString === null) {
+          return null;
+        }
 
-          // Show loading or options
-          if (isLoading && options.length === 0) {
-            return createPortal(
-              <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
-                <span className="text-muted-foreground text-sm">Searching...</span>
-              </div>,
-              anchorElementRef.current
-            );
-          }
-
-          if (options.length === 0) {
-            return createPortal(
-              <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
-                <span className="text-muted-foreground text-sm">
-                  Type to search or create a new document
-                </span>
-              </div>,
-              anchorElementRef.current
-            );
-          }
-
+        // Show loading or options
+        if (isLoading && options.length === 0) {
           return createPortal(
-            <div className="absolute z-10 w-[300px] rounded-md shadow-md">
-              <Command
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setHighlightedIndex(
-                      selectedIndex !== null
-                        ? (selectedIndex - 1 + options.length) % options.length
-                        : options.length - 1
-                    );
-                  } else if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setHighlightedIndex(
-                      selectedIndex !== null ? (selectedIndex + 1) % options.length : 0
-                    );
-                  }
-                }}
-              >
-                <CommandList>
-                  <CommandGroup>
-                    {options.map((option, index) => (
-                      <CommandItem
-                        key={option.key}
-                        value={option.title}
-                        onSelect={() => {
-                          selectOptionAndCleanUp(option);
-                        }}
-                        className={`flex items-center gap-2 ${
-                          selectedIndex === index ? "bg-accent" : "bg-transparent!"
-                        }`}
-                      >
-                        {option.isCreateNew ? (
-                          <>
-                            <Plus className="text-muted-foreground h-4 w-4" />
-                            <span className="truncate">Create &ldquo;{option.title}&rdquo;</span>
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="text-muted-foreground h-4 w-4" />
-                            <span className="truncate">{option.title}</span>
-                          </>
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
+            <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
+              <span className="text-muted-foreground text-sm">Searching...</span>
             </div>,
             anchorElementRef.current
           );
-        }}
+        }
+
+        if (options.length === 0) {
+          return createPortal(
+            <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
+              <span className="text-muted-foreground text-sm">
+                Type to search or create a new document
+              </span>
+            </div>,
+            anchorElementRef.current
+          );
+        }
+
+        return createPortal(
+          <div className="absolute z-10 w-[300px] rounded-md shadow-md">
+            <Command
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightedIndex(
+                    selectedIndex !== null
+                      ? (selectedIndex - 1 + options.length) % options.length
+                      : options.length - 1
+                  );
+                } else if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightedIndex(
+                    selectedIndex !== null ? (selectedIndex + 1) % options.length : 0
+                  );
+                }
+              }}
+            >
+              <CommandList>
+                <CommandGroup>
+                  {options.map((option, index) => (
+                    <CommandItem
+                      key={option.key}
+                      value={option.title}
+                      onSelect={() => {
+                        selectOptionAndCleanUp(option);
+                      }}
+                      className={`flex items-center gap-2 ${
+                        selectedIndex === index ? "bg-accent" : "bg-transparent!"
+                      }`}
+                    >
+                      {option.isCreateNew ? (
+                        <>
+                          <Plus className="text-muted-foreground h-4 w-4" />
+                          <span className="truncate">Create &ldquo;{option.title}&rdquo;</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="text-muted-foreground h-4 w-4" />
+                          <span className="truncate">{option.title}</span>
+                        </>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </div>,
+          anchorElementRef.current
+        );
+      }}
     />
   );
 }
