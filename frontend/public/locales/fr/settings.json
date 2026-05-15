@@ -154,6 +154,7 @@
     "apiKeyHelpNewShort": "Entrez votre clé API pour ce fournisseur.",
     "modelFieldLabel": "Modèle",
     "baseUrlLabel": "URL de base",
+    "httpWarning": "Utilisation d'un point de terminaison HTTP non chiffré. Configurez TLS / HTTPS pour les déploiements en production.",
     "saveSettings": "Enregistrer les paramètres",
     "savingSettings": "Enregistrement\u2026",
     "testConnection": "Tester la connexion",

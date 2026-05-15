@@ -154,6 +154,7 @@
     "apiKeyHelpNewShort": "Ingresa tu clave API para este proveedor.",
     "modelFieldLabel": "Modelo",
     "baseUrlLabel": "URL base",
+    "httpWarning": "Usando un endpoint HTTP sin cifrar. Configure TLS / HTTPS para entornos de producción.",
     "saveSettings": "Guardar configuración",
     "savingSettings": "Guardando\u2026",
     "testConnection": "Probar conexión",

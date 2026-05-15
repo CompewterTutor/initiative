@@ -23,7 +23,7 @@ import {
   useFetchAIModels,
 } from "@/hooks/useAISettings";
 import { useGuilds } from "@/hooks/useGuilds";
-import { getModelsForProvider, PROVIDER_CONFIGS } from "@/lib/ai-providers";
+import { getModelsForProvider, getProvidersForScope, PROVIDER_CONFIGS } from "@/lib/ai-providers";
 import type { AIProvider, GuildAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
 
 interface FormState {
@@ -307,6 +307,9 @@ export const SettingsGuildAIPage = () => {
                 <Select
                   value={formState.provider}
                   onValueChange={(value) => {
+                    // Ignore Radix Select's spurious "" reset (fired by the
+                    // hidden bubble input before SelectItems mount).
+                    if (!value) return;
                     const config = PROVIDER_CONFIGS[value as AIProvider];
                     setFormState((prev) => ({
                       ...prev,
@@ -320,14 +323,9 @@ export const SettingsGuildAIPage = () => {
                     <SelectValue placeholder={t("ai.providerPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {(
-                      Object.entries(PROVIDER_CONFIGS) as [
-                        AIProvider,
-                        (typeof PROVIDER_CONFIGS)[AIProvider],
-                      ][]
-                    ).map(([key, config]) => (
+                    {getProvidersForScope("guild").map((key) => (
                       <SelectItem key={key} value={key}>
-                        {config.label}
+                        {PROVIDER_CONFIGS[key].label}
                       </SelectItem>
                     ))}
                   </SelectContent>

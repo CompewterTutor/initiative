@@ -37,7 +37,10 @@ async def _validate_generation_base_url(
     provider: AIProvider | None,
     base_url: str | None,
 ) -> None:
-    if provider not in {AIProvider.ollama, AIProvider.custom} or not base_url:
+    # Ollama is platform-admin-only (guild/user can no longer select it),
+    # so its base_url is operator-controlled and trusted. Only custom
+    # providers still flow user-supplied URLs that need the SSRF guard.
+    if provider != AIProvider.custom or not base_url:
         return
     try:
         await assert_target_url_is_public_async(base_url)

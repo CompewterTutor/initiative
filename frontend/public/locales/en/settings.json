@@ -154,6 +154,7 @@
     "apiKeyHelpNewShort": "Enter your API key for this provider.",
     "modelFieldLabel": "Model",
     "baseUrlLabel": "Base URL",
+    "httpWarning": "Using an unencrypted HTTP endpoint. Configure TLS / HTTPS for production deployments.",
     "saveSettings": "Save settings",
     "savingSettings": "Saving\u2026",
     "testConnection": "Test Connection",

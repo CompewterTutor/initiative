@@ -20,7 +20,7 @@ from app.api.deps import (
 )
 from app.api.v1.endpoints.admin import AdminUserDep
 from app.models.guild import GuildRole
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.ai_settings import (
     AIModelsRequest,
     AIModelsResponse,
@@ -154,7 +154,10 @@ async def test_ai_connection(
         resolved = await ai_settings_service.resolve_ai_settings(session, current_user, guild_context.guild_id)
         api_key = resolved.api_key
 
-    return await ai_settings_service.test_ai_connection(payload, existing_api_key=api_key)
+    bypass_ssrf = current_user.role == UserRole.admin
+    return await ai_settings_service.test_ai_connection(
+        payload, existing_api_key=api_key, bypass_ssrf=bypass_ssrf
+    )
 
 
 # Fetch models endpoint (any authenticated user)
@@ -175,10 +178,12 @@ async def fetch_ai_models(
         resolved = await ai_settings_service.resolve_ai_settings(session, current_user, guild_context.guild_id)
         api_key = resolved.api_key
 
+    bypass_ssrf = current_user.role == UserRole.admin
     models, error = await ai_settings_service.fetch_models(
         payload.provider,
         api_key,
         payload.base_url,
+        bypass_ssrf=bypass_ssrf,
     )
 
     return AIModelsResponse(models=models, error=error)
