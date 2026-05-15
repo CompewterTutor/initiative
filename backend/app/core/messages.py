@@ -331,3 +331,4 @@ class WebhookSubscriptionMessages:
 
 class AIMessages:
     INVALID_BASE_URL = "AI_INVALID_BASE_URL"
+    PROVIDER_NOT_ALLOWED = "AI_PROVIDER_NOT_ALLOWED"

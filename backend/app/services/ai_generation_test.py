@@ -20,16 +20,13 @@ async def _resolved_settings(
 
 
 @pytest.mark.unit
-async def test_generate_subtasks_blocks_existing_private_ollama_base_url(monkeypatch):
-    async def fake_resolve(*args, **kwargs):
-        return await _resolved_settings(AIProvider.ollama, "http://169.254.169.254")
-
-    monkeypatch.setattr(ai_generation, "resolve_ai_settings", fake_resolve)
-
-    with pytest.raises(ai_generation.AIGenerationError) as exc_info:
-        await ai_generation.generate_subtasks(None, object(), 1, object())
-
-    assert str(exc_info.value) == "AI_INVALID_BASE_URL"
+async def test_generate_subtasks_allows_private_ollama_base_url():
+    """Ollama is platform-only (operator-controlled), so the SSRF guard
+    no longer applies to its base_url during generation."""
+    # Should not raise — guard is bypassed for ollama.
+    await ai_generation._validate_generation_base_url(
+        AIProvider.ollama, "http://169.254.169.254"
+    )
 
 
 @pytest.mark.unit

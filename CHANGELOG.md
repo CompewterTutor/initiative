@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Restrict Ollama AI provider to platform-level settings. Guild and user AI settings no longer offer Ollama as a provider option (it cannot reasonably be reached from outside the host's network anyway). A migration nulls out any pre-existing Ollama overrides on guild_settings and users, falling back to the inherited platform configuration.
+- Show an inline HTTP warning on the platform AI page when the Ollama base URL is configured with `http://`, reminding admins to use TLS in production.
+- Platform admins can now point Ollama / custom AI base URLs at `http://` or private addresses. The SSRF guard still applies to guild/user-supplied URLs in the test-connection and fetch-models endpoints; it is bypassed only when the caller is a platform admin (who already controls the host). AI generation paths trust ollama URLs unconditionally now that ollama is platform-only.
 - Bump vite from v7 to v8. Decreases bundler step from 25s to 2s.
 - Migrate to typescript 7 beta. Decreases compile step from 25s to 5s.
 - Bump Dockerfile Node.js from v20 to v24.

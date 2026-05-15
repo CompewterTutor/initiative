@@ -223,5 +223,7 @@
   "PROJECT_EXPORT_NO_TASK_STATUSES": "La exportación del proyecto no tiene estados de tarea, que son obligatorios para importar.",
   "ADVANCED_TOOL_NOT_CONFIGURED": "La herramienta avanzada no está configurada en esta instalación.",
   "ADVANCED_TOOL_NOT_ENABLED": "La herramienta avanzada no está activada para esta iniciativa.",
+  "AI_INVALID_BASE_URL": "La URL base no está permitida. Use un nombre de host público.",
+  "AI_PROVIDER_NOT_ALLOWED": "Ollama solo se puede configurar a nivel de plataforma.",
   "fallback": "Algo salió mal. Por favor intenta de nuevo."
 }

@@ -223,5 +223,7 @@
   "PROJECT_EXPORT_NO_TASK_STATUSES": "The project export has no task statuses, which is required for import.",
   "ADVANCED_TOOL_NOT_CONFIGURED": "The advanced tool is not configured for this deployment.",
   "ADVANCED_TOOL_NOT_ENABLED": "The advanced tool is not enabled for this initiative.",
+  "AI_INVALID_BASE_URL": "Base URL is not allowed. Use a public hostname.",
+  "AI_PROVIDER_NOT_ALLOWED": "Ollama can only be configured at the platform level.",
   "fallback": "Something went wrong. Please try again."
 }

@@ -14,9 +14,13 @@ export const useAIEnabled = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const data = query.data;
+  // Ollama doesn't require an API key; every other provider does.
+  const hasCredentials = data?.provider === "ollama" || Boolean(data?.has_api_key);
+
   return {
-    isEnabled: Boolean(query.data?.enabled && query.data?.has_api_key),
+    isEnabled: Boolean(data?.enabled && hasCredentials),
     isLoading: query.isLoading,
-    data: query.data,
+    data,
   };
 };
