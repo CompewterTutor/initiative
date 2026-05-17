@@ -22,8 +22,10 @@ import {
   type ToolbarSelection,
 } from "@/components/documents/spreadsheet/SpreadsheetToolbar";
 import { useSpreadsheetFormatting } from "@/components/documents/spreadsheet/useSpreadsheetFormatting";
+import { useSpreadsheetHistory } from "@/components/documents/spreadsheet/useSpreadsheetHistory";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { matchHistoryShortcut } from "@/hooks/useYjsHistory";
 import { toast } from "@/lib/chesterToast";
 import { downloadBlob } from "@/lib/csv";
 import { type CellValue, colIndexToLetter, keyOf, parseKey } from "@/lib/spreadsheet/coords";
@@ -141,14 +143,26 @@ export const SpreadsheetDocumentEditor = ({
     [initialContent]
   );
 
+  // Always operate on a Y.Doc so the (battle-tested) collaborative code
+  // path is the single path and undo/redo works even with collaboration
+  // off. When the provider supplies a real doc we use it; otherwise an
+  // in-memory fallback. Awareness intentionally stays on the real
+  // ``yDoc`` (a fallback doc has no provider/peers).
+  const fallbackDoc = useMemo(() => new Y.Doc(), []);
+  const docForData = yDoc ?? fallbackDoc;
+
   const { cells, dimensions, setCell, setDimensions, bulkUpdate, replaceAll } = useSpreadsheetCells(
     {
-      yDoc,
+      yDoc: docForData,
       initialCells: sanitizedInitial.cells,
       initialDimensions: sanitizedInitial.dimensions,
     }
   );
-  const formatting = useSpreadsheetFormatting({ yDoc, initial: initialFormatting });
+  const formatting = useSpreadsheetFormatting({
+    yDoc: docForData,
+    initial: initialFormatting,
+  });
+  const history = useSpreadsheetHistory(docForData);
 
   // ``anchor`` is where the selection started, ``focus`` is the active
   // cell (drives editing / keyboard / the toolbar's indicator state).
@@ -450,6 +464,13 @@ export const SpreadsheetDocumentEditor = ({
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (editing) return;
       if (readOnly) return;
+      const histAction = matchHistoryShortcut(e);
+      if (histAction) {
+        e.preventDefault();
+        if (histAction === "undo") history.undo();
+        else history.redo();
+        return;
+      }
       const { row, col } = sel.focus;
       switch (e.key) {
         case "ArrowDown":
@@ -488,7 +509,7 @@ export const SpreadsheetDocumentEditor = ({
         beginEdit(row, col, e.key);
       }
     },
-    [editing, readOnly, sel.focus, moveSelection, beginEdit, clearSelection]
+    [editing, readOnly, history, sel.focus, moveSelection, beginEdit, clearSelection]
   );
 
   const handleEditingKeyDown = useCallback(
@@ -654,19 +675,14 @@ export const SpreadsheetDocumentEditor = ({
     };
     const fmt = pendingImport.formatting;
     if (fmt) {
-      // xlsx: replace cells AND formatting. When collaborating, wrap
-      // both in one transaction so peers never observe a torn state
-      // (new cells, old formatting). Yjs flattens the nested transacts
-      // in each replaceAll into this single outer transaction.
-      if (yDoc) {
-        yDoc.transact(() => {
-          replaceAll(pendingImport.cells, dims);
-          formatting.replaceAll(fmt);
-        }, "spreadsheet-import");
-      } else {
+      // xlsx: replace cells AND formatting in one transaction so peers
+      // never observe a torn state (new cells, old formatting) and the
+      // whole import is a single undo step. Yjs flattens the nested
+      // transacts in each replaceAll into this outer one.
+      docForData.transact(() => {
         replaceAll(pendingImport.cells, dims);
         formatting.replaceAll(fmt);
-      }
+      }, "spreadsheet-import");
     } else {
       // csv: cells only — formatting is intentionally left untouched so
       // the CSV path stays byte-for-byte the pre-formatting behavior.
@@ -674,7 +690,7 @@ export const SpreadsheetDocumentEditor = ({
     }
     setPendingImport(null);
     toast.success(t("documents:spreadsheet.importSuccess"));
-  }, [pendingImport, replaceAll, formatting, yDoc, t]);
+  }, [pendingImport, replaceAll, formatting, docForData, t]);
 
   // --- column / row resize ----------------------------------------------
   useEffect(() => {
@@ -852,6 +868,10 @@ export const SpreadsheetDocumentEditor = ({
           onExportCsv={handleExportCsv}
           onExportXlsx={handleExportXlsx}
           onImport={handleImportClick}
+          onUndo={history.undo}
+          onRedo={history.redo}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
         />
         <input
           ref={fileInputRef}

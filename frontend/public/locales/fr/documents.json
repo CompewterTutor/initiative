@@ -344,6 +344,8 @@
     "exportXlsx": "Exporter en Excel",
     "importFile": "Importer",
     "fileMenu": "Fichier",
+    "undo": "Annuler",
+    "redo": "Rétablir",
     "exportSuccess": "Feuille de calcul export\u00e9e",
     "exportError": "Impossible d'exporter la feuille de calcul. Veuillez r\u00e9essayer.",
     "fileTooLarge": "Ce fichier est anormalement volumineux. Choisissez un fichier plus petit (\u226450 Mo).",
