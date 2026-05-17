@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-05-16
+
 ### Added
 
 - **Spreadsheet undo/redo (per session).** Spreadsheets now support undo/redo via toolbar buttons and keyboard shortcuts (Ctrl/Cmd+Z, Ctrl+Y / Cmd+Shift+Z), covering cell edits, paste, formatting, borders, column/row resize, freeze, and CSV/XLSX import. History is per user and per session and works whether collaboration is on or off; a peer's edits are never undone by you. Built on a new editor-agnostic `useYjsHistory` primitive (wrapping `Y.UndoManager`) that any future Yjs-backed editor can reuse with a small adapter.
