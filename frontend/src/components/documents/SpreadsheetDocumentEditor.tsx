@@ -942,7 +942,7 @@ export const SpreadsheetDocumentEditor = ({
           {/* Row-header strip — sticky left keeps numbers glued while
               scrolling horizontally. */}
           <div
-            className="sticky left-0 z-10"
+            className="bg-muted sticky left-0 z-10"
             style={{ width: ROW_HEADER_WIDTH, height: totalGridHeight }}
           >
             {virtualRows.map((row) => (
