@@ -344,6 +344,8 @@
     "exportXlsx": "Exportar Excel",
     "importFile": "Importar",
     "fileMenu": "Archivo",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
     "exportSuccess": "Hoja de c\u00e1lculo exportada",
     "exportError": "No se pudo exportar la hoja de c\u00e1lculo. Int\u00e9ntalo de nuevo.",
     "fileTooLarge": "Ese archivo es inusualmente grande. Elige un archivo m\u00e1s peque\u00f1o (\u226450 MB).",

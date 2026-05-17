@@ -344,6 +344,8 @@
     "exportXlsx": "Export Excel",
     "importFile": "Import",
     "fileMenu": "File",
+    "undo": "Undo",
+    "redo": "Redo",
     "exportSuccess": "Spreadsheet exported",
     "exportError": "Could not export the spreadsheet. Please try again.",
     "fileTooLarge": "That file is unusually large. Pick a smaller file (\u226450 MB).",

@@ -1,0 +1,90 @@
+import { describe, expect, it } from "vitest";
+import * as Y from "yjs";
+
+import { createYjsUndoManager, matchHistoryShortcut } from "./useYjsHistory";
+
+const TRACKED = ["spreadsheet-edit"];
+const scope = (d: Y.Doc) => [d.getMap("cells"), d.getMap("meta")];
+
+describe("createYjsUndoManager", () => {
+  it("returns null when there is no doc or empty scope", () => {
+    expect(createYjsUndoManager(null, { getScope: scope, trackedOrigins: TRACKED })).toBeNull();
+    expect(
+      createYjsUndoManager(new Y.Doc(), { getScope: () => [], trackedOrigins: TRACKED })
+    ).toBeNull();
+  });
+
+  it("captures tracked-origin transactions and undo/redo reverts them", () => {
+    const doc = new Y.Doc();
+    const um = createYjsUndoManager(doc, {
+      getScope: scope,
+      trackedOrigins: TRACKED,
+    })!;
+    const cells = doc.getMap("cells");
+
+    doc.transact(() => cells.set("0:0", "a"), "spreadsheet-edit");
+    expect(um.undoStack.length).toBe(1);
+    expect(cells.get("0:0")).toBe("a");
+
+    um.undo();
+    expect(cells.has("0:0")).toBe(false);
+    expect(um.redoStack.length).toBe(1);
+
+    um.redo();
+    expect(cells.get("0:0")).toBe("a");
+  });
+
+  it("ignores untracked (bootstrap/seed) origins", () => {
+    const doc = new Y.Doc();
+    const um = createYjsUndoManager(doc, {
+      getScope: scope,
+      trackedOrigins: TRACKED,
+    })!;
+    const cells = doc.getMap("cells");
+
+    doc.transact(() => cells.set("9:9", "seed"), "spreadsheet-bootstrap");
+    expect(um.undoStack.length).toBe(0);
+
+    um.undo(); // no-op
+    expect(cells.get("9:9")).toBe("seed");
+  });
+
+  it("treats each transaction as a discrete undo step (captureTimeout 0)", () => {
+    const doc = new Y.Doc();
+    const um = createYjsUndoManager(doc, {
+      getScope: scope,
+      trackedOrigins: TRACKED,
+    })!;
+    const cells = doc.getMap("cells");
+
+    doc.transact(() => cells.set("0:0", "a"), "spreadsheet-edit");
+    doc.transact(() => cells.set("0:1", "b"), "spreadsheet-edit");
+    expect(um.undoStack.length).toBe(2);
+
+    um.undo();
+    expect(cells.has("0:1")).toBe(false);
+    expect(cells.get("0:0")).toBe("a");
+  });
+});
+
+describe("matchHistoryShortcut", () => {
+  const ev = (over: Partial<Parameters<typeof matchHistoryShortcut>[0]>) => ({
+    key: "a",
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...over,
+  });
+
+  it("maps mod+Z to undo and mod+Shift+Z / mod+Y to redo", () => {
+    expect(matchHistoryShortcut(ev({ key: "z", ctrlKey: true }))).toBe("undo");
+    expect(matchHistoryShortcut(ev({ key: "Z", metaKey: true }))).toBe("undo");
+    expect(matchHistoryShortcut(ev({ key: "z", metaKey: true, shiftKey: true }))).toBe("redo");
+    expect(matchHistoryShortcut(ev({ key: "y", ctrlKey: true }))).toBe("redo");
+  });
+
+  it("returns null without a modifier or for unrelated keys", () => {
+    expect(matchHistoryShortcut(ev({ key: "z" }))).toBeNull();
+    expect(matchHistoryShortcut(ev({ key: "x", ctrlKey: true }))).toBeNull();
+  });
+});

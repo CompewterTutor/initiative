@@ -20,6 +20,7 @@ import {
   Italic,
   PaintBucket,
   Palette,
+  Redo2,
   SlidersHorizontal,
   Snowflake,
   Square,
@@ -28,6 +29,7 @@ import {
   Strikethrough,
   Type,
   Underline,
+  Undo2,
   Upload,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -51,6 +53,7 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { HISTORY_SHORTCUT } from "@/hooks/useYjsHistory";
 import { colIndexToLetter } from "@/lib/spreadsheet/coords";
 import type {
   BorderLineStyle,
@@ -91,6 +94,10 @@ interface SpreadsheetToolbarProps {
   onExportCsv: () => void;
   onExportXlsx: () => void;
   onImport: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 const NUMBER_PRESETS: { key: string; value: NumberFormat }[] = [
@@ -152,6 +159,10 @@ export const SpreadsheetToolbar = ({
   onExportCsv,
   onExportXlsx,
   onImport,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: SpreadsheetToolbarProps) => {
   const { t } = useTranslation(["documents", "common"]);
   const isMobile = useIsMobile();
@@ -775,6 +786,33 @@ export const SpreadsheetToolbar = ({
     </DropdownMenu>
   );
 
+  const historyControls = (
+    <div className="flex shrink-0 items-center">
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        disabled={readOnly || !canUndo}
+        onClick={onUndo}
+        aria-label={t("documents:spreadsheet.undo")}
+        title={`${t("documents:spreadsheet.undo")} (${HISTORY_SHORTCUT.undo})`}
+      >
+        <Undo2 className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="ghost"
+        disabled={readOnly || !canRedo}
+        onClick={onRedo}
+        aria-label={t("documents:spreadsheet.redo")}
+        title={`${t("documents:spreadsheet.redo")} (${HISTORY_SHORTCUT.redo})`}
+      >
+        <Redo2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   const labelSpan = (
     <span className="text-muted-foreground shrink-0 font-mono text-xs">{selectionLabel}</span>
   );
@@ -783,6 +821,7 @@ export const SpreadsheetToolbar = ({
     return (
       <div className="flex w-full items-center gap-2">
         {fileMenu}
+        {historyControls}
         {labelSpan}
         <Popover>
           <PopoverTrigger asChild>
@@ -810,6 +849,7 @@ export const SpreadsheetToolbar = ({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {fileMenu}
+      {historyControls}
       {labelSpan}
       <div className="bg-border mx-0.5 h-5 w-px" aria-hidden />
       <GroupPopover
