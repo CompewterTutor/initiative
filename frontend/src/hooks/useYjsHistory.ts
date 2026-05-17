@@ -88,8 +88,11 @@ export const matchHistoryShortcut = (e: {
   return null;
 };
 
+// ``navigator.platform`` is deprecated; ``userAgent`` is not and is
+// sufficient for a keyboard-hint heuristic (Macintosh / iPhone / iPad /
+// iPod all appear there).
 const IS_APPLE =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
 
 /** Human-readable, platform-aware shortcut hints for tooltips — same
  *  convention as the Lexical history toolbar (`⌘Z` on Apple, `Ctrl+Z`

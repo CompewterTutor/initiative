@@ -148,7 +148,13 @@ export const SpreadsheetDocumentEditor = ({
   // off. When the provider supplies a real doc we use it; otherwise an
   // in-memory fallback. Awareness intentionally stays on the real
   // ``yDoc`` (a fallback doc has no provider/peers).
-  const fallbackDoc = useMemo(() => new Y.Doc(), []);
+  //
+  // ``useState`` (not ``useMemo``) so the doc is created exactly once
+  // per real mount and re-created if React 18 StrictMode remounts; the
+  // cleanup destroys *only* the fallback doc (never the provider's
+  // ``yDoc``, which the parent owns).
+  const [fallbackDoc] = useState(() => new Y.Doc());
+  useEffect(() => () => fallbackDoc.destroy(), [fallbackDoc]);
   const docForData = yDoc ?? fallbackDoc;
 
   const { cells, dimensions, setCell, setDimensions, bulkUpdate, replaceAll } = useSpreadsheetCells(
@@ -163,6 +169,9 @@ export const SpreadsheetDocumentEditor = ({
     initial: initialFormatting,
   });
   const history = useSpreadsheetHistory(docForData);
+  // Stable callbacks (memoized in the hook, keyed on the doc) — depend
+  // on these rather than the per-render ``history`` object literal.
+  const { undo: undoHistory, redo: redoHistory } = history;
 
   // ``anchor`` is where the selection started, ``focus`` is the active
   // cell (drives editing / keyboard / the toolbar's indicator state).
@@ -467,8 +476,8 @@ export const SpreadsheetDocumentEditor = ({
       const histAction = matchHistoryShortcut(e);
       if (histAction) {
         e.preventDefault();
-        if (histAction === "undo") history.undo();
-        else history.redo();
+        if (histAction === "undo") undoHistory();
+        else redoHistory();
         return;
       }
       const { row, col } = sel.focus;
@@ -509,7 +518,16 @@ export const SpreadsheetDocumentEditor = ({
         beginEdit(row, col, e.key);
       }
     },
-    [editing, readOnly, history, sel.focus, moveSelection, beginEdit, clearSelection]
+    [
+      editing,
+      readOnly,
+      undoHistory,
+      redoHistory,
+      sel.focus,
+      moveSelection,
+      beginEdit,
+      clearSelection,
+    ]
   );
 
   const handleEditingKeyDown = useCallback(
