@@ -20,7 +20,8 @@ icalendar>=6.0.0  # iCal import/export
 nh3==0.3.5  # HTML sanitization for schema inputs
 
 # Collaboration (Yjs CRDT)
-pycrdt~=0.12.50
+# pycrdt-websocket 0.16.1 requires pycrdt>=0.13,<0.14; keep these aligned.
+pycrdt~=0.13.0
 pycrdt-websocket~=0.16.1
 
 # Testing dependencies
