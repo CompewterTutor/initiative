@@ -78,7 +78,8 @@ async def test_create_spreadsheet_round_trips_cells(
     response = await client.get(f"/api/v1/documents/{doc_id}", headers=env.headers)
     assert response.status_code == 200
     content = response.json()["content"]
-    assert content["schema_version"] == 1
+    # v1 input is upcast to the current schema version on save.
+    assert content["schema_version"] == 2
     assert content["kind"] == "spreadsheet"
     assert content["cells"] == {
         "0:0": "Date",
@@ -267,4 +268,305 @@ async def test_create_spreadsheet_with_empty_content(
     assert content["cells"] == {}
     assert content["dimensions"] == {"rows": 100, "cols": 26}
     assert content["kind"] == "spreadsheet"
-    assert content["schema_version"] == 1
+    assert content["schema_version"] == 2
+    # Fresh docs default to empty formatting structures.
+    assert content["columns"] == {}
+    assert content["rows"] == {}
+    assert content["cellStyles"] == {}
+    assert content["frozen"] == {"rows": 0, "cols": 0}
+
+
+@pytest.mark.integration
+async def test_v1_payload_upcasts_to_v2(client: AsyncClient, env: _SpreadsheetEnv):
+    """An explicit v1 payload (no formatting keys) is accepted and saved
+    as v2 with empty formatting structures — existing documents keep
+    working without a data migration and never 422."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Legacy Sheet",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 1,
+                "kind": "spreadsheet",
+                "dimensions": {"rows": 100, "cols": 26},
+                "cells": {"0:0": "kept"},
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["schema_version"] == 2
+    assert content["cells"] == {"0:0": "kept"}
+    assert content["columns"] == {}
+    assert content["rows"] == {}
+    assert content["cellStyles"] == {}
+    assert content["frozen"] == {"rows": 0, "cols": 0}
+
+
+@pytest.mark.integration
+async def test_v2_formatting_round_trips(client: AsyncClient, env: _SpreadsheetEnv):
+    """A full v2 payload round-trips: widths, styles, number formats,
+    per-cell overrides, and the frozen-pane hint."""
+    payload_content = {
+        "schema_version": 2,
+        "kind": "spreadsheet",
+        "dimensions": {"rows": 100, "cols": 26},
+        "cells": {"0:0": "Revenue", "1:0": 1234.5},
+        "columns": {
+            "0": {
+                "width": 180,
+                "format": {"type": "currency", "currency": "USD", "decimals": 2},
+                "style": {"bold": True, "align": "right"},
+            }
+        },
+        "rows": {"0": {"height": 32, "style": {"bold": True}}},
+        "cellStyles": {
+            "1:0": {"style": {"fill": "#ffeecc"}, "format": {"type": "fixed", "decimals": 1}}
+        },
+        "frozen": {"rows": 1, "cols": 1},
+    }
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Formatted",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": payload_content,
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["schema_version"] == 2
+    assert content["columns"] == {
+        "0": {
+            "width": 180,
+            "format": {"type": "currency", "currency": "USD", "decimals": 2},
+            "style": {"bold": True, "align": "right"},
+        }
+    }
+    assert content["rows"] == {"0": {"height": 32, "style": {"bold": True}}}
+    assert content["cellStyles"] == {
+        "1:0": {"style": {"fill": "#ffeecc"}, "format": {"type": "fixed", "decimals": 1}}
+    }
+    assert content["frozen"] == {"rows": 1, "cols": 1}
+
+
+@pytest.mark.integration
+async def test_v2_clamps_sizes_and_frozen(client: AsyncClient, env: _SpreadsheetEnv):
+    """Out-of-range widths/heights/decimals/frozen are clamped, not
+    rejected."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Clamp",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 2,
+                "cells": {},
+                "dimensions": {"rows": 100, "cols": 26},
+                "columns": {
+                    "0": {"width": 99999, "format": {"type": "fixed", "decimals": 99}}
+                },
+                "rows": {"0": {"height": 0}},
+                "frozen": {"rows": 50, "cols": -3},
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["columns"]["0"]["width"] == 2000
+    assert content["columns"]["0"]["format"]["decimals"] == 10
+    assert content["rows"]["0"]["height"] == 16
+    assert content["frozen"] == {"rows": 8, "cols": 0}
+
+
+@pytest.mark.integration
+async def test_v2_drops_malformed_formatting(client: AsyncClient, env: _SpreadsheetEnv):
+    """A bad ``align``, bad hex, and an unknown style key are stripped —
+    the document still saves (201, NOT 400) because formatting failures
+    must never block the user's actual data."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Lenient",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 2,
+                "cells": {"0:0": "data"},
+                "columns": {
+                    "0": {
+                        "style": {
+                            "align": "diagonal",
+                            "color": "red",
+                            "squiggly": True,
+                            "bold": True,
+                        },
+                        "format": {"type": "bogus"},
+                    },
+                    "not-an-index": {"width": 100},
+                },
+                "cellStyles": {"garbage-key": {"style": {"bold": True}}},
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    # Only the valid ``bold`` survived; the column entry is kept.
+    assert content["columns"] == {"0": {"style": {"bold": True}}}
+    assert content["cellStyles"] == {}
+
+
+@pytest.mark.integration
+async def test_v2_rejects_non_dict_columns(client: AsyncClient, env: _SpreadsheetEnv):
+    """A serialization bug that sends ``"columns": []`` is a
+    container-type violation → 400 (same strictness as ``cells``)."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Bad",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {"schema_version": 2, "cells": {}, "columns": []},
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "DOCUMENT_SPREADSHEET_INVALID_PAYLOAD"
+
+
+@pytest.mark.integration
+async def test_v2_canonicalizes_formatting_keys(
+    client: AsyncClient, env: _SpreadsheetEnv
+):
+    """Leading-zero index/cell keys collapse to canonical form so they
+    survive the JS Y.Map round-trip, exactly like the cell map."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Canon",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 2,
+                "cells": {},
+                "columns": {"007": {"width": 90}},
+                "cellStyles": {"01:02": {"style": {"italic": True}}},
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["columns"] == {"7": {"width": 90}}
+    assert content["cellStyles"] == {"1:2": {"style": {"italic": True}}}
+
+
+@pytest.mark.integration
+async def test_v2_border_round_trips_and_drops_bad_edges(
+    client: AsyncClient, env: _SpreadsheetEnv
+):
+    """Valid border edges round-trip (color lowercased); a bad style
+    enum, a bad hex, and an unknown edge are dropped without 400."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Borders",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 2,
+                "cells": {"0:0": "x"},
+                "cellStyles": {
+                    "0:0": {
+                        "style": {
+                            "border": {
+                                "top": {"style": "thin", "color": "#ABCDEF"},
+                                "bottom": {"style": "huge", "color": "#000000"},
+                                "left": {"style": "thick", "color": "red"},
+                                "diagonal": {"style": "thin", "color": "#000000"},
+                            }
+                        }
+                    }
+                },
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["cellStyles"] == {
+        "0:0": {"style": {"border": {"top": {"style": "thin", "color": "#abcdef"}}}}
+    }
+
+
+@pytest.mark.integration
+async def test_v2_tier1_style_and_number_options(
+    client: AsyncClient, env: _SpreadsheetEnv
+):
+    """Underline/strike/valign/fontSize and number-format grouping +
+    negatives round-trip; fontSize is clamped, bad valign/negatives are
+    dropped without a 400."""
+    response = await client.post(
+        "/api/v1/documents/",
+        headers=env.headers,
+        json={
+            "title": "Tier1",
+            "initiative_id": env.initiative.id,
+            "document_type": "spreadsheet",
+            "content": {
+                "schema_version": 2,
+                "cells": {"0:0": -5},
+                "cellStyles": {
+                    "0:0": {
+                        "style": {
+                            "underline": True,
+                            "strike": False,
+                            "valign": "sideways",
+                            "fontSize": 9999,
+                        },
+                        "format": {
+                            "type": "fixed",
+                            "decimals": 2,
+                            "grouping": True,
+                            "negatives": "redParens",
+                        },
+                    },
+                    "1:0": {
+                        "format": {
+                            "type": "currency",
+                            "currency": "EUR",
+                            "decimals": 0,
+                            "negatives": "bogus",
+                        }
+                    },
+                },
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    content = response.json()["content"]
+    assert content["cellStyles"]["0:0"]["style"] == {
+        "underline": True,
+        "strike": False,
+        "fontSize": 96,
+    }
+    assert content["cellStyles"]["0:0"]["format"] == {
+        "type": "fixed",
+        "decimals": 2,
+        "grouping": True,
+        "negatives": "redParens",
+    }
+    # Unknown negative style dropped; currency otherwise preserved.
+    assert content["cellStyles"]["1:0"]["format"] == {
+        "type": "currency",
+        "currency": "EUR",
+        "decimals": 0,
+    }

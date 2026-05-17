@@ -1,11 +1,11 @@
 import type { ProviderAwareness } from "@lexical/yjs";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Download, Upload } from "lucide-react";
 import {
   type ChangeEvent,
   type CSSProperties,
   type KeyboardEvent,
   type ClipboardEvent,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -17,12 +17,16 @@ import * as Y from "yjs";
 
 import { useSpreadsheetAwareness } from "@/components/documents/spreadsheet/useSpreadsheetAwareness";
 import { useSpreadsheetCells } from "@/components/documents/spreadsheet/useSpreadsheetCells";
-import { Button } from "@/components/ui/button";
+import {
+  SpreadsheetToolbar,
+  type ToolbarSelection,
+} from "@/components/documents/spreadsheet/SpreadsheetToolbar";
+import { useSpreadsheetFormatting } from "@/components/documents/spreadsheet/useSpreadsheetFormatting";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/chesterToast";
 import { downloadBlob } from "@/lib/csv";
-import { type CellValue, colIndexToLetter, keyOf } from "@/lib/spreadsheet/coords";
+import { type CellValue, colIndexToLetter, keyOf, parseKey } from "@/lib/spreadsheet/coords";
 import {
   cellsToCsv,
   coerceScalar,
@@ -30,13 +34,34 @@ import {
   detectClipboardDelimiter,
   offsetCells,
 } from "@/lib/spreadsheet/csv";
+import {
+  type CellFmt,
+  type ColumnFmt,
+  formatCellValue,
+  MAX_COL_WIDTH,
+  MAX_ROW_HEIGHT,
+  MIN_COL_WIDTH,
+  MIN_ROW_HEIGHT,
+  negativeRendersRed,
+  resolveCellFormat,
+  resolveCellStyle,
+  type RowFmt,
+  sanitizeFormatting,
+  type SpreadsheetFormatting,
+  styleToCss,
+} from "@/lib/spreadsheet/styles";
+import { cellsToXlsx, xlsxToContent } from "@/lib/spreadsheet/xlsx";
 import { cn } from "@/lib/utils";
 
 export interface SpreadsheetContent {
-  schema_version: 1;
+  schema_version: 1 | 2;
   kind: "spreadsheet";
   dimensions: { rows: number; cols: number };
   cells: Record<string, CellValue>;
+  columns?: Record<string, ColumnFmt>;
+  rows?: Record<string, RowFmt>;
+  cellStyles?: Record<string, CellFmt>;
+  frozen?: { rows: number; cols: number };
 }
 
 interface SpreadsheetDocumentEditorProps {
@@ -68,6 +93,7 @@ const ROW_GROWTH_STEP = 50;
 const COL_GROWTH_STEP = 10;
 const MAX_ROWS = 100_000;
 const MAX_COLS = 1_000;
+const RESIZE_HANDLE = 5;
 
 const slugify = (s: string): string =>
   s
@@ -81,7 +107,7 @@ const sanitizeContent = (raw: SpreadsheetContent | undefined): SpreadsheetConten
   const requestedRows = raw?.dimensions?.rows ?? DEFAULT_ROWS;
   const requestedCols = raw?.dimensions?.cols ?? DEFAULT_COLS;
   return {
-    schema_version: 1,
+    schema_version: 2,
     kind: "spreadsheet",
     dimensions: {
       rows: Math.min(Math.max(requestedRows, DEFAULT_ROWS), MAX_ROWS),
@@ -90,6 +116,12 @@ const sanitizeContent = (raw: SpreadsheetContent | undefined): SpreadsheetConten
     cells,
   };
 };
+
+interface DragState {
+  kind: "col" | "row";
+  index: number;
+  size: number;
+}
 
 export const SpreadsheetDocumentEditor = ({
   initialContent,
@@ -104,6 +136,10 @@ export const SpreadsheetDocumentEditor = ({
   const { t } = useTranslation(["documents", "common"]);
 
   const sanitizedInitial = useMemo(() => sanitizeContent(initialContent), [initialContent]);
+  const initialFormatting = useMemo<SpreadsheetFormatting>(
+    () => sanitizeFormatting(initialContent),
+    [initialContent]
+  );
 
   const { cells, dimensions, setCell, setDimensions, bulkUpdate, replaceAll } = useSpreadsheetCells(
     {
@@ -112,23 +148,64 @@ export const SpreadsheetDocumentEditor = ({
       initialDimensions: sanitizedInitial.dimensions,
     }
   );
-  const [selected, setSelected] = useState<{ row: number; col: number }>({ row: 0, col: 0 });
+  const formatting = useSpreadsheetFormatting({ yDoc, initial: initialFormatting });
+
+  // ``anchor`` is where the selection started, ``focus`` is the active
+  // cell (drives editing / keyboard / the toolbar's indicator state).
+  // ``mode`` decides what formatting targets: a cell rectangle, whole
+  // columns (header click), or whole rows.
+  const [sel, setSel] = useState<{
+    anchor: { row: number; col: number };
+    focus: { row: number; col: number };
+    mode: "range" | "columns" | "rows";
+  }>({ anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 }, mode: "range" });
   const [editing, setEditing] = useState<{ row: number; col: number; draft: string } | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  // Which header/cell drag is in progress (null = not dragging).
+  const selectingRef = useRef<null | "range" | "columns" | "rows">(null);
   const [pendingImport, setPendingImport] = useState<{
     cells: Record<string, CellValue>;
     rows: number;
     cols: number;
+    formatting?: SpreadsheetFormatting;
   } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editingInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const resizeStartRef = useRef<{ pos: number; size: number }>({ pos: 0, size: 0 });
 
-  // Auto-grow dimensions when the cell map (local or remote) writes
-  // past the current canvas. Local-only — the hook's setDimensions
-  // doesn't broadcast. Each peer runs this same effect against the
-  // shared cells map so every client converges on the same canvas
-  // size without a Y.Map round-trip per cell write.
+  // Effective per-index sizes: an in-flight resize preview wins over the
+  // shared formatting value, which wins over the constant default.
+  const colWidth = useCallback(
+    (c: number): number => {
+      if (drag?.kind === "col" && drag.index === c) return drag.size;
+      return formatting.columns[String(c)]?.width ?? COL_WIDTH;
+    },
+    [drag, formatting.columns]
+  );
+  const rowHeight = useCallback(
+    (r: number): number => {
+      if (drag?.kind === "row" && drag.index === r) return drag.size;
+      return formatting.rows[String(r)]?.height ?? ROW_HEIGHT;
+    },
+    [drag, formatting.rows]
+  );
+
+  // Stable refs the virtualizer's estimateSize reads, so its callback
+  // identity never changes (a changing estimateSize fights the cache);
+  // we explicitly ``measure()`` below when sizes actually change.
+  const colWidthRef = useRef(colWidth);
+  const rowHeightRef = useRef(rowHeight);
+  useEffect(() => {
+    colWidthRef.current = colWidth;
+    rowHeightRef.current = rowHeight;
+  }, [colWidth, rowHeight]);
+
+  // Auto-grow dimensions when the cell map writes past the canvas.
+  // Local-only — each peer converges on the same size from the shared
+  // cell map without a Y.Map round-trip per write.
   useEffect(() => {
     let maxRow = -1;
     let maxCol = -1;
@@ -148,24 +225,15 @@ export const SpreadsheetDocumentEditor = ({
   }, [cells, dimensions, setDimensions]);
 
   // Emit the JSON snapshot to the parent on every change so the
-  // existing autosave hook can PATCH ``document.content``. This
-  // closes the loop for non-collab readers (they'll see a snapshot
-  // taken within the autosave debounce window).
-  //
-  // ``onContentChange`` is captured in a ref so callers can pass an
-  // inline arrow without thrashing this effect. Including it in the
-  // dep array would mean every parent re-render fires the effect →
-  // calls onContentChange → parent setState → parent re-render →
-  // loop (max-update-depth crash).
+  // existing autosave hook can PATCH ``document.content``. Captured in
+  // a ref so callers can pass an inline arrow without thrashing this
+  // effect into a setState loop.
   const onContentChangeRef = useRef(onContentChange);
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
-  // Skip the on-mount run. Without this guard, opening a doc would
-  // immediately emit a snapshot, flip ``isDirty`` (the parent's dirty
-  // check sees a fresh-reference content object), and trigger the
-  // autosave 10s timer despite no user interaction. Only edits and
-  // remote yjs events should drive an emit.
+  // Skip the on-mount run so opening a doc doesn't flip ``isDirty`` and
+  // arm the autosave timer with no user interaction.
   const skipFirstEmitRef = useRef(true);
   useEffect(() => {
     if (skipFirstEmitRef.current) {
@@ -175,33 +243,51 @@ export const SpreadsheetDocumentEditor = ({
     const cellsObj: Record<string, CellValue> = {};
     for (const [key, value] of cells) cellsObj[key] = value;
     onContentChangeRef.current({
-      schema_version: 1,
+      schema_version: 2,
       kind: "spreadsheet",
       dimensions,
       cells: cellsObj,
+      columns: formatting.columns,
+      rows: formatting.rows,
+      cellStyles: formatting.cellStyles,
+      frozen: formatting.frozen,
     });
-  }, [cells, dimensions]);
+  }, [
+    cells,
+    dimensions,
+    formatting.columns,
+    formatting.rows,
+    formatting.cellStyles,
+    formatting.frozen,
+  ]);
 
   const rowVirtualizer = useVirtualizer({
     count: dimensions.rows,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (index) => rowHeightRef.current(index),
     overscan: 5,
   });
 
   const colVirtualizer = useVirtualizer({
     count: dimensions.cols,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => COL_WIDTH,
+    estimateSize: (index) => colWidthRef.current(index),
     horizontal: true,
     overscan: 3,
   });
 
+  // Recompute virtual offsets when explicit sizes change (remote write,
+  // local resize commit, or live drag preview). Without this the
+  // virtualizer keeps stale cached sizes.
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [formatting.rows, drag, rowVirtualizer]);
+  useEffect(() => {
+    colVirtualizer.measure();
+  }, [formatting.columns, drag, colVirtualizer]);
+
   // Auto-grow the canvas when scrolling near the edge so the grid feels
-  // unbounded. We never shrink — empty rows / cols are cheap. Purely
-  // local: scroll position is a personal UX concern, not shared state.
-  // If we broadcast it through Y.Map every peer's autosave debounce
-  // would restart whenever any client scrolled.
+  // unbounded. Local: scroll position is a personal UX concern.
   const virtualRows = rowVirtualizer.getVirtualItems();
   const virtualCols = colVirtualizer.getVirtualItems();
   useEffect(() => {
@@ -225,24 +311,83 @@ export const SpreadsheetDocumentEditor = ({
     }
   }, [virtualCols, dimensions, setDimensions]);
 
-  const moveSelection = useCallback((dRow: number, dCol: number) => {
-    setSelected((prev) => {
-      const row = Math.max(0, Math.min(prev.row + dRow, MAX_ROWS - 1));
-      const col = Math.max(0, Math.min(prev.col + dCol, MAX_COLS - 1));
-      return { row, col };
+  const selBox = useMemo(() => {
+    const r1 = Math.min(sel.anchor.row, sel.focus.row);
+    const r2 = Math.max(sel.anchor.row, sel.focus.row);
+    const c1 = Math.min(sel.anchor.col, sel.focus.col);
+    const c2 = Math.max(sel.anchor.col, sel.focus.col);
+    return { r1, r2, c1, c2 };
+  }, [sel]);
+
+  const isInSel = useCallback(
+    (r: number, c: number): boolean => {
+      const { r1, r2, c1, c2 } = selBox;
+      if (sel.mode === "columns") return c >= c1 && c <= c2;
+      if (sel.mode === "rows") return r >= r1 && r <= r2;
+      return r >= r1 && r <= r2 && c >= c1 && c <= c2;
+    },
+    [sel.mode, selBox]
+  );
+
+  const colHeaderActive = useCallback(
+    (c: number): boolean => sel.mode !== "rows" && c >= selBox.c1 && c <= selBox.c2,
+    [sel.mode, selBox]
+  );
+  const rowHeaderActive = useCallback(
+    (r: number): boolean => sel.mode !== "columns" && r >= selBox.r1 && r <= selBox.r2,
+    [sel.mode, selBox]
+  );
+
+  const selectCell = useCallback((row: number, col: number, extend = false) => {
+    setSel((p) =>
+      extend
+        ? { anchor: p.anchor, focus: { row, col }, mode: "range" }
+        : { anchor: { row, col }, focus: { row, col }, mode: "range" }
+    );
+  }, []);
+
+  const selectColumn = useCallback((col: number, extend = false) => {
+    setSel((p) => ({
+      anchor: extend && p.mode === "columns" ? p.anchor : { row: 0, col },
+      focus: { row: 0, col },
+      mode: "columns",
+    }));
+  }, []);
+
+  const selectRow = useCallback((row: number, extend = false) => {
+    setSel((p) => ({
+      anchor: extend && p.mode === "rows" ? p.anchor : { row, col: 0 },
+      focus: { row, col: 0 },
+      mode: "rows",
+    }));
+  }, []);
+
+  const moveSelection = useCallback((dRow: number, dCol: number, extend = false) => {
+    setSel((p) => {
+      const row = Math.max(0, Math.min(p.focus.row + dRow, MAX_ROWS - 1));
+      const col = Math.max(0, Math.min(p.focus.col + dCol, MAX_COLS - 1));
+      return extend
+        ? { anchor: p.anchor, focus: { row, col }, mode: "range" }
+        : { anchor: { row, col }, focus: { row, col }, mode: "range" };
     });
   }, []);
 
-  // Selection-presence awareness: publish our selected cell so peers
-  // can render a colored ring on it, and subscribe to theirs.
+  // Clear the selectingRef on any pointer release so a drag that ends
+  // off-grid still stops extending the selection.
+  useEffect(() => {
+    const onUp = () => {
+      selectingRef.current = null;
+    };
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, []);
+
   const { peerSelectionsByCell } = useSpreadsheetAwareness({
     awareness,
     clientId: yDoc?.clientID ?? null,
     user: currentUser,
-    selected,
+    selected: sel.focus,
     enabled: Boolean(awareness && yDoc && currentUser),
-    // Read-only viewers still subscribe (so they see peers' rings),
-    // they just don't broadcast their own selection.
     publishLocal: !readOnly,
   });
 
@@ -263,23 +408,15 @@ export const SpreadsheetDocumentEditor = ({
       const value = coerceScalar(editing.draft);
       setCell(editing.row, editing.col, value === "" ? null : value);
       setEditing(null);
-      if (next) setSelected(next);
+      if (next) selectCell(next.row, next.col);
     },
-    [editing, setCell]
+    [editing, setCell, selectCell]
   );
 
   const cancelEdit = useCallback(() => {
     setEditing(null);
   }, []);
 
-  // Focus the inline input when entering edit mode. Keyed on the cell
-  // coordinates, NOT the full ``editing`` object — including ``draft``
-  // in the dependency would re-run the effect on every keystroke. We
-  // intentionally don't ``.select()`` the input: when edit mode is
-  // entered by typing a character, the draft is already that one
-  // character, and selecting it would let the next keystroke overwrite
-  // it. ``focus()`` alone leaves the cursor at the end of the existing
-  // value, which matches Numbers / Excel / Sheets behavior.
   const editingCellKey = editing ? `${editing.row}:${editing.col}` : null;
   useEffect(() => {
     if (editingCellKey && editingInputRef.current) {
@@ -287,27 +424,49 @@ export const SpreadsheetDocumentEditor = ({
     }
   }, [editingCellKey]);
 
+  // Delete every cell value covered by the selection. For a range that's
+  // the rectangle; for whole-column/row selections, only the cells that
+  // actually hold data (the map is sparse) so a clear is bounded.
+  const clearSelection = useCallback(() => {
+    if (readOnly) return;
+    const { r1, r2, c1, c2 } = selBox;
+    bulkUpdate((draft) => {
+      if (sel.mode === "range") {
+        for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) draft.delete(keyOf(r, c));
+        return;
+      }
+      for (const key of Array.from(draft.keys())) {
+        const p = parseKey(key);
+        if (!p) continue;
+        const [r, c] = p;
+        if (sel.mode === "columns" ? c >= c1 && c <= c2 : r >= r1 && r <= r2) {
+          draft.delete(key);
+        }
+      }
+    });
+  }, [readOnly, sel.mode, selBox, bulkUpdate]);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (editing) return; // input handles its own keys
+      if (editing) return;
       if (readOnly) return;
-      const { row, col } = selected;
+      const { row, col } = sel.focus;
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          moveSelection(1, 0);
+          moveSelection(1, 0, e.shiftKey);
           return;
         case "ArrowUp":
           e.preventDefault();
-          moveSelection(-1, 0);
+          moveSelection(-1, 0, e.shiftKey);
           return;
         case "ArrowRight":
           e.preventDefault();
-          moveSelection(0, 1);
+          moveSelection(0, 1, e.shiftKey);
           return;
         case "ArrowLeft":
           e.preventDefault();
-          moveSelection(0, -1);
+          moveSelection(0, -1, e.shiftKey);
           return;
         case "Enter":
         case "F2":
@@ -317,20 +476,19 @@ export const SpreadsheetDocumentEditor = ({
         case "Backspace":
         case "Delete":
           e.preventDefault();
-          setCell(row, col, null);
+          clearSelection();
           return;
         case "Tab":
           e.preventDefault();
           moveSelection(0, e.shiftKey ? -1 : 1);
           return;
       }
-      // Printable character → enter edit mode with that character.
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         beginEdit(row, col, e.key);
       }
     },
-    [editing, readOnly, selected, moveSelection, beginEdit, setCell]
+    [editing, readOnly, sel.focus, moveSelection, beginEdit, clearSelection]
   );
 
   const handleEditingKeyDown = useCallback(
@@ -365,8 +523,7 @@ export const SpreadsheetDocumentEditor = ({
       const text = e.clipboardData.getData("text/plain");
       if (!text) return;
       e.preventDefault();
-      const { row, col } = selected;
-      // Single-cell value: skip the CSV parse.
+      const { row, col } = sel.focus;
       if (!text.includes("\n") && !text.includes("\t") && !text.includes(",")) {
         setCell(row, col, coerceScalar(text));
         return;
@@ -378,18 +535,38 @@ export const SpreadsheetDocumentEditor = ({
         for (const [key, value] of Object.entries(offset)) draft.set(key, value);
       });
     },
-    [editing, readOnly, selected, setCell, bulkUpdate]
+    [editing, readOnly, sel.focus, setCell, bulkUpdate]
   );
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
       if (editing) return;
-      const value = cells.get(keyOf(selected.row, selected.col));
+      // Range selections copy the rectangle as TSV (Sheets/Excel
+      // convention). Column/row selections copy just the active cell —
+      // serializing an entire column would be unbounded.
+      if (sel.mode === "range") {
+        const { r1, r2, c1, c2 } = selBox;
+        const lines: string[] = [];
+        for (let r = r1; r <= r2; r++) {
+          const cols: string[] = [];
+          for (let c = c1; c <= c2; c++) {
+            const v = cells.get(keyOf(r, c));
+            cols.push(v == null ? "" : String(v));
+          }
+          lines.push(cols.join("\t"));
+        }
+        const text = lines.join("\n");
+        if (text === "") return;
+        e.preventDefault();
+        e.clipboardData.setData("text/plain", text);
+        return;
+      }
+      const value = cells.get(keyOf(sel.focus.row, sel.focus.col));
       if (value == null) return;
       e.preventDefault();
       e.clipboardData.setData("text/plain", String(value));
     },
-    [editing, cells, selected]
+    [editing, cells, sel.mode, sel.focus, selBox]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -403,6 +580,16 @@ export const SpreadsheetDocumentEditor = ({
     }
   }, [cells, documentTitle, t]);
 
+  const handleExportXlsx = useCallback(async () => {
+    try {
+      const blob = await cellsToXlsx(cells, formatting, documentTitle);
+      downloadBlob(blob, `${slugify(documentTitle)}.xlsx`);
+      toast.success(t("documents:spreadsheet.exportSuccess"));
+    } catch {
+      toast.error(t("documents:spreadsheet.exportError"));
+    }
+  }, [cells, formatting, documentTitle, t]);
+
   const handleImportClick = useCallback(() => {
     if (readOnly) return;
     fileInputRef.current?.click();
@@ -411,14 +598,40 @@ export const SpreadsheetDocumentEditor = ({
   const handleFileSelected = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      e.target.value = ""; // allow re-selecting the same file later
+      e.target.value = "";
       if (!file) return;
       const MAX_BYTES = 50 * 1024 * 1024;
       if (file.size > MAX_BYTES) {
         toast.error(t("documents:spreadsheet.fileTooLarge"));
         return;
       }
+      const isXlsx =
+        file.name.toLowerCase().endsWith(".xlsx") ||
+        file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       try {
+        if (isXlsx) {
+          const buffer = await file.arrayBuffer();
+          const parsed = await xlsxToContent(buffer);
+          if (
+            Object.keys(parsed.cells).length === 0 &&
+            Object.keys(parsed.formatting.columns).length === 0 &&
+            Object.keys(parsed.formatting.rows).length === 0 &&
+            Object.keys(parsed.formatting.cellStyles).length === 0
+          ) {
+            toast.error(t("documents:spreadsheet.importEmpty"));
+            return;
+          }
+          if (parsed.sheetCount > 1) {
+            toast.info(t("documents:spreadsheet.multiSheetWarning"));
+          }
+          setPendingImport({
+            cells: parsed.cells,
+            rows: parsed.dimensions.rows,
+            cols: parsed.dimensions.cols,
+            formatting: parsed.formatting,
+          });
+          return;
+        }
         const text = await file.text();
         const parsed = csvToCells(text);
         if (Object.keys(parsed.cells).length === 0) {
@@ -435,16 +648,184 @@ export const SpreadsheetDocumentEditor = ({
 
   const confirmImport = useCallback(() => {
     if (!pendingImport) return;
-    replaceAll(pendingImport.cells, {
+    const dims = {
       rows: Math.min(Math.max(pendingImport.rows, DEFAULT_ROWS), MAX_ROWS),
       cols: Math.min(Math.max(pendingImport.cols, DEFAULT_COLS), MAX_COLS),
-    });
+    };
+    const fmt = pendingImport.formatting;
+    if (fmt) {
+      // xlsx: replace cells AND formatting. When collaborating, wrap
+      // both in one transaction so peers never observe a torn state
+      // (new cells, old formatting). Yjs flattens the nested transacts
+      // in each replaceAll into this single outer transaction.
+      if (yDoc) {
+        yDoc.transact(() => {
+          replaceAll(pendingImport.cells, dims);
+          formatting.replaceAll(fmt);
+        }, "spreadsheet-import");
+      } else {
+        replaceAll(pendingImport.cells, dims);
+        formatting.replaceAll(fmt);
+      }
+    } else {
+      // csv: cells only — formatting is intentionally left untouched so
+      // the CSV path stays byte-for-byte the pre-formatting behavior.
+      replaceAll(pendingImport.cells, dims);
+    }
     setPendingImport(null);
     toast.success(t("documents:spreadsheet.importSuccess"));
-  }, [pendingImport, replaceAll, t]);
+  }, [pendingImport, replaceAll, formatting, yDoc, t]);
+
+  // --- column / row resize ----------------------------------------------
+  useEffect(() => {
+    if (!drag) return;
+    const onMove = (e: PointerEvent) => {
+      const cur = dragRef.current;
+      if (!cur) return;
+      const delta =
+        cur.kind === "col"
+          ? e.clientX - resizeStartRef.current.pos
+          : e.clientY - resizeStartRef.current.pos;
+      const lo = cur.kind === "col" ? MIN_COL_WIDTH : MIN_ROW_HEIGHT;
+      const hi = cur.kind === "col" ? MAX_COL_WIDTH : MAX_ROW_HEIGHT;
+      const size = Math.max(lo, Math.min(resizeStartRef.current.size + delta, hi));
+      const next = { ...cur, size };
+      dragRef.current = next;
+      setDrag(next);
+    };
+    const onUp = () => {
+      const cur = dragRef.current;
+      if (cur) {
+        if (cur.kind === "col") formatting.updateColumn(cur.index, { width: cur.size });
+        else formatting.updateRow(cur.index, { height: cur.size });
+      }
+      dragRef.current = null;
+      setDrag(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [drag, formatting]);
+
+  const startResize = useCallback(
+    (kind: "col" | "row", index: number, e: ReactPointerEvent) => {
+      if (readOnly) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const size = kind === "col" ? colWidth(index) : rowHeight(index);
+      resizeStartRef.current = {
+        pos: kind === "col" ? e.clientX : e.clientY,
+        size,
+      };
+      const next = { kind, index, size };
+      dragRef.current = next;
+      setDrag(next);
+    },
+    [readOnly, colWidth, rowHeight]
+  );
+  const resetSize = useCallback(
+    (kind: "col" | "row", index: number) => {
+      if (readOnly) return;
+      if (kind === "col") formatting.updateColumn(index, { width: undefined });
+      else formatting.updateRow(index, { height: undefined });
+    },
+    [readOnly, formatting]
+  );
 
   const totalGridWidth = colVirtualizer.getTotalSize();
   const totalGridHeight = rowVirtualizer.getTotalSize();
+
+  const { rows: frozenRows, cols: frozenCols } = formatting.frozen;
+  const prefixRow = useMemo(() => {
+    const out = [0];
+    for (let r = 0; r < frozenRows; r++) out.push(out[r] + rowHeight(r));
+    return out;
+  }, [frozenRows, rowHeight]);
+  const prefixCol = useMemo(() => {
+    const out = [0];
+    for (let c = 0; c < frozenCols; c++) out.push(out[c] + colWidth(c));
+    return out;
+  }, [frozenCols, colWidth]);
+  const frozenBandHeight = prefixRow[frozenRows] ?? 0;
+  const frozenBandWidth = prefixCol[frozenCols] ?? 0;
+  const scrollTop = rowVirtualizer.scrollOffset ?? 0;
+  const scrollLeft = colVirtualizer.scrollOffset ?? 0;
+
+  const renderCell = useCallback(
+    (r: number, c: number, left: number, top: number) => {
+      const isActive = sel.focus.row === r && sel.focus.col === c;
+      const isEditing = editing?.row === r && editing?.col === c;
+      const value = cells.get(keyOf(r, c));
+      const numberFormat = resolveCellFormat(r, c, formatting);
+      const display = isEditing ? "" : value == null ? "" : formatCellValue(value, numberFormat);
+      const isBoolean = typeof value === "boolean" && !numberFormat;
+      const peer = peerSelectionsByCell.get(keyOf(r, c));
+      const cellCss = styleToCss(resolveCellStyle(r, c, formatting));
+      // A red/redParens negative number wins over any explicit text
+      // color (Excel's numFmt color section overrides the font color).
+      if (negativeRendersRed(value ?? null, numberFormat)) cellCss.color = "#dc2626";
+      return (
+        <CellView
+          key={keyOf(r, c)}
+          style={{ left, top, width: colWidth(c), height: rowHeight(r) }}
+          cellCss={cellCss}
+          isActive={isActive}
+          inSelection={isInSel(r, c)}
+          isEditing={Boolean(isEditing)}
+          display={display}
+          booleanValue={isBoolean ? (value as boolean) : null}
+          readOnly={readOnly}
+          draft={isEditing ? editing!.draft : ""}
+          inputRef={isEditing ? editingInputRef : null}
+          peerColor={peer?.selection.color ?? null}
+          peerName={peer?.user.name ?? null}
+          onMouseDown={(e) => {
+            if (isEditing) return;
+            if (e.button !== 0) return;
+            containerRef.current?.focus();
+            selectingRef.current = "range";
+            selectCell(r, c, e.shiftKey);
+          }}
+          onMouseEnter={() => {
+            if (selectingRef.current !== "range") return;
+            setSel((p) => ({
+              anchor: p.anchor,
+              focus: { row: r, col: c },
+              mode: "range",
+            }));
+          }}
+          onDoubleClick={() => beginEdit(r, c)}
+          onToggleBoolean={() => {
+            if (readOnly || !isBoolean) return;
+            selectCell(r, c);
+            setCell(r, c, !(value as boolean));
+          }}
+          onDraftChange={(draft) => setEditing({ row: r, col: c, draft })}
+          onEditingKeyDown={handleEditingKeyDown}
+          onEditingBlur={() => commitEdit()}
+        />
+      );
+    },
+    [
+      cells,
+      formatting,
+      sel.focus,
+      isInSel,
+      editing,
+      readOnly,
+      peerSelectionsByCell,
+      colWidth,
+      rowHeight,
+      selectCell,
+      beginEdit,
+      setCell,
+      handleEditingKeyDown,
+      commitEdit,
+    ]
+  );
 
   return (
     <div
@@ -453,40 +834,32 @@ export const SpreadsheetDocumentEditor = ({
         className
       )}
     >
-      <div className="border-border bg-muted/40 flex items-center gap-2 border-b px-3 py-2 text-sm">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={handleExportCsv}
-          className="gap-1.5"
-        >
-          <Download className="h-3.5 w-3.5" />
-          {t("documents:spreadsheet.exportCsv")}
-        </Button>
-        {!readOnly && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleImportClick}
-            className="gap-1.5"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {t("documents:spreadsheet.importCsv")}
-          </Button>
-        )}
+      <div className="border-border bg-muted/20 flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2">
+        <SpreadsheetToolbar
+          selection={
+            {
+              mode: sel.mode,
+              r1: selBox.r1,
+              r2: selBox.r2,
+              c1: selBox.c1,
+              c2: selBox.c2,
+              focusRow: sel.focus.row,
+              focusCol: sel.focus.col,
+            } satisfies ToolbarSelection
+          }
+          formatting={formatting}
+          readOnly={readOnly}
+          onExportCsv={handleExportCsv}
+          onExportXlsx={handleExportXlsx}
+          onImport={handleImportClick}
+        />
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={handleFileSelected}
         />
-        <div className="text-muted-foreground ml-auto font-mono text-xs">
-          {colIndexToLetter(selected.col)}
-          {selected.row + 1}
-        </div>
       </div>
 
       <div
@@ -495,7 +868,7 @@ export const SpreadsheetDocumentEditor = ({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onCopy={handleCopy}
-        className="focus-visible:outline-primary relative min-h-0 flex-1 overflow-auto focus:outline-none focus-visible:outline focus-visible:outline-2"
+        className="focus-visible:outline-primary relative min-h-0 flex-1 overflow-auto select-none focus:outline-none focus-visible:outline focus-visible:outline-2"
       >
         <div
           style={{
@@ -504,11 +877,8 @@ export const SpreadsheetDocumentEditor = ({
             position: "relative",
           }}
         >
-          {/* Column-header strip — ``position: sticky; top: 0`` keeps
-              column letters glued to the top of the scroll container as
-              the user scrolls vertically. The strip is the full canvas
-              width so its absolutely-positioned children line up with
-              the cell columns horizontally. */}
+          {/* Column-header strip — sticky top keeps letters glued while
+              scrolling vertically. */}
           <div
             className="bg-muted sticky top-0 z-20"
             style={{
@@ -517,19 +887,33 @@ export const SpreadsheetDocumentEditor = ({
               width: ROW_HEADER_WIDTH + totalGridWidth,
             }}
           >
-            {/* Top-left corner cap. Nested ``position: sticky; left: 0``
-                inside the sticky-top strip pins it to both edges. */}
             <div
               className="border-border bg-muted sticky top-0 left-0 z-30 border-r border-b"
-              style={{
-                width: ROW_HEADER_WIDTH,
-                height: COL_HEADER_HEIGHT,
-              }}
+              style={{ width: ROW_HEADER_WIDTH, height: COL_HEADER_HEIGHT }}
             />
             {virtualCols.map((col) => (
               <div
                 key={`colh-${col.index}`}
-                className="border-border bg-muted text-muted-foreground absolute flex items-center justify-center border-r border-b font-mono text-xs"
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  containerRef.current?.focus();
+                  selectingRef.current = "columns";
+                  selectColumn(col.index, e.shiftKey);
+                }}
+                onMouseEnter={() => {
+                  if (selectingRef.current !== "columns") return;
+                  setSel((p) => ({
+                    anchor: p.anchor,
+                    focus: { row: 0, col: col.index },
+                    mode: "columns",
+                  }));
+                }}
+                className={cn(
+                  "border-border absolute flex cursor-pointer items-center justify-center border-r border-b font-mono text-xs",
+                  colHeaderActive(col.index)
+                    ? "bg-primary/20 text-foreground"
+                    : "bg-muted text-muted-foreground"
+                )}
                 style={{
                   left: ROW_HEADER_WIDTH + col.start,
                   top: 0,
@@ -538,37 +922,52 @@ export const SpreadsheetDocumentEditor = ({
                 }}
               >
                 {colIndexToLetter(col.index)}
+                {!readOnly && (
+                  <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => startResize("col", col.index, e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      resetSize("col", col.index);
+                    }}
+                    className="hover:bg-primary/40 absolute top-0 right-0 z-10 h-full cursor-col-resize"
+                    style={{ width: RESIZE_HANDLE }}
+                    aria-hidden
+                  />
+                )}
               </div>
             ))}
           </div>
 
-          {/* Row-header strip — ``position: sticky; left: 0`` keeps row
-              numbers glued to the left of the scroll container as the
-              user scrolls horizontally. The strip is the full canvas
-              height (minus the column-header strip rendered above)
-              so its absolutely-positioned children line up with cell
-              rows vertically. */}
+          {/* Row-header strip — sticky left keeps numbers glued while
+              scrolling horizontally. */}
           <div
             className="sticky left-0 z-10"
-            style={{
-              // No ``top``: setting one on a position:sticky element
-              // makes it stick vertically too (pinning to viewport-top
-              // when its natural position would scroll above the
-              // threshold), which would freeze the strip in place
-              // while the absolutely-positioned row labels inside —
-              // at ``top: row.start`` relative to the strip — slide
-              // off-screen as scrollTop grows. Letting the strip flow
-              // naturally below the column-header strip keeps row
-              // labels aligned with the cells they describe and lets
-              // the strip scroll vertically with the canvas.
-              width: ROW_HEADER_WIDTH,
-              height: totalGridHeight,
-            }}
+            style={{ width: ROW_HEADER_WIDTH, height: totalGridHeight }}
           >
             {virtualRows.map((row) => (
               <div
                 key={`rowh-${row.index}`}
-                className="border-border bg-muted text-muted-foreground absolute flex items-center justify-center border-r border-b font-mono text-xs"
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  containerRef.current?.focus();
+                  selectingRef.current = "rows";
+                  selectRow(row.index, e.shiftKey);
+                }}
+                onMouseEnter={() => {
+                  if (selectingRef.current !== "rows") return;
+                  setSel((p) => ({
+                    anchor: p.anchor,
+                    focus: { row: row.index, col: 0 },
+                    mode: "rows",
+                  }));
+                }}
+                className={cn(
+                  "border-border absolute flex cursor-pointer items-center justify-center border-r border-b font-mono text-xs",
+                  rowHeaderActive(row.index)
+                    ? "bg-primary/20 text-foreground"
+                    : "bg-muted text-muted-foreground"
+                )}
                 style={{
                   left: 0,
                   top: row.start,
@@ -577,54 +976,100 @@ export const SpreadsheetDocumentEditor = ({
                 }}
               >
                 {row.index + 1}
+                {!readOnly && (
+                  <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => startResize("row", row.index, e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      resetSize("row", row.index);
+                    }}
+                    className="hover:bg-primary/40 absolute bottom-0 left-0 z-10 w-full cursor-row-resize"
+                    style={{ height: RESIZE_HANDLE }}
+                    aria-hidden
+                  />
+                )}
               </div>
             ))}
           </div>
 
-          {/* Cells */}
+          {/* Body cells (excludes anything covered by a frozen band). */}
           {virtualRows.map((row) =>
             virtualCols.map((col) => {
-              const isSelected = selected.row === row.index && selected.col === col.index;
-              const isEditing = editing?.row === row.index && editing?.col === col.index;
-              const value = cells.get(keyOf(row.index, col.index));
-              const display = value == null ? "" : String(value);
-              const isBoolean = typeof value === "boolean";
-              const peer = peerSelectionsByCell.get(keyOf(row.index, col.index));
-              const cellStyle: CSSProperties = {
-                left: ROW_HEADER_WIDTH + col.start,
-                top: COL_HEADER_HEIGHT + row.start,
-                width: col.size,
-                height: row.size,
-              };
-              return (
-                <CellView
-                  key={keyOf(row.index, col.index)}
-                  style={cellStyle}
-                  isSelected={isSelected}
-                  isEditing={Boolean(isEditing)}
-                  display={display}
-                  booleanValue={isBoolean ? (value as boolean) : null}
-                  readOnly={readOnly}
-                  draft={isEditing ? editing!.draft : ""}
-                  inputRef={isEditing ? editingInputRef : null}
-                  peerColor={peer?.selection.color ?? null}
-                  peerName={peer?.user.name ?? null}
-                  onClick={() => {
-                    if (isEditing) return;
-                    setSelected({ row: row.index, col: col.index });
-                  }}
-                  onDoubleClick={() => beginEdit(row.index, col.index)}
-                  onToggleBoolean={() => {
-                    if (readOnly || !isBoolean) return;
-                    setSelected({ row: row.index, col: col.index });
-                    setCell(row.index, col.index, !(value as boolean));
-                  }}
-                  onDraftChange={(draft) => setEditing({ row: row.index, col: col.index, draft })}
-                  onEditingKeyDown={handleEditingKeyDown}
-                  onEditingBlur={() => commitEdit()}
-                />
+              if (row.index < frozenRows || col.index < frozenCols) return null;
+              return renderCell(
+                row.index,
+                col.index,
+                ROW_HEADER_WIDTH + col.start,
+                COL_HEADER_HEIGHT + row.start
               );
             })
+          )}
+
+          {/* Frozen rows band — pinned just below the column header,
+              scrolls horizontally with the body. */}
+          {frozenRows > 0 && (
+            <div
+              className="bg-background absolute"
+              style={{
+                left: ROW_HEADER_WIDTH,
+                top: COL_HEADER_HEIGHT + scrollTop,
+                width: totalGridWidth,
+                height: frozenBandHeight,
+                zIndex: 6,
+              }}
+            >
+              {virtualCols.map((col) =>
+                col.index < frozenCols
+                  ? null
+                  : Array.from({ length: frozenRows }, (_, r) =>
+                      renderCell(r, col.index, col.start, prefixRow[r])
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen cols band — pinned right of the row header, scrolls
+              vertically with the body. */}
+          {frozenCols > 0 && (
+            <div
+              className="bg-background absolute"
+              style={{
+                left: ROW_HEADER_WIDTH + scrollLeft,
+                top: COL_HEADER_HEIGHT,
+                width: frozenBandWidth,
+                height: totalGridHeight,
+                zIndex: 5,
+              }}
+            >
+              {virtualRows.map((row) =>
+                row.index < frozenRows
+                  ? null
+                  : Array.from({ length: frozenCols }, (_, c) =>
+                      renderCell(row.index, c, prefixCol[c], row.start)
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen corner — pinned on both axes. */}
+          {frozenRows > 0 && frozenCols > 0 && (
+            <div
+              className="bg-background absolute"
+              style={{
+                left: ROW_HEADER_WIDTH + scrollLeft,
+                top: COL_HEADER_HEIGHT + scrollTop,
+                width: frozenBandWidth,
+                height: frozenBandHeight,
+                zIndex: 7,
+              }}
+            >
+              {Array.from({ length: frozenRows }, (_, r) =>
+                Array.from({ length: frozenCols }, (_, c) =>
+                  renderCell(r, c, prefixCol[c], prefixRow[r])
+                )
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -646,21 +1091,22 @@ export const SpreadsheetDocumentEditor = ({
 
 interface CellViewProps {
   style: CSSProperties;
-  isSelected: boolean;
+  /** Resolved style/format CSS (background, color, weight, align). */
+  cellCss: CSSProperties;
+  /** The focus cell — strong ring, the keyboard/edit target. */
+  isActive: boolean;
+  /** Inside the current selection (but not the focus cell). */
+  inSelection: boolean;
   isEditing: boolean;
   display: string;
-  /** When the cell value is a boolean, the actual ``true`` / ``false`` so
-   *  we can render an interactive checkbox instead of "true" / "false"
-   *  text. ``null`` for any non-boolean cell. */
   booleanValue: boolean | null;
   readOnly: boolean;
   draft: string;
   inputRef: React.RefObject<HTMLInputElement | null> | null;
-  /** When non-null, a peer has this cell selected — render a colored
-   *  ring in their assigned color plus a name-label tab. */
   peerColor: string | null;
   peerName: string | null;
-  onClick: () => void;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onMouseEnter: () => void;
   onDoubleClick: () => void;
   onToggleBoolean: () => void;
   onDraftChange: (draft: string) => void;
@@ -670,7 +1116,9 @@ interface CellViewProps {
 
 const CellView = ({
   style,
-  isSelected,
+  cellCss,
+  isActive,
+  inSelection,
   isEditing,
   display,
   booleanValue,
@@ -679,7 +1127,8 @@ const CellView = ({
   inputRef,
   peerColor,
   peerName,
-  onClick,
+  onMouseDown,
+  onMouseEnter,
   onDoubleClick,
   onToggleBoolean,
   onDraftChange,
@@ -690,26 +1139,24 @@ const CellView = ({
     () =>
       cn(
         "border-border absolute box-border border-r border-b text-sm",
-        isSelected && !isEditing && "ring-primary ring-2 ring-inset",
-        isEditing && "ring-primary ring-2 ring-inset"
+        (isActive || isEditing) && "ring-primary z-[1] ring-2 ring-inset"
       ),
-    [isSelected, isEditing]
+    [isActive, isEditing]
+  );
+  // Fill must sit *under* the value/ring; positioning + fill on the
+  // container, text styling inherited by the value span.
+  const containerStyle = useMemo<CSSProperties>(
+    () => ({ position: "absolute", ...style, ...cellCss }),
+    [style, cellCss]
   );
 
-  // Peer overlay: 2px ring in their color over the cell, with their
-  // name in a small tab on the top-right corner. Rendered as a
-  // pointer-events-none sibling so the cell still receives clicks.
   const peerOverlay =
     peerColor && peerName ? (
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 z-[2]"
         style={{ boxShadow: `inset 0 0 0 2px ${peerColor}` }}
       >
         <div
-          // ``getUserColorHsl`` produces pastels at lightness 83%, so
-          // they take dark foregrounds — slate-900 matches what
-          // ``CollaboratorAvatar`` and ``getUserColorStyle`` already
-          // pair with these backgrounds.
           className="absolute -top-4 right-0 max-w-full truncate rounded-t px-1.5 py-0.5 text-[10px] font-medium text-slate-900 shadow-sm"
           style={{ backgroundColor: peerColor }}
         >
@@ -718,16 +1165,23 @@ const CellView = ({
       </div>
     ) : null;
 
+  // Translucent tint for non-focus cells in the selection so the user
+  // fill underneath still reads through.
+  const selectionOverlay =
+    inSelection && !isActive ? (
+      <div className="bg-primary/15 pointer-events-none absolute inset-0" />
+    ) : null;
+
   if (isEditing) {
     return (
-      <div className={baseClass} style={style}>
+      <div className={baseClass} style={containerStyle}>
         <input
           ref={inputRef}
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={onEditingKeyDown}
           onBlur={onEditingBlur}
-          className="bg-background h-full w-full px-1.5 outline-none"
+          className="bg-background h-full w-full px-1.5 outline-none select-text"
         />
         {peerOverlay}
       </div>
@@ -738,23 +1192,21 @@ const CellView = ({
     return (
       <div
         className={cn(baseClass, "flex cursor-cell items-center px-1.5")}
-        style={style}
-        onClick={onClick}
+        style={containerStyle}
+        onMouseDown={onMouseDown}
+        onMouseEnter={onMouseEnter}
         onDoubleClick={onDoubleClick}
       >
         <Checkbox
           checked={booleanValue}
           disabled={readOnly}
           onClick={(e) => {
-            // Stop the wrapper's onClick from firing twice (it would
-            // also call onToggleBoolean via setCell). The wrapper still
-            // sees the click for selection through the synthetic event
-            // bubble — we just want the toggle to happen exactly once.
             e.stopPropagation();
             onToggleBoolean();
           }}
           aria-label={booleanValue ? "true" : "false"}
         />
+        {selectionOverlay}
         {peerOverlay}
       </div>
     );
@@ -763,11 +1215,13 @@ const CellView = ({
   return (
     <div
       className={cn(baseClass, "flex cursor-cell items-center px-1.5")}
-      style={style}
-      onClick={onClick}
+      style={containerStyle}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
       onDoubleClick={onDoubleClick}
     >
-      <span className="truncate">{display}</span>
+      <span className="w-full truncate">{display}</span>
+      {selectionOverlay}
       {peerOverlay}
     </div>
   );

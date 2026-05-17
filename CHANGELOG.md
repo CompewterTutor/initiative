@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Spreadsheet formatting and Excel import/export.** Spreadsheet documents now support column widths and row heights (drag the header edges; double-click to reset), number formats (currency, percent, date, fixed decimals, adjustable decimal places, thousands separator, and negative styles including red and parentheses), frozen header rows/columns, text/fill styling (bold, italic, underline, strikethrough, font size, text color, background fill, horizontal and vertical alignment), and per-edge cell borders (thin/medium/thick/dashed/dotted/double, any color, with all/outer/side presets). Formatting applies to the current selection — a cell range, or whole columns/rows selected from the headers — via a responsive formatting toolbar (related controls grouped into popovers on desktop, collapsed into a single overflow panel on small screens; file import/export lives in a compact menu), and syncs in real time to collaborators. A new "Export Excel" action produces a styled `.xlsx`, and the import button now accepts `.xlsx` alongside CSV, preserving widths, styles, number formats, borders, and frozen panes on round-trip (CSV import/export is unchanged). Existing spreadsheets upgrade transparently on next save (content schema v1 → v2) — no migration or operator action required.
+
 ### Security
 
 - **Auto-sanitize HTML on all API inputs.** Every Pydantic schema now extends `SanitizedBaseModel`, which runs `nh3.clean()` on every `str` field at validation time. Dangerous markup — `<script>`, `<iframe>`, `on*` event-handler attributes, `javascript:` URLs — is stripped before reaching services or the database. Safe formatting tags (`<b>`, `<i>`, `<a>`, `<p>`) pass through unchanged, and fields that must preserve user-authored content (descriptions, comments, document content, queue notes) opt out via the explicit `RichTextStr` type. Enum-typed fields are skipped automatically.
