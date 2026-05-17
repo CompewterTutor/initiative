@@ -11,9 +11,11 @@ Settings cascade: Platform -> Guild -> User
 from __future__ import annotations
 
 import httpx
+from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.encryption import decrypt_field, encrypt_field, SALT_AI_API_KEY
+from app.core.messages import AIMessages
 from app.db.session import reapply_rls_context
 
 from app.models.user import User
@@ -31,6 +33,11 @@ from app.schemas.ai_settings import (
     UserAISettingsUpdate,
 )
 from app.services.app_settings import get_app_settings, get_or_create_guild_settings
+from app.services.webhook_target_url import (
+    WebhookTargetUrlError,
+    WebhookTargetUrlPrivateError,
+    assert_target_url_is_public_async,
+)
 
 
 def _normalize_optional_string(value: str | None) -> str | None:
@@ -160,6 +167,15 @@ async def update_guild_ai_settings(
 
     if not platform_settings.ai_allow_guild_override:
         raise PermissionError("Guild AI settings override is disabled by platform administrator")
+
+    if not payload.clear_settings and payload.provider == AIProvider.ollama:
+        raise HTTPException(status_code=400, detail=AIMessages.PROVIDER_NOT_ALLOWED)
+
+    if not payload.clear_settings and payload.base_url:
+        try:
+            await assert_target_url_is_public_async(payload.base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError):
+            raise HTTPException(status_code=400, detail=AIMessages.INVALID_BASE_URL)
 
     guild_settings = await get_or_create_guild_settings(session, guild_id)
 
@@ -294,6 +310,15 @@ async def update_user_ai_settings(
     if not can_override:
         raise PermissionError("User AI settings override is disabled by administrator")
 
+    if not payload.clear_settings and payload.provider == AIProvider.ollama:
+        raise HTTPException(status_code=400, detail=AIMessages.PROVIDER_NOT_ALLOWED)
+
+    if not payload.clear_settings and payload.base_url:
+        try:
+            await assert_target_url_is_public_async(payload.base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError):
+            raise HTTPException(status_code=400, detail=AIMessages.INVALID_BASE_URL)
+
     if payload.clear_settings:
         # Clear all AI settings to inherit from guild/platform
         user.ai_enabled = None
@@ -412,8 +437,15 @@ async def test_ai_connection(
     request: AITestConnectionRequest,
     *,
     existing_api_key: str | None = None,
+    bypass_ssrf: bool = False,
 ) -> AITestConnectionResponse:
-    """Test connection to an AI provider."""
+    """Test connection to an AI provider.
+
+    ``bypass_ssrf=True`` lets a platform admin point Ollama (or a custom
+    provider) at a private or http:// endpoint — they own the host, so
+    the SSRF guard is unnecessary noise for them. Non-platform callers
+    always get the guard.
+    """
     api_key = request.api_key or existing_api_key
 
     if request.provider == AIProvider.openai:
@@ -421,9 +453,13 @@ async def test_ai_connection(
     elif request.provider == AIProvider.anthropic:
         return await _test_anthropic_connection(api_key, request.model)
     elif request.provider == AIProvider.ollama:
-        return await _test_ollama_connection(request.base_url, request.model)
+        return await _test_ollama_connection(
+            request.base_url, request.model, bypass_ssrf=bypass_ssrf
+        )
     elif request.provider == AIProvider.custom:
-        return await _test_custom_connection(api_key, request.base_url, request.model)
+        return await _test_custom_connection(
+            api_key, request.base_url, request.model, bypass_ssrf=bypass_ssrf
+        )
     else:
         return AITestConnectionResponse(
             success=False,
@@ -592,8 +628,15 @@ async def _test_anthropic_connection(
 async def _test_ollama_connection(
     base_url: str | None,
     model: str | None,
+    *,
+    bypass_ssrf: bool = False,
 ) -> AITestConnectionResponse:
     """Test Ollama connection."""
+    if base_url and not bypass_ssrf:
+        try:
+            await assert_target_url_is_public_async(base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError) as e:
+            return AITestConnectionResponse(success=False, message=f"Invalid base URL: {e}")
     url = (base_url or "http://localhost:11434").rstrip("/")
 
     try:
@@ -647,6 +690,8 @@ async def _test_custom_connection(
     api_key: str | None,
     base_url: str | None,
     model: str | None,
+    *,
+    bypass_ssrf: bool = False,
 ) -> AITestConnectionResponse:
     """Test custom OpenAI-compatible endpoint."""
     if not base_url:
@@ -655,6 +700,11 @@ async def _test_custom_connection(
             message="Base URL is required for custom provider",
         )
 
+    if not bypass_ssrf:
+        try:
+            await assert_target_url_is_public_async(base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError) as e:
+            return AITestConnectionResponse(success=False, message=f"Invalid base URL: {e}")
     url = base_url.rstrip("/")
     headers = {}
     if api_key:
@@ -722,19 +772,23 @@ async def fetch_models(
     provider: AIProvider,
     api_key: str | None,
     base_url: str | None,
+    *,
+    bypass_ssrf: bool = False,
 ) -> tuple[list[str], str | None]:
     """Fetch available models from an AI provider.
 
     Returns (models, error_message). If successful, error_message is None.
+    ``bypass_ssrf=True`` skips the public-URL guard for ollama/custom —
+    platform admins use this to point at on-host private endpoints.
     """
     if provider == AIProvider.openai:
         return await _fetch_openai_models(api_key)
     elif provider == AIProvider.anthropic:
         return await _fetch_anthropic_models(api_key)
     elif provider == AIProvider.ollama:
-        return await _fetch_ollama_models(base_url)
+        return await _fetch_ollama_models(base_url, bypass_ssrf=bypass_ssrf)
     elif provider == AIProvider.custom:
-        return await _fetch_custom_models(api_key, base_url)
+        return await _fetch_custom_models(api_key, base_url, bypass_ssrf=bypass_ssrf)
     else:
         return [], f"Unknown provider: {provider}"
 
@@ -796,8 +850,17 @@ async def _fetch_anthropic_models(api_key: str | None) -> tuple[list[str], str |
         return [], str(e)
 
 
-async def _fetch_ollama_models(base_url: str | None) -> tuple[list[str], str | None]:
+async def _fetch_ollama_models(
+    base_url: str | None,
+    *,
+    bypass_ssrf: bool = False,
+) -> tuple[list[str], str | None]:
     """Fetch available models from Ollama."""
+    if base_url and not bypass_ssrf:
+        try:
+            await assert_target_url_is_public_async(base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError) as e:
+            return [], f"Invalid base URL: {e}"
     url = (base_url or "http://localhost:11434").rstrip("/")
 
     try:
@@ -821,11 +884,18 @@ async def _fetch_ollama_models(base_url: str | None) -> tuple[list[str], str | N
 async def _fetch_custom_models(
     api_key: str | None,
     base_url: str | None,
+    *,
+    bypass_ssrf: bool = False,
 ) -> tuple[list[str], str | None]:
     """Fetch available models from custom OpenAI-compatible endpoint."""
     if not base_url:
         return [], "Base URL required"
 
+    if not bypass_ssrf:
+        try:
+            await assert_target_url_is_public_async(base_url)
+        except (WebhookTargetUrlError, WebhookTargetUrlPrivateError) as e:
+            return [], f"Invalid base URL: {e}"
     url = base_url.rstrip("/")
     headers = {}
     if api_key:

@@ -1,12 +1,14 @@
 from datetime import datetime
 from typing import Any, List
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.notification import NotificationType
 
 
-class NotificationRead(BaseModel):
+class NotificationRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -16,14 +18,14 @@ class NotificationRead(BaseModel):
     read_at: datetime | None = None
 
 
-class NotificationListResponse(BaseModel):
+class NotificationListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     notifications: List[NotificationRead]
     unread_count: int
 
 
-class NotificationCountResponse(BaseModel):
+class NotificationCountResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     unread_count: int

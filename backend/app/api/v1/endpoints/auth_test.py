@@ -454,6 +454,51 @@ async def test_login_email_case_insensitive(client: AsyncClient, session: AsyncS
 
 @pytest.mark.integration
 @pytest.mark.auth
+async def test_login_rehashes_legacy_bcrypt_password(client: AsyncClient, session: AsyncSession):
+    """A user whose stored hash predates the argon2 migration should still
+    log in successfully, and the hash should be rewritten as argon2id on
+    the way out so the bcrypt verify path eventually disappears for active
+    users.
+    """
+    import bcrypt as _bcrypt
+
+    password = "legacy-bcrypt-password"
+    legacy_hash = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+    assert legacy_hash.startswith("$2"), "test setup expected a real bcrypt hash"
+
+    user = User(
+        email_hash=hash_email("legacy@example.com"),
+        email_encrypted=encrypt_field("legacy@example.com", SALT_EMAIL),
+        full_name="Legacy User",
+        hashed_password=legacy_hash,
+        status=UserStatus.active,
+        email_verified=True,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={"username": "legacy@example.com", "password": password},
+    )
+    assert response.status_code == 200
+
+    await session.refresh(user)
+    assert user.hashed_password.startswith("$argon2"), (
+        "expected legacy bcrypt hash to be rewritten as argon2id after a successful login"
+    )
+
+    # Second login must verify against the new argon2 hash.
+    response = await client.post(
+        "/api/v1/auth/token",
+        data={"username": "legacy@example.com", "password": password},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.integration
+@pytest.mark.auth
 async def test_malformed_jwt_returns_401(client: AsyncClient):
     """A garbage bearer token should be rejected as 401 Unauthorized with
     a WWW-Authenticate challenge, not 403. The SPA's 401 interceptor
@@ -590,3 +635,75 @@ async def test_logout_clears_session_cookie(
     # Starlette's delete_cookie sets Max-Age=0 and an expires in the
     # past. Accept either marker so the assertion is robust.
     assert "Max-Age=0" in set_cookie or "1970" in set_cookie
+
+
+@pytest.mark.integration
+@pytest.mark.auth
+@pytest.mark.parametrize(
+    ("public_registration_enabled", "guild_creation_disabled"),
+    [(False, False), (True, True)],
+)
+async def test_oidc_callback_blocks_new_user_when_registration_disabled(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch,
+    public_registration_enabled: bool,
+    guild_creation_disabled: bool,
+):
+    """OIDC callback must honor the same no-invite registration gate as /register."""
+    from app.core import config as cfg
+    import app.api.v1.endpoints.auth as auth_module
+
+    monkeypatch.setattr(cfg.settings, "ENABLE_PUBLIC_REGISTRATION", public_registration_enabled)
+    monkeypatch.setattr(cfg.settings, "DISABLE_GUILD_CREATION", guild_creation_disabled)
+    # Must have at least one existing user so is_first_user is False
+    await create_user(session)
+
+    valid_state = auth_module._generate_state()
+
+    class _FakeTokenResp:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self):
+            return {"access_token": "tok", "sub": "sub-new"}
+
+    class _FakeUserinfoResp:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self):
+            return {"email": "brandnew@example.com", "name": "Brand New", "sub": "sub-new"}
+
+    class _FakeHttpxClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, *a, **kw): return _FakeTokenResp()
+        async def get(self, *a, **kw): return _FakeUserinfoResp()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeHttpxClient())
+
+    async def _fake_runtime_config(s):
+        settings_obj = type("S", (), {
+            "oidc_enabled": True, "oidc_issuer": "https://id.example.com",
+            "oidc_client_id": "cid", "oidc_client_secret_encrypted": None,
+            "oidc_scopes": ["openid"], "oidc_provider_name": "Test",
+            "oidc_role_claim_path": None,
+        })()
+        metadata = {
+            "authorization_endpoint": "https://id.example.com/auth",
+            "token_endpoint": "https://id.example.com/token",
+            "userinfo_endpoint": "https://id.example.com/userinfo",
+        }
+        return settings_obj, metadata
+
+    monkeypatch.setattr(auth_module, "_get_oidc_runtime_config", _fake_runtime_config)
+
+    response = await client.get(
+        "/api/v1/auth/oidc/callback",
+        params={"code": "fake-code", "state": valid_state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code in (302, 307)
+    assert "OIDC_REGISTRATION_DISABLED" in response.headers["location"]
+    assert "session_token" not in response.cookies

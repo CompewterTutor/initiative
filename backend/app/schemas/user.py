@@ -1,14 +1,16 @@
 from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
+from pydantic import ConfigDict, EmailStr, Field, computed_field
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.initiative import InitiativeRole
 from app.models.user import UserRole, UserStatus
 from app.core.config import settings
 
 
-class UserBase(BaseModel):
+class UserBase(SanitizedBaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     role: UserRole = UserRole.member
@@ -28,7 +30,7 @@ class UserCreate(UserBase):
     captcha_token: Optional[str] = None
 
 
-class UserUpdate(BaseModel):
+class UserUpdate(SanitizedBaseModel):
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
     password: Optional[str] = None
@@ -55,7 +57,7 @@ class UserUpdate(BaseModel):
     locale: Optional[str] = Field(default=None, pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
 
 
-class UserPublic(BaseModel):
+class UserPublic(SanitizedBaseModel):
     """Public user information exposed to other users.
 
     Includes ``status`` so the frontend can render the "Deleted user #{id}"
@@ -133,13 +135,13 @@ class UserInDB(UserRead):
     hashed_password: str
 
 
-class UserInitiativeRole(BaseModel):
+class UserInitiativeRole(SanitizedBaseModel):
     initiative_id: int
     initiative_name: str
     role: InitiativeRole
 
 
-class UserSelfUpdate(BaseModel):
+class UserSelfUpdate(SanitizedBaseModel):
     full_name: Optional[str] = None
     password: Optional[str] = None
     avatar_base64: Optional[str] = None
@@ -164,7 +166,7 @@ class UserSelfUpdate(BaseModel):
     locale: Optional[str] = Field(default=None, pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
 
 
-class ProjectBasic(BaseModel):
+class ProjectBasic(SanitizedBaseModel):
     """Basic project information for deletion flow"""
     model_config = ConfigDict(from_attributes=True)
 
@@ -173,7 +175,7 @@ class ProjectBasic(BaseModel):
     initiative_id: int
 
 
-class AccountDeletionRequest(BaseModel):
+class AccountDeletionRequest(SanitizedBaseModel):
     """Request from a user to deactivate or anonymize (soft-delete) their own account.
 
     `hard_delete` is intentionally not allowed from this self-service endpoint;
@@ -185,7 +187,7 @@ class AccountDeletionRequest(BaseModel):
     project_transfers: Optional[Dict[int, int]] = None  # {project_id: new_owner_id}
 
 
-class DeletionEligibilityResponse(BaseModel):
+class DeletionEligibilityResponse(SanitizedBaseModel):
     """Response indicating whether user can be deleted and any blockers"""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -196,7 +198,7 @@ class DeletionEligibilityResponse(BaseModel):
     last_admin_guilds: List[str] = Field(default_factory=list)
 
 
-class GuildRemovalProjectInfo(BaseModel):
+class GuildRemovalProjectInfo(SanitizedBaseModel):
     """Per-project payload on ``GuildRemovalEligibilityResponse``.
 
     Bundles the candidate transfer recipients next to the project so
@@ -214,7 +216,7 @@ class GuildRemovalProjectInfo(BaseModel):
     candidates: List[UserPublic] = Field(default_factory=list)
 
 
-class GuildRemovalEligibilityResponse(BaseModel):
+class GuildRemovalEligibilityResponse(SanitizedBaseModel):
     """Pre-flight info for ``DELETE /users/{user_id}`` (guild admin
     removes a member from their guild).
 
@@ -231,7 +233,7 @@ class GuildRemovalEligibilityResponse(BaseModel):
     owned_projects: List[GuildRemovalProjectInfo] = Field(default_factory=list)
 
 
-class GuildRemovalRequest(BaseModel):
+class GuildRemovalRequest(SanitizedBaseModel):
     """Body for ``DELETE /users/{user_id}``.
 
     Every project the target user owns in the active guild must
@@ -249,7 +251,7 @@ class GuildRemovalRequest(BaseModel):
     project_deletions: List[int] = Field(default_factory=list)
 
 
-class AccountDeletionResponse(BaseModel):
+class AccountDeletionResponse(SanitizedBaseModel):
     """Response after a deactivate / anonymize / hard-delete action."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 

@@ -1,14 +1,14 @@
+from app.schemas.base import SanitizedBaseModel
+
 from typing import Optional
 
-from pydantic import BaseModel
 
-
-class Token(BaseModel):
+class Token(SanitizedBaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
-class TokenPayload(BaseModel):
+class TokenPayload(SanitizedBaseModel):
     sub: Optional[str] = None
     exp: Optional[int] = None
     iat: Optional[int] = None

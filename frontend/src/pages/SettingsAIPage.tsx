@@ -22,7 +22,7 @@ import {
   useFetchAIModels,
 } from "@/hooks/useAISettings";
 import { useAuth } from "@/hooks/useAuth";
-import { getModelsForProvider, PROVIDER_CONFIGS } from "@/lib/ai-providers";
+import { getModelsForProvider, getProvidersForScope, PROVIDER_CONFIGS } from "@/lib/ai-providers";
 import type { AIProvider, PlatformAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
 
 interface FormState {
@@ -181,6 +181,10 @@ export const SettingsAIPage = () => {
             <Select
               value={formState.provider}
               onValueChange={(value) => {
+                // Radix Select fires onValueChange("") via its hidden bubble
+                // input when the controlled value is set before SelectItems
+                // mount. None of our items have value="", so ignore that call.
+                if (!value) return;
                 const config = PROVIDER_CONFIGS[value as AIProvider];
                 setFormState((prev) => ({
                   ...prev,
@@ -194,14 +198,9 @@ export const SettingsAIPage = () => {
                 <SelectValue placeholder={t("ai.providerPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                {(
-                  Object.entries(PROVIDER_CONFIGS) as [
-                    AIProvider,
-                    (typeof PROVIDER_CONFIGS)[AIProvider],
-                  ][]
-                ).map(([key, config]) => (
+                {getProvidersForScope("platform").map((key) => (
                   <SelectItem key={key} value={key}>
-                    {config.label}
+                    {PROVIDER_CONFIGS[key].label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -241,6 +240,12 @@ export const SettingsAIPage = () => {
                 }
                 placeholder={providerConfig?.defaultBaseUrl ?? "https://api.example.com/v1"}
               />
+              {formState.provider === "ollama" &&
+                formState.baseUrl.trim().toLowerCase().startsWith("http://") && (
+                  <p className="text-sm text-yellow-600 dark:text-yellow-500">
+                    {t("ai.httpWarning")}
+                  </p>
+                )}
             </div>
           )}
 

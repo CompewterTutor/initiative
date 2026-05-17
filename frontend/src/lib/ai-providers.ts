@@ -79,3 +79,14 @@ export const getModelsForProvider = (
   }
   return PROVIDER_CONFIGS[provider]?.defaultModels ?? [];
 };
+
+export type AISettingsScope = "platform" | "guild" | "user";
+
+const PROVIDERS_BY_SCOPE: Record<AISettingsScope, AIProvider[]> = {
+  platform: ["openai", "anthropic", "ollama", "custom"],
+  guild: ["openai", "anthropic", "custom"],
+  user: ["openai", "anthropic", "custom"],
+};
+
+export const getProvidersForScope = (scope: AISettingsScope): AIProvider[] =>
+  PROVIDERS_BY_SCOPE[scope];

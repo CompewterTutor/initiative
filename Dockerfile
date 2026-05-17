@@ -1,7 +1,8 @@
-FROM node:20-alpine AS frontend-build
+FROM node:24-alpine AS frontend-build
 WORKDIR /frontend
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
+RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend .
 COPY VERSION /VERSION
 ARG VITE_API_URL=/api/v1

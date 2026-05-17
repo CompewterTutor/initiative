@@ -3,20 +3,59 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+# argon2id with library defaults — OWASP-aligned. Stored hashes embed the
+# parameters, so verification keeps working if we tune these later.
+_argon2_hasher = PasswordHasher()
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash a plaintext password using argon2id."""
+    return _argon2_hasher.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plaintext password against either an argon2id or legacy bcrypt hash.
+
+    Existing users still have bcrypt hashes from the passlib era; those are
+    verified directly with the bcrypt library. The login flow rehashes them
+    as argon2id on next successful login (see ``password_needs_rehash``).
+    """
+    if hashed_password.startswith("$argon2"):
+        try:
+            _argon2_hasher.verify(hashed_password, plain_password)
+            return True
+        except (VerifyMismatchError, VerificationError, InvalidHashError):
+            return False
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8"),
+            )
+        except ValueError:
+            return False
+    return False
+
+
+def password_needs_rehash(hashed_password: str) -> bool:
+    """Return True if the stored hash should be rewritten on next successful login.
+
+    Triggers for legacy bcrypt hashes and for argon2 hashes whose parameters
+    have drifted from the current PasswordHasher defaults.
+    """
+    if not hashed_password.startswith("$argon2"):
+        return True
+    try:
+        return _argon2_hasher.check_needs_rehash(hashed_password)
+    except InvalidHashError:
+        return True
 
 
 def create_access_token(subject: str, *, token_version: int, expires_delta: timedelta | None = None) -> str:

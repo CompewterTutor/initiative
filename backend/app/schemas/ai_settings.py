@@ -1,7 +1,9 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 
 class AIProvider(str, Enum):
@@ -12,7 +14,7 @@ class AIProvider(str, Enum):
 
 
 # Platform (AppSetting) level schemas
-class PlatformAISettingsResponse(BaseModel):
+class PlatformAISettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     enabled: bool
@@ -24,7 +26,7 @@ class PlatformAISettingsResponse(BaseModel):
     allow_user_override: bool = True
 
 
-class PlatformAISettingsUpdate(BaseModel):
+class PlatformAISettingsUpdate(SanitizedBaseModel):
     enabled: bool
     provider: Optional[AIProvider] = None
     api_key: Optional[str] = None
@@ -35,7 +37,7 @@ class PlatformAISettingsUpdate(BaseModel):
 
 
 # Guild level schemas
-class GuildAISettingsResponse(BaseModel):
+class GuildAISettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     # Guild's own settings (null = inherit)
@@ -57,7 +59,7 @@ class GuildAISettingsResponse(BaseModel):
     can_override: bool = True  # Whether guild can override platform settings
 
 
-class GuildAISettingsUpdate(BaseModel):
+class GuildAISettingsUpdate(SanitizedBaseModel):
     enabled: Optional[bool] = None
     provider: Optional[AIProvider] = None
     api_key: Optional[str] = None
@@ -71,7 +73,7 @@ class GuildAISettingsUpdate(BaseModel):
 
 
 # User level schemas
-class UserAISettingsResponse(BaseModel):
+class UserAISettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     # User's own settings (null = inherit)
@@ -92,7 +94,7 @@ class UserAISettingsResponse(BaseModel):
     settings_source: str = "platform"  # "platform", "guild", or "user"
 
 
-class UserAISettingsUpdate(BaseModel):
+class UserAISettingsUpdate(SanitizedBaseModel):
     enabled: Optional[bool] = None
     provider: Optional[AIProvider] = None
     api_key: Optional[str] = None
@@ -105,7 +107,7 @@ class UserAISettingsUpdate(BaseModel):
 
 
 # Resolved settings (final computed, used internally)
-class ResolvedAISettings(BaseModel):
+class ResolvedAISettings(SanitizedBaseModel):
     enabled: bool = False
     provider: Optional[AIProvider] = None
     api_key: Optional[str] = None
@@ -115,7 +117,7 @@ class ResolvedAISettings(BaseModel):
 
 
 # Resolved settings response (without API key for frontend)
-class ResolvedAISettingsResponse(BaseModel):
+class ResolvedAISettingsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     enabled: bool = False
@@ -127,14 +129,14 @@ class ResolvedAISettingsResponse(BaseModel):
 
 
 # Test connection schemas
-class AITestConnectionRequest(BaseModel):
+class AITestConnectionRequest(SanitizedBaseModel):
     provider: AIProvider
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     model: Optional[str] = None
 
 
-class AITestConnectionResponse(BaseModel):
+class AITestConnectionResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     success: bool
@@ -143,13 +145,13 @@ class AITestConnectionResponse(BaseModel):
 
 
 # Fetch models schemas
-class AIModelsRequest(BaseModel):
+class AIModelsRequest(SanitizedBaseModel):
     provider: AIProvider
     api_key: Optional[str] = None
     base_url: Optional[str] = None
 
 
-class AIModelsResponse(BaseModel):
+class AIModelsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     models: list[str]

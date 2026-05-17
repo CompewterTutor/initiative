@@ -23,7 +23,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.rate_limit import limiter
 from app.core.encryption import decrypt_field, encrypt_field, encrypt_token, hash_email, SALT_EMAIL, SALT_OIDC_CLIENT_SECRET
 from app.core.messages import AuthMessages, OidcMessages
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import create_access_token, get_password_hash, password_needs_rehash, verify_password
 from app.core.user_input_validators import normalize_timezone
 from app.models.user import User, UserRole, UserStatus
 from app.models.guild import GuildRole
@@ -51,7 +51,8 @@ router = APIRouter()
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 
 STATE_TTL_SECONDS = 600
-_oidc_metadata_cache: dict[str, dict[str, Any]] = {}
+_OIDC_METADATA_TTL_SECONDS = 300  # 5 minutes
+_oidc_metadata_cache: dict[str, tuple[dict[str, Any], float]] = {}
 logger = logging.getLogger(__name__)
 
 
@@ -215,6 +216,19 @@ async def login_access_token(
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
 
+    if password_needs_rehash(user.hashed_password):
+        # Best-effort: a transient DB error or argon2 hashing failure here
+        # must not turn a successful authentication into a 500. The next
+        # login will retry the upgrade, and the legacy bcrypt hash keeps
+        # working until then.
+        try:
+            user.hashed_password = get_password_hash(form_data.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
+
     access_token = create_access_token(subject=str(user.id), token_version=user.token_version)
     response.set_cookie(
         key=settings.COOKIE_NAME,
@@ -287,6 +301,16 @@ async def create_device_token(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.INACTIVE_USER)
     if not user.email_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=AuthMessages.EMAIL_NOT_VERIFIED)
+
+    if password_needs_rehash(user.hashed_password):
+        # Best-effort upgrade — see login_access_token for rationale.
+        try:
+            user.hashed_password = get_password_hash(payload.password)
+            session.add(user)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("Failed to upgrade password hash for user %s", user.id)
 
     device_token = await user_tokens.create_device_token(
         session,
@@ -382,19 +406,23 @@ def _frontend_redirect_uri() -> str:
 
 
 async def _fetch_oidc_metadata(issuer_url: str) -> dict[str, Any]:
-    # Normalize: strip trailing well-known path if present, then re-append
     normalized = issuer_url.rstrip("/")
     well_known_suffix = "/.well-known/openid-configuration"
     if normalized.endswith(well_known_suffix):
         normalized = normalized[: -len(well_known_suffix)]
     discovery_url = f"{normalized}{well_known_suffix}"
-    if discovery_url in _oidc_metadata_cache:
-        return _oidc_metadata_cache[discovery_url]
+
+    cached = _oidc_metadata_cache.get(discovery_url)
+    if cached is not None:
+        metadata, fetched_at = cached
+        if time.time() - fetched_at < _OIDC_METADATA_TTL_SECONDS:
+            return metadata
+
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(discovery_url)
         resp.raise_for_status()
         metadata = resp.json()
-    _oidc_metadata_cache[discovery_url] = metadata
+    _oidc_metadata_cache[discovery_url] = (metadata, time.time())
     return metadata
 
 
@@ -558,6 +586,12 @@ async def oidc_callback(
     now_utc = datetime.now(timezone.utc)
 
     if not user:
+        count_result = await session.exec(select(func.count(User.id)))
+        is_first_user = count_result.one() == 0
+
+        if (not settings.ENABLE_PUBLIC_REGISTRATION or settings.DISABLE_GUILD_CREATION) and not is_first_user:
+            return _error_redirect(is_mobile, OidcMessages.REGISTRATION_DISABLED)
+
         random_password = secrets.token_urlsafe(32)
         user = User(
             email_hash=hash_email(normalized_email),

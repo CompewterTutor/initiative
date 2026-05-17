@@ -2,7 +2,9 @@
 
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.guild import GuildRole
 from app.models.initiative import InitiativeRole
@@ -10,25 +12,25 @@ from app.models.user import UserRole
 from app.schemas.user import ProjectBasic, UserPublic
 
 
-class PlatformRoleUpdate(BaseModel):
+class PlatformRoleUpdate(SanitizedBaseModel):
     """Schema for updating a user's platform role."""
     role: UserRole
 
 
-class PlatformAdminCountResponse(BaseModel):
+class PlatformAdminCountResponse(SanitizedBaseModel):
     """Response schema for platform admin count."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     count: int
 
 
-class AdminUserDeleteRequest(BaseModel):
+class AdminUserDeleteRequest(SanitizedBaseModel):
     """Request to deactivate, anonymize (soft delete), or hard delete a user as platform admin."""
     action: Literal["deactivate", "soft_delete", "hard_delete"]
     project_transfers: Optional[Dict[int, int]] = None  # {project_id: new_owner_id}
 
 
-class GuildBlockerInfo(BaseModel):
+class GuildBlockerInfo(SanitizedBaseModel):
     """Info about a guild blocking user deletion."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -37,7 +39,7 @@ class GuildBlockerInfo(BaseModel):
     other_members: List[UserPublic] = Field(default_factory=list)
 
 
-class InitiativeBlockerInfo(BaseModel):
+class InitiativeBlockerInfo(SanitizedBaseModel):
     """Info about an initiative blocking user deletion."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -47,7 +49,7 @@ class InitiativeBlockerInfo(BaseModel):
     other_members: List[UserPublic] = Field(default_factory=list)
 
 
-class AdminDeletionEligibilityResponse(BaseModel):
+class AdminDeletionEligibilityResponse(SanitizedBaseModel):
     """Enhanced eligibility response with actionable blocker details."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
@@ -59,11 +61,11 @@ class AdminDeletionEligibilityResponse(BaseModel):
     initiative_blockers: List[InitiativeBlockerInfo] = Field(default_factory=list)
 
 
-class AdminGuildRoleUpdate(BaseModel):
+class AdminGuildRoleUpdate(SanitizedBaseModel):
     """Schema for updating a user's guild role via admin endpoint."""
     role: GuildRole
 
 
-class AdminInitiativeRoleUpdate(BaseModel):
+class AdminInitiativeRoleUpdate(SanitizedBaseModel):
     """Schema for updating a user's initiative role via admin endpoint."""
     role: InitiativeRole

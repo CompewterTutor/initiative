@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import SanitizedBaseModel
 
 from app.models.document import DocumentPermissionLevel, DocumentType
 from app.schemas.initiative import InitiativeRead, serialize_initiative
@@ -17,14 +19,14 @@ LexicalState = Dict[str, Any]
 DocumentTypeStr = Literal["native", "file", "whiteboard", "smart_link", "spreadsheet"]
 
 
-class DocumentProjectLink(BaseModel):
+class DocumentProjectLink(SanitizedBaseModel):
     project_id: int
     project_name: Optional[str] = None
     project_icon: Optional[str] = None
     attached_at: datetime
 
 
-class DocumentBase(BaseModel):
+class DocumentBase(SanitizedBaseModel):
     title: str
     initiative_id: int
     featured_image_url: Optional[str] = None
@@ -38,32 +40,32 @@ class DocumentCreate(DocumentBase):
     user_permissions: Optional[List[DocumentPermissionCreate]] = None
 
 
-class DocumentUpdate(BaseModel):
+class DocumentUpdate(SanitizedBaseModel):
     title: Optional[str] = None
     content: Optional[LexicalState] = None
     featured_image_url: Optional[str] = None
     is_template: Optional[bool] = None
 
 
-class DocumentDuplicateRequest(BaseModel):
+class DocumentDuplicateRequest(SanitizedBaseModel):
     title: Optional[str] = None
 
 
-class DocumentCopyRequest(BaseModel):
+class DocumentCopyRequest(SanitizedBaseModel):
     target_initiative_id: int
     title: Optional[str] = None
 
 
-class DocumentRolePermissionCreate(BaseModel):
+class DocumentRolePermissionCreate(SanitizedBaseModel):
     initiative_role_id: int
     level: DocumentPermissionLevel = DocumentPermissionLevel.read
 
 
-class DocumentRolePermissionUpdate(BaseModel):
+class DocumentRolePermissionUpdate(SanitizedBaseModel):
     level: DocumentPermissionLevel
 
 
-class DocumentRolePermissionRead(BaseModel):
+class DocumentRolePermissionRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     initiative_role_id: int
@@ -73,25 +75,25 @@ class DocumentRolePermissionRead(BaseModel):
     created_at: datetime
 
 
-class DocumentPermissionCreate(BaseModel):
+class DocumentPermissionCreate(SanitizedBaseModel):
     user_id: int
     level: DocumentPermissionLevel = DocumentPermissionLevel.write
 
 
-class DocumentPermissionBulkCreate(BaseModel):
+class DocumentPermissionBulkCreate(SanitizedBaseModel):
     user_ids: List[int]
     level: DocumentPermissionLevel = DocumentPermissionLevel.read
 
 
-class DocumentPermissionBulkDelete(BaseModel):
+class DocumentPermissionBulkDelete(SanitizedBaseModel):
     user_ids: List[int]
 
 
-class DocumentPermissionUpdate(BaseModel):
+class DocumentPermissionUpdate(SanitizedBaseModel):
     level: DocumentPermissionLevel
 
 
-class DocumentPermissionRead(BaseModel):
+class DocumentPermissionRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     user_id: int
@@ -99,7 +101,7 @@ class DocumentPermissionRead(BaseModel):
     created_at: datetime
 
 
-class DocumentAutocomplete(BaseModel):
+class DocumentAutocomplete(SanitizedBaseModel):
     """Lightweight document info for autocomplete/wikilinks."""
     model_config = ConfigDict(from_attributes=True)
 
@@ -108,7 +110,7 @@ class DocumentAutocomplete(BaseModel):
     updated_at: datetime
 
 
-class DocumentBacklink(BaseModel):
+class DocumentBacklink(SanitizedBaseModel):
     """Document that links to another document."""
     model_config = ConfigDict(from_attributes=True)
 
@@ -146,7 +148,7 @@ class DocumentSummary(DocumentBase):
     yjs_updated_at: Optional[datetime] = None
 
 
-class DocumentListResponse(BaseModel):
+class DocumentListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[DocumentSummary]
@@ -158,7 +160,7 @@ class DocumentListResponse(BaseModel):
     sort_dir: Optional[str] = None
 
 
-class DocumentCountsResponse(BaseModel):
+class DocumentCountsResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     total_count: int
@@ -170,7 +172,7 @@ class DocumentRead(DocumentSummary):
     content: LexicalState = Field(default_factory=dict)
 
 
-class ProjectDocumentSummary(BaseModel):
+class ProjectDocumentSummary(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     document_id: int

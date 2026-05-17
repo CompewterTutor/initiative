@@ -54,19 +54,45 @@ jobs:
 
           echo "skip=false" >> $GITHUB_OUTPUT
 
+          # Migration tests are slow (real upgrade/downgrade against
+          # Postgres) and only relevant when the alembic/ folder itself
+          # changes. Track them as a separate scope token so they're only
+          # appended when needed. Also expose a flag so we can skip the
+          # explicit `alembic upgrade head` step on non-alembic PRs —
+          # conftest.py already runs migrations as a pytest fixture, so
+          # the only value of the standalone step is an early failure
+          # signal when a migration is broken.
+          ALEMBIC_SCOPE=""
+          if echo "$CHANGED" | grep -q '^backend/alembic/'; then
+            ALEMBIC_SCOPE="alembic/"
+            echo "alembic_changed=true" >> $GITHUB_OUTPUT
+            echo "Alembic changes detected — including migration tests"
+          else
+            echo "alembic_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          NON_ALEMBIC=$(echo "$CHANGED" | grep -v '^backend/alembic/' || true)
+
+          if [[ -z "$NON_ALEMBIC" ]]; then
+            # Only alembic/ changes — skip the app/ test pass entirely.
+            echo "scope=$ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
+            echo "Only alembic changes — running migration tests only"
+            exit 0
+          fi
+
           # Check if shared infra changed (requires full test run)
-          if echo "$CHANGED" | grep -qE '(app/testing/|app/models/|app/schemas/|app/core/|app/db/|conftest\.py)'; then
-            echo "scope=app/" >> $GITHUB_OUTPUT
+          if echo "$NON_ALEMBIC" | grep -qE '(app/testing/|app/models/|app/schemas/|app/core/|app/db/|conftest\.py)'; then
+            echo "scope=app/ $ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
             echo "Shared infrastructure changed — running all tests"
           else
             # Extract unique directories, strip backend/ prefix, and exclude non-code dirs
-            DIRS=$(echo "$CHANGED" | sed 's|^backend/||' | grep -v '^app/locales/' | xargs -I{} dirname {} | sort -u | tr '\n' ' ')
+            DIRS=$(echo "$NON_ALEMBIC" | sed 's|^backend/||' | grep -v '^app/locales/' | xargs -I{} dirname {} | sort -u | tr '\n' ' ')
             if [[ -z "${DIRS// }" ]]; then
-              echo "scope=app/" >> $GITHUB_OUTPUT
+              echo "scope=app/ $ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
               echo "Only non-code files changed — running all tests"
             else
-              echo "scope=$DIRS" >> $GITHUB_OUTPUT
-              echo "Running tests in: $DIRS"
+              echo "scope=$DIRS$ALEMBIC_SCOPE" >> $GITHUB_OUTPUT
+              echo "Running tests in: $DIRS$ALEMBIC_SCOPE"
             fi
           fi
 
@@ -86,7 +112,10 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov ruff
 
       - name: Run Alembic migrations
-        if: steps.changes.outputs.skip != 'true'
+        # conftest.py auto-applies migrations before tests run, so this
+        # explicit step is only valuable as an early-fail signal on PRs
+        # that actually touch alembic/.
+        if: steps.changes.outputs.skip != 'true' && steps.changes.outputs.alembic_changed == 'true'
         run: |
           cd backend
           alembic upgrade head
@@ -135,9 +164,9 @@ jobs:
 
       - name: Install pnpm
         if: steps.filter.outputs.skip != 'true'
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
-          version: 9
+          package_json_file: frontend/package.json
 
       - name: Install dependencies
         if: steps.filter.outputs.skip != 'true'
@@ -155,13 +184,13 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         run: |
           cd frontend
-          pnpm tsc --noEmit
+          pnpm check
 
       - name: Run tests
         if: steps.filter.outputs.skip != 'true'
         run: |
           cd frontend
-          pnpm vitest run --passWithNoTests
+          pnpm test:run
 
   check-generated-types:
     name: Check Generated Types
@@ -171,13 +200,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for backend changes
+      - name: Check for backend or orval changes
         id: filter
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts || true)
+            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts frontend/package.json || true)
           else
-            CHANGED=$(git diff --name-only HEAD~1...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts || true)
+            CHANGED=$(git diff --name-only HEAD~1...HEAD -- backend/ frontend/orval.config.ts frontend/src/api/mutator.ts frontend/package.json || true)
           fi
           if [[ -z "$CHANGED" ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -215,9 +244,9 @@ jobs:
 
       - name: Install pnpm
         if: steps.filter.outputs.skip != 'true'
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
-          version: 9
+          package_json_file: frontend/package.json
 
       - name: Install frontend dependencies
         if: steps.filter.outputs.skip != 'true'
@@ -230,7 +259,7 @@ jobs:
         run: |
           cd frontend
           pnpm orval
-          pnpm prettier --write src/api/generated/
+          pnpm format:api
 
       - name: Check for drift
         if: steps.filter.outputs.skip != 'true'

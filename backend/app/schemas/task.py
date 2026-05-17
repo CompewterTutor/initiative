@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.base import RichTextStr, SanitizedBaseModel
 
 from app.schemas.user import UserPublic
 from app.schemas.task_status import TaskStatusRead
@@ -14,7 +16,7 @@ from app.models.task import TaskPriority
 from app.models.user import UserStatus
 
 
-class TaskAssigneeSummary(BaseModel):
+class TaskAssigneeSummary(SanitizedBaseModel):
     """Minimal assignee data for task lists.
 
     Includes ``status`` so the frontend can render the "Deleted user
@@ -35,7 +37,7 @@ WeekPositionLiteral = Literal["first", "second", "third", "fourth", "last"]
 RecurrenceEndsLiteral = Literal["never", "on_date", "after_occurrences"]
 
 
-class TaskRecurrence(BaseModel):
+class TaskRecurrence(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
@@ -106,9 +108,9 @@ class TaskRecurrence(BaseModel):
         return self
 
 
-class TaskBase(BaseModel):
+class TaskBase(SanitizedBaseModel):
     title: str
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     priority: TaskPriority = TaskPriority.medium
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
@@ -122,9 +124,9 @@ class TaskCreate(TaskBase):
     task_status_id: Optional[int] = None
 
 
-class TaskUpdate(BaseModel):
+class TaskUpdate(SanitizedBaseModel):
     title: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[RichTextStr] = None
     task_status_id: Optional[int] = None
     priority: Optional[TaskPriority] = None
     assignee_ids: Optional[List[int]] = None
@@ -135,11 +137,11 @@ class TaskUpdate(BaseModel):
     is_archived: Optional[bool] = None
 
 
-class TaskMoveRequest(BaseModel):
+class TaskMoveRequest(SanitizedBaseModel):
     target_project_id: int = Field(gt=0)
 
 
-class TaskProjectInitiativeSummary(BaseModel):
+class TaskProjectInitiativeSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -147,7 +149,7 @@ class TaskProjectInitiativeSummary(BaseModel):
     color: Optional[str] = None
 
 
-class TaskProjectSummary(BaseModel):
+class TaskProjectSummary(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
 
     id: int
@@ -208,7 +210,7 @@ class TaskListRead(TaskBase):
     properties: List[PropertySummary] = []
 
 
-class TaskListResponse(BaseModel):
+class TaskListResponse(SanitizedBaseModel):
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     items: List[TaskListRead]
@@ -220,12 +222,12 @@ class TaskListResponse(BaseModel):
     sorting: Optional[str] = None
 
 
-class TaskReorderItem(BaseModel):
+class TaskReorderItem(SanitizedBaseModel):
     id: int
     task_status_id: int
     sort_order: float
 
 
-class TaskReorderRequest(BaseModel):
+class TaskReorderRequest(SanitizedBaseModel):
     project_id: int
     items: list[TaskReorderItem]

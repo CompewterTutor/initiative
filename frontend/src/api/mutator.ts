@@ -18,6 +18,17 @@ export const apiMutator = <T>(
   const merged = options
     ? { ...config, ...options, headers: { ...config.headers, ...options.headers }, baseURL }
     : { ...config, baseURL };
+  // Orval 8.10 emits an explicit `Content-Type: multipart/form-data` for FormData
+  // uploads. Axios's browser XHR adapter silently drops it so the transport can set
+  // the value with the correct `; boundary=…`, but Node/Capacitor adapters may not,
+  // which would send the header without a boundary and break server-side parsing.
+  // Strip it here so every transport sets the boundary itself.
+  if (merged.data instanceof FormData && merged.headers) {
+    const headers = { ...merged.headers } as Record<string, unknown>;
+    delete headers["Content-Type"];
+    delete headers["content-type"];
+    merged.headers = headers;
+  }
   return apiClient<T>(merged).then(({ data }) => data);
 };
 
