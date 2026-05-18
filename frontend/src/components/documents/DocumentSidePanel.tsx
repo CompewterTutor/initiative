@@ -47,7 +47,13 @@ export const DocumentSidePanel = ({
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-md">
-        <SheetHeader className="border-b px-4 py-3">
+        <SheetHeader
+          className="border-b px-4"
+          style={{
+            paddingTop: "calc(var(--safe-area-inset-top) + 0.75rem)",
+            paddingBottom: "0.75rem",
+          }}
+        >
           <SheetTitle className="text-base">{t("sidePanel.title")}</SheetTitle>
         </SheetHeader>
 
