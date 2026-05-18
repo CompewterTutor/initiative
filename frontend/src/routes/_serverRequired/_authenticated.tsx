@@ -172,32 +172,37 @@ function AppLayout() {
           >
             <AppSidebar />
             <div className="bg-muted/50 min-w-0 flex-1 md:pl-0">
-              <div className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex h-12 border-b backdrop-blur">
-                <SidebarTrigger
-                  icon={<Menu />}
-                  className="h-12 w-12 shrink-0 rounded-none border-r lg:hidden"
-                />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-12 w-12 shrink-0 rounded-none border-r"
-                      onClick={() => getOpenCommandCenter()?.()}
-                      aria-label={t("shortcutTooltip", { shortcut: shortcutLabel })}
-                    >
-                      <Search className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{shortcutLabel}</TooltipContent>
-                </Tooltip>
-                <div className="min-w-0 flex-1">
-                  <ProjectTabsBar
-                    projects={recentQuery.data as ProjectRead[] | undefined}
-                    loading={recentQuery.isLoading}
-                    activeProjectId={activeProjectId}
-                    onClose={handleClearRecent}
+              <div
+                className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex flex-col border-b backdrop-blur"
+                style={{ paddingTop: "var(--safe-area-inset-top)" }}
+              >
+                <div className="flex h-12">
+                  <SidebarTrigger
+                    icon={<Menu />}
+                    className="h-12 w-12 shrink-0 rounded-none border-r lg:hidden"
                   />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-12 w-12 shrink-0 rounded-none border-r"
+                        onClick={() => getOpenCommandCenter()?.()}
+                        aria-label={t("shortcutTooltip", { shortcut: shortcutLabel })}
+                      >
+                        <Search className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{shortcutLabel}</TooltipContent>
+                  </Tooltip>
+                  <div className="min-w-0 flex-1">
+                    <ProjectTabsBar
+                      projects={recentQuery.data as ProjectRead[] | undefined}
+                      loading={recentQuery.isLoading}
+                      activeProjectId={activeProjectId}
+                      onClose={handleClearRecent}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-between">
@@ -333,14 +338,19 @@ function NoGuildSettingsShell({ logout }: { logout: () => void }) {
   const { t } = useTranslation("guilds");
   return (
     <div className="bg-background flex min-h-screen flex-col">
-      <div className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex h-12 items-center justify-between border-b px-4 backdrop-blur">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/">{t("noGuild.shellBackToStart")}</Link>
-        </Button>
-        <Button variant="ghost" size="sm" onClick={logout}>
-          <LogOut className="h-4 w-4" />
-          {t("noGuild.logOut")}
-        </Button>
+      <div
+        className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex flex-col border-b backdrop-blur"
+        style={{ paddingTop: "var(--safe-area-inset-top)" }}
+      >
+        <div className="flex h-12 items-center justify-between px-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/">{t("noGuild.shellBackToStart")}</Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={logout}>
+            <LogOut className="h-4 w-4" />
+            {t("noGuild.logOut")}
+          </Button>
+        </div>
       </div>
       <main className="container mx-auto min-w-0 p-4 pb-20 md:p-8 md:pb-20">
         <Suspense fallback={<PageLoader />}>

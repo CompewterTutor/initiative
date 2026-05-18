@@ -309,8 +309,11 @@ export const AppSidebar = () => {
               <HomeSidebarContent />
             ) : (
               <>
-                <SidebarHeader className="h-12 border-b p-2.5">
-                  <div className="flex min-w-0 items-center justify-between gap-2">
+                <SidebarHeader
+                  className="gap-0 border-b p-0"
+                  style={{ paddingTop: "var(--safe-area-inset-top)" }}
+                >
+                  <div className="flex h-12 min-w-0 items-center justify-between gap-2 px-2.5">
                     <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">
                       {activeGuild?.name ?? t("selectGuild")}
                     </h2>
