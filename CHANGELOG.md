@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.2] - 2026-05-17
+
 ### Fixed
 
 - **Native iOS/Android app could not connect when `CORS_ALLOWED_ORIGINS` was restricted.** Capacitor native apps send requests from `https://com.morelitea.initiative`, which was not included when operators set a specific origin allowlist. The backend now automatically appends the Capacitor native origins to any non-wildcard `CORS_ALLOWED_ORIGINS` list, so the mobile app works without requiring manual configuration.
