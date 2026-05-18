@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **iOS/Android native app: content no longer renders behind the status bar.** All viewport-level sticky headers and sidebars now absorb the safe area inset at the top, so controls appear below the status bar on devices with a Dynamic Island or notch. The fix covers the main app header, the guild icon column, both sidebar headers (home and guild views), the document side panel, and the activity sidebar. The home indicator safe area is also applied at the bottom on native iOS.
+
 ## [0.44.2] - 2026-05-17
 
 ### Fixed
