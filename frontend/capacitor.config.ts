@@ -9,6 +9,7 @@ const config: CapacitorConfig = {
     // Use HTTP scheme to avoid mixed content issues with self-hosted HTTP servers (LOCAL development and LAN testing)
     // androidScheme: "http",
     hostname: "com.morelitea.initiative",
+    iosScheme: "https",
   },
   android: {
     // Allow HTTP requests (for self-hosted servers without HTTPS) (LOCAL development and LAN testing)
