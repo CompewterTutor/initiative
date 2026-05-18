@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Native iOS app could not connect when `CORS_ALLOWED_ORIGINS` was restricted (follow-up to v0.44.2).** Capacitor's iOS WebView uses `capacitor://` as the default URL scheme, producing the origin `capacitor://com.morelitea.initiative` — distinct from the `https://` origin Android sends. This origin was not included in the automatic native-origins allowlist, so iPhones were still rejected. The backend now allows `capacitor://com.morelitea.initiative` in addition to `https://com.morelitea.initiative`. The Capacitor config also adds `iosScheme: "https"` so future iOS builds use the same `https://` origin as Android, making a single origin sufficient going forward.
+
 ## [0.44.2] - 2026-05-17
 
 ### Fixed

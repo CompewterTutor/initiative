@@ -6,8 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Origins used by the Capacitor native mobile app (iOS and Android).
 # Must always be allowed regardless of CORS_ALLOWED_ORIGINS setting.
 CAPACITOR_NATIVE_ORIGINS = [
-    "https://com.morelitea.initiative",  # Capacitor custom hostname (iOS & Android)
-    "capacitor://localhost",              # Capacitor fallback scheme
+    "https://com.morelitea.initiative",      # Capacitor custom hostname (Android + iOS with iosScheme=https)
+    "capacitor://com.morelitea.initiative",  # Capacitor default iOS scheme with custom hostname
+    "capacitor://localhost",                 # Capacitor fallback (no custom hostname)
 ]
 
 
