@@ -170,9 +170,10 @@ preflight() {
     local login
     login=$(gh api user --jq '.login' 2>/dev/null) || die "Could not determine GitHub user"
     local is_owner=false
-    local login_lower="${login,,}"
+    local login_lower
+    login_lower=$(echo "$login" | tr '[:upper:]' '[:lower:]')
     for owner in "${ALLOWED_OWNERS[@]}"; do
-        if [[ "${owner,,}" == "$login_lower" ]]; then
+        if [[ "$(echo "$owner" | tr '[:upper:]' '[:lower:]')" == "$login_lower" ]]; then
             is_owner=true
             break
         fi
@@ -249,7 +250,12 @@ stamp_changelog() {
     local date="$2"
 
     # Replace "## [Unreleased]" with "## [Unreleased]\n\n## [X.Y.Z] - YYYY-MM-DD"
-    sed -i "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$version] - $date/" CHANGELOG.md
+    # BSD sed (macOS) requires -i '' while GNU sed (Linux) uses -i
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$version] - $date/" CHANGELOG.md
+    else
+        sed -i "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$version] - $date/" CHANGELOG.md
+    fi
 }
 
 preview_changelog() {
