@@ -73,30 +73,35 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
       )}
     >
       <div className="bg-card flex h-full w-full flex-col border-l shadow-sm">
-        <div className="flex h-12 items-center justify-between border-b px-3">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <MessageSquare className="text-muted-foreground h-4 w-4" aria-hidden="true" />
-              <p className="text-sm font-semibold">{t("activitySidebar.title")}</p>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={toggleCollapsed}
-            >
-              {collapsed ? (
+        <div
+          className="flex flex-col border-b"
+          style={{ paddingTop: "var(--safe-area-inset-top)" }}
+        >
+          <div className="flex h-12 items-center justify-between px-3">
+            {!collapsed && (
+              <div className="flex items-center gap-2">
                 <MessageSquare className="text-muted-foreground h-4 w-4" aria-hidden="true" />
-              ) : (
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span className="sr-only">
-                {collapsed ? t("activitySidebar.expand") : t("activitySidebar.collapse")}
-              </span>
-            </Button>
+                <p className="text-sm font-semibold">{t("activitySidebar.title")}</p>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={toggleCollapsed}
+              >
+                {collapsed ? (
+                  <MessageSquare className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span className="sr-only">
+                  {collapsed ? t("activitySidebar.expand") : t("activitySidebar.collapse")}
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
         {collapsed ? (
