@@ -3,6 +3,13 @@ from functools import lru_cache
 from pydantic import EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Origins used by the Capacitor native mobile app (iOS and Android).
+# Must always be allowed regardless of CORS_ALLOWED_ORIGINS setting.
+CAPACITOR_NATIVE_ORIGINS = [
+    "https://com.morelitea.initiative",  # Capacitor custom hostname (iOS & Android)
+    "capacitor://localhost",              # Capacitor fallback scheme
+]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -150,7 +157,13 @@ class Settings(BaseSettings):
             items = value.split(",")
         else:
             items = value
-        return [item.strip() for item in items if item and item.strip()] or ["*"]
+        origins = [item.strip() for item in items if item and item.strip()] or ["*"]
+        # Always include native mobile app origins when not using wildcard
+        if origins != ["*"]:
+            for origin in CAPACITOR_NATIVE_ORIGINS:
+                if origin not in origins:
+                    origins.append(origin)
+        return origins
 
     @field_validator("ADVANCED_TOOL_ALLOWED_ORIGINS", mode="before")
     @classmethod
