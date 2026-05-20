@@ -3,7 +3,7 @@ import {
   $convertToMarkdownString,
   CHECK_LIST,
   ELEMENT_TRANSFORMERS,
-  ElementTransformer,
+  type ElementTransformer,
   MULTILINE_ELEMENT_TRANSFORMERS,
   TEXT_FORMAT_TRANSFORMERS,
   TEXT_MATCH_TRANSFORMERS,
@@ -20,7 +20,7 @@ import {
   TableNode,
   TableRowNode,
 } from "@lexical/table";
-import { $isParagraphNode, $isTextNode, LexicalNode } from "lexical";
+import { $isParagraphNode, $isTextNode, type LexicalNode } from "lexical";
 
 // import { EMOJI } from "@/components/ui/editor/transformers/markdown-emoji-transformer"
 import { HR } from "@/components/ui/editor/transformers/markdown-hr-transformer";
@@ -184,7 +184,7 @@ const $createTableCell = (textContent: string): TableCellNode => {
 
 const mapToTableCells = (textContent: string): Array<TableCellNode> | null => {
   const match = textContent.match(TABLE_ROW_REG_EXP);
-  if (!match || !match[1]) {
+  if (!match?.[1]) {
     return null;
   }
   return match[1].split("|").map((text) => $createTableCell(text));

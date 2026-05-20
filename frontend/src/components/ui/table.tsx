@@ -9,7 +9,10 @@ interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
   ({ className, scrollContainerRef, scrollContainerClassName, ...props }, ref) => (
-    <div ref={scrollContainerRef} className={cn("relative w-full overflow-auto", scrollContainerClassName)}>
+    <div
+      ref={scrollContainerRef}
+      className={cn("relative w-full overflow-auto", scrollContainerClassName)}
+    >
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   )
@@ -33,7 +36,9 @@ const TableBody = React.forwardRef<HTMLTableSectionElement, TableBodyProps>(
     <tbody
       ref={ref}
       className={cn("[&_tr:last-child]:border-0", className)}
-      style={virtualHeight != null ? { height: virtualHeight, position: "relative", ...style } : style}
+      style={
+        virtualHeight != null ? { height: virtualHeight, position: "relative", ...style } : style
+      }
       {...props}
     />
   )
@@ -46,7 +51,7 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn("bg-muted/50 border-t font-medium [&>tr]:last:border-b-0", className)}
+    className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
     {...props}
   />
 ));
@@ -57,7 +62,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
     <tr
       ref={ref}
       className={cn(
-        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -73,7 +78,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "text-muted-foreground h-10 px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
       className
     )}
     {...props}
@@ -100,8 +105,8 @@ const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn("text-muted-foreground mt-4 text-sm", className)} {...props} />
+  <caption ref={ref} className={cn("mt-4 text-muted-foreground text-sm", className)} {...props} />
 ));
 TableCaption.displayName = "TableCaption";
 
-export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption };
+export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow };

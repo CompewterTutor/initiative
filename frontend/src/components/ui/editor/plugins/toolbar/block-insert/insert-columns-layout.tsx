@@ -1,5 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { Columns3Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { InsertLayoutDialog } from "@/components/ui/editor/plugins/layout-plugin";

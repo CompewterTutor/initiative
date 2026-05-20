@@ -1,10 +1,10 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 import {
-  getTagApiV1TagsTagIdGet,
   getGetTagApiV1TagsTagIdGetQueryKey,
-  getTagEntitiesApiV1TagsTagIdEntitiesGet,
   getGetTagEntitiesApiV1TagsTagIdEntitiesGetQueryKey,
+  getTagApiV1TagsTagIdGet,
+  getTagEntitiesApiV1TagsTagIdEntitiesGet,
 } from "@/api/generated/tags/tags";
 
 type TagDetailSearchParams = {

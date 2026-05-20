@@ -2,7 +2,7 @@ import { INSERT_EMBED_COMMAND } from "@lexical/react/LexicalAutoEmbedPlugin";
 import { useTranslation } from "react-i18next";
 
 import {
-  CustomEmbedConfig,
+  type CustomEmbedConfig,
   EmbedConfigs,
 } from "@/components/ui/editor/plugins/embeds/auto-embed-plugin";
 import { ComponentPickerOption } from "@/components/ui/editor/plugins/picker/component-picker-option";

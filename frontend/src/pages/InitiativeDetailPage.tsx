@@ -1,26 +1,27 @@
-import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { Loader2, SearchX, Settings } from "lucide-react";
-import { StatusMessage } from "@/components/StatusMessage";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { DocumentsView } from "./DocumentsPage";
-import { ProjectsView } from "./ProjectsPage";
-import { QueuesView } from "./initiativeTools/queues/QueuesPage";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { Markdown } from "@/components/Markdown";
+import { StatusMessage } from "@/components/StatusMessage";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
-import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 import {
-  useMyInitiativePermissions,
-  isFeatureEnabled,
   canCreate,
+  isFeatureEnabled,
+  useMyInitiativePermissions,
 } from "@/hooks/useInitiativeRoles";
-import { Markdown } from "@/components/Markdown";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+
+import { DocumentsView } from "./DocumentsPage";
+import { QueuesView } from "./initiativeTools/queues/QueuesPage";
+import { ProjectsView } from "./ProjectsPage";
 
 export const InitiativeDetailPage = () => {
   const { initiativeId: initiativeIdParam } = useParams({ strict: false }) as {
@@ -102,7 +103,7 @@ export const InitiativeDetailPage = () => {
 
   if (initiativesQuery.isLoading || permissionsLoading || !initiativesQuery.data) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("detail.loadingInitiative")}
       </div>
@@ -131,9 +132,9 @@ export const InitiativeDetailPage = () => {
         <div className="rounded-lg border p-6">
           <div className="flex flex-wrap items-center gap-3">
             <InitiativeColorDot color={initiative.color} className="h-4 w-4" />
-            <h1 className="text-3xl font-semibold tracking-tight">{initiative.name}</h1>
+            <h1 className="font-semibold text-3xl tracking-tight">{initiative.name}</h1>
           </div>
-          <p className="text-muted-foreground mt-4">{t("detail.noAccess")}</p>
+          <p className="mt-4 text-muted-foreground">{t("detail.noAccess")}</p>
         </div>
       </div>
     );
@@ -148,7 +149,7 @@ export const InitiativeDetailPage = () => {
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <InitiativeColorDot color={initiative.color} className="h-4 w-4" />
-            <h1 className="text-3xl font-semibold tracking-tight">{initiative.name}</h1>
+            <h1 className="font-semibold text-3xl tracking-tight">{initiative.name}</h1>
             {initiative.is_default ? <Badge variant="outline">{t("detail.default")}</Badge> : null}
             {roleBadgeLabel ? <Badge variant="secondary">{roleBadgeLabel}</Badge> : null}
           </div>
@@ -157,7 +158,7 @@ export const InitiativeDetailPage = () => {
           ) : (
             <p className="text-muted-foreground text-sm">{t("noDescription")}</p>
           )}
-          <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
             <span>{t("detail.member", { count: memberCount })}</span>
             <span>
               {t("detail.updated", { date: new Date(initiative.updated_at).toLocaleDateString() })}

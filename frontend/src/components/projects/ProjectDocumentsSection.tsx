@@ -1,14 +1,22 @@
+import { formatDistanceToNow } from "date-fns";
+import { ChevronDown, ChevronUp, FilePlus, Link, Loader2, Unlink } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getItem, setItem } from "@/lib/storage";
-import { Loader2, Link, Unlink, ChevronDown, ChevronUp, FilePlus } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
-import { toast } from "@/lib/chesterToast";
-import { useInitiativeDocuments } from "@/hooks/useDocuments";
-import { useAttachProjectDocument, useDetachProjectDocument } from "@/hooks/useProjects";
-import { useDateLocale } from "@/hooks/useDateLocale";
+import type {
+  DocumentSummary,
+  ProjectDocumentSummary,
+} from "@/api/generated/initiativeAPI.schemas";
+import { CreateDocumentDialog } from "@/components/documents/CreateDocumentDialog";
+import { DocumentCard } from "@/components/documents/DocumentCard";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -20,17 +28,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { DocumentCard } from "@/components/documents/DocumentCard";
-import { CreateDocumentDialog } from "@/components/documents/CreateDocumentDialog";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
-import type { ProjectDocumentSummary } from "@/api/generated/initiativeAPI.schemas";
+import { useDateLocale } from "@/hooks/useDateLocale";
+import { useInitiativeDocuments } from "@/hooks/useDocuments";
+import { useAttachProjectDocument, useDetachProjectDocument } from "@/hooks/useProjects";
+import { toast } from "@/lib/chesterToast";
+import { getItem, setItem } from "@/lib/storage";
 
 type ProjectDocumentsSectionProps = {
   projectId: number;
@@ -85,7 +87,9 @@ export const ProjectDocumentsSection = ({
 
   const documentsById = useMemo(() => {
     const map = new Map<number, DocumentSummary>();
-    initiativeDocuments.forEach((doc) => map.set(doc.id, doc));
+    initiativeDocuments.forEach((doc) => {
+      map.set(doc.id, doc);
+    });
     return map;
   }, [initiativeDocuments]);
 
@@ -109,12 +113,12 @@ export const ProjectDocumentsSection = ({
         setIsCollapsed(!open);
         setItem(storageKey, (!open).toString());
       }}
-      className="bg-card space-y-4 rounded-2xl border p-5 shadow-sm"
+      className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-2">
-            <h2 className="text-xl font-semibold">{t("documents.title")}</h2>
+            <h2 className="font-semibold text-xl">{t("documents.title")}</h2>
             <Button
               type="button"
               variant="ghost"
@@ -156,7 +160,7 @@ export const ProjectDocumentsSection = ({
                     {t("documents.attachExisting")}
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border shadow-2xl">
+                <DialogContent className="max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border bg-card shadow-2xl">
                   <DialogHeader>
                     <DialogTitle>{t("documents.attachDocument")}</DialogTitle>
                     <DialogDescription>{t("documents.attachDialogDescription")}</DialogDescription>
@@ -239,7 +243,7 @@ export const ProjectDocumentsSection = ({
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="bg-background/90 text-foreground absolute top-3 right-3 z-10 rounded-full shadow-md"
+                            className="absolute top-3 right-3 z-10 rounded-full bg-background/90 text-foreground shadow-md"
                             onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();

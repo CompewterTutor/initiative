@@ -1,14 +1,14 @@
-import type { ComponentType } from "react";
 import {
-  SiYoutube,
-  SiFigma,
-  SiLoom,
-  SiVimeo,
-  SiGoogledocs,
-  SiMiro,
   SiAirtable,
+  SiFigma,
+  SiGoogledocs,
+  SiLoom,
+  SiMiro,
+  SiVimeo,
+  SiYoutube,
 } from "@icons-pack/react-simple-icons";
 import { FileText, Link as LinkIcon } from "lucide-react";
+import type { ComponentType } from "react";
 
 export type SmartLinkProviderId =
   | "youtube"

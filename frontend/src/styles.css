@@ -131,17 +131,12 @@
   }
   html {
     height: 100vh;
+    /* biome-ignore lint: not all browsers support dvh */
     height: 100dvh;
     @apply bg-background;
   }
   body {
-    font-family:
-      "Outfit",
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
+    font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     min-height: 100%;
     @apply bg-background text-foreground;
   }

@@ -1,5 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { ImageIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { InsertImageDialog } from "@/components/ui/editor/plugins/images-plugin";

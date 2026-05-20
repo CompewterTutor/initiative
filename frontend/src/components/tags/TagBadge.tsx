@@ -1,9 +1,9 @@
-import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { cn } from "@/lib/utils";
 import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { cn } from "@/lib/utils";
 
 /**
  * Calculate relative luminance from a hex color.
@@ -15,7 +15,7 @@ function getLuminance(hex: string): number {
     .match(/.{2}/g)
     ?.map((c) => {
       const value = parseInt(c, 16) / 255;
-      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+      return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
     });
 
   if (!rgb || rgb.length < 3) return 0;
@@ -102,6 +102,7 @@ export function TagBadge({ tag, to, onClick, onRemove, size = "sm", className }:
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Only add onClick if it's interactive, and handle keyboard events for accessibility
     <span
       role={isClickable ? "button" : undefined}
       tabIndex={isClickable ? 0 : undefined}

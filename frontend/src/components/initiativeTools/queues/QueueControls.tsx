@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight, Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { QueueRead } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { QueueRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface QueueControlsProps {
   queue: QueueRead;
@@ -35,7 +35,7 @@ export const QueueControls = ({
           {queue.is_active ? t("active") : t("inactive")}
         </Badge>
         {queue.is_active && (
-          <span className="text-muted-foreground text-sm font-medium">
+          <span className="font-medium text-muted-foreground text-sm">
             {t("roundN", { count: queue.current_round })}
           </span>
         )}

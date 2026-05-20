@@ -1,6 +1,8 @@
+import { ChevronDown, Filter } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Filter, ChevronDown } from "lucide-react";
 
+import type { InitiativeRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { TagPicker } from "@/components/tags/TagPicker";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -13,8 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { TagPicker } from "@/components/tags/TagPicker";
-import type { InitiativeRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 
 const INITIATIVE_FILTER_ALL = "all";
 
@@ -62,7 +62,7 @@ export const ProjectsFilterBar = ({
   return (
     <Collapsible open={filtersOpen} onOpenChange={onFiltersOpenChange} className="space-y-2">
       <div className="flex items-center justify-between sm:hidden">
-        <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+        <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
           <Filter className="h-4 w-4" />
           {t("filters.heading")}
         </div>
@@ -76,11 +76,11 @@ export const ProjectsFilterBar = ({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-        <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+        <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
           <div className="w-full space-y-2 lg:flex-1">
             <Label
               htmlFor="project-search"
-              className="text-muted-foreground block text-xs font-medium"
+              className="block font-medium text-muted-foreground text-xs"
             >
               {t("filters.filterByName")}
             </Label>
@@ -94,10 +94,10 @@ export const ProjectsFilterBar = ({
           </div>
           {lockedInitiativeId ? (
             <div className="w-full space-y-2 sm:w-60">
-              <Label className="text-muted-foreground block text-xs font-medium">
+              <Label className="block font-medium text-muted-foreground text-xs">
                 {t("filters.initiative")}
               </Label>
-              <p className="text-sm font-medium">
+              <p className="font-medium text-sm">
                 {lockedInitiativeName ?? t("filters.selectedInitiative")}
               </p>
             </div>
@@ -105,7 +105,7 @@ export const ProjectsFilterBar = ({
             <div className="w-full space-y-2 sm:w-60">
               <Label
                 htmlFor="project-initiative-filter"
-                className="text-muted-foreground block text-xs font-medium"
+                className="block font-medium text-muted-foreground text-xs"
               >
                 {t("filters.filterByInitiative")}
               </Label>
@@ -130,7 +130,7 @@ export const ProjectsFilterBar = ({
             <div className="w-full space-y-2 sm:w-48">
               <Label
                 htmlFor="tag-filter"
-                className="text-muted-foreground block text-xs font-medium"
+                className="block font-medium text-muted-foreground text-xs"
               >
                 {t("filters.filterByTag")}
               </Label>
@@ -145,7 +145,7 @@ export const ProjectsFilterBar = ({
           <div className="w-full space-y-2 sm:w-60">
             <Label
               htmlFor="project-sort"
-              className="text-muted-foreground block text-xs font-medium"
+              className="block font-medium text-muted-foreground text-xs"
             >
               {t("filters.sortProjects")}
             </Label>
@@ -172,11 +172,11 @@ export const ProjectsFilterBar = ({
           <div className="w-full space-y-2 sm:w-60">
             <Label
               htmlFor="favorites-only"
-              className="text-muted-foreground block text-xs font-medium"
+              className="block font-medium text-muted-foreground text-xs"
             >
               {t("filters.favorites")}
             </Label>
-            <div className="bg-background/60 flex h-10 items-center gap-3 rounded-md border px-3">
+            <div className="flex h-10 items-center gap-3 rounded-md border bg-background/60 px-3">
               <Switch
                 id="favorites-only"
                 checked={favoritesOnly}

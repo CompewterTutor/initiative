@@ -1,41 +1,31 @@
-import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import {
+  closestCenter,
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   MouseSensor,
   TouchSensor,
-  closestCenter,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { LayoutGrid, ScrollText, Archive, List, Plus, Pin as PinIcon } from "lucide-react";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
+import { Archive, LayoutGrid, List, Pin as PinIcon, Plus, ScrollText } from "lucide-react";
+import { type HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  useProjects,
-  useTemplateProjects,
-  useArchivedProjects,
-  useUpdateProject,
-  useUnarchiveProject,
-  useReorderProjects,
-} from "@/hooks/useProjects";
-import { useInitiatives } from "@/hooks/useInitiatives";
+import type { ProjectRead, TagRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllProjects } from "@/api/query-keys";
-import { getItem, setItem } from "@/lib/storage";
-import { useGuildPath } from "@/lib/guildUrl";
 import { Markdown } from "@/components/Markdown";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { ProjectCardLink, ProjectRowLink } from "@/components/projects/ProjectPreview";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { ProjectImportDialog } from "@/components/projects/ProjectImportDialog";
+import { ProjectCardLink, ProjectRowLink } from "@/components/projects/ProjectPreview";
 import { ProjectsFilterBar } from "@/components/projects/ProjectsFilterBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,11 +40,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
 import {
-  useMyInitiativePermissions,
   canCreate as canCreatePermission,
+  useMyInitiativePermissions,
 } from "@/hooks/useInitiativeRoles";
-import type { ProjectRead, TagRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import {
+  useArchivedProjects,
+  useProjects,
+  useReorderProjects,
+  useTemplateProjects,
+  useUnarchiveProject,
+  useUpdateProject,
+} from "@/hooks/useProjects";
 import { useTags } from "@/hooks/useTags";
+import { useGuildPath } from "@/lib/guildUrl";
+import { getItem, setItem } from "@/lib/storage";
 
 const INITIATIVE_FILTER_ALL = "all";
 const PROJECT_SORT_KEY = "project:list:sort";
@@ -462,7 +462,9 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
       });
     } else {
       const orderMap = new Map<number, number>();
-      customOrder.forEach((id, index) => orderMap.set(id, index));
+      customOrder.forEach((id, index) => {
+        orderMap.set(id, index);
+      });
       next.sort((a, b) => {
         const aIndex = orderMap.has(a.id) ? orderMap.get(a.id)! : Number.MAX_SAFE_INTEGER;
         const bIndex = orderMap.has(b.id) ? orderMap.get(b.id)! : Number.MAX_SAFE_INTEGER;
@@ -551,7 +553,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
   const pinnedProjectsSection =
     pinnedProjects.length > 0 ? (
       <div className="border-b pb-4">
-        <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+        <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
           <PinIcon className="h-4 w-4" />
           {t("pinned")}
         </div>
@@ -586,7 +588,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
         {!lockedInitiativeId && !fixedTagIds && (
           <div>
             <div className="flex items-baseline gap-4">
-              <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+              <h1 className="font-semibold text-3xl tracking-tight">{t("title")}</h1>
               {canCreateProjects && (
                 <Button size="sm" variant="outline" onClick={() => setIsComposerOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -597,7 +599,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
                 <Button
                   size="sm"
                   variant="link"
-                  className="text-muted-foreground h-auto px-0"
+                  className="h-auto px-0 text-muted-foreground"
                   onClick={() => setIsImportOpen(true)}
                 >
                   {t("import.importButton")}
@@ -719,7 +721,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
                         <Markdown content={template.description} className="text-sm" />
                       ) : null}
                     </CardHeader>
-                    <CardContent className="text-muted-foreground space-y-2 text-sm">
+                    <CardContent className="space-y-2 text-muted-foreground text-sm">
                       {template.initiative ? (
                         <p>{t("templates.initiativeLabel", { name: template.initiative.name })}</p>
                       ) : null}
@@ -781,7 +783,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
                         <Markdown content={archived.description} className="text-sm" />
                       ) : null}
                     </CardHeader>
-                    <CardContent className="text-muted-foreground space-y-2 text-sm">
+                    <CardContent className="space-y-2 text-muted-foreground text-sm">
                       {archived.initiative ? (
                         <p>{t("archived.initiativeLabel", { name: archived.initiative.name })}</p>
                       ) : null}
@@ -824,7 +826,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
 
         {canCreateProjects && (
           <Button
-            className="shadow-primary/40 fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg"
+            className="fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg shadow-primary/40"
             onClick={() => setIsComposerOpen(true)}
           >
             <Plus className="h-4 w-4" />

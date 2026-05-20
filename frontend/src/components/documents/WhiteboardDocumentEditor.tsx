@@ -8,27 +8,29 @@
  *   the scene key — an explicit v1 trade-off.
  * - When `yDoc` is null, edits flow through the parent's REST autosave path.
  */
+
+import { CaptureUpdateAction, Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
+import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
-import { Excalidraw, CaptureUpdateAction, serializeAsJSON } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
+
+import type {
+  ExcalidrawElement,
+  OrderedExcalidrawElement,
+} from "@excalidraw/excalidraw/element/types";
 import type {
   AppState,
   BinaryFiles,
   ExcalidrawImperativeAPI,
   ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
-import type {
-  ExcalidrawElement,
-  OrderedExcalidrawElement,
-} from "@excalidraw/excalidraw/element/types";
-import * as Y from "yjs";
 import type { ProviderAwareness } from "@lexical/yjs";
+import type * as Y from "yjs";
 
-import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import { useWhiteboardCursors } from "@/hooks/useWhiteboardCursors";
+import { cn } from "@/lib/utils";
 
 export interface WhiteboardScene {
   elements: readonly ExcalidrawElement[];
@@ -166,8 +168,7 @@ export function WhiteboardDocumentEditor({
 
   // Only compute initialData once per mount (the Excalidraw key in the parent
   // forces remount on document switch, so this is safe).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const initialData = useMemo(() => makeInitialData(initialScene), []);
+  const initialData = useMemo(() => makeInitialData(initialScene), [initialScene]);
 
   // ── Yjs binding ───────────────────────────────────────────────────────
   //
@@ -394,13 +395,13 @@ export function WhiteboardDocumentEditor({
   return (
     <div
       className={cn(
-        "bg-background relative h-[80vh] w-full overflow-hidden rounded-lg border shadow",
+        "relative h-[80vh] w-full overflow-hidden rounded-lg border bg-background shadow",
         className
       )}
     >
       {collaborative && !isSynced && (
-        <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center">
-          <div className="text-muted-foreground flex items-center gap-2">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>{t("whiteboard.syncing")}</span>
           </div>

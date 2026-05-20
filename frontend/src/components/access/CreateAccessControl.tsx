@@ -1,15 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useAuth } from "@/hooks/useAuth";
-import { useInitiative } from "@/hooks/useInitiatives";
-import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
+import type { InitiativeRoleRead } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -18,6 +14,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -25,8 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
+import { useInitiative } from "@/hooks/useInitiatives";
 import { cn } from "@/lib/utils";
-import type { InitiativeRoleRead } from "@/api/generated/initiativeAPI.schemas";
 
 // ─── Exported types ──────────────────────────────────────────────────────────
 
@@ -100,8 +100,7 @@ export const CreateAccessControl = ({
       onUserGrantsChange(allGrants);
     }
     // Only react to members loading or addAllMembers toggling, not onUserGrantsChange itself
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addAllMembers, members]);
+  }, [addAllMembers, members, onUserGrantsChange]);
 
   const handleAddAllMembersToggle = useCallback(
     (checked: boolean) => {
@@ -252,7 +251,7 @@ export const CreateAccessControl = ({
       {/* ── Section 1: Role Access ──────────────────────────────────────── */}
       <div className="space-y-3">
         <div>
-          <Label className="text-sm font-medium">{t("createAccess.roleAccess")}</Label>
+          <Label className="font-medium text-sm">{t("createAccess.roleAccess")}</Label>
           <p className="text-muted-foreground text-xs">{t("createAccess.roleAccessHint")}</p>
         </div>
 
@@ -266,7 +265,7 @@ export const CreateAccessControl = ({
                   role="combobox"
                   aria-expanded={rolePickerOpen}
                   className={cn(
-                    "border-input ring-offset-background focus:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm focus:ring-1 focus:outline-none",
+                    "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring",
                     selectedRoleIds.size === 0 && "text-muted-foreground"
                   )}
                 >
@@ -299,7 +298,7 @@ export const CreateAccessControl = ({
                           >
                             <div
                               className={cn(
-                                "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                                 isSelected
                                   ? "bg-primary text-primary-foreground"
                                   : "opacity-50 [&_svg]:invisible"
@@ -346,13 +345,13 @@ export const CreateAccessControl = ({
             {roleGrants.map((grant) => (
               <Badge key={grant.initiative_role_id} variant="secondary" className="gap-1 pr-1">
                 <span>{roleDisplayName(grant.initiative_role_id)}</span>
-                <span className="text-muted-foreground text-[10px]">
+                <span className="text-[10px] text-muted-foreground">
                   ({grant.level === "read" ? t("createAccess.canView") : t("createAccess.canEdit")})
                 </span>
                 <button
                   type="button"
                   onClick={() => removeRoleGrant(grant.initiative_role_id)}
-                  className="hover:bg-muted ml-0.5 rounded p-0.5"
+                  className="ml-0.5 rounded p-0.5 hover:bg-muted"
                   aria-label={t("createAccess.remove")}
                 >
                   <X className="h-3 w-3" />
@@ -366,7 +365,7 @@ export const CreateAccessControl = ({
       {/* ── Section 2: User Access ──────────────────────────────────────── */}
       <div className="space-y-3">
         <div>
-          <Label className="text-sm font-medium">{t("createAccess.userAccess")}</Label>
+          <Label className="font-medium text-sm">{t("createAccess.userAccess")}</Label>
           <p className="text-muted-foreground text-xs">{t("createAccess.userAccessHint")}</p>
         </div>
 
@@ -395,7 +394,7 @@ export const CreateAccessControl = ({
                   role="combobox"
                   aria-expanded={userPickerOpen}
                   className={cn(
-                    "border-input ring-offset-background focus:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm focus:ring-1 focus:outline-none",
+                    "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring",
                     selectedUserIds.size === 0 && "text-muted-foreground"
                   )}
                 >
@@ -429,7 +428,7 @@ export const CreateAccessControl = ({
                           >
                             <div
                               className={cn(
-                                "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                                 isSelected
                                   ? "bg-primary text-primary-foreground"
                                   : "opacity-50 [&_svg]:invisible"
@@ -441,7 +440,7 @@ export const CreateAccessControl = ({
                               <span className="truncate text-sm">{displayName}</span>
                               {member.user.full_name &&
                                 member.user.full_name !== member.user.email && (
-                                  <span className="text-muted-foreground truncate text-xs">
+                                  <span className="truncate text-muted-foreground text-xs">
                                     {member.user.email}
                                   </span>
                                 )}
@@ -484,13 +483,13 @@ export const CreateAccessControl = ({
             {userGrants.map((grant) => (
               <Badge key={grant.user_id} variant="secondary" className="gap-1 pr-1">
                 <span>{userDisplayName(grant.user_id)}</span>
-                <span className="text-muted-foreground text-[10px]">
+                <span className="text-[10px] text-muted-foreground">
                   ({grant.level === "read" ? t("createAccess.canView") : t("createAccess.canEdit")})
                 </span>
                 <button
                   type="button"
                   onClick={() => removeUserGrant(grant.user_id)}
-                  className="hover:bg-muted ml-0.5 rounded p-0.5"
+                  className="ml-0.5 rounded p-0.5 hover:bg-muted"
                   aria-label={t("createAccess.remove")}
                 >
                   <X className="h-3 w-3" />

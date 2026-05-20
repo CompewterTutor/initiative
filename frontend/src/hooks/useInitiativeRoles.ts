@@ -1,18 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  listInitiativeRolesApiV1InitiativesInitiativeIdRolesGet,
-  getListInitiativeRolesApiV1InitiativesInitiativeIdRolesGetQueryKey,
-  createInitiativeRoleApiV1InitiativesInitiativeIdRolesPost,
-  updateInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdPatch,
-  deleteInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdDelete,
-  getMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGet,
-  getGetMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGetQueryKey,
-} from "@/api/generated/initiatives/initiatives";
-import { invalidateInitiativeRoles, invalidateMyPermissions } from "@/api/query-keys";
 import type {
   InitiativeRoleCreate,
   InitiativeRoleRead,
@@ -20,6 +8,18 @@ import type {
   MyInitiativePermissions,
   PermissionKey,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  createInitiativeRoleApiV1InitiativesInitiativeIdRolesPost,
+  deleteInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdDelete,
+  getGetMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGetQueryKey,
+  getListInitiativeRolesApiV1InitiativesInitiativeIdRolesGetQueryKey,
+  getMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGet,
+  listInitiativeRolesApiV1InitiativesInitiativeIdRolesGet,
+  updateInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdPatch,
+} from "@/api/generated/initiatives/initiatives";
+import { invalidateInitiativeRoles, invalidateMyPermissions } from "@/api/query-keys";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export const useInitiativeRoles = (initiativeId: number | null) => {
   return useQuery<InitiativeRoleRead[]>({

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { cellsFromLayout, pathFromLayout, type PixelLayout } from "./pixelLayout";
+import { cellsFromLayout, type PixelLayout, pathFromLayout } from "./pixelLayout";
 
 // 12x12 pixel rhombus / diamond.
 const DIAMOND_LAYOUT: PixelLayout = [

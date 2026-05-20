@@ -1,4 +1,4 @@
-import { getItem, setItem, removeItem } from "@/lib/storage";
+import { getItem, removeItem, setItem } from "@/lib/storage";
 
 const SERVER_URL_KEY = "initiative-server-url";
 const TOKEN_KEY = "initiative-token";

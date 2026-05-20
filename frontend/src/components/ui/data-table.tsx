@@ -1,40 +1,63 @@
 "use client";
 
 import {
-  Fragment,
-  memo,
-  type ReactNode,
-  useMemo,
-  useRef,
-  useState,
-  useId,
-  useEffect,
-  useCallback,
-} from "react";
-import { useTranslation } from "react-i18next";
-import {
-  ColumnDef,
-  Row,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type SortingState,
+  type ColumnDef,
   type ColumnFiltersState,
-  type VisibilityState,
-  type RowSelectionState,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  getGroupedRowModel,
-  getExpandedRowModel,
+  flexRender,
   type GroupingState,
-  type TableState,
+  getCoreRowModel,
+  getExpandedRowModel,
+  getFilteredRowModel,
+  getGroupedRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   type PaginationState,
+  type Row,
+  type RowSelectionState,
+  type SortingState,
+  type TableState,
   type Table as TableType,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, MoreVertical } from "lucide-react";
+import {
+  Fragment,
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -43,31 +66,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { commandFilter } from "@/lib/fuzzyMatch";
+import { cn } from "@/lib/utils";
 
 interface GroupingOption {
   id: string;
@@ -486,8 +486,7 @@ export function DataTable<TData, TValue>({
         .getVisibleLeafColumns()
         .map((c) => c.id)
         .join(","),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columnVisibility, selectionModeActive]
+    [table.getVisibleLeafColumns]
   );
 
   // Padding-based virtualization: spacer rows keep scroll height correct
@@ -515,7 +514,7 @@ export function DataTable<TData, TValue>({
       <div
         className={cn(
           "overflow-hidden rounded-md border",
-          selectionModeActive && "border-primary ring-primary/20 ring-2"
+          selectionModeActive && "border-primary ring-2 ring-primary/20"
         )}
       >
         {enableFilterInput ||
@@ -562,7 +561,7 @@ export function DataTable<TData, TValue>({
                   <div className="flex items-center gap-2">
                     <Label
                       htmlFor={groupingSelectId}
-                      className="text-muted-foreground text-sm font-medium"
+                      className="font-medium text-muted-foreground text-sm"
                     >
                       {t("groupBy")}
                     </Label>
@@ -730,7 +729,7 @@ export function DataTable<TData, TValue>({
           scrollContainerRef={enableVirtualization ? scrollContainerRef : undefined}
           scrollContainerClassName={enableVirtualization ? virtualContainerHeight : undefined}
         >
-          <TableHeader className={enableVirtualization ? "bg-card sticky top-0 z-10" : undefined}>
+          <TableHeader className={enableVirtualization ? "sticky top-0 z-10 bg-card" : undefined}>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -886,11 +885,10 @@ export function DataTable<TData, TValue>({
 }
 
 function GroupedRow<TData>({ row, colSpan }: { row: Row<TData>; colSpan: number }) {
-  const groupedCell = row.getAllCells().find((cell) => cell.getIsGrouped && cell.getIsGrouped());
-  const groupContent =
-    groupedCell && groupedCell.column.columnDef.cell
-      ? flexRender(groupedCell.column.columnDef.cell, groupedCell.getContext())
-      : ((groupedCell?.getValue() ?? row.id) as ReactNode);
+  const groupedCell = row.getAllCells().find((cell) => cell.getIsGrouped?.());
+  const groupContent = groupedCell?.column.columnDef.cell
+    ? flexRender(groupedCell.column.columnDef.cell, groupedCell.getContext())
+    : ((groupedCell?.getValue() ?? row.id) as ReactNode);
   const rawGroupValue = groupedCell?.getValue();
   const groupLabelText = typeof rawGroupValue === "string" ? rawGroupValue : "grouped rows";
   const toggleExpandHandler = row.getToggleExpandedHandler?.();
@@ -904,7 +902,7 @@ function GroupedRow<TData>({ row, colSpan }: { row: Row<TData>; colSpan: number 
             <button
               type="button"
               onClick={toggleExpandHandler}
-              className="text-muted-foreground hover:text-foreground inline-flex h-6 w-6 items-center justify-center rounded-md"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
               aria-label={`${isExpanded ? "Collapse" : "Expand"} ${groupLabelText}`}
             >
               <ChevronDown
@@ -928,9 +926,7 @@ function GroupedRow<TData>({ row, colSpan }: { row: Row<TData>; colSpan: number 
 const MemoizedVirtualCells = memo(
   function VirtualCells({
     row,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     visibleColumnKey,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     isSelected,
   }: {
     row: Row<unknown>;
@@ -1019,11 +1015,10 @@ function VirtualRow<TData>({
 
 /** Renders the expand/collapse content for a grouped row. */
 function GroupedRowContent<TData>({ row }: { row: Row<TData> }) {
-  const groupedCell = row.getAllCells().find((cell) => cell.getIsGrouped && cell.getIsGrouped());
-  const groupContent =
-    groupedCell && groupedCell.column.columnDef.cell
-      ? flexRender(groupedCell.column.columnDef.cell, groupedCell.getContext())
-      : ((groupedCell?.getValue() ?? row.id) as ReactNode);
+  const groupedCell = row.getAllCells().find((cell) => cell.getIsGrouped?.());
+  const groupContent = groupedCell?.column.columnDef.cell
+    ? flexRender(groupedCell.column.columnDef.cell, groupedCell.getContext())
+    : ((groupedCell?.getValue() ?? row.id) as ReactNode);
   const rawGroupValue = groupedCell?.getValue();
   const groupLabelText = typeof rawGroupValue === "string" ? rawGroupValue : "grouped rows";
   const toggleExpandHandler = row.getToggleExpandedHandler?.();
@@ -1035,7 +1030,7 @@ function GroupedRowContent<TData>({ row }: { row: Row<TData> }) {
         <button
           type="button"
           onClick={toggleExpandHandler}
-          className="text-muted-foreground hover:text-foreground inline-flex h-6 w-6 items-center justify-center rounded-md"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
           aria-label={`${isExpanded ? "Collapse" : "Expand"} ${groupLabelText}`}
         >
           <ChevronDown

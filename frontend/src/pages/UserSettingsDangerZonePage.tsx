@@ -1,13 +1,13 @@
-import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { AlertTriangle, Unplug } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteAccountDialog } from "@/components/user/DeleteAccountDialog";
 import { useServer } from "@/hooks/useServer";
-import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface UserSettingsDangerZonePageProps {
   user: UserRead;
@@ -41,11 +41,11 @@ export const UserSettingsDangerZonePage = ({ user, logout }: UserSettingsDangerZ
       {isNativePlatform && (
         <>
           <div className="flex items-center gap-3">
-            <div className="bg-muted rounded-lg p-2">
-              <Unplug className="text-muted-foreground h-6 w-6" />
+            <div className="rounded-lg bg-muted p-2">
+              <Unplug className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-lg font-semibold">{t("dangerZone.serverConnection")}</p>
+              <p className="font-semibold text-lg">{t("dangerZone.serverConnection")}</p>
               <p className="text-muted-foreground text-sm">
                 {t("dangerZone.connectedTo", { hostname: getServerHostname() })}
               </p>
@@ -67,11 +67,11 @@ export const UserSettingsDangerZonePage = ({ user, logout }: UserSettingsDangerZ
       )}
 
       <div className="flex items-center gap-3">
-        <div className="bg-destructive/10 rounded-lg p-2">
-          <AlertTriangle className="text-destructive h-6 w-6" />
+        <div className="rounded-lg bg-destructive/10 p-2">
+          <AlertTriangle className="h-6 w-6 text-destructive" />
         </div>
         <div>
-          <p className="text-lg font-semibold">{t("dangerZone.title")}</p>
+          <p className="font-semibold text-lg">{t("dangerZone.title")}</p>
           <p className="text-muted-foreground text-sm">{t("dangerZone.subtitle")}</p>
         </div>
       </div>
@@ -82,10 +82,10 @@ export const UserSettingsDangerZonePage = ({ user, logout }: UserSettingsDangerZ
           <CardDescription>{t("dangerZone.deleteDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="border-muted space-y-3 rounded-lg border p-4">
+          <div className="space-y-3 rounded-lg border border-muted p-4">
             <div>
               <h4 className="font-medium">{t("dangerZone.deactivateTitle")}</h4>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-muted-foreground text-sm">
                 {t("dangerZone.deactivateDescription")}
               </p>
             </div>
@@ -94,12 +94,12 @@ export const UserSettingsDangerZonePage = ({ user, logout }: UserSettingsDangerZ
             </Button>
           </div>
 
-          <div className="border-destructive/50 bg-destructive/5 space-y-3 rounded-lg border p-4">
+          <div className="space-y-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
             <div>
-              <h4 className="text-destructive font-medium">
+              <h4 className="font-medium text-destructive">
                 {t("dangerZone.permanentDeleteTitle")}
               </h4>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-muted-foreground text-sm">
                 {t("dangerZone.permanentDeleteDescriptionText")}{" "}
                 <strong>{t("dangerZone.cannotBeUndone")}</strong>
               </p>

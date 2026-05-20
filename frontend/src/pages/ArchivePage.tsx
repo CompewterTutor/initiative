@@ -1,8 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
 
-import { useArchivedProjects, useUnarchiveProject } from "@/hooks/useProjects";
 import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useArchivedProjects, useUnarchiveProject } from "@/hooks/useProjects";
 import { guildPath } from "@/lib/guildUrl";
 
 export const ArchivePage = () => {
@@ -48,7 +48,7 @@ export const ArchivePage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t("archived.title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("archived.title")}</h1>
         <p className="text-muted-foreground">{t("archived.subtitle")}</p>
       </div>
 
@@ -69,7 +69,7 @@ export const ArchivePage = () => {
                   <Markdown content={project.description} className="text-sm" />
                 ) : null}
               </CardHeader>
-              <CardContent className="text-muted-foreground space-y-2 text-sm">
+              <CardContent className="space-y-2 text-muted-foreground text-sm">
                 {project.initiative ? (
                   <p>{t("archived.initiativeLabel", { name: project.initiative.name })}</p>
                 ) : null}

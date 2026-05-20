@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
-import { useRouter } from "@tanstack/react-router";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+import { useRouter } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 
 import { toast } from "@/lib/chesterToast";
 

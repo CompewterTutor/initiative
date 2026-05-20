@@ -1,38 +1,38 @@
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   Clock,
   Flame,
   ListTodo,
-  Users,
   ScrollText,
   TrendingDown,
   TrendingUp,
+  Users,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { useGuilds } from "@/hooks/useGuilds";
-import { useUserStats } from "@/hooks/useUserStats";
-import { useProjects } from "@/hooks/useProjects";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { useTasks } from "@/hooks/useTasks";
-import { useRecentComments } from "@/hooks/useComments";
-import { useGuildPath } from "@/lib/guildUrl";
+import {
+  type ListTasksApiV1TasksGetParams,
+  TaskStatusCategory,
+} from "@/api/generated/initiativeAPI.schemas";
+import { InitiativeOverview } from "@/components/dashboard/InitiativeOverview";
+import { ProjectHealthList } from "@/components/dashboard/ProjectHealthList";
+import { RecentCommentsList } from "@/components/dashboard/RecentCommentsList";
+import { UpcomingTasksList } from "@/components/dashboard/UpcomingTasksList";
+import { FavoriteProjectButton } from "@/components/projects/FavoriteProjectButton";
 import { StatsMetricCard } from "@/components/stats/StatsMetricCard";
 import { VelocityChart } from "@/components/stats/VelocityChart";
-import { ProjectHealthList } from "@/components/dashboard/ProjectHealthList";
-import { UpcomingTasksList } from "@/components/dashboard/UpcomingTasksList";
-import { InitiativeOverview } from "@/components/dashboard/InitiativeOverview";
-import { RecentCommentsList } from "@/components/dashboard/RecentCommentsList";
-import { ProgressCircle } from "@/components/ui/progress-circle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProgressCircle } from "@/components/ui/progress-circle";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FavoriteProjectButton } from "@/components/projects/FavoriteProjectButton";
-import {
-  TaskStatusCategory,
-  ListTasksApiV1TasksGetParams,
-} from "@/api/generated/initiativeAPI.schemas";
+import { useRecentComments } from "@/hooks/useComments";
+import { useGuilds } from "@/hooks/useGuilds";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { useProjects } from "@/hooks/useProjects";
+import { useTasks } from "@/hooks/useTasks";
+import { useUserStats } from "@/hooks/useUserStats";
+import { useGuildPath } from "@/lib/guildUrl";
 
 const DASHBOARD_TASK_PARAMS: ListTasksApiV1TasksGetParams = {
   conditions: [
@@ -97,7 +97,7 @@ export function GuildDashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+          <h1 className="font-bold text-2xl tracking-tight md:text-3xl">
             {activeGuild?.name ?? t("title")}
           </h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -184,6 +184,7 @@ export function GuildDashboardPage() {
             {projectsQuery.isLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: just a static array for skeleton loading
                   <div key={i} className="flex items-center gap-3">
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <Skeleton className="h-4 flex-1" />
@@ -191,7 +192,7 @@ export function GuildDashboardPage() {
                 ))}
               </div>
             ) : recentProjects.length === 0 ? (
-              <div className="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+              <div className="flex h-50 items-center justify-center text-muted-foreground text-sm">
                 <div className="flex flex-col items-center gap-2">
                   <ListTodo className="h-8 w-8 opacity-50" />
                   <span>{t("recentProjects.noProjects")}</span>
@@ -209,7 +210,7 @@ export function GuildDashboardPage() {
                   return (
                     <div
                       key={project.id}
-                      className="hover:bg-accent flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+                      className="flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent"
                     >
                       <Link
                         to={gp(`/projects/${project.id}`)}
@@ -217,7 +218,7 @@ export function GuildDashboardPage() {
                       >
                         <ProgressCircle value={percent} className="h-10 w-10 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate font-medium text-sm">
                             {project.icon && <span className="mr-1">{project.icon}</span>}
                             {project.name}
                           </p>

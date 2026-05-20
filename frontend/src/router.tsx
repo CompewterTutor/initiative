@@ -1,8 +1,9 @@
-import { createRouter } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
+import { createRouter } from "@tanstack/react-router";
+
+import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
 
 import { routeTree } from "./routeTree.gen";
-import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
 
 // Define the router context types
 export interface AuthContextValue {

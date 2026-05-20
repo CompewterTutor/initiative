@@ -9,7 +9,7 @@
 
 import Papa from "papaparse";
 
-import { boundingBox, keyOf, parseKey, type CellValue } from "./coords";
+import { boundingBox, type CellValue, keyOf, parseKey } from "./coords";
 
 /**
  * Serialize a cell map to CSV text.

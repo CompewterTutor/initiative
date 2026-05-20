@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { cellsFromLayout, pathFromLayout, type PixelLayout } from "./pixelLayout";
+import { cellsFromLayout, type PixelLayout, pathFromLayout } from "./pixelLayout";
 
 // 11x9 grid (1 = base red, h = highlight). Pure pixel grid, no anti-alias.
 // Bilaterally symmetric around col 5 / row 4 so the SVG's geometric center

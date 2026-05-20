@@ -1,16 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "@/lib/chesterToast";
 
 import type { OIDCClaimMappingRead } from "@/api/generated/initiativeAPI.schemas";
-import {
-  useOidcMappings,
-  useOidcMappingOptions,
-  useUpdateOidcClaimPath,
-  useCreateOidcMapping,
-  useUpdateOidcMapping,
-  useDeleteOidcMapping,
-} from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  useCreateOidcMapping,
+  useDeleteOidcMapping,
+  useOidcMappingOptions,
+  useOidcMappings,
+  useUpdateOidcClaimPath,
+  useUpdateOidcMapping,
+} from "@/hooks/useSettings";
+import { toast } from "@/lib/chesterToast";
 
 export const OidcClaimMappingsSection = () => {
   const { t } = useTranslation("settings");
@@ -161,12 +161,11 @@ export const OidcClaimMappingsSection = () => {
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>{t("auth.claimPathCardTitle")}</CardTitle>
-          {/* eslint-disable i18next/no-literal-string */}
           <CardDescription>
             {t("auth.claimPathCardDescription")} Keycloak:{" "}
-            <code className="bg-muted rounded px-1">realm_access.roles</code>, Azure AD:{" "}
-            <code className="bg-muted rounded px-1">groups</code>, Okta:{" "}
-            <code className="bg-muted rounded px-1">groups</code>
+            <code className="rounded bg-muted px-1">realm_access.roles</code>, Azure AD:{" "}
+            <code className="rounded bg-muted px-1">groups</code>, Okta:{" "}
+            <code className="rounded bg-muted px-1">groups</code>
           </CardDescription>
           {/* eslint-enable i18next/no-literal-string */}
         </CardHeader>
@@ -203,7 +202,7 @@ export const OidcClaimMappingsSection = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {formOpen && (
-            <div className="bg-muted/40 rounded-md border p-4">
+            <div className="rounded-md border bg-muted/40 p-4">
               <form onSubmit={handleMappingSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -353,7 +352,7 @@ export const OidcClaimMappingsSection = () => {
           )}
 
           {mappingsQuery.data.mappings.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">{t("auth.noRules")}</p>
+            <p className="py-4 text-center text-muted-foreground text-sm">{t("auth.noRules")}</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>

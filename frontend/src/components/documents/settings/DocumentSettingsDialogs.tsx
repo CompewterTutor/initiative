@@ -1,7 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -18,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface DocumentSettingsDialogsProps {
   documentTitle: string;
@@ -78,7 +79,7 @@ export const DocumentSettingsDialogs = ({
   return (
     <>
       <Dialog open={duplicateDialogOpen} onOpenChange={onDuplicateDialogOpenChange}>
-        <DialogContent className="bg-card max-h-screen overflow-y-auto">
+        <DialogContent className="max-h-screen overflow-y-auto bg-card">
           <DialogHeader>
             <DialogTitle>{t("settings.duplicateDialogTitle")}</DialogTitle>
             <DialogDescription>{t("settings.duplicateDialogDescription")}</DialogDescription>
@@ -123,13 +124,13 @@ export const DocumentSettingsDialogs = ({
       </Dialog>
 
       <Dialog open={copyDialogOpen} onOpenChange={onCopyDialogOpenChange}>
-        <DialogContent className="bg-card max-h-screen overflow-y-auto">
+        <DialogContent className="max-h-screen overflow-y-auto bg-card">
           <DialogHeader>
             <DialogTitle>{t("settings.copyDialogTitle")}</DialogTitle>
             <DialogDescription>{t("settings.copyDialogDescription")}</DialogDescription>
           </DialogHeader>
           {isLoadingInitiatives ? (
-            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("settings.loadingInitiatives")}
             </div>
@@ -198,7 +199,7 @@ export const DocumentSettingsDialogs = ({
       </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={onDeleteDialogOpenChange}>
-        <DialogContent className="bg-card max-h-screen overflow-y-auto">
+        <DialogContent className="max-h-screen overflow-y-auto bg-card">
           <DialogHeader>
             <DialogTitle>{t("settings.deleteDialogTitle")}</DialogTitle>
             <DialogDescription>{t("settings.deleteDialogDescription")}</DialogDescription>

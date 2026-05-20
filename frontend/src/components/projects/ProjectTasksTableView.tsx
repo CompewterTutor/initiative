@@ -1,25 +1,33 @@
-import React, { createContext, useCallback, useContext, useMemo, useState, memo } from "react";
-import { Trans, useTranslation } from "react-i18next";
-import { type ColumnDef } from "@tanstack/react-table";
 import {
-  DndContext,
   closestCenter,
-  type DragEndEvent,
-  type DragStartEvent,
+  DndContext,
   type DndContextProps,
+  type DragEndEvent,
   type DraggableAttributes,
   type DraggableSyntheticListeners,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { ColumnDef } from "@tanstack/react-table";
 import { GripVertical, MessageSquare } from "lucide-react";
+import type React from "react";
+import { createContext, memo, useCallback, useContext, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import type { TaskListRead, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
-import { DataTable, type DataTableRowWrapperProps } from "@/components/ui/data-table";
-import { TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
+import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
+import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
+import { SortIcon } from "@/components/SortIcon";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { DateCell } from "@/components/tasks/TaskDateCell";
 import { TaskPrioritySelector } from "@/components/tasks/TaskPrioritySelector";
+import { statusTriggerStyle, TaskStatusOption } from "@/components/tasks/TaskStatusOption";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable, type DataTableRowWrapperProps } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -27,23 +35,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SortIcon } from "@/components/SortIcon";
+import { TableRow } from "@/components/ui/table";
+import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
+import { useProperties } from "@/hooks/useProperties";
+import { useGuildPath } from "@/lib/guildUrl";
 import { summarizeRecurrence } from "@/lib/recurrence";
-import type { TranslateFn } from "@/types/i18n";
-import { truncateText } from "@/lib/text";
-import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
-import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
-import { DateCell } from "@/components/tasks/TaskDateCell";
-import { cn } from "@/lib/utils";
 import { dateSortingFn, prioritySortingFn } from "@/lib/sorting";
 import { getTaskDateStatus, getTaskDateStatusLabel } from "@/lib/taskDateStatus";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
-import { TagBadge } from "@/components/tags/TagBadge";
-import { useGuildPath } from "@/lib/guildUrl";
-import { TaskStatusOption, statusTriggerStyle } from "@/components/tasks/TaskStatusOption";
-import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
-import { useProperties } from "@/hooks/useProperties";
-import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
+import { truncateText } from "@/lib/text";
+import { cn } from "@/lib/utils";
+import type { TranslateFn } from "@/types/i18n";
 
 type ProjectTasksListViewProps = {
   projectId: number;
@@ -254,7 +255,7 @@ const ProjectTasksTableViewComponent = ({
           );
         },
         cell: ({ getValue }) => (
-          <span className="text-base font-medium">
+          <span className="font-medium text-base">
             {getTaskDateStatusLabel(getValue<string>(), t as TranslateFn)}
           </span>
         ),
@@ -409,7 +410,7 @@ const ProjectTasksTableViewComponent = ({
           const count = row.original.comment_count ?? 0;
           return count > 0 ? (
             <span className="inline-flex items-center gap-1 text-sm">
-              <MessageSquare className="text-muted-foreground h-3.5 w-3.5" aria-hidden="true" />
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
               {count}
             </span>
           ) : (
@@ -538,7 +539,7 @@ const ProjectTasksTableViewComponent = ({
                     1: (
                       <Button
                         variant="link"
-                        className="text-foreground px-0 text-base"
+                        className="px-0 text-base text-foreground"
                         onClick={() => {
                           table.resetSorting();
                           table.resetGrouping();
@@ -648,7 +649,7 @@ const TaskCell = ({ task, canOpenTask, onTaskClick }: TaskCellProps) => {
         disabled={!canOpenTask}
       >
         <p className="flex items-center gap-2 font-medium">{task.title}</p>
-        <div className="text-muted-foreground space-y-1 text-xs">
+        <div className="space-y-1 text-muted-foreground text-xs">
           {task.assignees.length > 0 ? (
             <TaskAssigneeList assignees={task.assignees} className="text-xs" />
           ) : null}

@@ -142,7 +142,7 @@ const GroupPopover = ({
  *  "Format" overflow popover. */
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <div className="space-y-1.5">
-    <p className="text-muted-foreground text-xs font-medium">{title}</p>
+    <p className="font-medium text-muted-foreground text-xs">{title}</p>
     {children}
   </div>
 );
@@ -814,7 +814,7 @@ export const SpreadsheetToolbar = ({
   );
 
   const labelSpan = (
-    <span className="text-muted-foreground shrink-0 font-mono text-xs">{selectionLabel}</span>
+    <span className="shrink-0 font-mono text-muted-foreground text-xs">{selectionLabel}</span>
   );
 
   if (isMobile) {
@@ -851,7 +851,7 @@ export const SpreadsheetToolbar = ({
       {fileMenu}
       {historyControls}
       {labelSpan}
-      <div className="bg-border mx-0.5 h-5 w-px" aria-hidden />
+      <div className="mx-0.5 h-5 w-px bg-border" aria-hidden />
       <GroupPopover
         icon={<Type className="h-4 w-4" />}
         label={t("documents:spreadsheet.format.font")}
@@ -894,7 +894,7 @@ export const SpreadsheetToolbar = ({
       >
         {freezeControls}
       </GroupPopover>
-      <div className="bg-border mx-0.5 h-5 w-px" aria-hidden />
+      <div className="mx-0.5 h-5 w-px bg-border" aria-hidden />
       {clearButton}
     </div>
   );
@@ -962,9 +962,9 @@ const ColorTrigger = ({
     <div className="flex items-center" title={label}>
       <label
         className={cn(
-          "border-input bg-background hover:bg-accent relative flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-2",
+          "relative flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-2 hover:bg-accent",
           disabled && "pointer-events-none opacity-50",
-          active && "ring-primary ring-2"
+          active && "ring-2 ring-primary"
         )}
       >
         <span className="text-muted-foreground" aria-hidden>
@@ -972,7 +972,7 @@ const ColorTrigger = ({
         </span>
         <span
           aria-hidden
-          className="border-border h-4 w-4 rounded-sm border"
+          className="h-4 w-4 rounded-sm border border-border"
           style={{ backgroundColor: active ? draft : "transparent" }}
         />
         <input

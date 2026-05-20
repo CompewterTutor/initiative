@@ -1,19 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  listNotificationsApiV1NotificationsGet,
-  getListNotificationsApiV1NotificationsGetQueryKey,
-  unreadNotificationsCountApiV1NotificationsUnreadCountGet,
-  getUnreadNotificationsCountApiV1NotificationsUnreadCountGetQueryKey,
-  markNotificationReadApiV1NotificationsNotificationIdReadPost,
-  markAllNotificationsReadApiV1NotificationsReadAllPost,
-} from "@/api/generated/notifications/notifications";
-import { invalidateNotifications } from "@/api/query-keys";
 import type {
   NotificationCountResponse,
   NotificationListResponse,
   NotificationRead,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  getListNotificationsApiV1NotificationsGetQueryKey,
+  getUnreadNotificationsCountApiV1NotificationsUnreadCountGetQueryKey,
+  listNotificationsApiV1NotificationsGet,
+  markAllNotificationsReadApiV1NotificationsReadAllPost,
+  markNotificationReadApiV1NotificationsNotificationIdReadPost,
+  unreadNotificationsCountApiV1NotificationsUnreadCountGet,
+} from "@/api/generated/notifications/notifications";
+import { invalidateNotifications } from "@/api/query-keys";
 import type { MutationOpts } from "@/types/mutation";
 
 // ── Queries ─────────────────────────────────────────────────────────────────

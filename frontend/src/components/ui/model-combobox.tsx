@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
+
 import { Button } from "./button";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import {
   Command,
   CommandEmpty,
@@ -12,6 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "./command";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 export interface ModelComboboxProps {
   models: string[];
@@ -103,7 +104,7 @@ export const ModelCombobox = ({
             <CommandList>
               <CommandEmpty>
                 {isLoading ? (
-                  <div className="text-muted-foreground flex items-center justify-center gap-2 py-2 text-sm">
+                  <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground text-sm">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading models...
                   </div>

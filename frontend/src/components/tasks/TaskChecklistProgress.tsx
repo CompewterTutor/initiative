@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { Progress } from "@/components/ui/progress";
 import type { TaskSubtaskProgress } from "@/api/generated/initiativeAPI.schemas";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 type TaskChecklistProgressProps = {
@@ -21,7 +21,7 @@ export const TaskChecklistProgress = ({ progress, className }: TaskChecklistProg
   return (
     <div className={cn("space-y-1", className)}>
       <Progress value={ratio} className="h-1.5" aria-label={t("checklist.progressLabel")} />
-      <p className="text-muted-foreground text-[11px] font-medium">
+      <p className="font-medium text-[11px] text-muted-foreground">
         {t("checklist.progress", {
           completed: progress.completed,
           total: progress.total,

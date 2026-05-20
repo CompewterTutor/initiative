@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { cellsFromLayout, pathFromLayout, type PixelLayout } from "./pixelLayout";
+import { cellsFromLayout, type PixelLayout, pathFromLayout } from "./pixelLayout";
 
 // 12x12 gold coin. r = rim (dark), 1 = coin face base, h = highlight.
 const COIN_LAYOUT: PixelLayout = [

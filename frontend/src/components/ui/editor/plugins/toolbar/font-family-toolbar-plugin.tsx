@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
 import { $getSelectionStyleValueForProperty, $patchStyleText } from "@lexical/selection";
-import { $getSelection, $isRangeSelection, BaseSelection } from "lexical";
+import { $getSelection, $isRangeSelection, type BaseSelection } from "lexical";
 import { TypeIcon } from "lucide-react";
+import { useCallback, useState } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";
@@ -41,7 +41,7 @@ export function FontFamilyToolbarPlugin() {
         }
       });
     },
-    [activeEditor, style]
+    [activeEditor]
   );
 
   const buttonAriaLabel = "Formatting options for font family";

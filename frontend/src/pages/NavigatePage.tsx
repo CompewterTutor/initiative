@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useRouter, useSearch } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { useGuilds } from "@/hooks/useGuilds";
 import { useAuth } from "@/hooks/useAuth";
-import { isGuildScopedPath, guildPath } from "@/lib/guildUrl";
+import { useGuilds } from "@/hooks/useGuilds";
+import { guildPath, isGuildScopedPath } from "@/lib/guildUrl";
 
 const normalizeTarget = (raw: string): string => {
   const decoded = decodeURIComponent(raw);
@@ -98,7 +98,7 @@ export const NavigatePage = () => {
   if (error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-destructive text-base font-medium">{error}</p>
+        <p className="font-medium text-base text-destructive">{error}</p>
         <Button onClick={() => router.navigate({ to: "/", replace: true })}>
           {t("navigate.goHome")}
         </Button>
@@ -108,7 +108,7 @@ export const NavigatePage = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-      <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       <p className="text-muted-foreground text-sm">
         {isProcessing ? t("navigate.redirecting") : t("navigate.finalizing")}
       </p>

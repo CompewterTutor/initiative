@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
@@ -43,7 +43,7 @@ export const VerifyEmailPage = () => {
   }, [token, t]);
 
   return (
-    <div className="bg-muted/60 flex min-h-screen items-center justify-center px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-muted/60 px-4 py-12">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle>{t("verifyEmail.title")}</CardTitle>
@@ -54,7 +54,7 @@ export const VerifyEmailPage = () => {
             <p className="text-muted-foreground text-sm">{t("verifyEmail.hangTight")}</p>
           ) : null}
         </CardContent>
-        <CardFooter className="text-muted-foreground flex flex-col gap-2 text-sm">
+        <CardFooter className="flex flex-col gap-2 text-muted-foreground text-sm">
           {status === "success" ? (
             <Button asChild className="w-full">
               <Link to="/login">{t("verifyEmail.goToSignIn")}</Link>

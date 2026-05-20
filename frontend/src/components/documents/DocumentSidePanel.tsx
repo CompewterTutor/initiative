@@ -1,9 +1,9 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getItem, setItem } from "@/lib/storage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getItem, setItem } from "@/lib/storage";
 
 const STORAGE_KEY = "document-side-panel-open";
 const TAB_STORAGE_KEY = "document-side-panel-tab";

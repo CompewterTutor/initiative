@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Frontend tooling: migrated from ESLint + Prettier to Biome.** Single tool now handles linting, formatting, and import organization with significantly faster pre-commit hooks. The previous ESLint rule set is preserved (a11y, React hooks, i18next, TypeScript) and Tailwind class sorting replaces `prettier-plugin-tailwindcss`. New scripts: `pnpm check` / `check:fix` (all-in-one), `pnpm lint` / `lint:fix`, `pnpm format`; the TypeScript-only check moved from `pnpm check` to `pnpm typecheck`. `useExhaustiveDependencies` is configured with `reportUnnecessaryDependencies: false` to preserve intentional trigger-deps (e.g. "reset page when filters change"). Removed dev dependencies: `eslint`, `@eslint/js`, `@typescript-eslint/*`, `eslint-plugin-i18next`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react`, `eslint-plugin-react-hooks`, `prettier`, `prettier-plugin-tailwindcss`.
+
 ## [0.44.3] - 2026-05-18
 
 ### Fixed

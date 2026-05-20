@@ -1,5 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { TableIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { InsertTableDialog } from "@/components/ui/editor/plugins/table-plugin";

@@ -1,8 +1,10 @@
-import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { Settings, ChartColumn, SquareCheckBig, UserCog } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
+import { Link } from "@tanstack/react-router";
+import { ChartColumn, Settings, SquareCheckBig, UserCog } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { ModeToggle } from "@/components/ModeToggle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,8 +19,6 @@ import {
 import { SidebarFooter } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { VersionDialog } from "@/components/VersionDialog";
-import { ModeToggle } from "@/components/ModeToggle";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { guildPath } from "@/lib/guildUrl";
 
 export interface SidebarUserFooterProps {
@@ -74,8 +74,8 @@ export const SidebarUserFooter = ({
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden text-left">
-                  <span className="w-full truncate text-sm font-medium">{userDisplayName}</span>
-                  <span className="text-muted-foreground w-full truncate text-xs">{userEmail}</span>
+                  <span className="w-full truncate font-medium text-sm">{userDisplayName}</span>
+                  <span className="w-full truncate text-muted-foreground text-xs">{userEmail}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -129,9 +129,8 @@ export const SidebarUserFooter = ({
               hasUpdate={hasUpdate}
               isLoadingVersion={isLoadingVersion}
             >
-              <button className="flex cursor-pointer items-center gap-1.5">
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                <span className="text-muted-foreground hover:text-foreground text-xs transition-colors">
+              <button type="button" className="flex cursor-pointer items-center gap-1.5">
+                <span className="text-muted-foreground text-xs transition-colors hover:text-foreground">
                   v{currentVersion}
                 </span>
                 {hasUpdate && (
@@ -148,7 +147,7 @@ export const SidebarUserFooter = ({
                   href="https://github.com/Morelitea/initiative"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
                   aria-label={t("viewOnGitHub")}
                 >
                   <SiGithub className="h-4 w-4" />

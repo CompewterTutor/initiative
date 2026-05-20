@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouter, useParams } from "@tanstack/react-router";
-import { ColumnDef } from "@tanstack/react-table";
+import { Link, useParams, useRouter } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type {
+  QueuePermissionCreate,
+  QueuePermissionLevel,
+  QueueRolePermissionCreate,
+  QueueRolePermissionRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -29,24 +34,17 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-
+import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
+import { useInitiativeMembers } from "@/hooks/useInitiatives";
 import {
-  useQueue,
-  useUpdateQueue,
   useDeleteQueue,
+  useQueue,
   useSetQueuePermissions,
   useSetQueueRolePermissions,
+  useUpdateQueue,
 } from "@/hooks/useQueues";
-import { useInitiativeMembers } from "@/hooks/useInitiatives";
-import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
+import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
-
-import type {
-  QueuePermissionLevel,
-  QueueRolePermissionRead,
-  QueuePermissionCreate,
-  QueueRolePermissionCreate,
-} from "@/api/generated/initiativeAPI.schemas";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -345,7 +343,8 @@ export const QueueSettingsPage = () => {
         ),
       },
     ],
-    [t, setRolePermissions.isPending] // eslint-disable-line react-hooks/exhaustive-deps
+    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers are local and the column defs only need to update when these change
+    [t, setRolePermissions.isPending, handleRemoveRolePermission, handleUpdateRoleLevel]
   );
 
   const userColumns: ColumnDef<UserPermissionRow>[] = useMemo(
@@ -357,7 +356,7 @@ export const QueueSettingsPage = () => {
           <div>
             <span className="font-medium">{row.original.displayName}</span>
             {row.original.email && (
-              <span className="text-muted-foreground ml-2 text-sm">{row.original.email}</span>
+              <span className="ml-2 text-muted-foreground text-sm">{row.original.email}</span>
             )}
           </div>
         ),
@@ -393,7 +392,7 @@ export const QueueSettingsPage = () => {
         header: () => <div className="text-right">{t("common:actions")}</div>,
         cell: ({ row }) => {
           if (row.original.isOwner) {
-            return <div className="text-muted-foreground text-right text-xs">-</div>;
+            return <div className="text-right text-muted-foreground text-xs">-</div>;
           }
           return (
             <div className="text-right">
@@ -412,7 +411,8 @@ export const QueueSettingsPage = () => {
         },
       },
     ],
-    [t, setUserPermissions.isPending] // eslint-disable-line react-hooks/exhaustive-deps
+    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers are local and the column defs only need to update when these change
+    [t, setUserPermissions.isPending, handleUpdateUserLevel, handleRemoveUserPermission]
   );
 
   // ── Early returns ──────────────────────────────────────────────────────
@@ -423,7 +423,7 @@ export const QueueSettingsPage = () => {
 
   if (queueQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("loadingQueue")}
       </div>
@@ -459,7 +459,7 @@ export const QueueSettingsPage = () => {
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("settings")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("settings")}</h1>
         <p className="text-muted-foreground text-sm">{t("settingsDescription")}</p>
       </div>
 
@@ -584,8 +584,8 @@ export const QueueSettingsPage = () => {
               <CardContent className="space-y-4">
                 {/* Bulk action bar */}
                 {selectedMembers.length > 0 && (
-                  <div className="bg-muted flex items-center gap-3 rounded-md p-3">
-                    <span className="text-sm font-medium">
+                  <div className="flex items-center gap-3 rounded-md bg-muted p-3">
+                    <span className="font-medium text-sm">
                       {t("selectedCount", { count: selectedMembers.length })}
                     </span>
                     <Select

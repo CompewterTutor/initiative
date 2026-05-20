@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { setTaskTagsApiV1TasksTaskIdTagsPut } from "@/api/generated/tasks/tasks";
 import { invalidateAllTasks } from "@/api/query-keys";
 import { BulkEditTagsDialog } from "@/components/shared/BulkEditTagsDialog";
-import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 interface BulkEditTaskTagsDialogProps extends DialogWithSuccessProps {

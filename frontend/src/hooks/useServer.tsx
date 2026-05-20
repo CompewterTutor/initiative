@@ -1,8 +1,8 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
-import { getStoredServerUrl, setStoredServerUrl, clearAllStorage } from "@/lib/serverStorage";
 import { setApiBaseUrl } from "@/api/client";
+import { clearAllStorage, getStoredServerUrl, setStoredServerUrl } from "@/lib/serverStorage";
 
 interface ServerContextValue {
   /** The configured server URL (e.g., "https://myserver.com/api/v1") */

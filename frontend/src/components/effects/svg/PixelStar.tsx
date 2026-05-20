@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { cellsFromLayout, pathFromLayout, type PixelLayout } from "./pixelLayout";
+import { cellsFromLayout, type PixelLayout, pathFromLayout } from "./pixelLayout";
 
 // 12x12 chunky 5-point star. Single fill — color comes from confetti palette.
 const STAR_LAYOUT: PixelLayout = [

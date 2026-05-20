@@ -1,14 +1,14 @@
 import { Link } from "@tanstack/react-router";
+import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, ChevronRight, FileText, Link2 } from "lucide-react";
 import { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from "react-i18next";
 
-import { useDocumentBacklinks } from "@/hooks/useDocuments";
-import { useDateLocale } from "@/hooks/useDateLocale";
-import { useGuildPath } from "@/lib/guildUrl";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useDateLocale } from "@/hooks/useDateLocale";
+import { useDocumentBacklinks } from "@/hooks/useDocuments";
+import { useGuildPath } from "@/lib/guildUrl";
 
 interface DocumentBacklinksProps {
   documentId: number;
@@ -43,15 +43,15 @@ export function DocumentBacklinks({ documentId }: DocumentBacklinksProps) {
           className="flex w-full items-center justify-between px-4 py-3 hover:bg-transparent"
         >
           <div className="flex items-center gap-2">
-            <Link2 className="text-muted-foreground h-4 w-4" />
-            <span className="text-sm font-medium">
+            <Link2 className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium text-sm">
               {t("backlinks.title", { count: backlinks.length })}
             </span>
           </div>
           {isOpen ? (
-            <ChevronDown className="text-muted-foreground h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <ChevronRight className="text-muted-foreground h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           )}
         </Button>
       </CollapsibleTrigger>
@@ -62,12 +62,12 @@ export function DocumentBacklinks({ documentId }: DocumentBacklinksProps) {
               <li key={backlink.id}>
                 <Link
                   to={gp(`/documents/${backlink.id}`)}
-                  className="group hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5"
+                  className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
                 >
-                  <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="flex-1 truncate">
                     <span className="text-sm group-hover:underline">{backlink.title}</span>
-                    <span className="text-muted-foreground ml-2 text-xs">
+                    <span className="ml-2 text-muted-foreground text-xs">
                       {formatDistanceToNow(new Date(backlink.updated_at), {
                         addSuffix: true,
                         locale: dateLocale,

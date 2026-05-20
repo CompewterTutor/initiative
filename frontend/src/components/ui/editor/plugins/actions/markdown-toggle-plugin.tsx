@@ -1,13 +1,13 @@
-import { useCallback } from "react";
 import { $createCodeNode, $isCodeNode } from "@lexical/code";
 import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
-  Transformer,
+  type Transformer,
 } from "@lexical/markdown";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createTextNode, $getRoot } from "lexical";
 import { FileTextIcon } from "lucide-react";
+import { useCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -58,8 +58,7 @@ export function MarkdownTogglePlugin({ transformers }: { transformers: Array<Tra
     // render, defeating the memoization. The transformer set is
     // effectively constant for the lifetime of the editor instance, so
     // capturing the first value is safe.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
+  }, [editor, transformers]);
 
   return (
     <Button

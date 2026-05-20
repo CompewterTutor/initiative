@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetentionSettingCard } from "@/components/trash/RetentionSettingCard";
 import { TrashTable } from "@/components/trash/TrashTable";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGuilds } from "@/hooks/useGuilds";
 
 export const SettingsGuildTrashPage = () => {

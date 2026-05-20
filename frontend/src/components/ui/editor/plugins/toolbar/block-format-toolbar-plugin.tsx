@@ -1,7 +1,7 @@
 import { $isListNode, ListNode } from "@lexical/list";
 import { $isHeadingNode } from "@lexical/rich-text";
 import { $findMatchingParent, $getNearestNodeOfType } from "@lexical/utils";
-import { $isRangeSelection, $isRootOrShadowRoot, BaseSelection } from "lexical";
+import { $isRangeSelection, $isRootOrShadowRoot, type BaseSelection } from "lexical";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";

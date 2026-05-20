@@ -1,16 +1,16 @@
-import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   LexicalTypeaheadMenuPlugin,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { TextNode } from "lexical";
+import type { TextNode } from "lexical";
+import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useEditorModal } from "@/components/ui/editor/editor-hooks/use-modal";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { useEditorModal } from "@/components/ui/editor/editor-hooks/use-modal";
 
-import { ComponentPickerOption } from "./picker/component-picker-option";
+import type { ComponentPickerOption } from "./picker/component-picker-option";
 
 function ComponentPickerMenu({
   options,

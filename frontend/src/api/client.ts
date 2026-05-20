@@ -118,7 +118,9 @@ export const apiClient = axios.create({
           searchParams.append(key, JSON.stringify(value));
         } else {
           // Primitive arrays → repeated key format (key=1&key=2)
-          value.forEach((v) => searchParams.append(key, String(v)));
+          value.forEach((v) => {
+            searchParams.append(key, String(v));
+          });
         }
       } else {
         searchParams.append(key, String(value));

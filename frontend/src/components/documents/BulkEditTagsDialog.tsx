@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { setDocumentTagsApiV1DocumentsDocumentIdTagsPut } from "@/api/generated/documents/documents";
+import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllDocuments } from "@/api/query-keys";
 import { BulkEditTagsDialog as GenericBulkEditTagsDialog } from "@/components/shared/BulkEditTagsDialog";
-import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 interface BulkEditDocumentTagsDialogProps extends DialogWithSuccessProps {

@@ -1,8 +1,19 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useCreateProject, useTemplateProjects } from "@/hooks/useProjects";
+import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+import {
+  CreateAccessControl,
+  type RoleGrant,
+  type UserGrant,
+} from "@/components/access/CreateAccessControl";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,18 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  CreateAccessControl,
-  type RoleGrant,
-  type UserGrant,
-} from "@/components/access/CreateAccessControl";
-import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+import { useCreateProject, useTemplateProjects } from "@/hooks/useProjects";
 
 const NO_TEMPLATE_VALUE = "template-none";
 
@@ -150,7 +150,7 @@ export const CreateProjectDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card max-h-screen overflow-y-auto">
+      <DialogContent className="max-h-screen overflow-y-auto bg-card">
         <DialogHeader>
           <DialogTitle>{t("createDialog.title")}</DialogTitle>
           <DialogDescription>{t("createDialog.description")}</DialogDescription>
@@ -249,7 +249,7 @@ export const CreateProjectDialog = ({
                 </p>
               ) : null}
             </div>
-            <div className="bg-muted/20 flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-lg border bg-muted/20 p-3">
               <div>
                 <Label htmlFor="create-as-template" className="text-base">
                   {t("createDialog.saveAsTemplate")}

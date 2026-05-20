@@ -1,11 +1,19 @@
+import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
+import {
+  type PropertyDefinitionCreate,
+  type PropertyDefinitionRead,
+  type PropertyDefinitionUpdate,
+  type PropertyOption,
+  PropertyType,
+  type PropertyType as PropertyTypeValue,
+} from "@/api/generated/initiativeAPI.schemas";
+import { slugify, typeRequiresOptions } from "@/components/properties/propertyHelpers";
+import { iconForPropertyType } from "@/components/properties/propertyTypeIcons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TabsContent } from "@/components/ui/tabs";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -27,22 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TabsContent } from "@/components/ui/tabs";
 import {
   useCreateProperty,
   useDeleteProperty,
   useProperties,
   useUpdateProperty,
 } from "@/hooks/useProperties";
-import {
-  PropertyType,
-  type PropertyDefinitionCreate,
-  type PropertyDefinitionRead,
-  type PropertyDefinitionUpdate,
-  type PropertyOption,
-  type PropertyType as PropertyTypeValue,
-} from "@/api/generated/initiativeAPI.schemas";
-import { iconForPropertyType } from "@/components/properties/propertyTypeIcons";
-import { slugify, typeRequiresOptions } from "@/components/properties/propertyHelpers";
+import { toast } from "@/lib/chesterToast";
 
 const PROPERTY_TYPE_OPTIONS: PropertyTypeValue[] = [
   PropertyType.text,
@@ -120,7 +120,7 @@ const OptionListEditor = ({ options, onChange, disabled }: OptionListEditorProps
       ) : null}
       <ul className="space-y-2">
         {options.map((option, index) => (
-          <li key={index} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+          <li key={option.value} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
             <Input
               value={option.value}
               onChange={(e) =>
@@ -343,7 +343,7 @@ export const InitiativeSettingsPropertiesTab = ({ initiativeId }: { initiativeId
         </CardHeader>
         <CardContent>
           {propertiesQuery.isLoading ? (
-            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("common:loading")}
             </div>
@@ -372,7 +372,7 @@ export const InitiativeSettingsPropertiesTab = ({ initiativeId }: { initiativeId
                             const Icon = iconForPropertyType(definition.type);
                             return (
                               <span className="inline-flex items-center gap-2">
-                                <Icon className="text-muted-foreground h-4 w-4" aria-hidden />
+                                <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
                                 <span>{t(`properties:types.${definition.type}`)}</span>
                               </span>
                             );
@@ -387,7 +387,7 @@ export const InitiativeSettingsPropertiesTab = ({ initiativeId }: { initiativeId
                                 className="inline-block h-4 w-4 rounded-full border"
                                 style={{ backgroundColor: definition.color }}
                               />
-                              <span className="text-muted-foreground font-mono text-xs uppercase">
+                              <span className="font-mono text-muted-foreground text-xs uppercase">
                                 {definition.color}
                               </span>
                             </span>

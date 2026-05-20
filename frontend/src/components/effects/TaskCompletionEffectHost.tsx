@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  TASK_COMPLETION_EVENT,
-  type TaskCompletionEventDetail,
   getLastPointer,
   recordPointer,
+  TASK_COMPLETION_EVENT,
+  type TaskCompletionEventDetail,
 } from "@/lib/taskCompletionFeedback";
 
 import { D20Roller } from "./D20Roller";

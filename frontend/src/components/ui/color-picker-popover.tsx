@@ -100,7 +100,7 @@ export const ColorPickerPopover = ({
           type="button"
           variant="outline"
           className={cn(
-            "h-11 w-full justify-between gap-3 font-mono text-xs tracking-wide uppercase",
+            "h-11 w-full justify-between gap-3 font-mono text-xs uppercase tracking-wide",
             className
           )}
           disabled={disabled}

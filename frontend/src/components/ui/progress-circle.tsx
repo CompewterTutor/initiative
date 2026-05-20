@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export const ProgressCircle = ({
     <div className={cn("relative h-14 w-14", className)} {...props}>
       <svg className="h-full w-full" viewBox="0 0 60 60" aria-hidden="true">
         <circle
-          className="text-muted stroke-current"
+          className="stroke-current text-muted"
           strokeWidth="6"
           strokeLinecap="round"
           fill="transparent"
@@ -30,7 +30,7 @@ export const ProgressCircle = ({
           cy="30"
         />
         <circle
-          className="text-primary stroke-current"
+          className="stroke-current text-primary"
           strokeWidth="6"
           strokeLinecap="round"
           fill="transparent"
@@ -43,7 +43,7 @@ export const ProgressCircle = ({
         />
       </svg>
       {showPercentage && (
-        <div className="text-foreground absolute inset-0 flex items-center justify-center text-xs font-semibold">
+        <div className="absolute inset-0 flex items-center justify-center font-semibold text-foreground text-xs">
           {value}%
         </div>
       )}

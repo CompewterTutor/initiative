@@ -1,15 +1,15 @@
-import { useEffect, useState, useMemo } from "react";
 import { Link, useParams } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { useAuth } from "@/hooks/useAuth";
 import type { GuildInviteStatus } from "@/api/generated/initiativeAPI.schemas";
+import { LogoIcon } from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import { LogoIcon } from "@/components/LogoIcon";
+import { useAuth } from "@/hooks/useAuth";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export const GuildInvitePage = () => {
   const { code = "" } = useParams({ strict: false }) as { code: string };
@@ -98,8 +98,8 @@ export const GuildInvitePage = () => {
         backgroundSize: "96px 96px",
       }}
     >
-      <div className="bg-muted/60 flex min-h-screen flex-col items-center justify-center gap-3 px-4 py-12">
-        <div className="text-primary flex items-center gap-3 text-3xl font-semibold tracking-tight">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
+        <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
           <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
           {t("common:appName")}
         </div>
@@ -116,12 +116,12 @@ export const GuildInvitePage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p className="text-muted-foreground flex items-center gap-2">
+              <p className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> {t("invite.loading")}
               </p>
             ) : (
               <>
-                <div className="bg-muted/40 rounded border p-4 text-sm">
+                <div className="rounded border bg-muted/40 p-4 text-sm">
                   <p>
                     <span className="font-medium">{t("invite.inviteCodeLabel")}</span>{" "}
                     {normalizedCode || "—"}
@@ -144,7 +144,7 @@ export const GuildInvitePage = () => {
                   ) : null}
                 </div>
                 {inviteValid ? (
-                  <div className="text-muted-foreground space-y-2 text-sm">
+                  <div className="space-y-2 text-muted-foreground text-sm">
                     <p>{t("invite.alreadyHaveAccount")}</p>
                     <p>
                       {t("invite.needAccount")}{" "}
@@ -177,7 +177,7 @@ export const GuildInvitePage = () => {
 
                   {!user ? (
                     <Link
-                      className="text-primary text-center text-sm underline-offset-4 hover:underline"
+                      className="text-center text-primary text-sm underline-offset-4 hover:underline"
                       to="/login"
                       search={normalizedCode ? { invite_code: normalizedCode } : undefined}
                     >

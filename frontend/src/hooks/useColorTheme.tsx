@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { THEMES, DEFAULT_THEME, getTheme, type ThemeColors } from "@/lib/themes";
+import { DEFAULT_THEME, getTheme, THEMES, type ThemeColors } from "@/lib/themes";
 
 /**
  * Maps ThemeColors properties to CSS variable names.

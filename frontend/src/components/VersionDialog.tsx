@@ -1,5 +1,9 @@
+import { CheckCircle2, Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Download, CheckCircle2, ExternalLink } from "lucide-react";
+
+import { Markdown } from "@/components/Markdown";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,10 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Markdown } from "@/components/Markdown";
 import { useChangelog } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +84,7 @@ export const VersionDialog = ({
         {mode === "info" && (
           <div className="shrink-0 space-y-4 border-b pb-4">
             {hasUpdate && (
-              <div className="text-primary flex items-center gap-1.5 text-sm font-medium">
+              <div className="flex items-center gap-1.5 font-medium text-primary text-sm">
                 <Download className="h-4 w-4" />
                 <span>{t("version.updateAvailable")}</span>
               </div>
@@ -91,8 +92,7 @@ export const VersionDialog = ({
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">{t("version.currentVersion")}</span>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                <span className="font-mono font-medium">v{currentVersion}</span>
+                <span className="font-medium font-mono">v{currentVersion}</span>
               </div>
               {isLoadingVersion ? (
                 <div className="flex items-center justify-between">
@@ -102,8 +102,7 @@ export const VersionDialog = ({
               ) : latestVersion ? (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">{t("version.latestVersion")}</span>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <span className={cn("font-mono font-medium", hasUpdate && "text-primary")}>
+                  <span className={cn("font-medium font-mono", hasUpdate && "text-primary")}>
                     v{latestVersion}
                   </span>
                 </div>
@@ -117,12 +116,11 @@ export const VersionDialog = ({
               )}
             </div>
             {!hasUpdate && latestVersion && (
-              <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-1.5 text-green-600 text-sm dark:text-green-400">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{t("version.upToDate")}</span>
               </div>
             )}
-            {/* eslint-disable i18next/no-literal-string */}
             {hasUpdate && (
               <p className="text-muted-foreground text-sm">
                 {t("version.newVersionOnDockerHub")}{" "}
@@ -142,7 +140,7 @@ export const VersionDialog = ({
 
         {/* Changelog Section */}
         <div className="flex min-h-0 flex-1 flex-col">
-          <h3 className="mb-3 shrink-0 text-lg font-semibold">{t("version.changelog")}</h3>
+          <h3 className="mb-3 shrink-0 font-semibold text-lg">{t("version.changelog")}</h3>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -154,7 +152,7 @@ export const VersionDialog = ({
                   <div key={entry.version} className={entryIdx > 0 ? "border-t pt-6" : ""}>
                     <div className="mb-4 border-b pb-2">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-base font-semibold">
+                        <h4 className="font-semibold text-base">
                           {t("version.version", { version: entry.version })}
                         </h4>
                         <Badge variant="outline" className="text-xs">

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "@tanstack/react-router";
-import { PushNotifications, type PermissionStatus } from "@capacitor/push-notifications";
-import { Capacitor } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
+import { type PermissionStatus, PushNotifications } from "@capacitor/push-notifications";
+import { useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { registerPushTokenApiV1PushRegisterPost } from "@/api/generated/push/push";
 import { useAuth } from "@/hooks/useAuth";

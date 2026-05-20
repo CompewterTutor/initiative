@@ -1,9 +1,9 @@
-import type { MouseEvent } from "react";
 import { Pin } from "lucide-react";
+import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { cn } from "@/lib/utils";
 import { useToggleProjectPin } from "@/hooks/useProjects";
+import { cn } from "@/lib/utils";
 
 interface PinProjectButtonProps {
   projectId: number;

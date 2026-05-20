@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useCreateQueue } from "@/hooks/useQueues";
-import { useInitiatives } from "@/hooks/useInitiatives";
+import type { QueueRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { QueueRead } from "@/api/generated/initiativeAPI.schemas";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { useCreateQueue } from "@/hooks/useQueues";
 import type { DialogProps } from "@/types/dialog";
 
 type CreateQueueDialogProps = DialogProps & {
@@ -95,7 +95,7 @@ export const CreateQueueDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border shadow-2xl">
+      <DialogContent className="max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border bg-card shadow-2xl">
         <DialogHeader>
           <DialogTitle>{t("createQueue")}</DialogTitle>
           <DialogDescription>{t("noQueuesDescription")}</DialogDescription>

@@ -1,7 +1,7 @@
-import { JSX } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { TreeView } from "@lexical/react/LexicalTreeView";
 import { NotebookPenIcon } from "lucide-react";
+import type { JSX } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,7 @@ export function TreeViewPlugin(): JSX.Element {
         <DialogHeader>
           <DialogTitle>Tree View</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="bg-foreground text-background h-96 overflow-hidden rounded-lg p-2">
+        <ScrollArea className="h-96 overflow-hidden rounded-lg bg-foreground p-2 text-background">
           <TreeView
             viewClassName="tree-view-output"
             treeTypeButtonClassName="debug-treetype-button"

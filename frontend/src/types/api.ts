@@ -21,5 +21,4 @@ export type {
   PropertyValueInput,
   PropertyValuesSetRequest,
 } from "@/api/generated/initiativeAPI.schemas";
-
 export { PropertyType } from "@/api/generated/initiativeAPI.schemas";

@@ -1,30 +1,31 @@
 import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  pointerWithin,
   type CollisionDetection,
+  closestCorners,
+  DndContext,
+  type DndContextProps,
   type DragEndEvent,
   type DragOverEvent,
+  DragOverlay,
   type DragStartEvent,
-  type DndContextProps,
   type DroppableContainer,
+  pointerWithin,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+
 import type {
   TaskListRead,
   TaskPriority,
   TaskStatusRead,
 } from "@/api/generated/initiativeAPI.schemas";
-
 import { KanbanColumn } from "@/components/projects/KanbanColumn";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
 import { Badge } from "@/components/ui/badge";
 import { truncateText } from "@/lib/text";
 import { cn } from "@/lib/utils";
+
 import { TaskAssigneeList } from "./TaskAssigneeList";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
 
 type ProjectTasksKanbanViewProps = {
   taskStatuses: TaskStatusRead[];
@@ -159,14 +160,14 @@ const TaskDragOverlay = ({
 }) => {
   const { t } = useTranslation("projects");
   return (
-    <div className="bg-card w-64 space-y-3 rounded-lg border p-3 shadow-lg">
+    <div className="w-64 space-y-3 rounded-lg border bg-card p-3 shadow-lg">
       <div className="space-y-1">
         <p className="font-medium">{task.title}</p>
         {task.description ? (
           <p className="text-muted-foreground text-xs">{truncateText(task.description, 80)}</p>
         ) : null}
       </div>
-      <div className="text-muted-foreground space-y-1 text-xs">
+      <div className="space-y-1 text-muted-foreground text-xs">
         {task.assignees.length > 0 ? (
           <TaskAssigneeList assignees={task.assignees} className="text-xs" />
         ) : null}

@@ -1,7 +1,7 @@
-import { defineExtension } from "lexical";
 import { registerLexicalTextEntity } from "@lexical/text";
 import { mergeRegister } from "@lexical/utils";
 import type { TextNode } from "lexical";
+import { defineExtension } from "lexical";
 
 import { $createKeywordNode, KeywordNode } from "@/components/ui/editor/nodes/keyword-node";
 

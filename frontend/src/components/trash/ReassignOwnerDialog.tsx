@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { TrashItemEntityType } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { useUsers } from "@/hooks/useUsers";
 import { getUserDisplayName } from "@/lib/userDisplay";
-import type { TrashItemEntityType } from "@/api/generated/initiativeAPI.schemas";
 
 export interface ReassignOwnerDialogProps {
   open: boolean;

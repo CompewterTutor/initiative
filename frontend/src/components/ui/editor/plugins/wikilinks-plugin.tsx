@@ -1,26 +1,26 @@
-import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   LexicalTypeaheadMenuPlugin,
   MenuOption,
-  MenuTextMatch,
+  type MenuTextMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import {
-  $getNodeByKey,
   $getNearestNodeFromDOMNode,
+  $getNodeByKey,
   $getSelection,
   $isRangeSelection,
   $isTextNode,
   CLICK_COMMAND,
   COMMAND_PRIORITY_LOW,
-  LexicalEditor,
-  TextNode,
+  type LexicalEditor,
+  type TextNode,
 } from "lexical";
-import { createPortal } from "react-dom";
 import { FileText, Plus } from "lucide-react";
+import { type JSX, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
-import { $createWikilinkNode, $isWikilinkNode } from "@/components/ui/editor/nodes/wikilink-node";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { $createWikilinkNode, $isWikilinkNode } from "@/components/ui/editor/nodes/wikilink-node";
 import { autocompleteDocuments, type DocumentAutocomplete } from "@/lib/documentUtils";
 
 // Regex to match [[ followed by any characters (for partial wikilinks)
@@ -198,7 +198,7 @@ export function WikilinksPlugin({
         if (documentIdAttr) {
           // Resolved wikilink - navigate
           const documentId = parseInt(documentIdAttr, 10);
-          if (!isNaN(documentId)) {
+          if (!Number.isNaN(documentId)) {
             onNavigate?.(documentId);
           }
         } else {
@@ -306,7 +306,7 @@ export function WikilinksPlugin({
         // Show loading or options
         if (isLoading && options.length === 0) {
           return createPortal(
-            <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
+            <div className="absolute z-10 w-[300px] rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
               <span className="text-muted-foreground text-sm">Searching...</span>
             </div>,
             anchorElementRef.current
@@ -315,7 +315,7 @@ export function WikilinksPlugin({
 
         if (options.length === 0) {
           return createPortal(
-            <div className="bg-popover text-popover-foreground absolute z-10 w-[300px] rounded-md border p-2 shadow-md">
+            <div className="absolute z-10 w-[300px] rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
               <span className="text-muted-foreground text-sm">
                 Type to search or create a new document
               </span>
@@ -358,12 +358,12 @@ export function WikilinksPlugin({
                     >
                       {option.isCreateNew ? (
                         <>
-                          <Plus className="text-muted-foreground h-4 w-4" />
+                          <Plus className="h-4 w-4 text-muted-foreground" />
                           <span className="truncate">Create &ldquo;{option.title}&rdquo;</span>
                         </>
                       ) : (
                         <>
-                          <FileText className="text-muted-foreground h-4 w-4" />
+                          <FileText className="h-4 w-4 text-muted-foreground" />
                           <span className="truncate">{option.title}</span>
                         </>
                       )}

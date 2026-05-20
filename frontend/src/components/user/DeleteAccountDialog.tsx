@@ -1,11 +1,8 @@
+import { AlertCircle, ChevronLeft, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, ChevronLeft, Loader2 } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { useDeleteOwnAccount } from "@/hooks/useUsers";
-import { useMyDeletionEligibility } from "@/hooks/useAdmin";
+import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
 import { getMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGet } from "@/api/generated/users/users";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,7 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { useMyDeletionEligibility } from "@/hooks/useAdmin";
+import { useDeleteOwnAccount } from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 /**
@@ -284,7 +284,7 @@ export function DeleteAccountDialog({
                 <div className="flex items-start space-x-3 rounded-lg border p-4">
                   <RadioGroupItem value="deactivate" id="deactivate" className="mt-0.5" />
                   <div className="flex-1 space-y-1">
-                    <Label htmlFor="deactivate" className="cursor-pointer text-base font-medium">
+                    <Label htmlFor="deactivate" className="cursor-pointer font-medium text-base">
                       {t("deleteAccount.deactivateLabel")}
                     </Label>
                     <p className="text-muted-foreground text-sm">
@@ -293,12 +293,12 @@ export function DeleteAccountDialog({
                   </div>
                 </div>
 
-                <div className="border-destructive/50 flex items-start space-x-3 rounded-lg border p-4">
+                <div className="flex items-start space-x-3 rounded-lg border border-destructive/50 p-4">
                   <RadioGroupItem value="soft_delete" id="soft_delete" className="mt-0.5" />
                   <div className="flex-1 space-y-1">
                     <Label
                       htmlFor="soft_delete"
-                      className="text-destructive cursor-pointer text-base font-medium"
+                      className="cursor-pointer font-medium text-base text-destructive"
                     >
                       {t("deleteAccount.softDeleteLabel")}
                     </Label>
@@ -316,7 +316,7 @@ export function DeleteAccountDialog({
             <div className="space-y-4">
               {isCheckingEligibility && (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
 
@@ -332,8 +332,8 @@ export function DeleteAccountDialog({
                       )}
                     </div>
                     <ul className="list-inside list-disc space-y-1">
-                      {eligibility.blockers.map((blocker, idx) => (
-                        <li key={idx}>{blocker}</li>
+                      {eligibility.blockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
                       ))}
                     </ul>
                     <p className="mt-2 text-sm">
@@ -347,7 +347,7 @@ export function DeleteAccountDialog({
                 </Alert>
               )}
 
-              {eligibility && eligibility.can_delete && (
+              {eligibility?.can_delete && (
                 <>
                   {eligibility.warnings.length > 0 && (
                     <Alert>
@@ -355,8 +355,8 @@ export function DeleteAccountDialog({
                       <AlertDescription>
                         <div className="mb-2 font-semibold">{t("deleteAccount.important")}</div>
                         <ul className="list-inside list-disc space-y-1">
-                          {eligibility.warnings.map((warning, idx) => (
-                            <li key={idx}>{warning}</li>
+                          {eligibility.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
                           ))}
                         </ul>
                       </AlertDescription>
@@ -398,7 +398,7 @@ export function DeleteAccountDialog({
                     onValueChange={(value) =>
                       setProjectTransfers((prev) => ({
                         ...prev,
-                        [project.id]: parseInt(value),
+                        [project.id]: parseInt(value, 10),
                       }))
                     }
                   >
@@ -451,7 +451,7 @@ export function DeleteAccountDialog({
               <div className="space-y-2">
                 <Label htmlFor="confirmation">
                   {t("deleteAccount.typeToConfirmPrefix")}{" "}
-                  <span className="font-mono font-bold">{expectedConfirmation}</span>{" "}
+                  <span className="font-bold font-mono">{expectedConfirmation}</span>{" "}
                   {t("deleteAccount.typeToConfirmSuffix")}
                 </Label>
                 <Input

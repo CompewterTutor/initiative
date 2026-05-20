@@ -1,29 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import { keepPreviousData } from "@tanstack/react-query";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { ChevronDown, Filter, Loader2, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ChevronDown, Filter, Loader2, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllDocuments } from "@/api/query-keys";
-import { useGlobalDocuments, usePrefetchGlobalDocuments } from "@/hooks/useDocuments";
-import { getItem, setItem } from "@/lib/storage";
-import { guildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { SortIcon } from "@/components/SortIcon";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { useGuilds } from "@/hooks/useGuilds";
-import { useDateLocale } from "@/hooks/useDateLocale";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { DataTable } from "@/components/ui/data-table";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { SortIcon } from "@/components/SortIcon";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { Badge } from "@/components/ui/badge";
-import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useDateLocale } from "@/hooks/useDateLocale";
+import { useGlobalDocuments, usePrefetchGlobalDocuments } from "@/hooks/useDocuments";
+import { useGuilds } from "@/hooks/useGuilds";
+import { guildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { getItem, setItem } from "@/lib/storage";
 
 const MY_DOCUMENTS_FILTERS_KEY = "initiative-my-documents-filters";
 const FILTER_DEFAULTS = {
@@ -215,7 +215,7 @@ export const MyDocumentsPage = () => {
           return (
             <Link
               to={docGuildPath(doc, `/documents/${doc.id}`)}
-              className="text-foreground flex items-center gap-2 font-medium hover:underline"
+              className="flex items-center gap-2 font-medium text-foreground hover:underline"
             >
               {doc.title}
               {doc.is_template && (
@@ -241,7 +241,7 @@ export const MyDocumentsPage = () => {
           return (
             <Link
               to={docGuildPath(doc, `/initiatives/${initiative.id}`)}
-              className="text-muted-foreground flex items-center gap-2 text-sm hover:underline"
+              className="flex items-center gap-2 text-muted-foreground text-sm hover:underline"
             >
               <InitiativeColorDot color={initiative.color} />
               {initiative.name}
@@ -294,7 +294,7 @@ export const MyDocumentsPage = () => {
         cell: ({ row }) => {
           const doc = row.original;
           const updatedAt = doc.updated_at ? new Date(doc.updated_at) : null;
-          if (!updatedAt || isNaN(updatedAt.getTime())) {
+          if (!updatedAt || Number.isNaN(updatedAt.getTime())) {
             return <span className="text-muted-foreground text-sm">&mdash;</span>;
           }
           return (
@@ -332,7 +332,7 @@ export const MyDocumentsPage = () => {
     const colId = SORT_FIELD_REVERSE[sortBy];
     if (!colId) return undefined;
     return [{ id: colId, desc: sortDir === "desc" }];
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
+  }, [sortDir, sortBy]);
 
   const isInitialLoad = documentsQuery.isLoading && !documentsQuery.data;
   const isRefetching = documentsQuery.isFetching && !isInitialLoad;
@@ -345,13 +345,13 @@ export const MyDocumentsPage = () => {
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t("myDocuments.title")}</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">{t("myDocuments.title")}</h1>
           <p className="text-muted-foreground">{t("myDocuments.subtitle")}</p>
         </div>
 
         <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
           <div className="flex items-center justify-between sm:hidden">
-            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+            <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
               <Filter className="h-4 w-4" />
               {t("myDocuments.filters")}
             </div>
@@ -365,11 +365,11 @@ export const MyDocumentsPage = () => {
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-            <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+            <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
               <div className="w-full sm:w-60 lg:flex-1">
                 <Label
                   htmlFor="doc-guild-filter"
-                  className="text-muted-foreground mb-2 block text-xs font-medium"
+                  className="mb-2 block font-medium text-muted-foreground text-xs"
                 >
                   {t("myDocuments.filterByGuild")}
                 </Label>
@@ -390,12 +390,12 @@ export const MyDocumentsPage = () => {
               <div className="w-full sm:w-60 lg:flex-1">
                 <Label
                   htmlFor="doc-search"
-                  className="text-muted-foreground mb-2 block text-xs font-medium"
+                  className="mb-2 block font-medium text-muted-foreground text-xs"
                 >
                   {t("myDocuments.searchPlaceholder")}
                 </Label>
                 <div className="relative">
-                  <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+                  <Search className="absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="doc-search"
                     type="search"
@@ -412,8 +412,8 @@ export const MyDocumentsPage = () => {
 
         <div className="relative">
           {isRefetching ? (
-            <div className="bg-background/60 absolute inset-0 z-10 flex items-start justify-center pt-4">
-              <div className="bg-background border-border flex items-center gap-2 rounded-md border px-4 py-2 shadow-sm">
+            <div className="absolute inset-0 z-10 flex items-start justify-center bg-background/60 pt-4">
+              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 shadow-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-muted-foreground text-sm">{t("myDocuments.updating")}</span>
               </div>
@@ -424,11 +424,11 @@ export const MyDocumentsPage = () => {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : hasError ? (
-            <p className="text-destructive py-8 text-center text-sm">
+            <p className="py-8 text-center text-destructive text-sm">
               {t("myDocuments.loadError")}
             </p>
           ) : documents.length === 0 && !debouncedSearch && guildFilters.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
+            <p className="py-8 text-center text-muted-foreground text-sm">
               {t("myDocuments.empty")}
             </p>
           ) : (

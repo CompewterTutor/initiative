@@ -1,22 +1,8 @@
-import { FormEvent, useMemo, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
 import { Smartphone, Trash2 } from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  useMyApiKeys,
-  useDeviceTokens,
-  useCreateApiKey,
-  useDeleteApiKey,
-  useRevokeDeviceToken,
-} from "@/hooks/useSecurity";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import type { ApiKeyMetadata, DeviceTokenInfo } from "@/api/generated/initiativeAPI.schemas";
-import { Input } from "@/components/ui/input";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +13,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  useCreateApiKey,
+  useDeleteApiKey,
+  useDeviceTokens,
+  useMyApiKeys,
+  useRevokeDeviceToken,
+} from "@/hooks/useSecurity";
+import { toast } from "@/lib/chesterToast";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) {
@@ -154,7 +154,7 @@ export const UserSettingsSecurityPage = () => {
           ) : devicesQuery.isError ? (
             <p className="text-destructive text-sm">{t("security.devicesError")}</p>
           ) : devices.length === 0 ? (
-            <div className="text-muted-foreground flex flex-col items-center gap-3 py-6 text-center">
+            <div className="flex flex-col items-center gap-3 py-6 text-center text-muted-foreground">
               <Smartphone className="h-10 w-10 opacity-50" />
               <div>
                 <p className="font-medium">{t("security.noDevices")}</p>
@@ -169,7 +169,7 @@ export const UserSettingsSecurityPage = () => {
                   className="flex items-center justify-between gap-4 rounded-lg border p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                       <Smartphone className="h-5 w-5" />
                     </div>
                     <div>
@@ -206,7 +206,7 @@ export const UserSettingsSecurityPage = () => {
             <CardDescription>{t("security.newKeyDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-start gap-4">
-            <code className="bg-muted flex-1 rounded-md border px-3 py-2 font-mono text-sm break-all">
+            <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
               {generatedSecret}
             </code>
             <Button type="button" variant="secondary" onClick={copySecret}>
@@ -269,7 +269,7 @@ export const UserSettingsSecurityPage = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-muted-foreground text-left">
+                <thead className="text-left text-muted-foreground">
                   <tr>
                     <th className="py-2 pr-4 font-medium">{t("security.columnName")}</th>
                     <th className="py-2 pr-4 font-medium">{t("security.columnPrefix")}</th>

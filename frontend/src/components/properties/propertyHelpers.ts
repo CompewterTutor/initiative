@@ -1,8 +1,8 @@
 import {
-  PropertyType,
   type PropertyDefinitionRead,
   type PropertyOption,
   type PropertySummary,
+  PropertyType,
 } from "@/api/generated/initiativeAPI.schemas";
 
 /**

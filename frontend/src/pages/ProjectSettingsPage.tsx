@@ -1,5 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+
+import { ProjectTaskStatusesManager } from "@/components/projects/ProjectTaskStatusesManager";
+import { ProjectSettingsAccessTab } from "@/components/projects/settings/ProjectSettingsAccessTab";
+import { ProjectSettingsAdvancedTab } from "@/components/projects/settings/ProjectSettingsAdvancedTab";
+import { ProjectSettingsDetailsTab } from "@/components/projects/settings/ProjectSettingsDetailsTab";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,10 +19,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useProject } from "@/hooks/useProjects";
 import { useGuildPath } from "@/lib/guildUrl";
-import { ProjectTaskStatusesManager } from "@/components/projects/ProjectTaskStatusesManager";
-import { ProjectSettingsDetailsTab } from "@/components/projects/settings/ProjectSettingsDetailsTab";
-import { ProjectSettingsAccessTab } from "@/components/projects/settings/ProjectSettingsAccessTab";
-import { ProjectSettingsAdvancedTab } from "@/components/projects/settings/ProjectSettingsAdvancedTab";
 
 export const ProjectSettingsPage = () => {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
@@ -104,7 +105,7 @@ export const ProjectSettingsPage = () => {
         </BreadcrumbList>
       </Breadcrumb>
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t("settings.title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("settings.title")}</h1>
         <p className="text-muted-foreground">
           {t("settings.description", { name: projectDisplayName })}
         </p>

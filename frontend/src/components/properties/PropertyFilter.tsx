@@ -1,7 +1,8 @@
+import { Plus, X } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, X } from "lucide-react";
 
+import { type PropertyDefinitionRead, PropertyType } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { useProperties } from "@/hooks/useProperties";
-import { PropertyType, type PropertyDefinitionRead } from "@/api/generated/initiativeAPI.schemas";
+import { cn } from "@/lib/utils";
 
 import { PropertyInput } from "./PropertyInput";
 import { iconForPropertyType } from "./propertyTypeIcons";
@@ -228,7 +228,7 @@ export const PropertyFilter = ({
             const ops = definition ? opsForType(definition.type) : ["eq"];
             return (
               <li
-                key={`${entry.property_id}-${index}`}
+                key={entry.property_id}
                 className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
               >
                 <div className="min-w-0 flex-1 sm:w-40 sm:flex-none">

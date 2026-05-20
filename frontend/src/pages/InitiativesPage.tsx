@@ -1,19 +1,20 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Loader2, Plus } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllInitiatives } from "@/api/query-keys";
-import { useInitiatives, useCreateInitiative } from "@/hooks/useInitiatives";
-import { useProjects } from "@/hooks/useProjects";
-import { useDocumentsList } from "@/hooks/useDocuments";
 import { Markdown } from "@/components/Markdown";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { useGuildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -35,16 +36,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/useAuth";
+import { useDocumentsList } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useCreateInitiative, useInitiatives } from "@/hooks/useInitiatives";
+import { useProjects } from "@/hooks/useProjects";
 import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
-import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
+import { useGuildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
 
 const DEFAULT_INITIATIVE_COLOR = "#6366F1";
 
@@ -171,7 +171,7 @@ export const InitiativesPage = () => {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+            <h1 className="font-semibold text-3xl tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
           </div>
           {canCreateInitiatives ? (
@@ -192,7 +192,7 @@ export const InitiativesPage = () => {
         ) : null}
 
         {initiativesQuery.isLoading ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t("loading")}
           </div>
@@ -222,7 +222,7 @@ export const InitiativesPage = () => {
                     )}
                   </CardHeader>
                   <CardContent className="text-muted-foreground text-sm">
-                    <div className="mt-3 space-y-1 text-xs font-medium">
+                    <div className="mt-3 space-y-1 font-medium text-xs">
                       <p>
                         {t("members")}{" "}
                         <span className="font-semibold">{initiative.members.length}</span>
@@ -268,7 +268,7 @@ export const InitiativesPage = () => {
 
         {canCreateInitiatives ? (
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogContent className="bg-card max-h-screen overflow-y-auto">
+            <DialogContent className="max-h-screen overflow-y-auto bg-card">
               <DialogHeader>
                 <DialogTitle>{t("createDialog.title")}</DialogTitle>
                 <DialogDescription>{t("createDialog.description")}</DialogDescription>
@@ -313,7 +313,7 @@ export const InitiativesPage = () => {
                   <AccordionItem value="advanced-tools">
                     <AccordionTrigger>{t("advancedTools")}</AccordionTrigger>
                     <AccordionContent>
-                      <p className="text-muted-foreground mb-3 text-sm">
+                      <p className="mb-3 text-muted-foreground text-sm">
                         {t("advancedToolsDescription")}
                       </p>
                       <div className="flex items-center justify-between gap-4 rounded-md border p-3">

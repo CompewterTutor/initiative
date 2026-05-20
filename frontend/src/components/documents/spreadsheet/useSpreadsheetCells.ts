@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as Y from "yjs";
+import type * as Y from "yjs";
 
 import { type CellValue, keyOf } from "@/lib/spreadsheet/coords";
 

@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { RoleLabelsResponse } from "@/api/generated/initiativeAPI.schemas";
 import {
-  getRoleLabelsApiV1SettingsRolesGet,
   getGetRoleLabelsApiV1SettingsRolesGetQueryKey,
+  getRoleLabelsApiV1SettingsRolesGet,
   updateRoleLabelsApiV1SettingsRolesPut,
 } from "@/api/generated/settings/settings";
-import type { RoleLabelsResponse } from "@/api/generated/initiativeAPI.schemas";
 import type { MutationOpts } from "@/types/mutation";
 
 export const DEFAULT_ROLE_LABELS: RoleLabelsResponse = {

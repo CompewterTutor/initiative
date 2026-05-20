@@ -1,8 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { Archive, Pencil, Tags, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
 import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
+import { Button } from "@/components/ui/button";
 
 type TaskBulkEditPanelProps = {
   selectedTasks: TaskListRead[];
@@ -23,8 +23,8 @@ export const TaskBulkEditPanel = ({
 }: TaskBulkEditPanelProps) => {
   const { t } = useTranslation(["tasks", "common"]);
   return (
-    <div className="border-primary bg-primary/5 flex items-center justify-between rounded-md border p-4">
-      <div className="text-sm font-medium">
+    <div className="flex items-center justify-between rounded-md border border-primary bg-primary/5 p-4">
+      <div className="font-medium text-sm">
         {t("bulkEdit.selected", { count: selectedTasks.length })}
       </div>
 

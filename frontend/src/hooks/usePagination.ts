@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
 import { useRouter, useSearch } from "@tanstack/react-router";
+import { useCallback, useRef, useState } from "react";
 
 export interface UsePaginationOptions {
   defaultPageSize?: number;

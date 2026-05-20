@@ -1,9 +1,8 @@
+import { AlertTriangle } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle } from "lucide-react";
 
 import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 
 type MoveTaskDialogProps = {
   trigger?: ReactNode;

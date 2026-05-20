@@ -1,12 +1,12 @@
-import { lazy, Suspense } from "react";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
+import { lazy, Suspense } from "react";
 
-import type { RouterContext } from "@/router";
-import { useInterfaceColors } from "@/hooks/useInterfaceColors";
 import { useColorTheme } from "@/hooks/useColorTheme";
-import { useSafeArea } from "@/hooks/useSafeArea";
 import { useDeepLinks } from "@/hooks/useDeepLinks";
+import { useInterfaceColors } from "@/hooks/useInterfaceColors";
+import { useSafeArea } from "@/hooks/useSafeArea";
+import type { RouterContext } from "@/router";
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -21,7 +21,7 @@ const TanStackRouterDevtools = import.meta.env.DEV
  */
 const PageLoader = () => (
   <div className="flex items-center justify-center py-20">
-    <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>
 );
 

@@ -1,31 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import { keepPreviousData } from "@tanstack/react-query";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { ChevronDown, Filter, Loader2, Search } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
-import { useDateLocale } from "@/hooks/useDateLocale";
+import { ChevronDown, Filter, Loader2, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { invalidateAllProjects } from "@/api/query-keys";
-import { useGlobalProjects, usePrefetchGlobalProjects } from "@/hooks/useProjects";
-import { getItem, setItem } from "@/lib/storage";
-import { guildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { useGuilds } from "@/hooks/useGuilds";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { DataTable } from "@/components/ui/data-table";
-import { SortIcon } from "@/components/SortIcon";
-import { PullToRefresh } from "@/components/PullToRefresh";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { TagBadge } from "@/components/tags/TagBadge";
 import type {
   ListGlobalProjectsApiV1ProjectsGlobalGetParams,
   ProjectRead,
 } from "@/api/generated/initiativeAPI.schemas";
+import { invalidateAllProjects } from "@/api/query-keys";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import { SortIcon } from "@/components/SortIcon";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useDateLocale } from "@/hooks/useDateLocale";
+import { useGuilds } from "@/hooks/useGuilds";
+import { useGlobalProjects, usePrefetchGlobalProjects } from "@/hooks/useProjects";
+import { guildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { getItem, setItem } from "@/lib/storage";
 
 const MY_PROJECTS_FILTERS_KEY = "initiative-my-projects-filters";
 const FILTER_DEFAULTS = {
@@ -234,7 +234,7 @@ export const MyProjectsPage = () => {
           return (
             <Link
               to={href}
-              className="text-foreground flex items-center gap-2 font-medium hover:underline"
+              className="flex items-center gap-2 font-medium text-foreground hover:underline"
             >
               {project.icon ? (
                 <span className="text-base" aria-hidden="true">
@@ -263,7 +263,7 @@ export const MyProjectsPage = () => {
           return (
             <Link
               to={href}
-              className="text-muted-foreground flex items-center gap-2 text-sm hover:underline"
+              className="flex items-center gap-2 text-muted-foreground text-sm hover:underline"
             >
               <InitiativeColorDot color={initiative.color} />
               {initiative.name}
@@ -373,7 +373,7 @@ export const MyProjectsPage = () => {
     const colId = SORT_FIELD_REVERSE[sortBy];
     if (!colId) return undefined;
     return [{ id: colId, desc: sortDir === "desc" }];
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
+  }, [sortDir, sortBy]);
 
   const isInitialLoad = projectsQuery.isLoading && !projectsQuery.data;
   const isRefetching = projectsQuery.isFetching && !isInitialLoad;
@@ -386,13 +386,13 @@ export const MyProjectsPage = () => {
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t("myProjects.title")}</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">{t("myProjects.title")}</h1>
           <p className="text-muted-foreground">{t("myProjects.subtitle")}</p>
         </div>
 
         <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
           <div className="flex items-center justify-between sm:hidden">
-            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+            <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
               <Filter className="h-4 w-4" />
               {t("projects:filters.heading")}
             </div>
@@ -406,11 +406,11 @@ export const MyProjectsPage = () => {
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-            <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+            <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
               <div className="w-full sm:w-60 lg:flex-1">
                 <Label
                   htmlFor="project-guild-filter"
-                  className="text-muted-foreground mb-2 block text-xs font-medium"
+                  className="mb-2 block font-medium text-muted-foreground text-xs"
                 >
                   {t("myProjects.filterByGuild")}
                 </Label>
@@ -431,12 +431,12 @@ export const MyProjectsPage = () => {
               <div className="w-full sm:w-60 lg:flex-1">
                 <Label
                   htmlFor="project-search"
-                  className="text-muted-foreground mb-2 block text-xs font-medium"
+                  className="mb-2 block font-medium text-muted-foreground text-xs"
                 >
                   {t("myProjects.searchPlaceholder")}
                 </Label>
                 <div className="relative">
-                  <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+                  <Search className="absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="project-search"
                     type="search"
@@ -453,8 +453,8 @@ export const MyProjectsPage = () => {
 
         <div className="relative">
           {isRefetching ? (
-            <div className="bg-background/60 absolute inset-0 z-10 flex items-start justify-center pt-4">
-              <div className="bg-background border-border flex items-center gap-2 rounded-md border px-4 py-2 shadow-sm">
+            <div className="absolute inset-0 z-10 flex items-start justify-center bg-background/60 pt-4">
+              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 shadow-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-muted-foreground text-sm">{t("common:loading")}</span>
               </div>
@@ -465,9 +465,9 @@ export const MyProjectsPage = () => {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : hasError ? (
-            <p className="text-destructive py-8 text-center text-sm">{t("myProjects.loadError")}</p>
+            <p className="py-8 text-center text-destructive text-sm">{t("myProjects.loadError")}</p>
           ) : projects.length === 0 && !debouncedSearch && guildFilters.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
+            <p className="py-8 text-center text-muted-foreground text-sm">
               {t("myProjects.empty")}
             </p>
           ) : (

@@ -75,8 +75,16 @@
         "useButtonType": "warn"
       },
       "correctness": {
-        // exhaustive-deps was a `warn` in the eslint config
-        "useExhaustiveDependencies": "warn",
+        // exhaustive-deps was a `warn` in the eslint config. Keep it warning
+        // for *missing* deps, but never flag "extra" deps — codebases use
+        // intentional trigger-deps (reset page on filter change, etc.) that
+        // biome's autofix would otherwise strip and break.
+        "useExhaustiveDependencies": {
+          "level": "warn",
+          "options": {
+            "reportUnnecessaryDependencies": false
+          }
+        },
         "noUnusedFunctionParameters": "off",
         "noUnusedPrivateClassMembers": "warn",
         "useJsxKeyInIterable": "warn"

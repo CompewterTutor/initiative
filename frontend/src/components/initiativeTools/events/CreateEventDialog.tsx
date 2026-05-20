@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
 import { Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useCreateCalendarEvent } from "@/hooks/useCalendarEvents";
-import { useInitiativeMembers } from "@/hooks/useInitiatives";
+import type {
+  CalendarEventRead,
+  TaskListReadRecurrenceStrategy,
+  TaskRecurrenceOutput,
+} from "@/api/generated/initiativeAPI.schemas";
 import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import {
   Select,
   SelectContent,
@@ -23,14 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  CalendarEventRead,
-  TaskRecurrenceOutput,
-  TaskListReadRecurrenceStrategy,
-} from "@/api/generated/initiativeAPI.schemas";
+import { useCreateCalendarEvent } from "@/hooks/useCalendarEvents";
+import { useInitiativeMembers } from "@/hooks/useInitiatives";
 import type { DialogProps } from "@/types/dialog";
 
 // Generate half-hour time slots
@@ -174,7 +174,7 @@ export const CreateEventDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border shadow-2xl">
+      <DialogContent className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border bg-card shadow-2xl">
         <DialogHeader>
           <DialogTitle>{t("createEvent")}</DialogTitle>
         </DialogHeader>
@@ -219,11 +219,7 @@ export const CreateEventDialog = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <Switch
-              id="create-event-all-day"
-              checked={allDay}
-              onCheckedChange={setAllDay}
-            />
+            <Switch id="create-event-all-day" checked={allDay} onCheckedChange={setAllDay} />
             <Label htmlFor="create-event-all-day">{t("allDay")}</Label>
           </div>
 
@@ -321,7 +317,7 @@ export const CreateEventDialog = ({
                     {attendeeNames.get(id) ?? `User ${id}`}
                     <button
                       type="button"
-                      className="hover:bg-muted rounded-full p-0.5"
+                      className="rounded-full p-0.5 hover:bg-muted"
                       onClick={() => setAttendeeIds((prev) => prev.filter((a) => a !== id))}
                     >
                       <X className="h-3 w-3" />

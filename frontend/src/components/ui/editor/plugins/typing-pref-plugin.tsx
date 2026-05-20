@@ -1,4 +1,4 @@
-import { JSX, useEffect } from "react";
+import { type JSX, useEffect } from "react";
 
 import { useReport } from "@/components/ui/editor/editor-hooks/use-report";
 

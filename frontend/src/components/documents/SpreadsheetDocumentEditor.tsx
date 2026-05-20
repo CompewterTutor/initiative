@@ -2,9 +2,9 @@ import type { ProviderAwareness } from "@lexical/yjs";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   type ChangeEvent,
+  type ClipboardEvent,
   type CSSProperties,
   type KeyboardEvent,
-  type ClipboardEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -15,12 +15,12 @@ import {
 import { useTranslation } from "react-i18next";
 import * as Y from "yjs";
 
-import { useSpreadsheetAwareness } from "@/components/documents/spreadsheet/useSpreadsheetAwareness";
-import { useSpreadsheetCells } from "@/components/documents/spreadsheet/useSpreadsheetCells";
 import {
   SpreadsheetToolbar,
   type ToolbarSelection,
 } from "@/components/documents/spreadsheet/SpreadsheetToolbar";
+import { useSpreadsheetAwareness } from "@/components/documents/spreadsheet/useSpreadsheetAwareness";
+import { useSpreadsheetCells } from "@/components/documents/spreadsheet/useSpreadsheetCells";
 import { useSpreadsheetFormatting } from "@/components/documents/spreadsheet/useSpreadsheetFormatting";
 import { useSpreadsheetHistory } from "@/components/documents/spreadsheet/useSpreadsheetHistory";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,11 +45,11 @@ import {
   MIN_COL_WIDTH,
   MIN_ROW_HEIGHT,
   negativeRendersRed,
+  type RowFmt,
   resolveCellFormat,
   resolveCellStyle,
-  type RowFmt,
-  sanitizeFormatting,
   type SpreadsheetFormatting,
+  sanitizeFormatting,
   styleToCss,
 } from "@/lib/spreadsheet/styles";
 import { cellsToXlsx, xlsxToContent } from "@/lib/spreadsheet/xlsx";
@@ -864,11 +864,11 @@ export const SpreadsheetDocumentEditor = ({
   return (
     <div
       className={cn(
-        "border-border bg-background flex flex-col overflow-hidden rounded-lg border",
+        "flex flex-col overflow-hidden rounded-lg border border-border bg-background",
         className
       )}
     >
-      <div className="border-border bg-muted/20 flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2">
+      <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-border border-b bg-muted/20 px-3 py-2">
         <SpreadsheetToolbar
           selection={
             {
@@ -900,13 +900,18 @@ export const SpreadsheetDocumentEditor = ({
         />
       </div>
 
+      {/* biome-ignore lint/a11y/useSemanticElements: virtualized absolute layout doesn't fit a <table>; ARIA grid roles convey semantics */}
       <div
         ref={containerRef}
+        role="grid"
         tabIndex={0}
+        aria-label={documentTitle}
+        aria-rowcount={dimensions.rows}
+        aria-colcount={dimensions.cols}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onCopy={handleCopy}
-        className="focus-visible:outline-primary relative min-h-0 flex-1 overflow-auto select-none focus:outline-none focus-visible:outline focus-visible:outline-2"
+        className="relative min-h-0 flex-1 select-none overflow-auto focus:outline-none focus-visible:outline-2 focus-visible:outline-primary"
       >
         <div
           style={{
@@ -918,7 +923,7 @@ export const SpreadsheetDocumentEditor = ({
           {/* Column-header strip — sticky top keeps letters glued while
               scrolling vertically. */}
           <div
-            className="bg-muted sticky top-0 z-20"
+            className="sticky top-0 z-20 bg-muted"
             style={{
               left: 0,
               height: COL_HEADER_HEIGHT,
@@ -926,11 +931,12 @@ export const SpreadsheetDocumentEditor = ({
             }}
           >
             <div
-              className="border-border bg-muted sticky top-0 left-0 z-30 border-r border-b"
+              className="sticky top-0 left-0 z-30 border-border border-r border-b bg-muted"
               style={{ width: ROW_HEADER_WIDTH, height: COL_HEADER_HEIGHT }}
             />
             {virtualCols.map((col) => (
-              <div
+              <button
+                type="button"
                 key={`colh-${col.index}`}
                 onMouseDown={(e) => {
                   if (e.button !== 0) return;
@@ -947,7 +953,7 @@ export const SpreadsheetDocumentEditor = ({
                   }));
                 }}
                 className={cn(
-                  "border-border absolute flex cursor-pointer items-center justify-center border-r border-b font-mono text-xs",
+                  "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
                   colHeaderActive(col.index)
                     ? "bg-primary/20 text-foreground"
                     : "bg-muted text-muted-foreground"
@@ -968,23 +974,24 @@ export const SpreadsheetDocumentEditor = ({
                       e.stopPropagation();
                       resetSize("col", col.index);
                     }}
-                    className="hover:bg-primary/40 absolute top-0 right-0 z-10 h-full cursor-col-resize"
+                    className="absolute top-0 right-0 z-10 h-full cursor-col-resize hover:bg-primary/40"
                     style={{ width: RESIZE_HANDLE }}
                     aria-hidden
                   />
                 )}
-              </div>
+              </button>
             ))}
           </div>
 
           {/* Row-header strip — sticky left keeps numbers glued while
               scrolling horizontally. */}
           <div
-            className="bg-muted sticky left-0 z-10"
+            className="sticky left-0 z-10 bg-muted"
             style={{ width: ROW_HEADER_WIDTH, height: totalGridHeight }}
           >
             {virtualRows.map((row) => (
-              <div
+              <button
+                type="button"
                 key={`rowh-${row.index}`}
                 onMouseDown={(e) => {
                   if (e.button !== 0) return;
@@ -1001,7 +1008,7 @@ export const SpreadsheetDocumentEditor = ({
                   }));
                 }}
                 className={cn(
-                  "border-border absolute flex cursor-pointer items-center justify-center border-r border-b font-mono text-xs",
+                  "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
                   rowHeaderActive(row.index)
                     ? "bg-primary/20 text-foreground"
                     : "bg-muted text-muted-foreground"
@@ -1022,12 +1029,12 @@ export const SpreadsheetDocumentEditor = ({
                       e.stopPropagation();
                       resetSize("row", row.index);
                     }}
-                    className="hover:bg-primary/40 absolute bottom-0 left-0 z-10 w-full cursor-row-resize"
+                    className="absolute bottom-0 left-0 z-10 w-full cursor-row-resize hover:bg-primary/40"
                     style={{ height: RESIZE_HANDLE }}
                     aria-hidden
                   />
                 )}
-              </div>
+              </button>
             ))}
           </div>
 
@@ -1048,7 +1055,7 @@ export const SpreadsheetDocumentEditor = ({
               scrolls horizontally with the body. */}
           {frozenRows > 0 && (
             <div
-              className="bg-background absolute"
+              className="absolute bg-background"
               style={{
                 left: ROW_HEADER_WIDTH,
                 top: COL_HEADER_HEIGHT + scrollTop,
@@ -1071,7 +1078,7 @@ export const SpreadsheetDocumentEditor = ({
               vertically with the body. */}
           {frozenCols > 0 && (
             <div
-              className="bg-background absolute"
+              className="absolute bg-background"
               style={{
                 left: ROW_HEADER_WIDTH + scrollLeft,
                 top: COL_HEADER_HEIGHT,
@@ -1093,7 +1100,7 @@ export const SpreadsheetDocumentEditor = ({
           {/* Frozen corner — pinned on both axes. */}
           {frozenRows > 0 && frozenCols > 0 && (
             <div
-              className="bg-background absolute"
+              className="absolute bg-background"
               style={{
                 left: ROW_HEADER_WIDTH + scrollLeft,
                 top: COL_HEADER_HEIGHT + scrollTop,
@@ -1176,8 +1183,8 @@ const CellView = ({
   const baseClass = useMemo(
     () =>
       cn(
-        "border-border absolute box-border border-r border-b text-sm",
-        (isActive || isEditing) && "ring-primary z-[1] ring-2 ring-inset"
+        "absolute box-border border-border border-r border-b text-sm",
+        (isActive || isEditing) && "z-[1] ring-2 ring-primary ring-inset"
       ),
     [isActive, isEditing]
   );
@@ -1195,7 +1202,7 @@ const CellView = ({
         style={{ boxShadow: `inset 0 0 0 2px ${peerColor}` }}
       >
         <div
-          className="absolute -top-4 right-0 max-w-full truncate rounded-t px-1.5 py-0.5 text-[10px] font-medium text-slate-900 shadow-sm"
+          className="absolute -top-4 right-0 max-w-full truncate rounded-t px-1.5 py-0.5 font-medium text-[10px] text-slate-900 shadow-sm"
           style={{ backgroundColor: peerColor }}
         >
           {peerName}
@@ -1207,7 +1214,7 @@ const CellView = ({
   // fill underneath still reads through.
   const selectionOverlay =
     inSelection && !isActive ? (
-      <div className="bg-primary/15 pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 bg-primary/15" />
     ) : null;
 
   if (isEditing) {
@@ -1219,7 +1226,7 @@ const CellView = ({
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={onEditingKeyDown}
           onBlur={onEditingBlur}
-          className="bg-background h-full w-full px-1.5 outline-none select-text"
+          className="h-full w-full select-text bg-background px-1.5 outline-none"
         />
         {peerOverlay}
       </div>
@@ -1228,6 +1235,7 @@ const CellView = ({
 
   if (booleanValue !== null) {
     return (
+      // biome-ignore lint/a11y/noStaticElementInteractions: cell is part of a role="grid" widget; keyboard/selection is owned by the container
       <div
         className={cn(baseClass, "flex cursor-cell items-center px-1.5")}
         style={containerStyle}
@@ -1251,6 +1259,7 @@ const CellView = ({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: cell is part of a role="grid" widget; keyboard/selection is owned by the container
     <div
       className={cn(baseClass, "flex cursor-cell items-center px-1.5")}
       style={containerStyle}

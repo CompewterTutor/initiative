@@ -1,6 +1,11 @@
+import { Clock, Flame, Loader2, Target, TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Flame, Target, Clock, TrendingUp, TrendingDown } from "lucide-react";
+
+import { GuildBreakdownChart } from "@/components/stats/GuildBreakdownChart";
+import { HeatmapChart } from "@/components/stats/HeatmapChart";
+import { StatsMetricCard } from "@/components/stats/StatsMetricCard";
+import { VelocityChart } from "@/components/stats/VelocityChart";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,12 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUserStats } from "@/hooks/useUserStats";
 import { useGuilds } from "@/hooks/useGuilds";
-import { StatsMetricCard } from "@/components/stats/StatsMetricCard";
-import { VelocityChart } from "@/components/stats/VelocityChart";
-import { GuildBreakdownChart } from "@/components/stats/GuildBreakdownChart";
-import { HeatmapChart } from "@/components/stats/HeatmapChart";
+import { useUserStats } from "@/hooks/useUserStats";
 
 const GUILD_FILTER_ALL = "all";
 
@@ -36,8 +37,8 @@ export function UserStatsPage() {
       {/* Header with Guild filter */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t("page.title")}</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{t("page.subtitle")}</p>
+          <h1 className="font-bold text-3xl">{t("page.title")}</h1>
+          <p className="mt-1 text-muted-foreground text-sm">{t("page.subtitle")}</p>
         </div>
         <div className="w-full sm:w-[200px]">
           <Select value={selectedGuildId} onValueChange={handleGuildChange}>
@@ -58,7 +59,7 @@ export function UserStatsPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("page.loading")}
         </div>
@@ -124,14 +125,14 @@ export function UserStatsPage() {
             <CardContent>
               <div className="flex flex-col gap-6 sm:flex-row sm:gap-12">
                 <div>
-                  <div className="text-3xl font-bold">{stats.tasks_completed_total}</div>
-                  <div className="text-muted-foreground mt-1 text-sm">
+                  <div className="font-bold text-3xl">{stats.tasks_completed_total}</div>
+                  <div className="mt-1 text-muted-foreground text-sm">
                     {t("tasksCompleted.allTime")}
                   </div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold">{stats.tasks_completed_this_week}</div>
-                  <div className="text-muted-foreground mt-1 text-sm">
+                  <div className="font-bold text-3xl">{stats.tasks_completed_this_week}</div>
+                  <div className="mt-1 text-muted-foreground text-sm">
                     {t("tasksCompleted.thisWeek")}
                   </div>
                 </div>

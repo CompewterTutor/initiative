@@ -1,5 +1,6 @@
-import { useTranslation } from "react-i18next";
 import { Loader2, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";

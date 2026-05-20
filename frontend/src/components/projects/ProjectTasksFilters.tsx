@@ -1,7 +1,16 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { TagRead, TagSummary, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
+import type { DueFilterOption, UserOption } from "@/components/projects/projectTasksConfig";
+import {
+  PropertyFilter,
+  type PropertyFilterCondition,
+} from "@/components/properties/PropertyFilter";
+import { TagPicker } from "@/components/tags/TagPicker";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Select,
   SelectContent,
@@ -9,15 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TagPicker } from "@/components/tags/TagPicker";
-import {
-  PropertyFilter,
-  type PropertyFilterCondition,
-} from "@/components/properties/PropertyFilter";
-import type { DueFilterOption, UserOption } from "@/components/projects/projectTasksConfig";
-import type { TagRead, TagSummary, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
 
 export type ListStatusFilter = "all" | "incomplete" | number;
 
@@ -71,12 +71,12 @@ export const ProjectTasksFilters = ({
   };
 
   return (
-    <div className="border-muted bg-background/40 flex flex-col gap-4 rounded-md border p-3">
+    <div className="flex flex-col gap-4 rounded-md border border-muted bg-background/40 p-3">
       <div className="flex flex-wrap items-end gap-4">
         <div className="w-full space-y-2 sm:w-48">
           <Label
             htmlFor="assignee-filter"
-            className="text-muted-foreground block text-xs font-medium"
+            className="block font-medium text-muted-foreground text-xs"
           >
             {t("filters.filterByAssignee")}
           </Label>
@@ -92,7 +92,7 @@ export const ProjectTasksFilters = ({
           />
         </div>
         <div className="w-full space-y-2 sm:w-48">
-          <Label htmlFor="due-filter" className="text-muted-foreground block text-xs font-medium">
+          <Label htmlFor="due-filter" className="block font-medium text-muted-foreground text-xs">
             {t("filters.dueFilter")}
           </Label>
           <Select
@@ -114,7 +114,7 @@ export const ProjectTasksFilters = ({
         <div className="w-full space-y-2 sm:w-48">
           <Label
             htmlFor="status-filter"
-            className="text-muted-foreground block text-xs font-medium"
+            className="block font-medium text-muted-foreground text-xs"
           >
             {t("filters.filterByStatus")}
           </Label>
@@ -134,7 +134,7 @@ export const ProjectTasksFilters = ({
         </div>
 
         <div className="w-full space-y-2 sm:w-48">
-          <Label htmlFor="tag-filter" className="text-muted-foreground block text-xs font-medium">
+          <Label htmlFor="tag-filter" className="block font-medium text-muted-foreground text-xs">
             {t("filters.filterByTag")}
           </Label>
           <TagPicker
@@ -150,7 +150,7 @@ export const ProjectTasksFilters = ({
             checked={showArchived}
             onCheckedChange={(checked) => onShowArchivedChange(checked === true)}
           />
-          <Label htmlFor="show-archived" className="cursor-pointer text-sm font-medium">
+          <Label htmlFor="show-archived" className="cursor-pointer font-medium text-sm">
             {t("filters.showArchived")}
           </Label>
         </div>

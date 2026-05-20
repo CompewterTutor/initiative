@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { SafeArea, SystemBarsStyle } from "@capacitor-community/safe-area";
+import { useEffect } from "react";
 
 /**
  * Configure the native system bars for mobile platforms.

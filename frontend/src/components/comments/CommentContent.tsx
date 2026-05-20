@@ -1,5 +1,5 @@
-import { Fragment, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { Fragment, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useGuilds } from "@/hooks/useGuilds";
@@ -34,56 +34,26 @@ interface ParsedMention {
 function parseContent(content: string): MentionPart[] {
   const mentions: ParsedMention[] = [];
 
-  // Find all mentions with new format (with display text)
-  let match: RegExpExecArray | null;
+  const collectMatches = (pattern: RegExp, type: ParsedMention["type"]) => {
+    pattern.lastIndex = 0;
+    let match = pattern.exec(content);
+    while (match !== null) {
+      mentions.push({
+        type,
+        displayText: match[1],
+        id: parseInt(match[2], 10),
+        start: match.index,
+        end: match.index + match[0].length,
+        raw: match[0],
+      });
+      match = pattern.exec(content);
+    }
+  };
 
-  USER_PATTERN.lastIndex = 0;
-  while ((match = USER_PATTERN.exec(content)) !== null) {
-    mentions.push({
-      type: "user",
-      displayText: match[1],
-      id: parseInt(match[2], 10),
-      start: match.index,
-      end: match.index + match[0].length,
-      raw: match[0],
-    });
-  }
-
-  TASK_PATTERN.lastIndex = 0;
-  while ((match = TASK_PATTERN.exec(content)) !== null) {
-    mentions.push({
-      type: "task",
-      displayText: match[1],
-      id: parseInt(match[2], 10),
-      start: match.index,
-      end: match.index + match[0].length,
-      raw: match[0],
-    });
-  }
-
-  DOC_PATTERN.lastIndex = 0;
-  while ((match = DOC_PATTERN.exec(content)) !== null) {
-    mentions.push({
-      type: "doc",
-      displayText: match[1],
-      id: parseInt(match[2], 10),
-      start: match.index,
-      end: match.index + match[0].length,
-      raw: match[0],
-    });
-  }
-
-  PROJECT_PATTERN.lastIndex = 0;
-  while ((match = PROJECT_PATTERN.exec(content)) !== null) {
-    mentions.push({
-      type: "project",
-      displayText: match[1],
-      id: parseInt(match[2], 10),
-      start: match.index,
-      end: match.index + match[0].length,
-      raw: match[0],
-    });
-  }
+  collectMatches(USER_PATTERN, "user");
+  collectMatches(TASK_PATTERN, "task");
+  collectMatches(DOC_PATTERN, "doc");
+  collectMatches(PROJECT_PATTERN, "project");
 
   // Sort by position
   mentions.sort((a, b) => a.start - b.start);
@@ -133,8 +103,8 @@ function parseContent(content: string): MentionPart[] {
     const urlMatches: { url: string; start: number; end: number }[] = [];
 
     URL_PATTERN.lastIndex = 0;
-    let urlMatch: RegExpExecArray | null;
-    while ((urlMatch = URL_PATTERN.exec(text)) !== null) {
+    let urlMatch = URL_PATTERN.exec(text);
+    while (urlMatch !== null) {
       // Strip trailing punctuation that's likely sentence punctuation, not part of the URL
       let url = urlMatch[0];
       const trailingPunctuation = /[.,;:!?)\]]+$/;
@@ -147,6 +117,7 @@ function parseContent(content: string): MentionPart[] {
         start: urlMatch.index,
         end: urlMatch.index + url.length,
       });
+      urlMatch = URL_PATTERN.exec(text);
     }
 
     if (urlMatches.length === 0) {
@@ -196,20 +167,22 @@ export const CommentContent = ({ content }: CommentContentProps) => {
   const gp = (path: string) => (guildId ? guildPath(guildId, path) : path);
 
   return (
-    <span className="break-words whitespace-pre-wrap">
+    <span className="wrap-break-word whitespace-pre-wrap">
       {parts.map((part, index) => {
         if (part.type === "text") {
+          // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
           return <Fragment key={index}>{part.content}</Fragment>;
         }
 
         if (part.type === "url") {
           return (
             <a
+              // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
               key={index}
               href={part.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary break-all hover:underline"
+              className="break-all text-primary hover:underline"
             >
               {part.content}
             </a>
@@ -219,8 +192,9 @@ export const CommentContent = ({ content }: CommentContentProps) => {
         if (part.type === "user") {
           return (
             <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
               key={index}
-              className="bg-primary/10 text-primary rounded px-1 py-0.5 text-sm font-medium"
+              className="rounded bg-primary/10 px-1 py-0.5 font-medium text-primary text-sm"
             >
               @{part.displayText}
             </span>
@@ -229,6 +203,7 @@ export const CommentContent = ({ content }: CommentContentProps) => {
 
         if (part.type === "task") {
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
             <Link key={index} to={gp(`/tasks/${part.id}`)} className="text-primary hover:underline">
               {t("comments.taskPrefix", { name: part.displayText })}
             </Link>
@@ -238,6 +213,7 @@ export const CommentContent = ({ content }: CommentContentProps) => {
         if (part.type === "doc") {
           return (
             <Link
+              // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
               key={index}
               to={gp(`/documents/${part.id}`)}
               className="text-primary hover:underline"
@@ -250,6 +226,7 @@ export const CommentContent = ({ content }: CommentContentProps) => {
         if (part.type === "project") {
           return (
             <Link
+              // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
               key={index}
               to={gp(`/projects/${part.id}`)}
               className="text-primary hover:underline"
@@ -258,7 +235,7 @@ export const CommentContent = ({ content }: CommentContentProps) => {
             </Link>
           );
         }
-
+        // biome-ignore lint/suspicious/noArrayIndexKey: no id to key from, just parts of a string
         return <Fragment key={index}>{part.content}</Fragment>;
       })}
     </span>

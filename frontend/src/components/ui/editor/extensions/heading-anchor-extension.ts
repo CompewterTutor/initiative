@@ -1,6 +1,6 @@
-import { defineExtension } from "lexical";
 import { HeadingNode } from "@lexical/rich-text";
 import { mergeRegister } from "@lexical/utils";
+import { defineExtension } from "lexical";
 
 import { slugify } from "@/lib/slug";
 
@@ -14,7 +14,7 @@ export const HeadingAnchorExtension = defineExtension({
       if (!anchor) return;
 
       const href = anchor.getAttribute("href");
-      if (!href || !href.startsWith("#")) return;
+      if (!href?.startsWith("#")) return;
 
       const rootElement = editor.getRootElement();
       if (!rootElement) return;

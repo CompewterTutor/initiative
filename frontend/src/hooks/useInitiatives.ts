@@ -1,19 +1,23 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type {
+  InitiativeMemberRead,
+  InitiativeRead,
+  UserPublic,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
-  listInitiativesApiV1InitiativesGet,
-  getListInitiativesApiV1InitiativesGetQueryKey,
-  getInitiativeApiV1InitiativesInitiativeIdGet,
-  getGetInitiativeApiV1InitiativesInitiativeIdGetQueryKey,
-  createInitiativeApiV1InitiativesPost,
-  updateInitiativeApiV1InitiativesInitiativeIdPatch,
-  deleteInitiativeApiV1InitiativesInitiativeIdDelete,
-  getInitiativeMembersApiV1InitiativesInitiativeIdMembersGet,
-  getGetInitiativeMembersApiV1InitiativesInitiativeIdMembersGetQueryKey,
   addInitiativeMemberApiV1InitiativesInitiativeIdMembersPost,
+  createInitiativeApiV1InitiativesPost,
+  deleteInitiativeApiV1InitiativesInitiativeIdDelete,
+  getGetInitiativeApiV1InitiativesInitiativeIdGetQueryKey,
+  getGetInitiativeMembersApiV1InitiativesInitiativeIdMembersGetQueryKey,
+  getInitiativeApiV1InitiativesInitiativeIdGet,
+  getInitiativeMembersApiV1InitiativesInitiativeIdMembersGet,
+  getListInitiativesApiV1InitiativesGetQueryKey,
+  listInitiativesApiV1InitiativesGet,
   removeInitiativeMemberApiV1InitiativesInitiativeIdMembersUserIdDelete,
+  updateInitiativeApiV1InitiativesInitiativeIdPatch,
   updateInitiativeMemberApiV1InitiativesInitiativeIdMembersUserIdPatch,
 } from "@/api/generated/initiatives/initiatives";
 import {
@@ -21,12 +25,8 @@ import {
   invalidateInitiative,
   invalidateInitiativeMembers,
 } from "@/api/query-keys";
+import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
-import type {
-  InitiativeMemberRead,
-  InitiativeRead,
-  UserPublic,
-} from "@/api/generated/initiativeAPI.schemas";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 

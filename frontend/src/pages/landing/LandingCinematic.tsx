@@ -1,31 +1,31 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import {
-  Shield,
-  Swords,
-  Users,
-  Map,
-  ListTodo,
-  FileText,
-  Calendar,
-  Sparkles,
-  ChevronDown,
-  Zap,
-  Target,
-  Crown,
-} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  Crown,
+  FileText,
+  ListTodo,
+  Map as MapIcon,
+  Shield,
+  Sparkles,
+  Swords,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
-import { Button } from "@/components/ui/button";
-import { LogoIcon } from "@/components/LogoIcon";
-import { ModeToggle } from "@/components/ModeToggle";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
+import documentScreenshot from "@/assets/screenshots/document.png";
 import myTasksScreenshot from "@/assets/screenshots/my-tasks.png";
 import projectScreenshot from "@/assets/screenshots/project.png";
-import documentScreenshot from "@/assets/screenshots/document.png";
+import { LogoIcon } from "@/components/LogoIcon";
+import { ModeToggle } from "@/components/ModeToggle";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,77 +216,96 @@ const ScreenshotFrame = ({
   className?: string;
   onClick?: () => void;
   placeholderText?: string;
-}) => (
-  <div
-    className={`overflow-hidden rounded-xl border shadow-2xl ${src && onClick ? "cursor-pointer" : ""} ${className}`}
-    style={{
-      borderColor: isDark ? "rgba(140, 130, 255, 0.15)" : "rgba(100, 80, 200, 0.1)",
-      background: isDark ? "rgba(20, 16, 40, 0.8)" : "rgba(255, 255, 255, 0.9)",
-      transition: "transform 0.3s ease, box-shadow 0.3s ease",
-    }}
-    onClick={src ? onClick : undefined}
-    onMouseEnter={(e) => {
-      if (src && onClick) {
-        e.currentTarget.style.transform = "scale(1.015)";
-        e.currentTarget.style.boxShadow = isDark
-          ? "0 25px 60px rgba(140, 130, 255, 0.15)"
-          : "0 25px 60px rgba(100, 80, 200, 0.1)";
-      }
-    }}
-    onMouseLeave={(e) => {
-      if (src && onClick) {
-        e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "";
-      }
-    }}
-  >
-    {/* Browser chrome */}
+}) => {
+  const isInteractive = Boolean(src && onClick);
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: role and handlers are applied together when isInteractive is true; biome can't see the conditional
     <div
-      className="flex items-center gap-2 px-4 py-3"
+      className={`overflow-hidden rounded-xl border shadow-2xl ${isInteractive ? "cursor-pointer" : ""} ${className}`}
       style={{
-        borderBottom: `1px solid ${isDark ? "rgba(140, 130, 255, 0.1)" : "rgba(100, 80, 200, 0.06)"}`,
-        background: isDark ? "rgba(30, 25, 60, 0.6)" : "rgba(245, 243, 255, 0.8)",
+        borderColor: isDark ? "rgba(140, 130, 255, 0.15)" : "rgba(100, 80, 200, 0.1)",
+        background: isDark ? "rgba(20, 16, 40, 0.8)" : "rgba(255, 255, 255, 0.9)",
+        transition: "transform 0.3s ease, box-shadow 0.3s ease",
       }}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      onClick={isInteractive ? onClick : undefined}
+      onKeyDown={
+        isInteractive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      onMouseEnter={
+        isInteractive
+          ? (e) => {
+              e.currentTarget.style.transform = "scale(1.015)";
+              e.currentTarget.style.boxShadow = isDark
+                ? "0 25px 60px rgba(140, 130, 255, 0.15)"
+                : "0 25px 60px rgba(100, 80, 200, 0.1)";
+            }
+          : undefined
+      }
+      onMouseLeave={
+        isInteractive
+          ? (e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "";
+            }
+          : undefined
+      }
     >
-      <div className="flex gap-1.5">
-        <div className="h-3 w-3 rounded-full" style={{ background: "#ff5f57" }} />
-        <div className="h-3 w-3 rounded-full" style={{ background: "#ffbd2e" }} />
-        <div className="h-3 w-3 rounded-full" style={{ background: "#28c840" }} />
-      </div>
+      {/* Browser chrome */}
       <div
-        className="ml-2 flex-1 rounded-md px-3 py-1 text-xs"
+        className="flex items-center gap-2 px-4 py-3"
         style={{
-          background: isDark ? "rgba(140, 130, 255, 0.06)" : "rgba(100, 80, 200, 0.04)",
-          color: isDark ? "rgba(200, 200, 220, 0.4)" : "rgba(80, 60, 120, 0.3)",
+          borderBottom: `1px solid ${isDark ? "rgba(140, 130, 255, 0.1)" : "rgba(100, 80, 200, 0.06)"}`,
+          background: isDark ? "rgba(30, 25, 60, 0.6)" : "rgba(245, 243, 255, 0.8)",
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
-        <span>initiativepm.app</span>
-      </div>
-    </div>
-    {/* Screenshot area */}
-    {src ? (
-      <img src={src} alt={alt} className="block w-full" />
-    ) : (
-      <div
-        className="flex items-center justify-center"
-        style={{
-          aspectRatio: "16 / 10",
-          background: isDark
-            ? "linear-gradient(135deg, rgba(30, 25, 60, 0.5) 0%, rgba(50, 40, 90, 0.3) 100%)"
-            : "linear-gradient(135deg, rgba(245, 243, 255, 0.5) 0%, rgba(235, 230, 250, 0.3) 100%)",
-        }}
-      >
-        <span
-          className="text-sm tracking-widest uppercase"
-          style={{ color: isDark ? "rgba(140, 130, 255, 0.25)" : "rgba(100, 80, 200, 0.15)" }}
+        <div className="flex gap-1.5">
+          <div className="h-3 w-3 rounded-full" style={{ background: "#ff5f57" }} />
+          <div className="h-3 w-3 rounded-full" style={{ background: "#ffbd2e" }} />
+          <div className="h-3 w-3 rounded-full" style={{ background: "#28c840" }} />
+        </div>
+        <div
+          className="ml-2 flex-1 rounded-md px-3 py-1 text-xs"
+          style={{
+            background: isDark ? "rgba(140, 130, 255, 0.06)" : "rgba(100, 80, 200, 0.04)",
+            color: isDark ? "rgba(200, 200, 220, 0.4)" : "rgba(80, 60, 120, 0.3)",
+          }}
         >
-          {placeholderText ?? "Screenshot"}
-        </span>
+          <span>initiativepm.app</span>
+        </div>
       </div>
-    )}
-  </div>
-);
+      {/* Screenshot area */}
+      {src ? (
+        <img src={src} alt={alt} className="block w-full" />
+      ) : (
+        <div
+          className="flex items-center justify-center"
+          style={{
+            aspectRatio: "16 / 10",
+            background: isDark
+              ? "linear-gradient(135deg, rgba(30, 25, 60, 0.5) 0%, rgba(50, 40, 90, 0.3) 100%)"
+              : "linear-gradient(135deg, rgba(245, 243, 255, 0.5) 0%, rgba(235, 230, 250, 0.3) 100%)",
+          }}
+        >
+          <span
+            className="text-sm uppercase tracking-widest"
+            style={{ color: isDark ? "rgba(140, 130, 255, 0.25)" : "rgba(100, 80, 200, 0.15)" }}
+          >
+            {placeholderText ?? "Screenshot"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ScreenshotLightbox = ({
   src,
@@ -312,10 +331,16 @@ const ScreenshotLightbox = ({
   }, [onClose]);
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard dismiss is handled by the Escape listener in useEffect above and the close <button> below
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
       style={{ background: isDark ? "rgba(5, 3, 15, 0.92)" : "rgba(0, 0, 0, 0.8)" }}
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="relative max-h-[90vh] max-w-[90vw] overflow-hidden rounded-xl border shadow-2xl"
@@ -324,7 +349,6 @@ const ScreenshotLightbox = ({
           background: isDark ? "rgba(20, 16, 40, 0.95)" : "rgba(255, 255, 255, 0.98)",
           animation: "lightbox-in 0.3s ease",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Browser chrome */}
         <div
@@ -336,6 +360,7 @@ const ScreenshotLightbox = ({
         >
           <div className="flex gap-1.5">
             <button
+              type="button"
               className="h-3 w-3 rounded-full transition-opacity hover:opacity-80"
               style={{ background: "#ff5f57" }}
               onClick={onClose}
@@ -351,7 +376,6 @@ const ScreenshotLightbox = ({
               color: isDark ? "rgba(200, 200, 220, 0.4)" : "rgba(80, 60, 120, 0.3)",
             }}
           >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>initiativepm.app</span>
           </div>
         </div>
@@ -404,7 +428,7 @@ export const LandingCinematic = () => {
         direction: "right" as const,
       },
       {
-        icon: Map,
+        icon: MapIcon,
         title: t("features.worldTitle"),
         description: t("features.worldDescription"),
         direction: "left" as const,
@@ -498,10 +522,10 @@ export const LandingCinematic = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <LogoIcon className="h-12 w-12 animate-pulse" />
-          <p className="text-muted-foreground text-sm tracking-widest uppercase">
+          <p className="text-muted-foreground text-sm uppercase tracking-widest">
             {t("hero.loading")}
           </p>
         </div>
@@ -519,7 +543,7 @@ export const LandingCinematic = () => {
   const layerFast = scrollY * 0.2;
 
   return (
-    <div className="bg-background relative min-h-screen overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
       {/* Global CSS keyframes */}
       <style>{`
         @keyframes starTwinkle {
@@ -582,9 +606,8 @@ export const LandingCinematic = () => {
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="text-primary flex items-center gap-2.5 text-xl font-bold tracking-tight">
+          <div className="flex items-center gap-2.5 font-bold text-primary text-xl tracking-tight">
             <LogoIcon className="h-8 w-8" aria-hidden="true" />
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>initiative</span>
           </div>
           <div className="flex items-center gap-3">
@@ -700,7 +723,7 @@ export const LandingCinematic = () => {
         >
           {/* Tagline pill */}
           <div
-            className={`mb-8 inline-flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-medium transition-all duration-1000 ${
+            className={`mb-8 inline-flex items-center gap-2 rounded-full border px-5 py-2 font-medium text-sm transition-all duration-1000 ${
               heroReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
             }`}
             style={{
@@ -708,21 +731,21 @@ export const LandingCinematic = () => {
               background: isDark ? "rgba(140, 130, 255, 0.08)" : "rgba(100, 80, 200, 0.05)",
             }}
           >
-            <Sparkles className="text-primary h-4 w-4 animate-pulse" />
+            <Sparkles className="h-4 w-4 animate-pulse text-primary" />
             <span className="text-primary">{t("hero.tagline")}</span>
           </div>
 
           {/* Main title -- massive cinematic typography */}
           <h1 className="mb-4 select-none" aria-label={t("hero.titleAria")}>
             <span
-              className={`text-muted-foreground/40 block text-lg font-medium tracking-[0.3em] uppercase transition-all delay-200 duration-1000 md:text-xl ${
+              className={`block font-medium text-lg text-muted-foreground/40 uppercase tracking-[0.3em] transition-all delay-200 duration-1000 md:text-xl ${
                 heroReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
               }`}
             >
               {t("hero.preTitle")}
             </span>
             <span
-              className={`text-foreground mt-2 block text-6xl font-black tracking-tight transition-all delay-500 duration-1000 sm:text-7xl md:text-8xl lg:text-9xl ${
+              className={`mt-2 block font-black text-6xl text-foreground tracking-tight transition-all delay-500 duration-1000 sm:text-7xl md:text-8xl lg:text-9xl ${
                 heroReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
               }`}
             >
@@ -730,7 +753,7 @@ export const LandingCinematic = () => {
             </span>
             <span className="relative inline-block">
               <span
-                className={`text-primary block text-6xl font-black tracking-tight transition-all delay-700 duration-1000 sm:text-7xl md:text-8xl lg:text-9xl ${
+                className={`block font-black text-6xl text-primary tracking-tight transition-all delay-700 duration-1000 sm:text-7xl md:text-8xl lg:text-9xl ${
                   heroReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
                 }`}
               >
@@ -738,7 +761,7 @@ export const LandingCinematic = () => {
               </span>
               {/* Underline reveal */}
               <span
-                className="bg-primary/30 absolute bottom-0 left-0 h-1 rounded-full md:h-1.5"
+                className="absolute bottom-0 left-0 h-1 rounded-full bg-primary/30 md:h-1.5"
                 style={{
                   animation: heroReveal.isVisible ? "heroLine 1.2s ease-out 1.2s forwards" : "none",
                   width: 0,
@@ -750,7 +773,7 @@ export const LandingCinematic = () => {
 
           {/* Subtitle */}
           <p
-            className={`text-muted-foreground mx-auto mt-6 max-w-2xl text-lg transition-all delay-1000 duration-1000 md:text-xl lg:text-2xl ${
+            className={`mx-auto mt-6 max-w-2xl text-lg text-muted-foreground transition-all delay-1000 duration-1000 md:text-xl lg:text-2xl ${
               heroReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
             }`}
           >
@@ -766,7 +789,7 @@ export const LandingCinematic = () => {
             {publicRegistrationEnabled !== false && (
               <Button
                 size="lg"
-                className="group hover:shadow-primary/25 relative h-12 overflow-hidden px-8 text-base font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                className="group relative h-12 overflow-hidden px-8 font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25"
                 asChild
               >
                 <Link to="/register">
@@ -778,7 +801,7 @@ export const LandingCinematic = () => {
             <Button
               size="lg"
               variant={publicRegistrationEnabled === false ? "default" : "outline"}
-              className="h-12 px-8 text-base font-semibold transition-all duration-300 hover:scale-105"
+              className="h-12 px-8 font-semibold text-base transition-all duration-300 hover:scale-105"
               asChild
             >
               <Link to="/login">{t("hero.ctaSignIn")}</Link>
@@ -793,10 +816,10 @@ export const LandingCinematic = () => {
           }`}
         >
           <div className="flex flex-col items-center gap-2">
-            <span className="text-muted-foreground/50 text-xs tracking-[0.2em] uppercase">
+            <span className="text-muted-foreground/50 text-xs uppercase tracking-[0.2em]">
               {t("hero.scroll")}
             </span>
-            <ChevronDown className="text-muted-foreground/50 h-5 w-5 animate-bounce" />
+            <ChevronDown className="h-5 w-5 animate-bounce text-muted-foreground/50" />
           </div>
         </div>
       </section>
@@ -865,9 +888,9 @@ export const LandingCinematic = () => {
                     border: `1px solid ${isDark ? "rgba(140, 130, 255, 0.2)" : "rgba(100, 80, 200, 0.1)"}`,
                   }}
                 >
-                  <stat.icon className="text-primary h-6 w-6 md:h-7 md:w-7" />
+                  <stat.icon className="h-6 w-6 text-primary md:h-7 md:w-7" />
                 </div>
-                <span className="text-foreground text-xl font-bold md:text-2xl">{stat.value}</span>
+                <span className="font-bold text-foreground text-xl md:text-2xl">{stat.value}</span>
                 <span className="text-muted-foreground text-sm">{stat.label}</span>
               </div>
             ))}
@@ -898,13 +921,13 @@ export const LandingCinematic = () => {
               featuresReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
             }`}
           >
-            <span className="text-primary mb-4 block text-sm font-semibold tracking-[0.2em] uppercase">
+            <span className="mb-4 block font-semibold text-primary text-sm uppercase tracking-[0.2em]">
               {t("features.sectionLabel")}
             </span>
-            <h2 className="text-foreground mb-6 text-4xl font-bold tracking-tight md:text-5xl">
+            <h2 className="mb-6 font-bold text-4xl text-foreground tracking-tight md:text-5xl">
               {t("features.title")}
             </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
               {t("features.description")}
             </p>
           </div>
@@ -943,10 +966,10 @@ export const LandingCinematic = () => {
               galleryReveal.isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
             }`}
           >
-            <span className="text-primary mb-4 block text-sm font-semibold tracking-[0.2em] uppercase">
+            <span className="mb-4 block font-semibold text-primary text-sm uppercase tracking-[0.2em]">
               {t("gallery.sectionLabel")}
             </span>
-            <h2 className="text-foreground text-3xl font-bold tracking-tight md:text-4xl">
+            <h2 className="font-bold text-3xl text-foreground tracking-tight md:text-4xl">
               {t("gallery.title")}
             </h2>
           </div>
@@ -969,7 +992,7 @@ export const LandingCinematic = () => {
                   })
                 }
               />
-              <p className="text-muted-foreground mt-3 text-center text-sm">
+              <p className="mt-3 text-center text-muted-foreground text-sm">
                 {t("gallery.projectCaption")}
               </p>
             </div>
@@ -991,7 +1014,7 @@ export const LandingCinematic = () => {
                   })
                 }
               />
-              <p className="text-muted-foreground mt-3 text-center text-sm">
+              <p className="mt-3 text-center text-muted-foreground text-sm">
                 {t("gallery.documentCaption")}
               </p>
             </div>
@@ -1024,13 +1047,13 @@ export const LandingCinematic = () => {
             }}
           >
             <div className="text-center">
-              <span className="text-primary mb-4 block text-sm font-semibold tracking-[0.2em] uppercase">
+              <span className="mb-4 block font-semibold text-primary text-sm uppercase tracking-[0.2em]">
                 {t("useCases.sectionLabel")}
               </span>
-              <h2 className="text-foreground mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+              <h2 className="mb-4 font-bold text-3xl text-foreground tracking-tight md:text-4xl">
                 {t("useCases.title")}
               </h2>
-              <p className="text-muted-foreground mx-auto mb-10 max-w-2xl">
+              <p className="mx-auto mb-10 max-w-2xl text-muted-foreground">
                 {t("useCases.description")}
               </p>
             </div>
@@ -1050,7 +1073,7 @@ export const LandingCinematic = () => {
                     borderColor: isDark ? "rgba(140, 130, 255, 0.08)" : "rgba(100, 80, 200, 0.06)",
                   }}
                 >
-                  <span className="text-foreground font-semibold">{useCase.name}:</span>{" "}
+                  <span className="font-semibold text-foreground">{useCase.name}:</span>{" "}
                   <span className="text-muted-foreground">{useCase.desc}</span>
                 </div>
               ))}
@@ -1064,7 +1087,7 @@ export const LandingCinematic = () => {
               >
                 <Button
                   size="lg"
-                  className="hover:shadow-primary/20 h-12 px-8 text-base font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                  className="h-12 px-8 font-semibold text-base transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
                   asChild
                 >
                   <Link to="/register">{t("useCases.cta")}</Link>
@@ -1114,18 +1137,18 @@ export const LandingCinematic = () => {
                   : "translate-y-10 scale-95 opacity-0"
               }`}
             >
-              <h2 className="text-foreground mb-6 text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+              <h2 className="mb-6 font-bold text-4xl text-foreground tracking-tight md:text-5xl lg:text-6xl">
                 {t("cta.titleReady")}{" "}
                 <span className="text-primary">{t("cta.titleHighlight")}</span>?
               </h2>
-              <p className="text-muted-foreground mx-auto mb-10 max-w-xl text-lg md:text-xl">
+              <p className="mx-auto mb-10 max-w-xl text-lg text-muted-foreground md:text-xl">
                 {t("cta.description")}
               </p>
 
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Button
                   size="lg"
-                  className="group hover:shadow-primary/25 h-14 px-10 text-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  className="group h-14 px-10 font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-primary/25 hover:shadow-xl"
                   asChild
                 >
                   <Link to="/register">
@@ -1150,9 +1173,8 @@ export const LandingCinematic = () => {
       >
         <div className="mx-auto max-w-7xl px-6 py-10">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="text-primary flex items-center gap-2 font-semibold">
+            <div className="flex items-center gap-2 font-semibold text-primary">
               <LogoIcon className="h-6 w-6" aria-hidden="true" />
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               <span>initiative</span>
             </div>
             <p className="text-muted-foreground text-sm">
@@ -1210,7 +1232,7 @@ const FeatureCard = ({ feature, index, parentVisible, isDark }: FeatureCardProps
           border: `1px solid ${isDark ? "rgba(140, 130, 255, 0.15)" : "rgba(100, 80, 200, 0.08)"}`,
         }}
       >
-        <feature.icon className="text-primary h-9 w-9 md:h-10 md:w-10" />
+        <feature.icon className="h-9 w-9 text-primary md:h-10 md:w-10" />
       </div>
 
       {/* Text block */}
@@ -1233,7 +1255,7 @@ const FeatureCard = ({ feature, index, parentVisible, isDark }: FeatureCardProps
             borderColor: isDark ? "rgba(140, 130, 255, 0.1)" : "rgba(100, 80, 200, 0.06)",
           }}
         >
-          <h3 className="text-foreground mb-2 text-xl font-bold">{feature.title}</h3>
+          <h3 className="mb-2 font-bold text-foreground text-xl">{feature.title}</h3>
           <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
         </div>
       </div>

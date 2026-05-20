@@ -2,19 +2,19 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
-import { useDateLocale } from "@/hooks/useDateLocale";
-import { useGuildPath } from "@/lib/guildUrl";
-import { TagBadge } from "@/components/tags/TagBadge";
+import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
 import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
 import { nonEmptyPropertySummaries } from "@/components/properties/propertyHelpers";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { cn } from "@/lib/utils";
-import { resolveUploadUrl } from "@/lib/uploadUrl";
-import { getFileTypeLabel, getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
-import { matchSmartLinkProvider } from "@/lib/smartLinkProviders";
-import type { DocumentSummary } from "@/api/generated/initiativeAPI.schemas";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDateLocale } from "@/hooks/useDateLocale";
+import { getDocumentIcon, getDocumentIconColor, getFileTypeLabel } from "@/lib/fileUtils";
+import { useGuildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { matchSmartLinkProvider } from "@/lib/smartLinkProviders";
+import { resolveUploadUrl } from "@/lib/uploadUrl";
+import { cn } from "@/lib/utils";
 
 interface DocumentCardProps {
   document: DocumentSummary;
@@ -60,12 +60,12 @@ export const DocumentCard = ({ document, className, hideInitiative }: DocumentCa
     <Link
       to={gp(`/documents/${document.id}`)}
       className={cn(
-        "group bg-card text-card-foreground hover:border-primary/50 block w-full overflow-hidden rounded-2xl border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg",
+        "group block w-full overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg",
         className
       )}
       // style={{ aspectRatio: "2 / 3" }}
     >
-      <div className="bg-muted relative aspect-square overflow-hidden border-b">
+      <div className="relative aspect-square overflow-hidden border-b bg-muted">
         {document.featured_image_url ? (
           <img
             src={resolveUploadUrl(document.featured_image_url) ?? undefined}
@@ -83,7 +83,7 @@ export const DocumentCard = ({ document, className, hideInitiative }: DocumentCa
             />
           </div>
         )}
-        <div className="text-muted-foreground absolute right-2 bottom-2 flex flex-col items-end gap-1 text-xs">
+        <div className="absolute right-2 bottom-2 flex flex-col items-end gap-1 text-muted-foreground text-xs">
           {isFileDocument && fileTypeLabel ? (
             <Badge variant="secondary">{fileTypeLabel}</Badge>
           ) : null}
@@ -105,7 +105,7 @@ export const DocumentCard = ({ document, className, hideInitiative }: DocumentCa
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <h3 className="text-card-foreground line-clamp-1 text-lg leading-tight font-semibold">
+                  <h3 className="line-clamp-1 font-semibold text-card-foreground text-lg leading-tight">
                     {document.title}
                   </h3>
                 </TooltipTrigger>
@@ -126,7 +126,7 @@ export const DocumentCard = ({ document, className, hideInitiative }: DocumentCa
           {document.initiative && !hideInitiative ? (
             <Link
               to={gp(`/initiatives/${document.initiative.id}`)}
-              className="text-muted-foreground inline-flex items-center gap-2 text-sm"
+              className="inline-flex items-center gap-2 text-muted-foreground text-sm"
             >
               <InitiativeColorDot color={document.initiative.color} />
               {document.initiative.name}
