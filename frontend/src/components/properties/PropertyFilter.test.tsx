@@ -1,14 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "@/__tests__/helpers/render";
-import { server } from "@/__tests__/helpers/msw-server";
 import { buildPropertyDefinition, buildPropertyOption } from "@/__tests__/factories/properties";
-import { PropertyType, type PropertyDefinitionRead } from "@/api/generated/initiativeAPI.schemas";
+import { server } from "@/__tests__/helpers/msw-server";
+import { renderWithProviders } from "@/__tests__/helpers/render";
+import { type PropertyDefinitionRead, PropertyType } from "@/api/generated/initiativeAPI.schemas";
 
-import { PropertyFilter, opsForType, type PropertyFilterCondition } from "./PropertyFilter";
+import { opsForType, PropertyFilter, type PropertyFilterCondition } from "./PropertyFilter";
 
 const mockDefinitions = (defs: PropertyDefinitionRead[]) => {
   server.use(http.get("/api/v1/property-definitions/", () => HttpResponse.json(defs)));

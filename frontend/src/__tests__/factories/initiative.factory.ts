@@ -1,4 +1,5 @@
 import type { InitiativeMemberRead, InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+
 import { buildUserPublic } from "./user.factory";
 
 let counter = 0;

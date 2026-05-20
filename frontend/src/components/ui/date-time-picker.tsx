@@ -1,12 +1,12 @@
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface DateTimePickerProps {
   id?: string;
@@ -106,7 +106,7 @@ export const DateTimePicker = ({
           disabled={disabled}
           data-empty={!selectedDate}
           className={cn(
-            "data-[empty=true]:text-muted-foreground inline-flex w-full items-center justify-start gap-2 text-left font-normal",
+            "inline-flex w-full items-center justify-start gap-2 text-left font-normal data-[empty=true]:text-muted-foreground",
             "min-h-10"
           )}
         >
@@ -127,12 +127,12 @@ export const DateTimePicker = ({
           autoFocus
           className="w-75 p-3"
         />
-        <div className="bg-muted/30 flex items-end gap-3 border-t p-3">
+        <div className="flex items-end gap-3 border-t bg-muted/30 p-3">
           {includeTime && (
             <div className="flex flex-1 flex-col gap-1">
               <label
                 htmlFor={`${id ?? "datetime"}-time`}
-                className="text-muted-foreground text-xs font-medium"
+                className="font-medium text-muted-foreground text-xs"
               >
                 Time
               </label>

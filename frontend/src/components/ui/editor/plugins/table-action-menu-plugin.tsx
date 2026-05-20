@@ -1,6 +1,3 @@
-import { useCallback, useEffect, useState, type CSSProperties, type ReactPortal } from "react";
-import { createPortal } from "react-dom";
-import { useTranslation } from "react-i18next";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $deleteTableColumnAtSelection,
@@ -23,6 +20,9 @@ import {
   Heading,
   Trash2,
 } from "lucide-react";
+import { type CSSProperties, type ReactPortal, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 import {
   DropdownMenu,
@@ -220,7 +220,7 @@ function TableActionMenuContainer({ anchorElem }: { anchorElem: HTMLElement }) {
     <div style={style}>
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="bg-background hover:bg-accent text-muted-foreground inline-flex h-5 w-5 items-center justify-center rounded border shadow-sm outline-none"
+          className="inline-flex h-5 w-5 items-center justify-center rounded border bg-background text-muted-foreground shadow-sm outline-none hover:bg-accent"
           aria-label={t("editor.tableActions")}
         >
           <ChevronDown className="h-3 w-3" />

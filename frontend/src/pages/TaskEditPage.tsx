@@ -1,24 +1,45 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Link, useParams, useRouter } from "@tanstack/react-router";
-
-import { toast } from "@/lib/chesterToast";
-import { queryClient } from "@/lib/queryClient";
-import { getReadTaskApiV1TasksTaskIdGetQueryKey } from "@/api/generated/tasks/tasks";
-import { getListCommentsApiV1CommentsGetQueryKey } from "@/api/generated/comments/comments";
-import { useComments } from "@/hooks/useComments";
-import { useProject, useProjectTaskStatuses, useWritableProjects } from "@/hooks/useProjects";
 import {
-  useTask,
-  useUpdateTask,
-  useDeleteTask,
-  useDuplicateTask,
-  useMoveTask,
-  useGenerateTaskDescription,
-} from "@/hooks/useTasks";
-import { useUsers } from "@/hooks/useUsers";
+  AlertCircle,
+  Archive,
+  ArchiveRestore,
+  Copy,
+  FolderInput,
+  Loader2,
+  Save,
+  SearchX,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import { getListCommentsApiV1CommentsGetQueryKey } from "@/api/generated/comments/comments";
+import type {
+  CommentRead,
+  PropertyDefinitionRead,
+  PropertySummary,
+  TagSummary,
+  TaskListRead,
+  TaskListReadRecurrenceStrategy,
+  TaskPriority,
+  TaskRecurrenceOutput,
+} from "@/api/generated/initiativeAPI.schemas";
+import { getReadTaskApiV1TasksTaskIdGetQueryKey } from "@/api/generated/tasks/tasks";
 import { invalidateProject, invalidateProjectTaskStatuses } from "@/api/query-keys";
+import { CommentSection } from "@/components/comments/CommentSection";
 import { Markdown } from "@/components/Markdown";
+import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
+import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
+import { AddPropertyButton } from "@/components/properties/AddPropertyButton";
+import { PropertyList } from "@/components/properties/PropertyList";
+import { StatusMessage } from "@/components/StatusMessage";
+import { TagPicker } from "@/components/tags";
+import { MoveTaskDialog } from "@/components/tasks/MoveTaskDialog";
+import { TaskChecklist } from "@/components/tasks/TaskChecklist";
+import { statusTriggerStyle, TaskStatusOption } from "@/components/tasks/TaskStatusOption";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -30,6 +51,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -39,51 +63,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
-import { useAuth } from "@/hooks/useAuth";
-import { useGuilds } from "@/hooks/useGuilds";
-import { useGuildPath } from "@/lib/guildUrl";
-import { useRoleLabels, getRoleLabel } from "@/hooks/useRoleLabels";
-import type {
-  CommentRead,
-  PropertyDefinitionRead,
-  PropertySummary,
-  TagSummary,
-  TaskListRead,
-  TaskListReadRecurrenceStrategy,
-  TaskPriority,
-  TaskRecurrenceOutput,
-} from "@/api/generated/initiativeAPI.schemas";
 import { useAIEnabled } from "@/hooks/useAIEnabled";
-import { Input } from "@/components/ui/input";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
-import { CommentSection } from "@/components/comments/CommentSection";
-import { MoveTaskDialog } from "@/components/tasks/MoveTaskDialog";
-import { TaskChecklist } from "@/components/tasks/TaskChecklist";
-import { TaskStatusOption, statusTriggerStyle } from "@/components/tasks/TaskStatusOption";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { TagPicker } from "@/components/tags";
-import { useSetTaskTags } from "@/hooks/useTags";
-import { PropertyList } from "@/components/properties/PropertyList";
-import { AddPropertyButton } from "@/components/properties/AddPropertyButton";
+import { useAuth } from "@/hooks/useAuth";
+import { useComments } from "@/hooks/useComments";
+import { useGuilds } from "@/hooks/useGuilds";
+import { useProject, useProjectTaskStatuses, useWritableProjects } from "@/hooks/useProjects";
 import { useSetTaskProperties } from "@/hooks/useProperties";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import { useSetTaskTags } from "@/hooks/useTags";
 import {
-  AlertCircle,
-  Archive,
-  ArchiveRestore,
-  Save,
-  X,
-  FolderInput,
-  Copy,
-  Trash2,
-  SearchX,
-  ShieldAlert,
-  Sparkles,
-  Loader2,
-} from "lucide-react";
-import { StatusMessage } from "@/components/StatusMessage";
+  useDeleteTask,
+  useDuplicateTask,
+  useGenerateTaskDescription,
+  useMoveTask,
+  useTask,
+  useUpdateTask,
+} from "@/hooks/useTasks";
+import { useUsers } from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
 import { getHttpStatus } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
+import { queryClient } from "@/lib/queryClient";
 
 const priorityOrder: TaskPriority[] = ["low", "medium", "high", "urgent"];
 
@@ -581,7 +581,7 @@ export const TaskEditPage = () => {
       </Breadcrumb>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{title || task?.title}</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">{title || task?.title}</h1>
           <Badge variant="secondary">{currentStatus?.name ?? t("edit.statusBadge")}</Badge>
         </div>
         <p className="text-muted-foreground text-sm">{t("edit.subtitle")}</p>
@@ -595,7 +595,7 @@ export const TaskEditPage = () => {
           </CardHeader>
           <CardContent>
             {isReadOnly && readOnlyMessage ? (
-              <p className="border-border bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-sm">
+              <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-muted-foreground text-sm">
                 {readOnlyMessage}
               </p>
             ) : null}
@@ -654,7 +654,7 @@ export const TaskEditPage = () => {
                     disabled={isReadOnly}
                   />
                 ) : description ? (
-                  <div className="border-border/70 bg-muted/40 rounded-md border border-dashed px-3 py-2">
+                  <div className="rounded-md border border-border/70 border-dashed bg-muted/40 px-3 py-2">
                     <Markdown content={description} />
                   </div>
                 ) : (

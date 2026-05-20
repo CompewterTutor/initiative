@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouter, useParams } from "@tanstack/react-router";
+import { Link, useParams, useRouter } from "@tanstack/react-router";
 import { Loader2, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type {
+  PropertyDefinitionRead,
+  PropertySummary,
+} from "@/api/generated/initiativeAPI.schemas";
+import { AddPropertyButton, PropertyList } from "@/components/properties";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +17,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -21,20 +25,15 @@ import { Label } from "@/components/ui/label";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-
 import {
   useCalendarEvent,
-  useUpdateCalendarEvent,
   useDeleteCalendarEvent,
   useSetEventAttendees,
+  useUpdateCalendarEvent,
 } from "@/hooks/useCalendarEvents";
 import { useInitiativeMembers } from "@/hooks/useInitiatives";
+import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
-import { AddPropertyButton, PropertyList } from "@/components/properties";
-import type {
-  PropertyDefinitionRead,
-  PropertySummary,
-} from "@/api/generated/initiativeAPI.schemas";
 
 export function EventSettingsPage() {
   const { t } = useTranslation(["events", "common"]);
@@ -180,7 +179,7 @@ export function EventSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-8 text-sm">
+      <div className="flex items-center gap-2 p-8 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("loadingEvent")}
       </div>
@@ -345,7 +344,7 @@ export function EventSettingsPage() {
                   {attendeeNames.get(id) ?? `User ${id}`}
                   <button
                     type="button"
-                    className="hover:bg-muted rounded-full p-0.5"
+                    className="rounded-full p-0.5 hover:bg-muted"
                     onClick={() => setAttendeeIds((prev) => prev.filter((a) => a !== id))}
                   >
                     <X className="h-3 w-3" />

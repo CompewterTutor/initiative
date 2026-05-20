@@ -1,6 +1,6 @@
-import { JSX, useRef } from "react";
 import { DraggableBlockPlugin_EXPERIMENTAL } from "@lexical/react/LexicalDraggableBlockPlugin";
 import { GripVerticalIcon } from "lucide-react";
+import { type JSX, useRef } from "react";
 
 const DRAGGABLE_BLOCK_MENU_CLASSNAME = "draggable-block-menu";
 
@@ -36,7 +36,7 @@ export function DraggableBlockPlugin({
       targetLineComponent={
         <div
           ref={targetLineRef}
-          className="bg-secondary-foreground pointer-events-none absolute top-0 left-0 h-1 opacity-0 will-change-transform"
+          className="pointer-events-none absolute top-0 left-0 h-1 bg-secondary-foreground opacity-0 will-change-transform"
         />
       }
       isOnMenu={isOnMenu}

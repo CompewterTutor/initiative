@@ -1,5 +1,5 @@
-import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import * as React from "react";
 
 import { getUserColorStyle } from "@/lib/userColor";
 import { cn } from "@/lib/utils";
@@ -28,9 +28,8 @@ const AvatarImage = React.forwardRef<
 ));
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
-interface AvatarFallbackProps extends React.ComponentPropsWithoutRef<
-  typeof AvatarPrimitive.Fallback
-> {
+interface AvatarFallbackProps
+  extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback> {
   /**
    * When set, the fallback's background + foreground are driven by the
    * deterministic ``getUserColorStyle`` hash — the same hue that powers
@@ -65,4 +64,4 @@ const AvatarFallback = React.forwardRef<
 });
 AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
 
-export { Avatar, AvatarImage, AvatarFallback };
+export { Avatar, AvatarFallback, AvatarImage };

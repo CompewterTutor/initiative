@@ -1,22 +1,22 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
-import { getItem } from "@/lib/storage";
 
 import {
-  readProjectApiV1ProjectsProjectIdGet,
   getReadProjectApiV1ProjectsProjectIdGetQueryKey,
+  readProjectApiV1ProjectsProjectIdGet,
 } from "@/api/generated/projects/projects";
 import {
-  listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet,
   getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey,
+  listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet,
 } from "@/api/generated/task-statuses/task-statuses";
 import {
-  listUsersApiV1UsersGet,
-  getListUsersApiV1UsersGetQueryKey,
-} from "@/api/generated/users/users";
-import {
-  listTasksApiV1TasksGet,
   getListTasksApiV1TasksGetQueryKey,
+  listTasksApiV1TasksGet,
 } from "@/api/generated/tasks/tasks";
+import {
+  getListUsersApiV1UsersGetQueryKey,
+  listUsersApiV1UsersGet,
+} from "@/api/generated/users/users";
+import { getItem } from "@/lib/storage";
 
 type StoredFilters = {
   viewMode: string;

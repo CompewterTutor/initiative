@@ -1,18 +1,18 @@
-import { useMemo } from "react";
 import { ChevronDown, Filter } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { PropertyFilter } from "@/components/properties/PropertyFilter";
-import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
 import type {
   GuildRead,
   TaskPriority,
   TaskStatusCategory,
 } from "@/api/generated/initiativeAPI.schemas";
+import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
+import { PropertyFilter } from "@/components/properties/PropertyFilter";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 const priorityOrder: TaskPriority[] = ["low", "medium", "high", "urgent"];
 
@@ -58,7 +58,7 @@ export const GlobalTaskFilters = ({
   return (
     <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
       <div className="flex items-center justify-between sm:hidden">
-        <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+        <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
           <Filter className="h-4 w-4" />
           {t("filters.heading")}
         </div>
@@ -72,12 +72,12 @@ export const GlobalTaskFilters = ({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-        <div className="border-muted bg-background/40 mt-2 flex flex-col gap-3 rounded-md border p-3 sm:mt-0">
+        <div className="mt-2 flex flex-col gap-3 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-full sm:w-60 lg:flex-1">
               <Label
                 htmlFor="task-status-filter"
-                className="text-muted-foreground mb-2 block text-xs font-medium"
+                className="mb-2 block font-medium text-muted-foreground text-xs"
               >
                 {t("filters.filterByStatusCategory")}
               </Label>
@@ -95,7 +95,7 @@ export const GlobalTaskFilters = ({
             <div className="w-full sm:w-60 lg:flex-1">
               <Label
                 htmlFor="task-priority-filter"
-                className="text-muted-foreground mb-2 block text-xs font-medium"
+                className="mb-2 block font-medium text-muted-foreground text-xs"
               >
                 {t("filters.filterByPriority")}
               </Label>
@@ -113,7 +113,7 @@ export const GlobalTaskFilters = ({
             <div className="w-full sm:w-60 lg:flex-1">
               <Label
                 htmlFor="task-guild-filter"
-                className="text-muted-foreground mb-2 block text-xs font-medium"
+                className="mb-2 block font-medium text-muted-foreground text-xs"
               >
                 {t("filters.filterByGuild")}
               </Label>

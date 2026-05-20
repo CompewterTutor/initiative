@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { IS_APPLE, mergeRegister } from "@lexical/utils";
 import {
@@ -9,10 +8,11 @@ import {
   UNDO_COMMAND,
 } from "lexical";
 import { RedoIcon, UndoIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 
 export function HistoryToolbarPlugin() {
   const [editor] = useLexicalComposerContext();

@@ -1,10 +1,7 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { AlertCircle, CheckCircle2, FileText, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { useAuth } from "@/hooks/useAuth";
 import { apiMutator } from "@/api/mutator";
 import { invalidateAllCalendarEvents } from "@/api/query-keys";
 import { Button } from "@/components/ui/button";
@@ -23,6 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { toast } from "@/lib/chesterToast";
 import type { DialogProps } from "@/types/dialog";
 
 interface ICalEventPreview {
@@ -157,8 +157,8 @@ export const ICalImportDialog = ({
             <div>
               <Label>{t("events:import.uploadFileLabel")}</Label>
               <div className="mt-2">
-                <label className="border-muted hover:bg-accent flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors">
-                  <Upload className="text-muted-foreground mb-2 h-8 w-8" />
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-muted border-dashed p-6 transition-colors hover:bg-accent">
+                  <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
                   <span className="text-muted-foreground text-sm">
                     {isParsing ? t("events:import.parsing") : t("events:import.uploadFileLabel")}
                   </span>
@@ -173,7 +173,7 @@ export const ICalImportDialog = ({
             </div>
 
             {parseResult && (
-              <div className="bg-muted rounded-lg p-4">
+              <div className="rounded-lg bg-muted p-4">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   <span className="font-medium">
@@ -181,13 +181,13 @@ export const ICalImportDialog = ({
                   </span>
                 </div>
                 {parseResult.has_recurring && (
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <p className="mt-1 text-muted-foreground text-sm">
                     {t("events:import.hasRecurring")}
                   </p>
                 )}
-                <ul className="text-muted-foreground mt-2 max-h-40 space-y-1 overflow-y-auto text-sm">
-                  {parseResult.events.slice(0, 20).map((ev, i) => (
-                    <li key={i} className="truncate">
+                <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-muted-foreground text-sm">
+                  {parseResult.events.slice(0, 20).map((ev) => (
+                    <li key={ev.summary} className="truncate">
                       {ev.summary}
                     </li>
                   ))}
@@ -261,10 +261,10 @@ export const ICalImportDialog = ({
             </div>
 
             {importResult.errors.length > 0 && (
-              <div className="bg-muted max-h-40 overflow-y-auto rounded-lg p-3">
-                <ul className="text-muted-foreground space-y-1 text-xs">
-                  {importResult.errors.map((error, i) => (
-                    <li key={i}>{error}</li>
+              <div className="max-h-40 overflow-y-auto rounded-lg bg-muted p-3">
+                <ul className="space-y-1 text-muted-foreground text-xs">
+                  {importResult.errors.map((error) => (
+                    <li key={error}>{error}</li>
                   ))}
                 </ul>
               </div>

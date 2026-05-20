@@ -1,7 +1,5 @@
-import { useMemo } from "react";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import type { PaginationState } from "@tanstack/react-table";
 import { Link } from "@tanstack/react-router";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import {
   Copy,
@@ -13,21 +11,22 @@ import {
   Tags,
   Trash2,
 } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { DocumentSummary, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
+import { SortIcon } from "@/components/SortIcon";
+import { TagBadge } from "@/components/tags/TagBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { SortIcon } from "@/components/SortIcon";
-import { TagBadge } from "@/components/tags/TagBadge";
-import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
-import { useProperties } from "@/hooks/useProperties";
-import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
 import { useDateLocale } from "@/hooks/useDateLocale";
-import { useGuildPath } from "@/lib/guildUrl";
+import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
+import { useProperties } from "@/hooks/useProperties";
 import { getFileTypeLabel } from "@/lib/fileUtils";
+import { useGuildPath } from "@/lib/guildUrl";
 import { dateSortingFn } from "@/lib/sorting";
-import { type DocumentSummary, type TagSummary } from "@/api/generated/initiativeAPI.schemas";
 
 // Cell component that uses guild-scoped URLs
 const DocumentTitleCell = ({ document }: { document: DocumentSummary }) => {
@@ -36,7 +35,7 @@ const DocumentTitleCell = ({ document }: { document: DocumentSummary }) => {
     <div className="min-w-[220px] sm:min-w-0">
       <Link
         to={gp(`/documents/${document.id}`)}
-        className="text-primary font-medium hover:underline"
+        className="font-medium text-primary hover:underline"
       >
         {document.title}
       </Link>
@@ -75,6 +74,7 @@ export interface DocumentsListViewProps {
   totalPages: number;
   totalCount: number;
   pageSize: number;
+  page: number;
   onPageSizeChange: (size: number) => void;
   onPageChange: (updater: number | ((prev: number) => number)) => void;
   onPrefetchPage: (page: number) => void;
@@ -97,6 +97,7 @@ export const DocumentsListView = ({
   totalPages,
   totalCount,
   pageSize,
+  page,
   onPageSizeChange,
   onPageChange,
   onPrefetchPage,
@@ -250,8 +251,8 @@ export const DocumentsListView = ({
   return (
     <>
       {selectedDocuments.length > 0 && (
-        <div className="border-primary bg-primary/5 flex items-center justify-between rounded-md border p-4">
-          <div className="text-sm font-medium">
+        <div className="flex items-center justify-between rounded-md border border-primary bg-primary/5 p-4">
+          <div className="font-medium text-sm">
             {t("documents:bulk.selected", { count: selectedDocuments.length })}
           </div>
           <div className="flex items-center gap-2">
@@ -335,6 +336,7 @@ export const DocumentsListView = ({
         manualPagination
         pageCount={totalPages}
         rowCount={totalCount}
+        pageIndex={page - 1}
         onPaginationChange={(pag: PaginationState) => {
           if (pag.pageSize !== pageSize) {
             onPageSizeChange(pag.pageSize);

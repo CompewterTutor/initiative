@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UsePullToRefreshOptions {
   /** Threshold in pixels to trigger refresh (default: 80) */

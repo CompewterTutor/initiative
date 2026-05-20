@@ -1,9 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useRouter, useSearch } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type { GuildInviteStatus } from "@/api/generated/initiativeAPI.schemas";
+import { CaptchaWidget } from "@/components/auth/CaptchaWidget";
+import { LogoIcon } from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,11 +17,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/hooks/useAuth";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import type { GuildInviteStatus } from "@/api/generated/initiativeAPI.schemas";
-import { LogoIcon } from "@/components/LogoIcon";
-import { CaptchaWidget } from "@/components/auth/CaptchaWidget";
+import { useAuth } from "@/hooks/useAuth";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface RegisterPageProps {
   bootstrapMode?: boolean;
@@ -200,7 +200,7 @@ export const RegisterPage = ({ bootstrapMode = false }: RegisterPageProps) => {
   // Show loading state while checking registration status
   if (publicRegistrationEnabled === null) {
     return (
-      <div className="bg-muted/60 flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-muted/60 px-4 py-12">
         <p className="text-muted-foreground text-sm">{t("common:loading")}</p>
       </div>
     );
@@ -217,8 +217,8 @@ export const RegisterPage = ({ bootstrapMode = false }: RegisterPageProps) => {
           backgroundSize: "96px 96px",
         }}
       >
-        <div className="bg-muted/60 flex min-h-screen flex-col items-center justify-center gap-3 px-4 py-12">
-          <div className="text-primary flex items-center gap-3 text-3xl font-semibold tracking-tight">
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
+          <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
             <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
             {t("common:appName")}
           </div>
@@ -229,7 +229,7 @@ export const RegisterPage = ({ bootstrapMode = false }: RegisterPageProps) => {
             </CardHeader>
             <CardFooter className="text-muted-foreground text-sm">
               {t("inviteRequired.haveAccount")}{" "}
-              <Link className="text-primary ml-1 underline-offset-4 hover:underline" to="/login">
+              <Link className="ml-1 text-primary underline-offset-4 hover:underline" to="/login">
                 {t("inviteRequired.signIn")}
               </Link>
             </CardFooter>
@@ -248,8 +248,8 @@ export const RegisterPage = ({ bootstrapMode = false }: RegisterPageProps) => {
         backgroundSize: "96px 96px",
       }}
     >
-      <div className="bg-muted/60 flex min-h-screen flex-col items-center justify-center gap-3 px-4 py-12">
-        <div className="text-primary flex items-center gap-3 text-3xl font-semibold tracking-tight">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
+        <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
           <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
           {t("common:appName")}
         </div>
@@ -338,7 +338,7 @@ export const RegisterPage = ({ bootstrapMode = false }: RegisterPageProps) => {
           </CardContent>
           <CardFooter className="text-muted-foreground text-sm">
             {t("register.haveAccount")}{" "}
-            <Link className="text-primary ml-1 underline-offset-4 hover:underline" to="/login">
+            <Link className="ml-1 text-primary underline-offset-4 hover:underline" to="/login">
               {t("register.signIn")}
             </Link>
           </CardFooter>

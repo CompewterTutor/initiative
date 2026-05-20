@@ -1,5 +1,6 @@
 import type { AxiosError } from "axios";
 import { isAxiosError } from "axios";
+
 import i18n from "@/i18n";
 
 /** Loose translation function that accepts dynamic keys without strict type checking. */

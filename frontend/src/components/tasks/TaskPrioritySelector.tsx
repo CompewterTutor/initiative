@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { TaskListRead, TaskPriority } from "@/api/generated/initiativeAPI.schemas";
+import { priorityVariant } from "@/components/projects/projectTasksConfig";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -11,8 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUpdateTask } from "@/hooks/useTasks";
-import { priorityVariant } from "@/components/projects/projectTasksConfig";
-import type { TaskListRead, TaskPriority } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
 
 type TaskPrioritySelectorProps = {
   task: TaskListRead;
@@ -54,7 +54,7 @@ export const TaskPrioritySelector = ({ task, disabled }: TaskPrioritySelectorPro
       <DropdownMenuTrigger asChild disabled={disabled || updatePriority.isPending}>
         <button
           type="button"
-          className="focus:ring-ring cursor-pointer rounded-md focus:ring-2 focus:ring-offset-2 focus:outline-none"
+          className="cursor-pointer rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           aria-label={t("prioritySelector.ariaLabel", { priority: t(`priority.${task.priority}`) })}
         >
           <Badge variant={priorityVariant[task.priority]} className="capitalize">

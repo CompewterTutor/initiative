@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { MessageSquare } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import type { RecentActivityEntry } from "@/api/generated/initiativeAPI.schemas";
 import { CommentContent } from "@/components/comments/CommentContent";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGuildPath } from "@/lib/guildUrl";
 import { getInitials } from "@/lib/initials";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
-import type { RecentActivityEntry } from "@/api/generated/initiativeAPI.schemas";
 
 interface RecentCommentsListProps {
   comments: RecentActivityEntry[];
@@ -31,6 +31,7 @@ export function RecentCommentsList({ comments, isLoading }: RecentCommentsListPr
         {isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: This is a static list of skeleton loaders, so using the index as key is acceptable.
               <div key={i} className="flex gap-3">
                 <Skeleton className="h-8 w-8 rounded-full" />
                 <div className="flex-1 space-y-1">
@@ -41,7 +42,7 @@ export function RecentCommentsList({ comments, isLoading }: RecentCommentsListPr
             ))}
           </div>
         ) : comments.length === 0 ? (
-          <div className="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+          <div className="flex h-50 items-center justify-center text-muted-foreground text-sm">
             <div className="flex flex-col items-center gap-2">
               <MessageSquare className="h-8 w-8 opacity-50" />
               <span>{t("recentComments.noComments")}</span>
@@ -75,7 +76,7 @@ export function RecentCommentsList({ comments, isLoading }: RecentCommentsListPr
                 entry.author?.avatar_base64 ||
                 undefined;
               const content = (
-                <div className="flex gap-3">
+                <div key={entry.comment_id} className="flex gap-3">
                   <Avatar className="h-8 w-8 shrink-0">
                     {authorAvatarSrc ? <AvatarImage src={authorAvatarSrc} /> : null}
                     <AvatarFallback userId={entry.author?.id ?? null} className="text-xs">
@@ -84,15 +85,15 @@ export function RecentCommentsList({ comments, isLoading }: RecentCommentsListPr
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="truncate text-sm font-medium">
+                      <span className="truncate font-medium text-sm">
                         {entry.author?.full_name ?? entry.author?.email ?? "Unknown"}
                       </span>
-                      <span className="text-muted-foreground shrink-0 text-xs">
+                      <span className="shrink-0 text-muted-foreground text-xs">
                         {formatDistanceToNow(parseISO(entry.created_at), { addSuffix: true })}
                       </span>
                     </div>
                     {contextParts.length > 0 && (
-                      <p className="text-muted-foreground truncate text-xs">
+                      <p className="truncate text-muted-foreground text-xs">
                         {contextParts.join(" ")}
                       </p>
                     )}
@@ -107,7 +108,7 @@ export function RecentCommentsList({ comments, isLoading }: RecentCommentsListPr
                 <Link
                   key={entry.comment_id}
                   to={linkTo}
-                  className="hover:bg-accent block rounded-md p-2 transition-colors"
+                  className="block rounded-md p-2 transition-colors hover:bg-accent"
                 >
                   {content}
                 </Link>

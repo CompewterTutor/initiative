@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
+import type { QueueSummary } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGuildPath } from "@/lib/guildUrl";
 import { cn } from "@/lib/utils";
-import type { QueueSummary } from "@/api/generated/initiativeAPI.schemas";
 
 interface QueueCardProps {
   queue: QueueSummary;
@@ -21,7 +21,7 @@ export const QueueCard = ({ queue, initiativeName, className }: QueueCardProps) 
     <Link
       to={gp(`/queues/${queue.id}`)}
       className={cn(
-        "group bg-card text-card-foreground hover:border-primary/50 block w-full overflow-hidden rounded-2xl border shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg",
+        "group block w-full overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg",
         className
       )}
     >
@@ -34,11 +34,11 @@ export const QueueCard = ({ queue, initiativeName, className }: QueueCardProps) 
             </Badge>
           </div>
           {queue.description && (
-            <p className="text-muted-foreground line-clamp-2 text-sm">{queue.description}</p>
+            <p className="line-clamp-2 text-muted-foreground text-sm">{queue.description}</p>
           )}
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="text-muted-foreground flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-3 text-muted-foreground text-sm">
             {initiativeName && <span className="truncate">{initiativeName}</span>}
             <Badge variant="outline">{t("itemCount", { count: queue.item_count })}</Badge>
             {queue.is_active && queue.current_round > 0 && (

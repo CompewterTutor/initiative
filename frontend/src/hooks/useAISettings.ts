@@ -1,24 +1,18 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
-  getPlatformAiSettingsApiV1SettingsAiPlatformGet,
-  getGetPlatformAiSettingsApiV1SettingsAiPlatformGetQueryKey,
-  updatePlatformAiSettingsApiV1SettingsAiPlatformPut,
-  getGuildAiSettingsApiV1SettingsAiGuildGet,
-  getGetGuildAiSettingsApiV1SettingsAiGuildGetQueryKey,
-  updateGuildAiSettingsApiV1SettingsAiGuildPut,
-  getUserAiSettingsApiV1SettingsAiUserGet,
-  getGetUserAiSettingsApiV1SettingsAiUserGetQueryKey,
-  updateUserAiSettingsApiV1SettingsAiUserPut,
-  testAiConnectionApiV1SettingsAiTestPost,
   fetchAiModelsApiV1SettingsAiModelsPost,
+  getGetGuildAiSettingsApiV1SettingsAiGuildGetQueryKey,
+  getGetPlatformAiSettingsApiV1SettingsAiPlatformGetQueryKey,
+  getGetUserAiSettingsApiV1SettingsAiUserGetQueryKey,
+  getGuildAiSettingsApiV1SettingsAiGuildGet,
+  getPlatformAiSettingsApiV1SettingsAiPlatformGet,
+  getUserAiSettingsApiV1SettingsAiUserGet,
+  testAiConnectionApiV1SettingsAiTestPost,
+  updateGuildAiSettingsApiV1SettingsAiGuildPut,
+  updatePlatformAiSettingsApiV1SettingsAiPlatformPut,
+  updateUserAiSettingsApiV1SettingsAiUserPut,
 } from "@/api/generated/ai-settings/ai-settings";
-import {
-  invalidateGuildAISettings,
-  invalidatePlatformAISettings,
-  invalidateResolvedAISettings,
-  invalidateUserAISettings,
-} from "@/api/query-keys";
 import type {
   AIModelsRequest,
   AIModelsResponse,
@@ -31,6 +25,12 @@ import type {
   UserAISettingsResponse,
   UserAISettingsUpdate,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  invalidateGuildAISettings,
+  invalidatePlatformAISettings,
+  invalidateResolvedAISettings,
+  invalidateUserAISettings,
+} from "@/api/query-keys";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 

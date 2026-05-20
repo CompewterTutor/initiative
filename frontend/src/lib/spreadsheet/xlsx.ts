@@ -22,18 +22,18 @@ import {
   type BorderLineStyle,
   type CellBorder,
   type CellStyle,
-  type NegativeStyle,
-  type NumberFormat,
   MAX_COL_WIDTH,
   MAX_FONT_SIZE,
   MAX_ROW_HEIGHT,
   MIN_COL_WIDTH,
   MIN_FONT_SIZE,
   MIN_ROW_HEIGHT,
+  type NegativeStyle,
+  type NumberFormat,
   resolveCellFormat,
   resolveCellStyle,
-  sanitizeFormatting,
   type SpreadsheetFormatting,
+  sanitizeFormatting,
 } from "./styles";
 
 export interface XlsxImportResult {

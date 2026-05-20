@@ -7,8 +7,8 @@ import {
   Link as LinkIcon,
   List,
   ListChecks,
-  User,
   type LucideIcon,
+  User,
 } from "lucide-react";
 
 import { PropertyType } from "@/api/generated/initiativeAPI.schemas";

@@ -1,13 +1,14 @@
-import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { useTranslation } from "react-i18next";
 import { Pencil, Reply, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useDateLocale } from "@/hooks/useDateLocale";
-import { getInitialsForUser, getUserDisplayName, isAnonymizedUser } from "@/lib/userDisplay";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
+import { getInitialsForUser, getUserDisplayName, isAnonymizedUser } from "@/lib/userDisplay";
+
 import { CommentContent } from "./CommentContent";
 import { CommentInput } from "./CommentInput";
 import type { CommentWithReplies } from "./CommentSection";
@@ -86,25 +87,25 @@ export const CommentThread = ({
   };
 
   return (
-    <div className={visualDepth > 0 ? "border-border ml-4 border-l pl-4" : ""}>
-      <div className="border-border rounded-md border p-3">
+    <div className={visualDepth > 0 ? "ml-4 border-border border-l pl-4" : ""}>
+      <div className="rounded-md border border-border p-3">
         <div className="flex gap-3">
-          <Avatar className="bg-background h-9 w-9 border">
+          <Avatar className="h-9 w-9 border bg-background">
             {avatarSrc ? <AvatarImage src={avatarSrc} alt={displayName} /> : null}
             <AvatarFallback userId={anonymizedAuthor ? null : comment.author_id}>
               {getInitialsForUser(comment.author)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <span className="text-foreground font-medium">{displayName}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-xs">
+              <span className="font-medium text-foreground">{displayName}</span>
               <span className="whitespace-nowrap">
                 {formatDistanceToNow(new Date(comment.created_at), {
                   addSuffix: true,
                   locale: dateLocale,
                 })}
                 {isEdited && (
-                  <span className="text-muted-foreground ml-1">{t("comments.edited")}</span>
+                  <span className="ml-1 text-muted-foreground">{t("comments.edited")}</span>
                 )}
               </span>
               {!isEditing && (
@@ -136,7 +137,7 @@ export const CommentThread = ({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                      className="h-7 px-2 text-destructive text-xs hover:text-destructive"
                       disabled={isSubmitting}
                       onClick={() => onDelete(comment.id)}
                     >
@@ -147,7 +148,7 @@ export const CommentThread = ({
                 </div>
               )}
             </div>
-            <div className="text-foreground mt-2 text-sm">
+            <div className="mt-2 text-foreground text-sm">
               {isEditing ? (
                 <div className="space-y-2">
                   <CommentInput
@@ -203,7 +204,7 @@ export const CommentThread = ({
       )}
 
       {/* Delete error */}
-      {deleteError && <p className="text-destructive mt-1 text-sm">{deleteError}</p>}
+      {deleteError && <p className="mt-1 text-destructive text-sm">{deleteError}</p>}
 
       {/* Nested replies */}
       {comment.replies.length > 0 && (

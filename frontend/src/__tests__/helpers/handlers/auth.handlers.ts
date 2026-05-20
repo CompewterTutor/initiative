@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
+
 import { buildUser } from "@/__tests__/factories";
 
 export const authHandlers = [

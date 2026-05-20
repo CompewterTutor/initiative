@@ -1,6 +1,6 @@
+import { Check } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -83,7 +83,7 @@ export const MultiSelect = ({
       </SelectTrigger>
       <SelectContent>
         <div
-          className="border-border flex flex-col gap-0.5 border-b pb-1"
+          className="flex flex-col gap-0.5 border-border border-b pb-1"
           onClick={(e) => e.stopPropagation()}
         >
           <Button

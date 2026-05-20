@@ -1,5 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { Columns3Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { InsertLayoutDialog } from "@/components/ui/editor/plugins/layout-plugin";
 import { ComponentPickerOption } from "@/components/ui/editor/plugins/picker/component-picker-option";

@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { isAxiosError } from "axios";
 import { Check, Copy, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
   if (isLoadingAI) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -58,7 +58,7 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
   if (!isEnabled) {
     return (
       <div className="space-y-2 py-4 text-center">
-        <Sparkles className="text-muted-foreground mx-auto h-8 w-8" />
+        <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
         <p className="text-muted-foreground text-sm">{t("summary.aiNotEnabled")}</p>
       </div>
     );
@@ -68,7 +68,7 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
   if (!summary && !generateSummary.isPending) {
     return (
       <div className="space-y-4 py-4 text-center">
-        <Sparkles className="text-muted-foreground mx-auto h-8 w-8" />
+        <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
         <p className="text-muted-foreground text-sm">{t("summary.generateDescription")}</p>
         <Button onClick={() => generateSummary.mutate()} disabled={generateSummary.isPending}>
           <Sparkles className="mr-2 h-4 w-4" />
@@ -83,7 +83,7 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
   if (generateSummary.isPending) {
     return (
       <div className="space-y-4 py-8 text-center">
-        <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-muted-foreground text-sm">{t("summary.generating")}</p>
       </div>
     );
@@ -93,7 +93,7 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">{t("summary.title")}</h4>
+        <h4 className="font-medium text-sm">{t("summary.title")}</h4>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -116,8 +116,8 @@ export const DocumentSummary = ({ documentId, summary, onSummaryChange }: Docume
           </Button>
         </div>
       </div>
-      <div className="bg-muted/50 rounded-lg p-4">
-        <p className="text-sm whitespace-pre-wrap">{summary}</p>
+      <div className="rounded-lg bg-muted/50 p-4">
+        <p className="whitespace-pre-wrap text-sm">{summary}</p>
       </div>
       {generateSummary.isError && <p className="text-destructive text-sm">{getErrorMessage()}</p>}
     </div>

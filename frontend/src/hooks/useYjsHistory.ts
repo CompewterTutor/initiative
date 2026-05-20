@@ -28,7 +28,6 @@ export interface YjsHistoryOptions {
    * `(d) => [d.getMap("cells"), d.getMap("meta")]`. The element type
    * mirrors yjs's own `UndoManager` scope signature.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getScope: (doc: Y.Doc) => Y.AbstractType<any>[];
   /**
    * Transaction origins (as passed to `doc.transact(fn, origin)`) that

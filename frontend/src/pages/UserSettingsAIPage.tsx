@@ -1,8 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type { AIProvider, UserAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,13 +16,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  useUserAISettings,
-  useUpdateUserAISettings,
-  useTestAIConnection,
   useFetchAIModels,
+  useTestAIConnection,
+  useUpdateUserAISettings,
+  useUserAISettings,
 } from "@/hooks/useAISettings";
 import { getModelsForProvider, getProvidersForScope, PROVIDER_CONFIGS } from "@/lib/ai-providers";
-import type { AIProvider, UserAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 interface FormState {
   enabled: boolean | null;
@@ -264,8 +264,8 @@ export const UserSettingsAIPage = () => {
           </div>
 
           {formState.useInheritedSettings && (
-            <div className="bg-muted/50 rounded-md border p-4">
-              <p className="text-muted-foreground mb-2 text-sm font-medium">
+            <div className="rounded-md border bg-muted/50 p-4">
+              <p className="mb-2 font-medium text-muted-foreground text-sm">
                 {t("ai.currentSettings", { source: settingsSourceLabel })}
               </p>
               <div className="space-y-1 text-sm">

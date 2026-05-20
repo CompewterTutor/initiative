@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type {
+  RestoreRequest,
+  TrashItemEntityType,
+  TrashListResponse,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
   getListTrashApiV1TrashGetQueryKey,
   listTrashApiV1TrashGet,
   purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete,
   restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost,
 } from "@/api/generated/trash/trash";
-import type {
-  RestoreRequest,
-  TrashItemEntityType,
-  TrashListResponse,
-} from "@/api/generated/initiativeAPI.schemas";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 

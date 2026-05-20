@@ -1,20 +1,24 @@
-import { useCallback, useMemo, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-
-import { useAutoCloseSidebar } from "@/hooks/useAutoCloseSidebar";
 import {
-  Settings,
-  Plus,
-  ScrollText,
-  Star,
-  Users,
-  ListTodo,
-  Tag,
   ChevronsDownUp,
   ChevronsUpDown,
+  ListTodo,
+  Plus,
+  ScrollText,
+  Settings,
+  Star,
+  Tag,
+  Users,
 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { GuildSidebar } from "@/components/guilds/GuildSidebar";
+import { HomeSidebarContent } from "@/components/sidebar/HomeSidebarContent";
+import { InitiativeSection } from "@/components/sidebar/InitiativeSection";
+import { SidebarUserFooter } from "@/components/sidebar/SidebarUserFooter";
+import { TagBrowser } from "@/components/sidebar/TagBrowser";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -24,32 +28,27 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GuildSidebar } from "@/components/guilds/GuildSidebar";
-import { HomeSidebarContent } from "@/components/sidebar/HomeSidebarContent";
-import { InitiativeSection } from "@/components/sidebar/InitiativeSection";
-import { TagBrowser } from "@/components/sidebar/TagBrowser";
-import { SidebarUserFooter } from "@/components/sidebar/SidebarUserFooter";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
+import { useAutoCloseSidebar } from "@/hooks/useAutoCloseSidebar";
+import { compareVersions, useDockerHubVersion } from "@/hooks/useDockerHubVersion";
 import { useAllDocumentIds } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
 import { useInitiatives } from "@/hooks/useInitiatives";
-import { useProjects, useFavoriteProjects } from "@/hooks/useProjects";
-import { useDockerHubVersion, compareVersions } from "@/hooks/useDockerHubVersion";
-import { useTags } from "@/hooks/useTags";
+import { useFavoriteProjects, useProjects } from "@/hooks/useProjects";
 import { useQueuesList } from "@/hooks/useQueues";
-import { getItem, setItem } from "@/lib/storage";
-import { getInitials } from "@/lib/initials";
-import { resolveUploadUrl } from "@/lib/uploadUrl";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useTags } from "@/hooks/useTags";
 import { guildPath } from "@/lib/guildUrl";
-import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { getInitials } from "@/lib/initials";
+import { getItem, setItem } from "@/lib/storage";
+import { resolveUploadUrl } from "@/lib/uploadUrl";
 
 export const AppSidebar = () => {
   const { user, logout } = useAuth();
@@ -262,7 +261,6 @@ export const AppSidebar = () => {
     } catch {
       return false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleInitiatives, initiativeCollapseKey]);
 
   // Collapse/expand all for tags
@@ -301,10 +299,10 @@ export const AppSidebar = () => {
       variant="sidebar"
       collapsible={isMobile ? "offcanvas" : "none"}
     >
-      <div className="flex h-full w-full max-w-full min-w-0 flex-col">
+      <div className="flex h-full w-full min-w-0 max-w-full flex-col">
         <div className="flex min-h-0 max-w-full flex-1">
           <GuildSidebar isHomeMode={!isGuildRoute} />
-          <div className="flex max-w-full min-w-0 flex-1 flex-col overflow-hidden border-r">
+          <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-hidden border-r">
             {!isGuildRoute ? (
               <HomeSidebarContent />
             ) : (
@@ -314,7 +312,7 @@ export const AppSidebar = () => {
                   style={{ paddingTop: "var(--safe-area-inset-top)" }}
                 >
                   <div className="flex h-12 min-w-0 items-center justify-between gap-2 px-2.5">
-                    <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">
+                    <h2 className="min-w-0 flex-1 truncate font-semibold text-lg">
                       {activeGuild?.name ?? t("selectGuild")}
                     </h2>
                     {activeGuild && isGuildAdmin && (
@@ -342,7 +340,7 @@ export const AppSidebar = () => {
                   {/* </div> */}
 
                   <TabsContent value="initiatives" className="mt-0 flex-1 overflow-hidden">
-                    <SidebarContent className="h-full overflow-x-hidden overflow-y-auto">
+                    <SidebarContent className="h-full overflow-y-auto overflow-x-hidden">
                       {/* Favorites Section */}
                       {Array.isArray(favoritesQuery?.data) && favoritesQuery.data.length > 0 && (
                         <>
@@ -451,7 +449,7 @@ export const AppSidebar = () => {
                               <Skeleton className="h-8 w-full" />
                             </div>
                           ) : visibleInitiatives.length === 0 ? (
-                            <div className="text-muted-foreground px-4 py-2 text-sm">
+                            <div className="px-4 py-2 text-muted-foreground text-sm">
                               {t("noInitiativesAvailable")}
                             </div>
                           ) : (
@@ -505,7 +503,7 @@ export const AppSidebar = () => {
                   </TabsContent>
 
                   <TabsContent value="tags" className="mt-0 flex-1 overflow-hidden">
-                    <SidebarContent className="h-full overflow-x-hidden overflow-y-auto">
+                    <SidebarContent className="h-full overflow-y-auto overflow-x-hidden">
                       <SidebarGroup>
                         <SidebarGroupLabel className="flex items-center gap-2 py-2">
                           <Tag className="h-4 w-4" />

@@ -1,28 +1,27 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
   MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import {
-  Calendar,
-  Kanban,
-  Table,
-  GanttChart,
-  Filter,
-  ChevronDown,
-  Plus,
-  Archive,
-} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  Archive,
+  Calendar,
+  ChevronDown,
+  Filter,
+  GanttChart,
+  Kanban,
+  Plus,
+  Table,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import type {
   FilterCondition,
   ListTasksApiV1TasksGetParams,
@@ -33,37 +32,25 @@ import type {
   TaskReorderRequest,
   TaskStatusRead,
 } from "@/api/generated/initiativeAPI.schemas";
-import {
-  useTasks,
-  useCreateTask,
-  useUpdateTask,
-  useBulkUpdateTasks,
-  useBulkDeleteTasks,
-  useBulkArchiveTasks,
-  useArchiveDoneTasks,
-  useReorderTasks,
-} from "@/hooks/useTasks";
-import { getItem, setItem } from "@/lib/storage";
-
-import { useTags } from "@/hooks/useTags";
-import { useAuth } from "@/hooks/useAuth";
-import { CalendarView, type CalendarEntry, type CalendarViewMode } from "@/components/calendar";
+import { type CalendarEntry, CalendarView, type CalendarViewMode } from "@/components/calendar";
 import { ProjectGanttView } from "@/components/projects/ProjectGanttView";
 import { ProjectTaskComposer } from "@/components/projects/ProjectTaskComposer";
 import { ProjectTasksFilters } from "@/components/projects/ProjectTasksFilters";
-import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
-import {
-  priorityVariant,
-  type DueFilterOption,
-  type UserOption,
-} from "@/components/projects/projectTasksConfig";
 import { ProjectTasksKanbanView } from "@/components/projects/ProjectTasksKanbanView";
 import { ProjectTasksTableView } from "@/components/projects/ProjectTasksTableView";
-import { TaskBulkEditPanel } from "@/components/tasks/TaskBulkEditPanel";
-import { TaskBulkEditDialog } from "@/components/tasks/TaskBulkEditDialog";
+import {
+  type DueFilterOption,
+  priorityVariant,
+  type UserOption,
+} from "@/components/projects/projectTasksConfig";
+import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
 import { BulkEditTaskTagsDialog } from "@/components/tasks/BulkEditTaskTagsDialog";
+import { TaskBulkEditDialog } from "@/components/tasks/TaskBulkEditDialog";
+import { TaskBulkEditPanel } from "@/components/tasks/TaskBulkEditPanel";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -73,8 +60,20 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Dialog } from "@/components/ui/dialog";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useTags } from "@/hooks/useTags";
+import {
+  useArchiveDoneTasks,
+  useBulkArchiveTasks,
+  useBulkDeleteTasks,
+  useBulkUpdateTasks,
+  useCreateTask,
+  useReorderTasks,
+  useTasks,
+  useUpdateTask,
+} from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
+import { getItem, setItem } from "@/lib/storage";
 
 type ViewMode = "table" | "kanban" | "calendar" | "gantt";
 
@@ -863,7 +862,7 @@ export const ProjectTasksSection = ({
       <Tabs value={viewMode} onValueChange={handleViewModeChange} className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2">
-            <h2 className="text-xl font-semibold">{t("tasks.projectTasks")}</h2>
+            <h2 className="font-semibold text-xl">{t("tasks.projectTasks")}</h2>
             {canEditTaskDetails && (
               <TooltipProvider>
                 <Tooltip delayDuration={400}>
@@ -911,7 +910,7 @@ export const ProjectTasksSection = ({
 
         <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
           <div className="flex items-center justify-between sm:hidden">
-            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+            <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
               <Filter className="h-4 w-4" />
               {t("tasks.filtersHeading")}
             </div>
@@ -1057,7 +1056,7 @@ export const ProjectTasksSection = ({
             <Tooltip delayDuration={400}>
               <TooltipTrigger asChild>
                 <Button
-                  className="shadow-primary/40 fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg"
+                  className="fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg shadow-primary/40"
                   onClick={() => setIsComposerOpen(true)}
                 >
                   <Plus className="h-4 w-4" />

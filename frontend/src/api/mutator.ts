@@ -1,5 +1,6 @@
-import type { AxiosRequestConfig } from "axios";
 import { Capacitor } from "@capacitor/core";
+import type { AxiosRequestConfig } from "axios";
+
 import { API_BASE_URL, apiClient } from "./client";
 
 // Orval custom instance mutator (httpClient: "axios" mode)

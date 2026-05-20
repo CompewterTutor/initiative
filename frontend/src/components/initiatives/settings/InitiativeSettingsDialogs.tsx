@@ -1,7 +1,11 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+import type {
+  InitiativeMemberRead,
+  InitiativeRoleRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -22,11 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type {
-  InitiativeMemberRead,
-  InitiativeRoleRead,
-} from "@/api/generated/initiativeAPI.schemas";
-import { useCreateRole, useUpdateRole, useDeleteRole } from "@/hooks/useInitiativeRoles";
+import { useCreateRole, useDeleteRole, useUpdateRole } from "@/hooks/useInitiativeRoles";
 import { useRemoveInitiativeMember } from "@/hooks/useInitiatives";
 import { toast } from "@/lib/chesterToast";
 
@@ -199,7 +200,7 @@ export const InitiativeSettingsDialogs = ({
             <AlertDialogAction
               onClick={onConfirmDeleteInitiative}
               disabled={!canConfirmDelete || isDeletingInitiative}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {isDeletingInitiative ? t("settings.deletingInitiative") : t("common:delete")}
             </AlertDialogAction>
@@ -303,7 +304,7 @@ export const InitiativeSettingsDialogs = ({
             <AlertDialogAction
               onClick={confirmDeleteRole}
               disabled={deleteRoleMutation.isPending}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {deleteRoleMutation.isPending ? t("settings.deletingRole") : t("common:delete")}
             </AlertDialogAction>
@@ -371,7 +372,7 @@ export const InitiativeSettingsDialogs = ({
                   components={{ bold: <strong /> }}
                 />
               </span>
-              <span className="text-destructive block">{t("settings.removeMemberWarning")}</span>
+              <span className="block text-destructive">{t("settings.removeMemberWarning")}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -388,7 +389,7 @@ export const InitiativeSettingsDialogs = ({
                 }
               }}
               disabled={removeMember.isPending}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {removeMember.isPending ? t("settings.removing") : t("settings.removeMember")}
             </AlertDialogAction>

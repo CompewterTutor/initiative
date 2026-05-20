@@ -1,9 +1,9 @@
+import { CheckSquare, FileText, FolderKanban, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, FileText, FolderKanban, User } from "lucide-react";
 
-import { useMentionSuggestions } from "@/hooks/useComments";
 import type { MentionEntityType, MentionSuggestion } from "@/api/generated/initiativeAPI.schemas";
+import { useMentionSuggestions } from "@/hooks/useComments";
 
 interface MentionPopoverProps {
   type: MentionEntityType;
@@ -113,7 +113,7 @@ export const MentionPopover = ({
     return (
       <div
         ref={popoverRef}
-        className="bg-popover text-popover-foreground absolute top-full left-0 z-50 mt-1 w-64 rounded-md border p-2 shadow-md"
+        className="absolute top-full left-0 z-50 mt-1 w-64 rounded-md border bg-popover p-2 text-popover-foreground shadow-md"
       >
         <p className="text-muted-foreground text-sm">{t("common:loading")}</p>
       </div>
@@ -124,7 +124,7 @@ export const MentionPopover = ({
     return (
       <div
         ref={popoverRef}
-        className="bg-popover text-popover-foreground absolute top-full left-0 z-50 mt-1 w-64 rounded-md border p-2 shadow-md"
+        className="absolute top-full left-0 z-50 mt-1 w-64 rounded-md border bg-popover p-2 text-popover-foreground shadow-md"
       >
         <p className="text-muted-foreground text-sm">
           {t("comments.noResults", { type: typeLabels[type].toLowerCase() })}
@@ -136,9 +136,9 @@ export const MentionPopover = ({
   return (
     <div
       ref={popoverRef}
-      className="bg-popover text-popover-foreground absolute top-full left-0 z-50 mt-1 w-64 overflow-hidden rounded-md border shadow-md"
+      className="absolute top-full left-0 z-50 mt-1 w-64 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
     >
-      <div className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
+      <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
         {typeLabels[type]}
       </div>
       <div className="max-h-48 overflow-y-auto">
@@ -147,7 +147,7 @@ export const MentionPopover = ({
             key={`${suggestion.type}-${suggestion.id}`}
             type="button"
             onClick={() => onSelect(suggestion)}
-            className={`hover:bg-accent flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm ${
+            className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent ${
               index === selectedIndex ? "bg-accent" : ""
             }`}
           >
@@ -155,7 +155,7 @@ export const MentionPopover = ({
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{suggestion.display_text}</p>
               {suggestion.subtitle && (
-                <p className="text-muted-foreground truncate text-xs">{suggestion.subtitle}</p>
+                <p className="truncate text-muted-foreground text-xs">{suggestion.subtitle}</p>
               )}
             </div>
           </button>

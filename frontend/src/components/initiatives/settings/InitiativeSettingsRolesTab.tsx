@@ -1,30 +1,31 @@
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+
+import type { InitiativeRoleRead, PermissionKey } from "@/api/generated/initiativeAPI.schemas";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import type { InitiativeRoleRead, PermissionKey } from "@/api/generated/initiativeAPI.schemas";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import {
-  useInitiativeRoles,
-  useUpdateRole,
-  useDeleteRole,
-  CORE_PERMISSION_GROUPS,
   ADVANCED_PERMISSION_GROUPS,
   ADVANCED_TOOL_PERMISSION_GROUP,
+  CORE_PERMISSION_GROUPS,
   PERMISSION_LABEL_KEYS,
   type PermissionGroup,
+  useDeleteRole,
+  useInitiativeRoles,
+  useUpdateRole,
 } from "@/hooks/useInitiativeRoles";
-import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface InitiativeSettingsRolesTabProps {
   initiativeId: number;
@@ -52,7 +53,7 @@ const PermissionGroupSection = ({
   t: (key: never) => string;
 }) => (
   <div>
-    <h4 className="text-muted-foreground mb-2 text-sm font-medium">{t(group.labelKey as never)}</h4>
+    <h4 className="mb-2 font-medium text-muted-foreground text-sm">{t(group.labelKey as never)}</h4>
     <div className="space-y-3">
       {group.keys.map((key) => (
         <div key={key} className="flex items-center justify-between">
@@ -102,12 +103,12 @@ export const InitiativeSettingsRolesTab = ({
     <TabsContent value="roles">
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-semibold">{t("settings.rolesTitle")}</h3>
+          <h3 className="font-semibold text-lg">{t("settings.rolesTitle")}</h3>
           <p className="text-muted-foreground text-sm">{t("settings.rolesDescription")}</p>
         </div>
 
         {rolesQuery.isLoading ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t("settings.loadingRoles")}
           </div>
@@ -150,7 +151,7 @@ export const InitiativeSettingsRolesTab = ({
                           onClick={() => onDeleteRole(role)}
                           disabled={deleteRoleMutation.isPending || role.member_count > 0}
                         >
-                          <Trash2 className="text-destructive h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     )}
@@ -172,7 +173,7 @@ export const InitiativeSettingsRolesTab = ({
                     {advancedGroups.length > 0 && (
                       <Accordion type="single" collapsible>
                         <AccordionItem value="advanced" className="border-b-0">
-                          <AccordionTrigger className="text-muted-foreground py-2 text-sm font-medium">
+                          <AccordionTrigger className="py-2 font-medium text-muted-foreground text-sm">
                             {t("advancedTools")}
                           </AccordionTrigger>
                           <AccordionContent className="space-y-4 pt-2">

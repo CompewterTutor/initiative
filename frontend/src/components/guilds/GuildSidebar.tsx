@@ -1,50 +1,51 @@
-import { useCallback, useMemo, useState } from "react";
-import type { CSSProperties, FormEvent } from "react";
-import { useRouter, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
 import {
+  closestCenter,
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   DragOverlay,
-  DragStartEvent,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
+import { Link, useRouter } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+import type { CSSProperties, FormEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useGuilds } from "@/hooks/useGuilds";
-import { guildPath } from "@/lib/guildUrl";
-import { getInitials } from "@/lib/initials";
+
+import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useGuilds } from "@/hooks/useGuilds";
 import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
+import { guildPath } from "@/lib/guildUrl";
+import { getInitials } from "@/lib/initials";
 import { cn } from "@/lib/utils";
-import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
+
 import { LogoIcon } from "../LogoIcon";
 import { GuildContextMenu } from "./GuildContextMenu";
 
@@ -91,7 +92,7 @@ const CreateGuildButton = () => {
             <Button
               variant="secondary"
               size="icon"
-              className="border-muted-foreground/40 text-muted-foreground hover:bg-muted h-12 w-12 rounded-2xl border border-dashed bg-transparent"
+              className="h-12 w-12 rounded-2xl border border-muted-foreground/40 border-dashed bg-transparent text-muted-foreground hover:bg-muted"
               aria-label={t("createGuild")}
             >
               <Plus className="h-5 w-5" />
@@ -102,7 +103,7 @@ const CreateGuildButton = () => {
           <p>{t("createGuild")}</p>
         </TooltipContent>
       </Tooltip>
-      <DialogContent className="bg-card max-h-screen overflow-y-auto">
+      <DialogContent className="max-h-screen overflow-y-auto bg-card">
         <DialogHeader>
           <DialogTitle>{t("createGuildTitle")}</DialogTitle>
           <DialogDescription>{t("createGuildDescription")}</DialogDescription>
@@ -193,10 +194,10 @@ const SortableGuildButton = ({
             ref={setNodeRef}
             onClick={() => onSelect(guild.id)}
             className={cn(
-              "focus-visible:ring-ring flex h-12 w-12 cursor-grab items-center justify-center rounded-2xl border-3 transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:cursor-grabbing",
+              "flex h-12 w-12 cursor-grab items-center justify-center rounded-2xl border-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:cursor-grabbing",
               isActive
                 ? "border-primary/60 bg-primary/10 text-primary"
-                : "bg-muted text-muted-foreground hover:bg-muted/80 border-transparent"
+                : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
             )}
             aria-label={t("switchTo", { name: guild.name })}
             style={style}
@@ -278,7 +279,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
 
   return (
     <aside
-      className="bg-sidebar sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r px-2 pb-4"
+      className="sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r bg-sidebar px-2 pb-4"
       style={{ paddingTop: "calc(var(--safe-area-inset-top) + 1rem)" }}
     >
       <TooltipProvider delayDuration={200}>
@@ -288,7 +289,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
               to="/"
               className={cn(
                 "flex flex-col items-center rounded-2xl p-1 transition",
-                isHomeMode && "bg-primary/10 ring-primary/60 ring-3"
+                isHomeMode && "bg-primary/10 ring-3 ring-primary/60"
               )}
               aria-label={t("nav:home")}
             >
@@ -322,7 +323,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
             </SortableContext>
             <DragOverlay>
               {draggedGuild ? (
-                <div className="border-primary/60 bg-primary/20 pointer-events-none flex h-12 w-12 items-center justify-center rounded-2xl border-3 opacity-80 shadow-lg">
+                <div className="pointer-events-none flex h-12 w-12 items-center justify-center rounded-2xl border-3 border-primary/60 bg-primary/20 opacity-80 shadow-lg">
                   <GuildAvatar
                     name={draggedGuild.name}
                     icon={draggedGuild.icon_base64}

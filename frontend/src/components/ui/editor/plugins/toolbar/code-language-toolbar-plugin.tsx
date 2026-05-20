@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import {
   $isCodeNode,
   CODE_LANGUAGE_FRIENDLY_NAME_MAP,
@@ -7,7 +6,8 @@ import {
 } from "@lexical/code";
 import { $isListNode } from "@lexical/list";
 import { $findMatchingParent } from "@lexical/utils";
-import { $getNodeByKey, $isRangeSelection, $isRootOrShadowRoot, BaseSelection } from "lexical";
+import { $getNodeByKey, $isRangeSelection, $isRootOrShadowRoot, type BaseSelection } from "lexical";
+import { useCallback, useState } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";

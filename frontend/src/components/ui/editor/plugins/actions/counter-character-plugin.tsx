@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $rootTextContent } from "@lexical/text";
+import { useEffect, useState } from "react";
 
 let textEncoderInstance: null | TextEncoder = null;
 
@@ -64,7 +64,7 @@ export function CounterCharacterPlugin({ charset = "UTF-16" }: CounterCharacterP
   }, [editor, charset]);
 
   return (
-    <div className="flex gap-2 text-xs whitespace-nowrap text-gray-500">
+    <div className="flex gap-2 whitespace-nowrap text-gray-500 text-xs">
       <p>{stats.characters} characters</p>|<p>{stats.words} words</p>
     </div>
   );

@@ -1,5 +1,3 @@
-import { useState, useRef, useEffect } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
 import {
   Download,
   ExternalLink,
@@ -10,13 +8,15 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Document, Page, pdfjs } from "react-pdf";
 
+import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Markdown } from "@/components/Markdown";
+import { formatBytes, getFileExtension, getFileTypeLabel } from "@/lib/fileUtils";
 import { resolveDocumentDownloadUrl } from "@/lib/uploadUrl";
-import { formatBytes, getFileTypeLabel, getFileExtension } from "@/lib/fileUtils";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -137,7 +137,7 @@ export const FileDocumentViewer = ({
 
   if (!resolvedUrl || !inlineUrl) {
     return (
-      <div className="text-muted-foreground flex items-center justify-center rounded-lg border p-8">
+      <div className="flex items-center justify-center rounded-lg border p-8 text-muted-foreground">
         <p>{t("viewer.loadError")}</p>
       </div>
     );
@@ -154,7 +154,7 @@ export const FileDocumentViewer = ({
           <span className="font-medium">{fileTypeLabel}</span>
           {fileSize && <span className="ml-2">({formatBytes(fileSize)})</span>}
           {originalFilename && (
-            <span className="ml-2 inline-block max-w-[200px] truncate align-bottom">
+            <span className="ml-2 inline-block max-w-50 truncate align-bottom">
               {originalFilename}
             </span>
           )}
@@ -172,7 +172,7 @@ export const FileDocumentViewer = ({
       </div>
 
       <div
-        className="bg-card w-full min-w-0 overflow-hidden rounded-lg border"
+        className="w-full min-w-0 overflow-hidden rounded-lg border bg-card"
         style={baseWidth ? { maxWidth: baseWidth } : undefined}
       >
         {isPdf ? (
@@ -180,7 +180,7 @@ export const FileDocumentViewer = ({
             {/* PDF Controls */}
             <div
               ref={toolbarRef}
-              className="bg-muted/50 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/50 px-4 py-2"
             >
               <span className="text-muted-foreground text-sm">
                 {numPages ? t("viewer.pageCount", { count: numPages }) : t("viewer.loading")}
@@ -203,8 +203,8 @@ export const FileDocumentViewer = ({
             >
               {pdfError ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <FileText className="text-muted-foreground mb-4 h-16 w-16" />
-                  <p className="text-muted-foreground mb-4">{pdfError}</p>
+                  <FileText className="mb-4 h-16 w-16 text-muted-foreground" />
+                  <p className="mb-4 text-muted-foreground">{pdfError}</p>
                   <Button onClick={handleDownload}>
                     <Download className="mr-2 h-4 w-4" />
                     {t("viewer.downloadPdf")}
@@ -217,19 +217,20 @@ export const FileDocumentViewer = ({
                   onLoadError={onDocumentLoadError}
                   loading={
                     <div className="flex h-full items-center justify-center">
-                      <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   }
                 >
                   <div className="flex flex-col items-center gap-4">
                     {Array.from({ length: numPages || 0 }, (_, index) => (
                       <Page
+                        // biome-ignore lint/suspicious/noArrayIndexKey: Page numbers are stable and 1-based, so using index as key is fine.
                         key={index + 1}
                         pageNumber={index + 1}
                         width={(baseWidth - 32) * scale}
                         loading={
                           <div className="flex items-center justify-center p-8">
-                            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                           </div>
                         }
                       />
@@ -238,7 +239,7 @@ export const FileDocumentViewer = ({
                 </Document>
               ) : (
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -247,7 +248,7 @@ export const FileDocumentViewer = ({
           // Use iframe for text files
           <iframe
             src={inlineUrl}
-            className="bg-muted w-full"
+            className="w-full bg-muted"
             style={{ height: "70vh", minHeight: 500 }}
             title={originalFilename || t("viewer.textDocument")}
           />
@@ -262,8 +263,9 @@ export const FileDocumentViewer = ({
           />
         ) : isImage ? (
           <>
-            <div
-              className="bg-muted/50 flex cursor-zoom-in items-center justify-center overflow-auto"
+            <button
+              type="button"
+              className="flex w-full cursor-zoom-in items-center justify-center overflow-auto bg-muted/50"
               style={{ height: "70vh", minHeight: 500 }}
               onClick={() => setLightboxOpen(true)}
             >
@@ -272,7 +274,7 @@ export const FileDocumentViewer = ({
                 alt={originalFilename || t("viewer.imageDocument")}
                 className="max-h-full max-w-full object-contain"
               />
-            </div>
+            </button>
             <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
               <DialogContent
                 className="max-h-[95vh] max-w-[95vw] place-items-center gap-0 border-0 bg-transparent p-0 shadow-none sm:max-w-[95vw]"
@@ -289,7 +291,7 @@ export const FileDocumentViewer = ({
           </>
         ) : isMarkdown ? (
           <div className="flex flex-col">
-            <div className="bg-muted/50 flex items-center justify-between border-b px-4 py-2">
+            <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-2">
               <span className="text-muted-foreground text-sm">{t("viewer.markdownDocument")}</span>
               <Button variant="ghost" size="sm" onClick={() => setShowRendered((prev) => !prev)}>
                 {showRendered ? t("viewer.showSource") : t("viewer.showRendered")}
@@ -298,12 +300,12 @@ export const FileDocumentViewer = ({
             <div className="overflow-auto p-6" style={{ height: "70vh", minHeight: 500 }}>
               {markdownContent === null ? (
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : showRendered ? (
                 <Markdown content={markdownContent} />
               ) : (
-                <pre className="text-muted-foreground font-mono text-sm whitespace-pre-wrap">
+                <pre className="whitespace-pre-wrap font-mono text-muted-foreground text-sm">
                   {markdownContent}
                 </pre>
               )}
@@ -312,14 +314,14 @@ export const FileDocumentViewer = ({
         ) : isOffice ? (
           // Office documents - show preview card with download options
           <div
-            className="bg-muted/50 flex flex-col items-center justify-center"
+            className="flex flex-col items-center justify-center bg-muted/50"
             style={{ height: "70vh", minHeight: 500 }}
           >
             <OfficeIcon className={`h-24 w-24 ${iconColor} mb-6`} />
-            <h3 className="mb-2 text-xl font-semibold">
+            <h3 className="mb-2 font-semibold text-xl">
               {originalFilename || t("viewer.document")}
             </h3>
-            <p className="text-muted-foreground mb-6 max-w-md text-center">
+            <p className="mb-6 max-w-md text-center text-muted-foreground">
               {t("viewer.cannotPreview", { fileType: fileTypeLabel })}
               <br />
               {t("viewer.downloadToView", {
@@ -344,14 +346,14 @@ export const FileDocumentViewer = ({
         ) : (
           // Unknown file type - show generic download prompt
           <div
-            className="bg-muted/50 flex flex-col items-center justify-center"
+            className="flex flex-col items-center justify-center bg-muted/50"
             style={{ height: "70vh", minHeight: 500 }}
           >
-            <FileText className="text-muted-foreground mb-6 h-24 w-24" />
-            <h3 className="mb-2 text-xl font-semibold">
+            <FileText className="mb-6 h-24 w-24 text-muted-foreground" />
+            <h3 className="mb-2 font-semibold text-xl">
               {originalFilename || t("viewer.document")}
             </h3>
-            <p className="text-muted-foreground mb-6">{t("viewer.unknownFileType")}</p>
+            <p className="mb-6 text-muted-foreground">{t("viewer.unknownFileType")}</p>
             <Button onClick={handleDownload}>
               <Download className="mr-2 h-4 w-4" />
               {t("viewer.downloadFile")}

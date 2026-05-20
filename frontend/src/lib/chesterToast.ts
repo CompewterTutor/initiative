@@ -1,4 +1,4 @@
-import { toast as robotToast, RobotToastOptions } from "robot-toast";
+import { type RobotToastOptions, toast as robotToast } from "robot-toast";
 
 import excitedSvg from "@/assets/chester/excited.svg";
 import idleSvg from "@/assets/chester/idle.svg";

@@ -1,29 +1,29 @@
-import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useTranslation } from "react-i18next";
 import { Download, Mail, Shield, ShieldOff, Trash2, UserCheck } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  usePlatformUsers,
-  usePlatformAdminCount,
-  useAdminTriggerPasswordReset,
-  useAdminReactivateUser,
-  useAdminUpdatePlatformRole,
-  useExportPlatformUsersCsv,
-} from "@/hooks/useAdmin";
+import type { UserRead, UserRole } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAdminUsers } from "@/api/query-keys";
-import { getErrorMessage } from "@/lib/errorMessage";
 import { AdminDeleteUserDialog } from "@/components/admin/AdminDeleteUserDialog";
+import { SortIcon } from "@/components/SortIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useAuth } from "@/hooks/useAuth";
-import { useRoleLabels, getRoleLabel } from "@/hooks/useRoleLabels";
-import type { UserRead, UserRole } from "@/api/generated/initiativeAPI.schemas";
 import { DataTable } from "@/components/ui/data-table";
-import { SortIcon } from "@/components/SortIcon";
+import {
+  useAdminReactivateUser,
+  useAdminTriggerPasswordReset,
+  useAdminUpdatePlatformRole,
+  useExportPlatformUsersCsv,
+  usePlatformAdminCount,
+  usePlatformUsers,
+} from "@/hooks/useAdmin";
+import { useAuth } from "@/hooks/useAuth";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export const SettingsPlatformUsersPage = () => {
   const { t } = useTranslation(["settings", "common"]);
@@ -162,7 +162,7 @@ export const SettingsPlatformUsersPage = () => {
       accessorKey: "id",
       header: t("platformUsers.columnId"),
       cell: ({ row }) => (
-        <p className="text-muted-foreground font-mono text-sm">{row.original.id}</p>
+        <p className="font-mono text-muted-foreground text-sm">{row.original.id}</p>
       ),
     },
     {

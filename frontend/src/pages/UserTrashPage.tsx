@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrashTable } from "@/components/trash/TrashTable";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const UserTrashPage = () => {
   const { t } = useTranslation("trash");

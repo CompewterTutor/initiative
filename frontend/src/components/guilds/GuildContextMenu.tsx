@@ -1,12 +1,10 @@
-import { useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { Copy, FolderOpen, LogOut, Plus, Settings, UserPlus, Users } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings, Plus, Copy, LogOut, UserPlus, Users, FolderOpen } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
 import { createGuildInviteApiV1GuildsGuildIdInvitesPost } from "@/api/generated/guilds/guilds";
 import type { GuildInviteRead, GuildRead } from "@/api/generated/initiativeAPI.schemas";
-
 import {
   ContextMenu,
   ContextMenuContent,
@@ -15,8 +13,10 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { LeaveGuildDialog } from "./LeaveGuildDialog";
 import { useGuilds } from "@/hooks/useGuilds";
+import { toast } from "@/lib/chesterToast";
+
+import { LeaveGuildDialog } from "./LeaveGuildDialog";
 
 interface GuildContextMenuProps {
   guild: GuildRead;

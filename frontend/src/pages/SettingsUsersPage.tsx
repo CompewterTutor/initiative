@@ -1,24 +1,25 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { formatDistanceToNow } from "date-fns";
+import { Copy, Download, RefreshCcw, Trash2 } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import {
-  useUsers,
-  useApproveUser,
-  useUpdateGuildMembership,
-  useExportGuildUsersCsv,
-} from "@/hooks/useUsers";
-import { RemoveGuildMemberDialog } from "@/components/guilds/RemoveGuildMemberDialog";
-import {
-  listGuildInvitesApiV1GuildsGuildIdInvitesGet,
   createGuildInviteApiV1GuildsGuildIdInvitesPost,
   deleteGuildInviteApiV1GuildsGuildIdInvitesInviteIdDelete,
+  listGuildInvitesApiV1GuildsGuildIdInvitesGet,
 } from "@/api/generated/guilds/guilds";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type {
+  GuildInviteRead,
+  GuildRole,
+  UserGuildMember,
+} from "@/api/generated/initiativeAPI.schemas";
+import { RemoveGuildMemberDialog } from "@/components/guilds/RemoveGuildMemberDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,17 +29,16 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useDateLocale } from "@/hooks/useDateLocale";
-import { useRoleLabels, getRoleLabel } from "@/hooks/useRoleLabels";
-import type {
-  GuildInviteRead,
-  GuildRole,
-  UserGuildMember,
-} from "@/api/generated/initiativeAPI.schemas";
-import { DataTable } from "@/components/ui/data-table";
-import { Label } from "@/components/ui/label";
 import { useGuilds } from "@/hooks/useGuilds";
-import { formatDistanceToNow } from "date-fns";
-import { Copy, Download, RefreshCcw, Trash2 } from "lucide-react";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import {
+  useApproveUser,
+  useExportGuildUsersCsv,
+  useUpdateGuildMembership,
+  useUsers,
+} from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 const GUILD_ROLE_OPTIONS: GuildRole[] = ["admin", "member"];
 const inviteLinkForCode = (code: string) => {
@@ -162,7 +162,7 @@ export const SettingsUsersPage = () => {
       accessorKey: "id",
       header: t("users.userIdColumn"),
       cell: ({ row }) => (
-        <p className="text-muted-foreground font-mono text-sm">{row.original.id}</p>
+        <p className="font-mono text-muted-foreground text-sm">{row.original.id}</p>
       ),
     },
     {
@@ -220,7 +220,7 @@ export const SettingsUsersPage = () => {
       header: t("users.sourceColumn"),
       cell: ({ row }) => {
         return row.original.oidc_managed ? (
-          <span className="bg-muted text-muted-foreground inline-flex items-center rounded-md px-2 py-1 text-sm font-medium">
+          <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-medium text-muted-foreground text-sm">
             {t("users.sourceOidc")}
           </span>
         ) : (
@@ -361,7 +361,7 @@ export const SettingsUsersPage = () => {
               </Button>
             </div>
           </form>
-          <div className="bg-border h-px" />
+          <div className="h-px bg-border" />
           {invitesLoading ? (
             <p className="text-muted-foreground text-sm">{t("users.loadingInvites")}</p>
           ) : null}
@@ -382,7 +382,7 @@ export const SettingsUsersPage = () => {
               return (
                 <div
                   key={invite.id}
-                  className="bg-muted/30 flex flex-col gap-3 rounded border p-4 text-sm md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-3 rounded border bg-muted/30 p-4 text-sm md:flex-row md:items-center md:justify-between"
                 >
                   <div>
                     <p className="font-medium">{link}</p>

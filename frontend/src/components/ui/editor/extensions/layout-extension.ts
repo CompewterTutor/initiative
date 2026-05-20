@@ -1,5 +1,5 @@
-import { defineExtension } from "lexical";
 import { $findMatchingParent, $insertNodeToNearestRoot, mergeRegister } from "@lexical/utils";
+import type { ElementNode, LexicalNode } from "lexical";
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -7,12 +7,12 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_LOW,
+  defineExtension,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_LEFT_COMMAND,
   KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
 } from "lexical";
-import type { ElementNode, LexicalNode } from "lexical";
 
 import {
   $createLayoutContainerNode,

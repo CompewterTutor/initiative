@@ -1,7 +1,7 @@
-import i18n from "i18next";
 import type { LanguageDetectorModule } from "i18next";
-import { initReactI18next } from "react-i18next";
+import i18n from "i18next";
 import HttpBackend from "i18next-http-backend";
+import { initReactI18next } from "react-i18next";
 
 import { getItem, setItem } from "@/lib/storage";
 

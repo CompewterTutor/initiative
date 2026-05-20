@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { useCreateQueueItem } from "@/hooks/useQueues";
-import { useInitiativeMembers } from "@/hooks/useInitiatives";
-import { useInitiativeDocuments } from "@/hooks/useDocuments";
-import { useTasks } from "@/hooks/useTasks";
-import { useGuildPath } from "@/lib/guildUrl";
+import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { TagPicker } from "@/components/tags/TagPicker";
 import { Button } from "@/components/ui/button";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +17,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
-import { TagPicker } from "@/components/tags/TagPicker";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { useInitiativeDocuments } from "@/hooks/useDocuments";
+import { useInitiativeMembers } from "@/hooks/useInitiatives";
+import { useCreateQueueItem } from "@/hooks/useQueues";
+import { useTasks } from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
+import { useGuildPath } from "@/lib/guildUrl";
 import type { DialogProps } from "@/types/dialog";
 
 type AddQueueItemDialogProps = DialogProps & {
@@ -152,7 +152,7 @@ export const AddQueueItemDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border shadow-2xl">
+      <DialogContent className="max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border bg-card shadow-2xl">
         <DialogHeader>
           <DialogTitle>{t("addItem")}</DialogTitle>
           <DialogDescription>{t("noItemsDescription")}</DialogDescription>
@@ -214,9 +214,9 @@ export const AddQueueItemDialog = ({
           </div>
 
           {/* Visible toggle */}
-          <div className="bg-muted/40 flex items-center justify-between rounded-lg border p-3">
+          <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
             <div>
-              <p className="text-sm font-medium">{t("visible")}</p>
+              <p className="font-medium text-sm">{t("visible")}</p>
               <p className="text-muted-foreground text-xs">
                 {isVisible ? t("visible") : t("hidden")}
               </p>
@@ -279,7 +279,7 @@ export const AddQueueItemDialog = ({
                 {selectedDocIds.map((docId) => (
                   <span
                     key={docId}
-                    className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs"
+                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
                   >
                     <Link
                       to={gp(`/documents/${docId}`)}
@@ -322,7 +322,7 @@ export const AddQueueItemDialog = ({
                 {selectedTaskIds.map((taskId) => (
                   <span
                     key={taskId}
-                    className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs"
+                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
                   >
                     <Link
                       to={gp(`/tasks/${taskId}`)}

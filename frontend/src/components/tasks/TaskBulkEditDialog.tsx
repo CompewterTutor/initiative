@@ -1,14 +1,32 @@
-import { FormEvent, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
+import type {
+  TaskListRead,
+  TaskListReadRecurrenceStrategy,
+  TaskPriority,
+  TaskRecurrenceOutput,
+  TaskStatusRead,
+} from "@/api/generated/initiativeAPI.schemas";
+import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
+import type { UserOption } from "@/components/projects/projectTasksConfig";
+import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -17,24 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
-import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
-import {
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import type {
-  TaskListRead,
-  TaskListReadRecurrenceStrategy,
-  TaskPriority,
-  TaskRecurrenceOutput,
-  TaskStatusRead,
-} from "@/api/generated/initiativeAPI.schemas";
-import type { UserOption } from "@/components/projects/projectTasksConfig";
 
 export type TaskBulkUpdate = {
   start_date: string | null;
@@ -112,7 +112,7 @@ export const TaskBulkEditDialog = ({
     startDate || dueDate || assigneeIds.length > 0 || statusId || priority || recurrence;
 
   return (
-    <DialogContent className="bg-card max-h-screen overflow-y-auto">
+    <DialogContent className="max-h-screen overflow-y-auto bg-card">
       <DialogHeader>
         <DialogTitle>{t("bulkEdit.title")}</DialogTitle>
         <DialogDescription>

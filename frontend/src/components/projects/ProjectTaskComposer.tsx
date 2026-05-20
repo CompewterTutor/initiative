@@ -1,13 +1,27 @@
-import { FormEvent } from "react";
+import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
+import type {
+  TaskListReadRecurrenceStrategy,
+  TaskPriority,
+  TaskRecurrenceOutput,
+} from "@/api/generated/initiativeAPI.schemas";
+import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
+import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,21 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
-import type {
-  TaskListReadRecurrenceStrategy,
-  TaskPriority,
-  TaskRecurrenceOutput,
-} from "@/api/generated/initiativeAPI.schemas";
-import { AssigneeSelector } from "@/components/projects/AssigneeSelector";
-import { useRoleLabels, getRoleLabel } from "@/hooks/useRoleLabels";
-import { TaskRecurrenceSelector } from "@/components/projects/TaskRecurrenceSelector";
-import {
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 
 interface ProjectTaskComposerProps {
   title: string;
@@ -96,7 +96,7 @@ export const ProjectTaskComposer = ({
   };
 
   return (
-    <DialogContent className="bg-card max-h-screen overflow-y-auto">
+    <DialogContent className="max-h-screen overflow-y-auto bg-card">
       <DialogHeader>
         <DialogTitle>{t("taskComposer.title")}</DialogTitle>
         <DialogDescription>{t("taskComposer.description")}</DialogDescription>

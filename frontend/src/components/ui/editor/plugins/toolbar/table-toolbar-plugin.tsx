@@ -1,8 +1,8 @@
 import { TableIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { InsertTableDialog } from "@/components/ui/editor/plugins/table-plugin";
-import { Button } from "@/components/ui/button";
 
 export function TableToolbarPlugin() {
   const { activeEditor, showModal } = useToolbarContext();

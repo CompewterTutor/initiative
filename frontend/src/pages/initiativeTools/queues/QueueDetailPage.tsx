@@ -1,30 +1,15 @@
-import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Loader2, Plus, SearchX, Settings, ShieldAlert, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  useQueue,
-  useUpdateQueue,
-  useDeleteQueue,
-  useAdvanceTurn,
-  usePreviousTurn,
-  useStartQueue,
-  useStopQueue,
-  useResetQueue,
-  useSetActiveItem,
-} from "@/hooks/useQueues";
-import { useQueueRealtime } from "@/hooks/useQueueRealtime";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { useGuildPath } from "@/lib/guildUrl";
-import { getHttpStatus } from "@/lib/errorMessage";
+import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueueItemDialog";
+import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
+import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
+import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
 import { StatusMessage } from "@/components/StatusMessage";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -33,11 +18,26 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
-import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
-import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueueItemDialog";
-import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
-import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { useQueueRealtime } from "@/hooks/useQueueRealtime";
+import {
+  useAdvanceTurn,
+  useDeleteQueue,
+  usePreviousTurn,
+  useQueue,
+  useResetQueue,
+  useSetActiveItem,
+  useStartQueue,
+  useStopQueue,
+  useUpdateQueue,
+} from "@/hooks/useQueues";
+import { toast } from "@/lib/chesterToast";
+import { getHttpStatus } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
 
 export function QueueDetailPage() {
   const { t } = useTranslation(["queues", "common"]);
@@ -129,7 +129,7 @@ export function QueueDetailPage() {
 
   if (queueQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("loadingQueue")}
       </div>
@@ -225,7 +225,7 @@ export function QueueDetailPage() {
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
               placeholder={t("namePlaceholder")}
-              className="text-2xl font-semibold"
+              className="font-semibold text-2xl"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleNameSave();
@@ -236,7 +236,7 @@ export function QueueDetailPage() {
           </div>
         ) : (
           <h1
-            className="text-2xl font-semibold tracking-tight"
+            className="font-semibold text-2xl tracking-tight"
             role={canEdit ? "button" : undefined}
             tabIndex={canEdit ? 0 : undefined}
             onClick={() => {
@@ -272,7 +272,7 @@ export function QueueDetailPage() {
       {/* Items list */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">
+          <h2 className="font-medium text-lg">
             {t("items")} ({sortedItems.length})
           </h2>
           {canEdit && (

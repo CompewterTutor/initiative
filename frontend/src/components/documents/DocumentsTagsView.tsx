@@ -1,12 +1,12 @@
 import { ChevronDown, Tags } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { DocumentSummary, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 import { DocumentCard } from "@/components/documents/DocumentCard";
 import { PaginationBar } from "@/components/documents/PaginationBar";
 import { TagTreeView } from "@/components/tags/TagTreeView";
-import type { DocumentSummary, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export interface DocumentsTagsViewProps {
   documents: DocumentSummary[];
@@ -44,11 +44,11 @@ export const DocumentsTagsView = ({
   return (
     <div className="flex flex-col gap-4 md:flex-row">
       {/* Mobile: collapsible tag panel */}
-      <Collapsible className="border-muted bg-background/40 rounded-md border md:hidden">
+      <Collapsible className="rounded-md border border-muted bg-background/40 md:hidden">
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium"
+            className="flex w-full items-center justify-between px-3 py-2 font-medium text-sm"
           >
             <span className="flex items-center gap-2">
               <Tags className="h-4 w-4" />
@@ -75,7 +75,7 @@ export const DocumentsTagsView = ({
         </CollapsibleContent>
       </Collapsible>
       {/* Desktop: fixed sidebar */}
-      <div className="border-muted bg-background/40 hidden w-64 shrink-0 rounded-md border md:block">
+      <div className="hidden w-64 shrink-0 rounded-md border border-muted bg-background/40 md:block">
         <TagTreeView
           tags={allTags}
           tagCounts={tagCounts}
@@ -107,7 +107,7 @@ export const DocumentsTagsView = ({
             )}
           </>
         ) : (
-          <div className="text-muted-foreground py-8 text-center text-sm">
+          <div className="py-8 text-center text-muted-foreground text-sm">
             {t("page.noMatchingTags")}
           </div>
         )}

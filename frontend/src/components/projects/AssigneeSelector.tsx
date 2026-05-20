@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
 import { X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { useRoleLabels, getRoleLabel } from "@/hooks/useRoleLabels";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 
 interface AssigneeOption {
   id: number;

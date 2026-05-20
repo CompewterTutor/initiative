@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { AIProvider, PlatformAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,14 +16,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  usePlatformAISettings,
-  useUpdatePlatformAISettings,
-  useTestAIConnection,
   useFetchAIModels,
+  usePlatformAISettings,
+  useTestAIConnection,
+  useUpdatePlatformAISettings,
 } from "@/hooks/useAISettings";
 import { useAuth } from "@/hooks/useAuth";
 import { getModelsForProvider, getProvidersForScope, PROVIDER_CONFIGS } from "@/lib/ai-providers";
-import type { AIProvider, PlatformAISettingsUpdate } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
 
 interface FormState {
   enabled: boolean;

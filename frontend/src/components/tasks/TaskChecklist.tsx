@@ -1,36 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
-  DndContext,
-  PointerSensor,
   closestCenter,
+  DndContext,
   type DragEndEvent,
+  PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
+  SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Loader2, Trash2, SquareCheck, Sparkles } from "lucide-react";
+import { GripVertical, Loader2, Sparkles, SquareCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  useSubtasks,
-  useCreateSubtask,
-  useCreateSubtasksBatch,
-  useUpdateSubtask,
-  useDeleteSubtask,
-  useReorderSubtasks,
-  useGenerateSubtasks,
-} from "@/hooks/useTasks";
+import type { SubtaskRead, TaskSubtaskProgress } from "@/api/generated/initiativeAPI.schemas";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -39,10 +30,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { TaskSubtaskProgress } from "@/api/generated/initiativeAPI.schemas";
-import type { SubtaskRead } from "@/api/generated/initiativeAPI.schemas";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { Input } from "@/components/ui/input";
 import { useAIEnabled } from "@/hooks/useAIEnabled";
+import {
+  useCreateSubtask,
+  useCreateSubtasksBatch,
+  useDeleteSubtask,
+  useGenerateSubtasks,
+  useReorderSubtasks,
+  useSubtasks,
+  useUpdateSubtask,
+} from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
 
 type TaskChecklistProps = {
   taskId: number;
@@ -265,7 +264,7 @@ export const TaskChecklist = ({ taskId, canEdit }: TaskChecklistProps) => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <SquareCheck className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+            <SquareCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             {t("checklist.title")}
           </CardTitle>
           {canEdit && aiEnabled ? (
@@ -288,7 +287,7 @@ export const TaskChecklist = ({ taskId, canEdit }: TaskChecklistProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {subtasksQuery.isLoading ? (
-          <p className="text-muted-foreground inline-flex items-center gap-2 text-sm">
+          <p className="inline-flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             {t("checklist.loading")}
           </p>
@@ -370,7 +369,7 @@ export const TaskChecklist = ({ taskId, canEdit }: TaskChecklistProps) => {
           </DialogHeader>
           <div className="space-y-2 py-4">
             {generatedSubtasks.map((subtask, index) => (
-              <div key={index} className="flex items-center gap-3 rounded-md border p-3">
+              <div key={subtask} className="flex items-center gap-3 rounded-md border p-3">
                 <Checkbox
                   id={`generated-subtask-${index}`}
                   checked={selectedSubtasks.has(index)}
@@ -439,7 +438,7 @@ const ChecklistItemRow = ({
     <li
       ref={setNodeRef}
       style={style}
-      className={`bg-muted/30 flex flex-col gap-2 rounded-md border px-3 py-2 text-sm md:flex-row md:items-center md:gap-3 ${
+      className={`flex flex-col gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm md:flex-row md:items-center md:gap-3 ${
         isDragging ? "opacity-80 shadow-sm" : ""
       }`}
     >
@@ -447,7 +446,7 @@ const ChecklistItemRow = ({
         {canEdit ? (
           <button
             type="button"
-            className="text-muted-foreground mt-1"
+            className="mt-1 text-muted-foreground"
             disabled={reorderDisabled}
             aria-label={t("checklist.reorderItem")}
             {...attributes}

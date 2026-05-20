@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { AdvancedToolHandoffResponse } from "@/api/generated/initiativeAPI.schemas";
+import { createAdvancedToolHandoffApiV1InitiativesInitiativeIdAdvancedToolHandoffPost } from "@/api/generated/initiatives/initiatives";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useGuildPath } from "@/lib/guildUrl";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { useInitiatives } from "@/hooks/useInitiatives";
-import { createAdvancedToolHandoffApiV1InitiativesInitiativeIdAdvancedToolHandoffPost } from "@/api/generated/initiatives/initiatives";
-import type { AdvancedToolHandoffResponse } from "@/api/generated/initiativeAPI.schemas";
+import { useGuildPath } from "@/lib/guildUrl";
 
 /**
  * Embeds the configured advanced-tool URL as an iframe under a specific
@@ -208,7 +208,7 @@ export const AdvancedToolPage = () => {
 
   if (configLoading || initiativesQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("common:loading")}
       </div>
@@ -268,7 +268,7 @@ export const AdvancedToolPage = () => {
 
   if (!isReady) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("advancedTool.connecting")}
       </div>
@@ -291,7 +291,7 @@ export const AdvancedToolPage = () => {
         ref={iframeRef}
         src={`${advancedTool.url}/embed/${initiative.id}`}
         title={advancedTool.name}
-        className="bg-background block h-full w-full border-0"
+        className="block h-full w-full border-0 bg-background"
         // Minimum capabilities for an embedded SPA. Notably absent:
         // allow-top-navigation (would let the iframe redirect the parent),
         // allow-popups-to-escape-sandbox, allow-modals (re-enable only if

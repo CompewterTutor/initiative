@@ -15,13 +15,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 
 import { API_BASE_URL } from "@/api/client";
-import { useAuth } from "./useAuth";
-import { useGuilds } from "./useGuilds";
 import {
-  CollaborationProvider,
-  CollaboratorInfo,
+  type CollaborationProvider,
+  type CollaboratorInfo,
   getOrCreateProvider,
 } from "@/lib/yjs/CollaborationProvider";
+
+import { useAuth } from "./useAuth";
+import { useGuilds } from "./useGuilds";
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 

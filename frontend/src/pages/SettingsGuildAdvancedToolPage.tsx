@@ -1,12 +1,12 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
 
+import { createGuildAdvancedToolHandoffApiV1GuildsGuildIdAdvancedToolHandoffPost } from "@/api/generated/guilds/guilds";
+import type { AdvancedToolHandoffResponse } from "@/api/generated/initiativeAPI.schemas";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { useGuilds } from "@/hooks/useGuilds";
-import { createGuildAdvancedToolHandoffApiV1GuildsGuildIdAdvancedToolHandoffPost } from "@/api/generated/guilds/guilds";
-import type { AdvancedToolHandoffResponse } from "@/api/generated/initiativeAPI.schemas";
 
 /**
  * Guild-scoped advanced-tool embed.
@@ -167,7 +167,7 @@ export const SettingsGuildAdvancedToolPage = () => {
 
   if (configLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("common:loading")}
       </div>
@@ -211,7 +211,7 @@ export const SettingsGuildAdvancedToolPage = () => {
 
   if (!isReady) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("advancedTool.connecting")}
       </div>
@@ -230,7 +230,7 @@ export const SettingsGuildAdvancedToolPage = () => {
       ref={iframeRef}
       src={`${advancedTool.url}/embed?scope=guild`}
       title={advancedTool.name}
-      className="bg-background block h-[calc(100dvh-22rem)] min-h-[500px] w-full rounded-md border"
+      className="block h-[calc(100dvh-22rem)] min-h-[500px] w-full rounded-md border bg-background"
       sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
       referrerPolicy="no-referrer"
       allow="clipboard-read; clipboard-write"

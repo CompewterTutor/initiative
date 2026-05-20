@@ -1,19 +1,19 @@
-import { memo, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import {
-  Settings,
-  Plus,
-  ScrollText,
+  CalendarDays,
   CircleChevronRight,
+  GalleryHorizontalEnd,
   ListTodo,
   MoreVertical,
-  GalleryHorizontalEnd,
-  CalendarDays,
+  Plus,
+  ScrollText,
+  Settings,
   Sparkles,
 } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { getItem, setItem } from "@/lib/storage";
+import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -22,12 +22,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { guildPath } from "@/lib/guildUrl";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { guildPath } from "@/lib/guildUrl";
+import { getItem, setItem } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 export interface InitiativeSectionProps {
   initiative: InitiativeRead;
@@ -128,8 +128,7 @@ export const InitiativeSection = memo(
       } catch {
         // Ignore parsing errors
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [collapseKey]);
+    }, [collapseKey, initiative.id]);
 
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -150,7 +149,7 @@ export const InitiativeSection = memo(
             </CollapsibleTrigger>
             <Button
               variant="ghost"
-              className="hover:bg-accent min-w-0 flex-1 justify-start px-0 py-1.5 text-sm font-medium"
+              className="min-w-0 flex-1 justify-start px-0 py-1.5 font-medium text-sm hover:bg-accent"
               asChild
             >
               <Link to={gp(`/initiatives/${initiative.id}`)} className="flex min-w-0 items-center">

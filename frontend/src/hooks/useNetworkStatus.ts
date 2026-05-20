@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { Network } from "@capacitor/network";
+import { useEffect, useState } from "react";
 
 export interface UseNetworkStatusResult {
   isOnline: boolean;

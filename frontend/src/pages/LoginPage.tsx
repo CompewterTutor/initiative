@@ -1,10 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useRouter, useSearch } from "@tanstack/react-router";
-import { Device } from "@capacitor/device";
 import { Browser } from "@capacitor/browser";
+import { Device } from "@capacitor/device";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
+import { LogoIcon } from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useServer } from "@/hooks/useServer";
-import { LogoIcon } from "@/components/LogoIcon";
+
 import { RegisterPage } from "./RegisterPage";
 
 export const LoginPage = () => {
@@ -119,7 +120,7 @@ export const LoginPage = () => {
 
   if (bootstrapStatus === "loading") {
     return (
-      <div className="bg-muted/60 flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-muted/60 px-4 py-12">
         <p className="text-muted-foreground text-sm">{t("common:loading")}</p>
       </div>
     );
@@ -140,8 +141,8 @@ export const LoginPage = () => {
         backgroundSize: "96px 96px",
       }}
     >
-      <div className="bg-muted/60 flex min-h-screen flex-col items-center justify-center gap-3 px-4 py-12">
-        <div className="text-primary flex items-center gap-3 text-3xl font-semibold tracking-tight">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
+        <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
           <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
           {t("common:appName")}
         </div>
@@ -222,7 +223,7 @@ export const LoginPage = () => {
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
             </form>
           </CardContent>
-          <CardFooter className="text-muted-foreground flex flex-col items-start gap-2 text-sm">
+          <CardFooter className="flex flex-col items-start gap-2 text-muted-foreground text-sm">
             {isNativePlatform && (
               <p className="text-xs">
                 {t("login.connectedTo")} <span className="font-medium">{getServerHostname()}</span>

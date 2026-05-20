@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $findMatchingParent } from "@lexical/utils";
 import type {
@@ -19,10 +18,11 @@ import {
   UNDO_COMMAND,
 } from "lexical";
 import { MicIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useReport } from "@/components/ui/editor/editor-hooks/use-report";
 import { CAN_USE_DOM } from "@/components/ui/editor/shared/can-use-dom";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const SPEECH_TO_TEXT_COMMAND: LexicalCommand<boolean> =

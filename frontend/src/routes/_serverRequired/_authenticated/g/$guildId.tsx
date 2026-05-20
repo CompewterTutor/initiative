@@ -1,7 +1,8 @@
-import { useEffect } from "react";
 import { createFileRoute, Outlet, redirect, useParams } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { Loader2, ShieldAlert } from "lucide-react";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+
 import { setCurrentGuildId } from "@/api/client";
 import { StatusMessage } from "@/components/StatusMessage";
 import { useGuilds } from "@/hooks/useGuilds";
@@ -63,7 +64,7 @@ function GuildLayout() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }

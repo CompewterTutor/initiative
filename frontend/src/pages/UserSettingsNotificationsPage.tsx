@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { useUpdateNotificationPreferences } from "@/hooks/useUsers";
-import { useFcmConfig } from "@/hooks/useSettings";
+import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { useFcmConfig } from "@/hooks/useSettings";
+import { useUpdateNotificationPreferences } from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
 type NotificationField =
@@ -216,7 +216,7 @@ export const UserSettingsNotificationsPage = ({
               </Button>
             )}
             {permissionStatus === "denied" && (
-              <div className="text-muted-foreground bg-muted rounded p-3 text-sm">
+              <div className="rounded bg-muted p-3 text-muted-foreground text-sm">
                 <p className="mb-1 font-medium">{t("notifications.pushBlockedTitle")}</p>
                 <p>{t("notifications.pushBlockedDescription")}</p>
               </div>
@@ -265,14 +265,14 @@ export const UserSettingsNotificationsPage = ({
           <div
             className={`grid items-center gap-4 border-b pb-2 ${showPushColumn ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto]"}`}
           >
-            <p className="text-muted-foreground text-sm font-medium">
+            <p className="font-medium text-muted-foreground text-sm">
               {t("notifications.categoryHeader")}
             </p>
-            <p className="text-muted-foreground w-16 text-center text-sm font-medium">
+            <p className="w-16 text-center font-medium text-muted-foreground text-sm">
               {t("notifications.emailHeader")}
             </p>
             {showPushColumn && (
-              <p className="text-muted-foreground w-16 text-center text-sm font-medium">
+              <p className="w-16 text-center font-medium text-muted-foreground text-sm">
                 {t("notifications.mobileAppHeader")}
               </p>
             )}

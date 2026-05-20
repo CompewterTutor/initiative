@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useRouter, useParams } from "@tanstack/react-router";
+import { Link, useParams, useRouter } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { DocumentSettingsAccessTab } from "@/components/documents/settings/DocumentSettingsAccessTab";
+import { DocumentSettingsAdvancedTab } from "@/components/documents/settings/DocumentSettingsAdvancedTab";
+import { DocumentSettingsDetailsTab } from "@/components/documents/settings/DocumentSettingsDetailsTab";
+import { DocumentSettingsDialogs } from "@/components/documents/settings/DocumentSettingsDialogs";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,22 +21,19 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useDateLocale } from "@/hooks/useDateLocale";
 import {
+  useCopyDocumentToInitiative,
+  useDeleteDocument,
   useDocument,
+  useDuplicateDocument,
   useSetDocumentCache,
   useUpdateDocument,
-  useDeleteDocument,
-  useDuplicateDocument,
-  useCopyDocumentToInitiative,
 } from "@/hooks/useDocuments";
 import { useInitiatives } from "@/hooks/useInitiatives";
+import { useSetDocumentTags } from "@/hooks/useTags";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot } from "@/lib/initiativeColors";
-import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
-import { useSetDocumentTags } from "@/hooks/useTags";
-import { DocumentSettingsDetailsTab } from "@/components/documents/settings/DocumentSettingsDetailsTab";
-import { DocumentSettingsAccessTab } from "@/components/documents/settings/DocumentSettingsAccessTab";
-import { DocumentSettingsAdvancedTab } from "@/components/documents/settings/DocumentSettingsAdvancedTab";
-import { DocumentSettingsDialogs } from "@/components/documents/settings/DocumentSettingsDialogs";
 
 export const DocumentSettingsPage = () => {
   const { t } = useTranslation(["documents", "common"]);
@@ -217,7 +217,7 @@ export const DocumentSettingsPage = () => {
 
   if (documentQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("settings.loading")}
       </div>
@@ -257,10 +257,10 @@ export const DocumentSettingsPage = () => {
       </Breadcrumb>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">{t("settings.title")}</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">{t("settings.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("settings.subtitle")}</p>
         </div>
-        <div className="text-muted-foreground flex flex-col items-end gap-2 text-right text-sm">
+        <div className="flex flex-col items-end gap-2 text-right text-muted-foreground text-sm">
           <p className="font-medium">{document.title}</p>
           <p>
             {t("detail.updated", {

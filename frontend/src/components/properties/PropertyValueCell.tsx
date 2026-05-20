@@ -1,16 +1,16 @@
+import { Check, ExternalLink, Minus } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, Minus } from "lucide-react";
 
+import {
+  type PropertyOption,
+  type PropertySummary,
+  PropertyType,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/initials";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 import { cn } from "@/lib/utils";
-import {
-  PropertyType,
-  type PropertyOption,
-  type PropertySummary,
-} from "@/api/generated/initiativeAPI.schemas";
 
 import { isEmptyPropertyValue } from "./propertyHelpers";
 import { iconForPropertyType } from "./propertyTypeIcons";
@@ -118,7 +118,11 @@ export const PropertyValueCell = ({
   if (!summary || isEmptyPropertyValue(summary.value)) {
     if (variant === "chip") return null;
     return (
-      <span className={cn("text-muted-foreground", className)} aria-label={t("cell.none")}>
+      <span
+        role="img"
+        aria-label={t("cell.none")}
+        className={cn("text-muted-foreground", className)}
+      >
         {t("cell.emptyValue")}
       </span>
     );
@@ -140,7 +144,7 @@ export const PropertyValueCell = ({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary inline-flex max-w-full items-center gap-1 truncate hover:underline"
+          className="inline-flex max-w-full items-center gap-1 truncate text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           <span className="truncate">{href}</span>
@@ -158,7 +162,7 @@ export const PropertyValueCell = ({
         value === true ? (
           <Check className="h-4 w-4" aria-hidden />
         ) : (
-          <Minus className="text-muted-foreground h-4 w-4" aria-hidden />
+          <Minus className="h-4 w-4 text-muted-foreground" aria-hidden />
         );
       break;
     }
@@ -230,19 +234,19 @@ export const PropertyValueCell = ({
     return (
       <span
         className={cn(
-          "bg-muted text-muted-foreground inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-xs",
+          "inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-muted-foreground text-xs",
           className
         )}
       >
         <Icon className="h-3 w-3 shrink-0" aria-hidden />
         <span className="truncate font-medium">{summary.name}:</span>
-        <span className="text-foreground max-w-[14rem] truncate">{body}</span>
+        <span className="max-w-[14rem] truncate text-foreground">{body}</span>
       </span>
     );
   }
 
   return (
-    <div className={cn("flex max-w-full min-w-0 items-center gap-1 truncate", className)}>
+    <div className={cn("flex min-w-0 max-w-full items-center gap-1 truncate", className)}>
       {body}
     </div>
   );

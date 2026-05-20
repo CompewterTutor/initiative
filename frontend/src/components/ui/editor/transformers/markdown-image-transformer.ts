@@ -1,4 +1,4 @@
-import { TextMatchTransformer } from "@lexical/markdown";
+import type { TextMatchTransformer } from "@lexical/markdown";
 
 import { $createImageNode, $isImageNode, ImageNode } from "@/components/ui/editor/nodes/image-node";
 

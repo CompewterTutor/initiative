@@ -1,11 +1,11 @@
+import { Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Outlet, useLocation, useRouter, useParams } from "@tanstack/react-router";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGuilds } from "@/hooks/useGuilds";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import { guildPath, extractSubPath, isGuildScopedPath } from "@/lib/guildUrl";
+import { useGuilds } from "@/hooks/useGuilds";
+import { extractSubPath, guildPath, isGuildScopedPath } from "@/lib/guildUrl";
 
 export const GuildSettingsLayout = () => {
   const { t } = useTranslation(["settings"]);
@@ -67,7 +67,7 @@ export const GuildSettingsLayout = () => {
   if (!canViewSettings) {
     return (
       <div className="space-y-4">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("guildLayout.title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("guildLayout.title")}</h1>
         <p className="text-muted-foreground text-sm">{t("guildLayout.permissionDenied")}</p>
       </div>
     );
@@ -99,7 +99,7 @@ export const GuildSettingsLayout = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t("guildLayout.title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("guildLayout.title")}</h1>
         <p className="text-muted-foreground">{t("guildLayout.subtitle")}</p>
       </div>
       <Tabs

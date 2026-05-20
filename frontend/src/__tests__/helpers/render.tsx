@@ -1,21 +1,21 @@
-import { ReactElement } from "react";
-import { vi } from "vitest";
-import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  createMemoryHistory,
   RouterProvider,
 } from "@tanstack/react-router";
+import { type RenderOptions, render } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { vi } from "vitest";
 
+import { buildGuild } from "@/__tests__/factories/guild.factory";
+import { buildUser } from "@/__tests__/factories/user.factory";
 import { AuthContext } from "@/hooks/useAuth";
 import { GuildContext } from "@/hooks/useGuilds";
 import { ServerContext } from "@/hooks/useServer";
 import { ThemeContext } from "@/hooks/useTheme";
-import { buildUser } from "@/__tests__/factories/user.factory";
-import { buildGuild } from "@/__tests__/factories/guild.factory";
 
 // ---------------------------------------------------------------------------
 // Types

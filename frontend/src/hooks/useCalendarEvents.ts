@@ -1,32 +1,32 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import {
-  listCalendarEventsApiV1CalendarEventsGet,
-  getListCalendarEventsApiV1CalendarEventsGetQueryKey,
-  listGlobalCalendarEventsApiV1CalendarEventsGlobalGet,
-  getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey,
-  readCalendarEventApiV1CalendarEventsEventIdGet,
-  getReadCalendarEventApiV1CalendarEventsEventIdGetQueryKey,
   createCalendarEventApiV1CalendarEventsPost,
-  updateCalendarEventApiV1CalendarEventsEventIdPatch,
   deleteCalendarEventApiV1CalendarEventsEventIdDelete,
+  getListCalendarEventsApiV1CalendarEventsGetQueryKey,
+  getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey,
+  getReadCalendarEventApiV1CalendarEventsEventIdGetQueryKey,
+  listCalendarEventsApiV1CalendarEventsGet,
+  listGlobalCalendarEventsApiV1CalendarEventsGlobalGet,
+  readCalendarEventApiV1CalendarEventsEventIdGet,
   setAttendeesApiV1CalendarEventsEventIdAttendeesPut,
-  updateRsvpApiV1CalendarEventsEventIdRsvpPatch,
-  setTagsApiV1CalendarEventsEventIdTagsPut,
   setDocumentsApiV1CalendarEventsEventIdDocumentsPut,
+  setTagsApiV1CalendarEventsEventIdTagsPut,
+  updateCalendarEventApiV1CalendarEventsEventIdPatch,
+  updateRsvpApiV1CalendarEventsEventIdRsvpPatch,
 } from "@/api/generated/calendar-events/calendar-events";
-import { invalidateAllCalendarEvents, invalidateCalendarEvent } from "@/api/query-keys";
 import type {
+  CalendarEventCreate,
+  CalendarEventListResponse,
+  CalendarEventRead,
+  CalendarEventRSVPUpdate,
+  CalendarEventUpdate,
   ListCalendarEventsApiV1CalendarEventsGetParams,
   ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  CalendarEventCreate,
-  CalendarEventUpdate,
-  CalendarEventRead,
-  CalendarEventListResponse,
-  CalendarEventRSVPUpdate,
 } from "@/api/generated/initiativeAPI.schemas";
+import { invalidateAllCalendarEvents, invalidateCalendarEvent } from "@/api/query-keys";
+import { toast } from "@/lib/chesterToast";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 

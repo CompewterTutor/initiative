@@ -1,35 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  readTaskApiV1TasksTaskIdGet,
-  getReadTaskApiV1TasksTaskIdGetQueryKey,
-  listTasksApiV1TasksGet,
-  getListTasksApiV1TasksGetQueryKey,
-  listSubtasksApiV1TasksTaskIdSubtasksGet,
-  getListSubtasksApiV1TasksTaskIdSubtasksGetQueryKey,
-  createTaskApiV1TasksPost,
-  updateTaskApiV1TasksTaskIdPatch,
-  deleteTaskApiV1TasksTaskIdDelete,
-  moveTaskApiV1TasksTaskIdMovePost,
-  duplicateTaskApiV1TasksTaskIdDuplicatePost,
-  reorderTasksApiV1TasksReorderPost,
-  archiveDoneTasksApiV1TasksArchiveDonePost,
-  generateTaskDescriptionApiV1TasksTaskIdAiDescriptionPost,
-  createSubtaskApiV1TasksTaskIdSubtasksPost,
-  createSubtasksBatchApiV1TasksTaskIdSubtasksBatchPost,
-  reorderSubtasksApiV1TasksTaskIdSubtasksOrderPut,
-  generateTaskSubtasksApiV1TasksTaskIdAiSubtasksPost,
-} from "@/api/generated/tasks/tasks";
-import {
-  updateSubtaskApiV1SubtasksSubtaskIdPatch,
-  deleteSubtaskApiV1SubtasksSubtaskIdDelete,
-} from "@/api/generated/subtasks/subtasks";
-import { getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey } from "@/api/generated/task-statuses/task-statuses";
-import { invalidateAllTasks, invalidateTask, invalidateTaskSubtasks } from "@/api/query-keys";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { fireTaskCompletionFeedback } from "@/lib/taskCompletionFeedback";
-import { useAuth } from "@/hooks/useAuth";
 import type {
   ArchiveDoneResponse,
   GenerateDescriptionResponse,
@@ -42,7 +12,37 @@ import type {
   TaskReorderRequest,
   TaskStatusRead,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  deleteSubtaskApiV1SubtasksSubtaskIdDelete,
+  updateSubtaskApiV1SubtasksSubtaskIdPatch,
+} from "@/api/generated/subtasks/subtasks";
+import { getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey } from "@/api/generated/task-statuses/task-statuses";
+import {
+  archiveDoneTasksApiV1TasksArchiveDonePost,
+  createSubtaskApiV1TasksTaskIdSubtasksPost,
+  createSubtasksBatchApiV1TasksTaskIdSubtasksBatchPost,
+  createTaskApiV1TasksPost,
+  deleteTaskApiV1TasksTaskIdDelete,
+  duplicateTaskApiV1TasksTaskIdDuplicatePost,
+  generateTaskDescriptionApiV1TasksTaskIdAiDescriptionPost,
+  generateTaskSubtasksApiV1TasksTaskIdAiSubtasksPost,
+  getListSubtasksApiV1TasksTaskIdSubtasksGetQueryKey,
+  getListTasksApiV1TasksGetQueryKey,
+  getReadTaskApiV1TasksTaskIdGetQueryKey,
+  listSubtasksApiV1TasksTaskIdSubtasksGet,
+  listTasksApiV1TasksGet,
+  moveTaskApiV1TasksTaskIdMovePost,
+  readTaskApiV1TasksTaskIdGet,
+  reorderSubtasksApiV1TasksTaskIdSubtasksOrderPut,
+  reorderTasksApiV1TasksReorderPost,
+  updateTaskApiV1TasksTaskIdPatch,
+} from "@/api/generated/tasks/tasks";
+import { invalidateAllTasks, invalidateTask, invalidateTaskSubtasks } from "@/api/query-keys";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 import { castQueryFn } from "@/lib/query-utils";
+import { fireTaskCompletionFeedback } from "@/lib/taskCompletionFeedback";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 
@@ -395,9 +395,9 @@ export const useReorderTasks = (options?: MutationOpts<TaskListRead[], TaskReord
           if (cached.task_status_id === item.task_status_id) continue; // unchanged
           if (cached.task_status?.category === "done") continue; // already done
           const newStatus = queryClient
-            .getQueryData<
-              TaskStatusRead[]
-            >(getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey(cached.project_id))
+            .getQueryData<TaskStatusRead[]>(
+              getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey(cached.project_id)
+            )
             ?.find((s) => s.id === item.task_status_id);
           if (newStatus?.category !== "done") continue; // not moving into done
           didTransitionToDone = true;

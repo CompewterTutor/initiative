@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { RoleLabelsResponse } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,10 +14,10 @@ import {
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEFAULT_ROLE_LABELS, useRoleLabels, useUpdateRoleLabels } from "@/hooks/useRoleLabels";
 import { useAuth } from "@/hooks/useAuth";
+import { DEFAULT_ROLE_LABELS, useRoleLabels, useUpdateRoleLabels } from "@/hooks/useRoleLabels";
 import { useInterfaceSettings, useUpdateInterfaceSettings } from "@/hooks/useSettings";
-import type { RoleLabelsResponse } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
 
 const ROLE_FIELDS: { key: keyof RoleLabelsResponse; labelKey: string; helperKey: string }[] = [
   { key: "admin", labelKey: "branding.adminLabel", helperKey: "branding.adminHelper" },
@@ -102,7 +102,7 @@ export const SettingsBrandingPage = () => {
           ) : (
             <form className="grid gap-6 md:grid-cols-2" onSubmit={handleInterfaceSubmit}>
               <div className="space-y-3 rounded-lg border p-4">
-                <Label htmlFor="light-accent" className="text-sm font-medium">
+                <Label htmlFor="light-accent" className="font-medium text-sm">
                   {t("branding.lightModeLabel")}
                 </Label>
                 <ColorPickerPopover
@@ -115,7 +115,7 @@ export const SettingsBrandingPage = () => {
               </div>
 
               <div className="space-y-3 rounded-lg border p-4">
-                <Label htmlFor="dark-accent" className="text-sm font-medium">
+                <Label htmlFor="dark-accent" className="font-medium text-sm">
                   {t("branding.darkModeLabel")}
                 </Label>
                 <ColorPickerPopover

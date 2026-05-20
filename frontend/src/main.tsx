@@ -1,20 +1,19 @@
 import "./styles.css";
 import "./i18n";
 
+import { Capacitor } from "@capacitor/core";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 
-import { Capacitor } from "@capacitor/core";
-
+import { setApiBaseUrl } from "@/api/client";
+import { TaskCompletionEffectHost } from "@/components/effects/TaskCompletionEffectHost";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { GuildProvider, useGuilds } from "@/hooks/useGuilds";
 import { KeepScreenAwakeProvider } from "@/hooks/useKeepScreenAwake";
 import { ServerProvider, useServer } from "@/hooks/useServer";
 import { ThemeProvider } from "@/hooks/useTheme";
-import { TaskCompletionEffectHost } from "@/components/effects/TaskCompletionEffectHost";
-import { setApiBaseUrl } from "@/api/client";
 import { queryClient } from "@/lib/queryClient";
 import { getStoredServerUrl } from "@/lib/serverStorage";
 import { initStorage } from "@/lib/storage";

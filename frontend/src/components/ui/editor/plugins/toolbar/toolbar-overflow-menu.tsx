@@ -1,12 +1,11 @@
-import { useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { SiX, SiYoutube } from "@icons-pack/react-simple-icons";
+import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/extension";
 import { INSERT_EMBED_COMMAND } from "@lexical/react/LexicalAutoEmbedPlugin";
 import { $isDecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
-import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/extension";
 import { $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
+import { $patchStyleText } from "@lexical/selection";
 import { $isTableSelection } from "@lexical/table";
 import { $getNearestBlockElementAncestorOrThrow } from "@lexical/utils";
-import { $patchStyleText } from "@lexical/selection";
 import {
   $createParagraphNode,
   $getSelection,
@@ -31,8 +30,8 @@ import {
   ItalicIcon,
   MinusIcon,
   MoreHorizontalIcon,
-  PaletteIcon,
   PaintBucketIcon,
+  PaletteIcon,
   RemoveFormattingIcon,
   StrikethroughIcon,
   SubscriptIcon,
@@ -40,12 +39,9 @@ import {
   TableIcon,
   UnderlineIcon,
 } from "lucide-react";
-import { SiYoutube, SiX } from "@icons-pack/react-simple-icons";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
-import { InsertImageDialog } from "@/components/ui/editor/plugins/images-plugin";
-import { InsertLayoutDialog } from "@/components/ui/editor/plugins/layout-plugin";
-import { InsertTableDialog } from "@/components/ui/editor/plugins/table-plugin";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -60,6 +56,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
+import { InsertImageDialog } from "@/components/ui/editor/plugins/images-plugin";
+import { InsertLayoutDialog } from "@/components/ui/editor/plugins/layout-plugin";
+import { InsertTableDialog } from "@/components/ui/editor/plugins/table-plugin";
 
 export function ToolbarOverflowMenu() {
   const { activeEditor, showModal } = useToolbarContext();

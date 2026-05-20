@@ -1,10 +1,10 @@
+import { ExternalLink } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { matchSmartLinkProvider } from "@/lib/smartLinkProviders";
+import { cn } from "@/lib/utils";
 
 export interface SmartLinkContent {
   url: string;
@@ -25,7 +25,7 @@ export function SmartLinkDocumentViewer({ content, className }: SmartLinkDocumen
     return (
       <div
         className={cn(
-          "bg-background text-muted-foreground flex h-64 w-full items-center justify-center rounded-lg border shadow",
+          "flex h-64 w-full items-center justify-center rounded-lg border bg-background text-muted-foreground shadow",
           className
         )}
       >
@@ -38,7 +38,7 @@ export function SmartLinkDocumentViewer({ content, className }: SmartLinkDocumen
     return (
       <div
         className={cn(
-          "bg-background relative h-[80vh] w-full overflow-hidden rounded-lg border shadow",
+          "relative h-[80vh] w-full overflow-hidden rounded-lg border bg-background shadow",
           className
         )}
       >
@@ -58,15 +58,15 @@ export function SmartLinkDocumentViewer({ content, className }: SmartLinkDocumen
   return (
     <div
       className={cn(
-        "bg-background flex w-full flex-col items-start gap-3 rounded-lg border p-6 shadow",
+        "flex w-full flex-col items-start gap-3 rounded-lg border bg-background p-6 shadow",
         className
       )}
     >
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <ProviderIcon className="h-4 w-4" />
         <span>{match.label}</span>
       </div>
-      <div className="text-sm font-medium break-all">{url}</div>
+      <div className="break-all font-medium text-sm">{url}</div>
       <p className="text-muted-foreground text-xs">
         {match.embedHintKey ? t(match.embedHintKey) : t("smartLink.unsupportedProvider")}
       </p>

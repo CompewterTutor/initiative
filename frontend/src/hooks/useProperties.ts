@@ -1,31 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  listPropertyDefinitionsApiV1PropertyDefinitionsGet,
-  getListPropertyDefinitionsApiV1PropertyDefinitionsGetQueryKey,
-  getPropertyDefinitionApiV1PropertyDefinitionsDefinitionIdGet,
-  getGetPropertyDefinitionApiV1PropertyDefinitionsDefinitionIdGetQueryKey,
-  createPropertyDefinitionApiV1PropertyDefinitionsPost,
-  updatePropertyDefinitionApiV1PropertyDefinitionsDefinitionIdPatch,
-  deletePropertyDefinitionApiV1PropertyDefinitionsDefinitionIdDelete,
-  getPropertyEntitiesApiV1PropertyDefinitionsDefinitionIdEntitiesGet,
-  getGetPropertyEntitiesApiV1PropertyDefinitionsDefinitionIdEntitiesGetQueryKey,
-} from "@/api/generated/property-definitions/property-definitions";
-import { setDocumentPropertiesApiV1DocumentsDocumentIdPropertiesPut } from "@/api/generated/documents/documents";
-import { setTaskPropertiesApiV1TasksTaskIdPropertiesPut } from "@/api/generated/tasks/tasks";
 import { setEventPropertiesApiV1CalendarEventsEventIdPropertiesPut } from "@/api/generated/calendar-events/calendar-events";
-import {
-  invalidateAllProperties,
-  invalidateAllDocuments,
-  invalidateAllTasks,
-  invalidateAllCalendarEvents,
-  invalidateCalendarEvent,
-  invalidateDocument,
-  invalidateTask,
-} from "@/api/query-keys";
+import { setDocumentPropertiesApiV1DocumentsDocumentIdPropertiesPut } from "@/api/generated/documents/documents";
 import type {
   CalendarEventRead,
   DocumentRead,
@@ -38,8 +15,31 @@ import type {
   PropertyValuesSetRequest,
   TaskRead,
 } from "@/api/generated/initiativeAPI.schemas";
-import type { MutationOpts } from "@/types/mutation";
+import {
+  createPropertyDefinitionApiV1PropertyDefinitionsPost,
+  deletePropertyDefinitionApiV1PropertyDefinitionsDefinitionIdDelete,
+  getGetPropertyDefinitionApiV1PropertyDefinitionsDefinitionIdGetQueryKey,
+  getGetPropertyEntitiesApiV1PropertyDefinitionsDefinitionIdEntitiesGetQueryKey,
+  getListPropertyDefinitionsApiV1PropertyDefinitionsGetQueryKey,
+  getPropertyDefinitionApiV1PropertyDefinitionsDefinitionIdGet,
+  getPropertyEntitiesApiV1PropertyDefinitionsDefinitionIdEntitiesGet,
+  listPropertyDefinitionsApiV1PropertyDefinitionsGet,
+  updatePropertyDefinitionApiV1PropertyDefinitionsDefinitionIdPatch,
+} from "@/api/generated/property-definitions/property-definitions";
+import { setTaskPropertiesApiV1TasksTaskIdPropertiesPut } from "@/api/generated/tasks/tasks";
+import {
+  invalidateAllCalendarEvents,
+  invalidateAllDocuments,
+  invalidateAllProperties,
+  invalidateAllTasks,
+  invalidateCalendarEvent,
+  invalidateDocument,
+  invalidateTask,
+} from "@/api/query-keys";
 import { buildUniqueOptionSlug, findOptionByLabel } from "@/components/properties/propertyHelpers";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import type { MutationOpts } from "@/types/mutation";
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 

@@ -1,32 +1,32 @@
-import { memo, useCallback, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, SquareCheckBig, MessageSquare, Archive } from "lucide-react";
-import type { IconName } from "lucide-react/dynamic";
 import { useRouter } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Archive, ChevronLeft, ChevronRight, MessageSquare, SquareCheckBig } from "lucide-react";
+import type { IconName } from "lucide-react/dynamic";
+import { memo, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
-import { Icon } from "@/components/ui/icon-picker";
-import { Button } from "@/components/ui/button";
-import { Markdown } from "@/components/Markdown";
 import type {
   TaskListRead,
   TaskPriority,
   TaskStatusRead,
 } from "@/api/generated/initiativeAPI.schemas";
-import { truncateText } from "@/lib/text";
-import { summarizeRecurrence } from "@/lib/recurrence";
-import type { TranslateFn } from "@/types/i18n";
+import { Markdown } from "@/components/Markdown";
 import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
-import { cn } from "@/lib/utils";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
-import { TagBadge } from "@/components/tags";
 import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
 import { nonEmptyPropertySummaries } from "@/components/properties/propertyHelpers";
+import { TagBadge } from "@/components/tags";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon-picker";
 import { useGuildPath } from "@/lib/guildUrl";
+import { summarizeRecurrence } from "@/lib/recurrence";
+import { truncateText } from "@/lib/text";
+import { cn } from "@/lib/utils";
+import type { TranslateFn } from "@/types/i18n";
 
 const VIRTUALIZE_THRESHOLD = 20;
 const CARD_ESTIMATE_HEIGHT = 140;
@@ -98,7 +98,7 @@ export const KanbanColumn = ({
   return (
     <div
       className={cn(
-        "bg-card flex h-full flex-col overflow-hidden rounded-lg border shadow-sm transition-colors",
+        "flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-colors",
         collapsed && "items-center text-center",
         className
       )}
@@ -207,7 +207,7 @@ const ExpandedHeader = ({
   const { t } = useTranslation("projects");
   return (
     <div
-      className="bg-card sticky top-0 z-20 flex items-center justify-between gap-2 border-b px-3 py-2"
+      className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b bg-card px-3 py-2"
       data-kanban-scroll-lock="true"
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -217,8 +217,8 @@ const ExpandedHeader = ({
           className="h-6 w-6 shrink-0"
         />
         <div className="min-w-0">
-          <p className="truncate text-lg leading-none font-semibold">{status.name}</p>
-          <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+          <p className="truncate font-semibold text-lg leading-none">{status.name}</p>
+          <p className="inline-flex items-center gap-1 text-muted-foreground text-xs">
             <SquareCheckBig className="h-3 w-3" /> {t("kanban.taskCount", { count: taskCount })}
           </p>
         </div>
@@ -227,7 +227,7 @@ const ExpandedHeader = ({
         type="button"
         variant="ghost"
         size="icon"
-        className="text-muted-foreground h-7 w-7 shrink-0"
+        className="h-7 w-7 shrink-0 text-muted-foreground"
         onClick={() => onToggleCollapse(status.id)}
         aria-label={t("kanban.collapse", { name: status.name })}
       >
@@ -253,7 +253,7 @@ const CollapsedHeader = ({
         type="button"
         variant="ghost"
         size="icon"
-        className="text-muted-foreground h-7 w-7"
+        className="h-7 w-7 text-muted-foreground"
         onClick={() => onToggleCollapse(status.id)}
         aria-label={t("kanban.expand", { name: status.name })}
       >
@@ -261,11 +261,11 @@ const CollapsedHeader = ({
       </Button>
       <Icon name={status.icon as IconName} style={{ color: status.color }} className="h-4 w-4" />
       <div className="flex h-16 items-center justify-center">
-        <span className="text-muted-foreground rotate-90 text-xs font-semibold tracking-wide whitespace-nowrap">
+        <span className="rotate-90 whitespace-nowrap font-semibold text-muted-foreground text-xs tracking-wide">
           {status.name}
         </span>
       </div>
-      <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+      <span className="inline-flex items-center gap-1 text-muted-foreground text-xs">
         <SquareCheckBig className="h-3 w-3" /> {taskCount}
       </span>
     </div>
@@ -334,7 +334,7 @@ const KanbanCardContent = memo(
           {task.description ? (
             <Markdown content={task.description} className="line-clamp-2" />
           ) : null}
-          <div className="text-muted-foreground space-y-1 text-xs">
+          <div className="space-y-1 text-muted-foreground text-xs">
             {task.assignees.length > 0 ? (
               <TaskAssigneeList assignees={task.assignees} className="text-xs" />
             ) : null}
@@ -419,7 +419,7 @@ const KanbanTaskCardSortable = memo(
         {...attributes}
         {...listeners}
         className={cn(
-          "bg-card space-y-3 rounded-lg border p-3 shadow-sm",
+          "space-y-3 rounded-lg border bg-card p-3 shadow-sm",
           task.is_archived && "opacity-50"
         )}
         data-kanban-scroll-lock="true"
@@ -452,7 +452,7 @@ const KanbanTaskCardPlain = memo(
         ref={ref}
         data-index={dataIndex}
         className={cn(
-          "bg-card space-y-3 rounded-lg border p-3 shadow-sm",
+          "space-y-3 rounded-lg border bg-card p-3 shadow-sm",
           task.is_archived && "opacity-50"
         )}
         data-kanban-scroll-lock="true"
@@ -529,7 +529,7 @@ const KanbanTaskCard = ({
       {...attributes}
       {...listeners}
       className={cn(
-        "bg-card space-y-3 rounded-lg border p-3 shadow-sm",
+        "space-y-3 rounded-lg border bg-card p-3 shadow-sm",
         task.is_archived && "opacity-50"
       )}
       data-kanban-scroll-lock="true"
@@ -551,7 +551,7 @@ const KanbanTaskCard = ({
       >
         <p className="font-medium">{task.title}</p>
         {task.description ? <Markdown content={task.description} className="line-clamp-2" /> : null}
-        <div className="text-muted-foreground space-y-1 text-xs">
+        <div className="space-y-1 text-muted-foreground text-xs">
           {task.assignees.length > 0 ? (
             <TaskAssigneeList assignees={task.assignees} className="text-xs" />
           ) : null}

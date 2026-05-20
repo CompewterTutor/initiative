@@ -1,4 +1,3 @@
-import { Dispatch, JSX, useCallback, useEffect, useRef, useState } from "react";
 import { $createLinkNode, $isAutoLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $findMatchingParent, mergeRegister } from "@lexical/utils";
@@ -7,22 +6,23 @@ import {
   $isLineBreakNode,
   $isNodeSelection,
   $isRangeSelection,
-  BaseSelection,
+  type BaseSelection,
   CLICK_COMMAND,
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
   KEY_ESCAPE_COMMAND,
-  LexicalEditor,
+  type LexicalEditor,
   SELECTION_CHANGE_COMMAND,
 } from "lexical";
 import { Check, Pencil, Trash, X } from "lucide-react";
+import { type Dispatch, type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
 import { getSelectedNode } from "@/components/ui/editor/utils/get-selected-node";
 import { setFloatingElemPositionForLinkEditor } from "@/components/ui/editor/utils/set-floating-elem-position-for-link-editor";
 import { sanitizeUrl } from "@/components/ui/editor/utils/url";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 function FloatingLinkEditor({
@@ -76,8 +76,7 @@ function FloatingLinkEditor({
     if (
       selection !== null &&
       nativeSelection !== null &&
-      rootElement !== null &&
-      rootElement.contains(nativeSelection.anchorNode) &&
+      rootElement?.contains(nativeSelection.anchorNode) &&
       editor.isEditable()
     ) {
       const domRect: DOMRect | undefined =
@@ -205,7 +204,7 @@ function FloatingLinkEditor({
       className="absolute top-0 left-0 w-full max-w-sm rounded-md opacity-0 shadow-md"
     >
       {!isLink ? null : isLinkEditMode ? (
-        <div className="bg-card flex items-center space-x-2 rounded-md border p-1 pl-2">
+        <div className="flex items-center space-x-2 rounded-md border bg-card p-1 pl-2">
           <Input
             ref={inputRef}
             value={editedLinkUrl}
@@ -229,12 +228,12 @@ function FloatingLinkEditor({
           </Button>
         </div>
       ) : (
-        <div className="bg-card flex items-center justify-between rounded-md border p-1 pl-2">
+        <div className="flex items-center justify-between rounded-md border bg-card p-1 pl-2">
           <a
             href={sanitizeUrl(linkUrl)}
             target="_blank"
             rel="noopener noreferrer"
-            className="overflow-hidden text-sm text-ellipsis whitespace-nowrap"
+            className="overflow-hidden text-ellipsis whitespace-nowrap text-sm"
           >
             {linkUrl}
           </a>

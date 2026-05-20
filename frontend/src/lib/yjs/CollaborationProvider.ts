@@ -11,9 +11,9 @@
  * - Automatic reconnection
  */
 
+import type { Provider, ProviderAwareness, UserState } from "@lexical/yjs";
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from "y-protocols/awareness";
-import type { Provider, UserState, ProviderAwareness } from "@lexical/yjs";
 
 // Message types matching the backend protocol
 const MSG_SYNC_STEP1 = 0;
@@ -110,6 +110,7 @@ export class CollaborationProvider implements Provider {
 
   private websocket: WebSocket | null = null;
   private wsUrl: string;
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor and may be useful for future features like multi-room support
   private roomName: string;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -720,7 +721,7 @@ export class CollaborationProvider implements Provider {
     }
 
     this.reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+    const delay = Math.min(1000 * 2 ** (this.reconnectAttempts - 1), 30000);
 
     // Emit connecting status while waiting to reconnect
     this.emitStatus({ status: "connecting" });

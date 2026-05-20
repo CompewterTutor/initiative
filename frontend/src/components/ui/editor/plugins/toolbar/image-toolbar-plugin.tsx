@@ -1,8 +1,8 @@
 import { ImageIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { InsertImageDialog } from "@/components/ui/editor/plugins/images-plugin";
-import { Button } from "@/components/ui/button";
 
 export function ImageToolbarPlugin() {
   const { activeEditor, showModal } = useToolbarContext();

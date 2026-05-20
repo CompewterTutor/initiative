@@ -1,7 +1,12 @@
-import { useCallback, useState } from "react";
 import { $isTableSelection } from "@lexical/table";
-import { $isRangeSelection, BaseSelection, FORMAT_TEXT_COMMAND, TextFormatType } from "lexical";
+import {
+  $isRangeSelection,
+  type BaseSelection,
+  FORMAT_TEXT_COMMAND,
+  type TextFormatType,
+} from "lexical";
 import { BoldIcon, ItalicIcon, StrikethroughIcon, UnderlineIcon } from "lucide-react";
+import { useCallback, useState } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";

@@ -1,8 +1,16 @@
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { Loader2, AlertTriangle } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
+import {
+  checkLeaveEligibilityApiV1GuildsGuildIdLeaveEligibilityGet,
+  leaveGuildApiV1GuildsGuildIdLeaveDelete,
+} from "@/api/generated/guilds/guilds";
+import type {
+  GuildRead,
+  LeaveGuildEligibilityResponse,
+} from "@/api/generated/initiativeAPI.schemas";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -23,15 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  checkLeaveEligibilityApiV1GuildsGuildIdLeaveEligibilityGet,
-  leaveGuildApiV1GuildsGuildIdLeaveDelete,
-} from "@/api/generated/guilds/guilds";
-import type {
-  GuildRead,
-  LeaveGuildEligibilityResponse,
-} from "@/api/generated/initiativeAPI.schemas";
 import { useGuilds } from "@/hooks/useGuilds";
+import { toast } from "@/lib/chesterToast";
 import type { DialogProps } from "@/types/dialog";
 
 interface LeaveGuildDialogProps extends DialogProps {
@@ -155,7 +155,7 @@ export const LeaveGuildDialog = ({ guild, open, onOpenChange }: LeaveGuildDialog
     if (loading) {
       return (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       );
     }
@@ -280,7 +280,7 @@ export const LeaveGuildDialog = ({ guild, open, onOpenChange }: LeaveGuildDialog
                       className="flex-1 cursor-pointer font-normal"
                     >
                       {t("leave.dispositionDeleteLabel")}
-                      <span className="text-muted-foreground mt-1 block text-xs font-normal">
+                      <span className="mt-1 block font-normal text-muted-foreground text-xs">
                         {t("leave.dispositionDeleteHelper")}
                       </span>
                     </Label>

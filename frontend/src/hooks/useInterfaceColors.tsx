@@ -1,12 +1,12 @@
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import {
-  getInterfaceSettingsApiV1SettingsInterfaceGet,
   getGetInterfaceSettingsApiV1SettingsInterfaceGetQueryKey,
+  getInterfaceSettingsApiV1SettingsInterfaceGet,
 } from "@/api/generated/settings/settings";
-import { setAccentFaviconColors, syncFaviconWithTheme } from "@/lib/favicon";
 import { useServer } from "@/hooks/useServer";
+import { setAccentFaviconColors, syncFaviconWithTheme } from "@/lib/favicon";
 
 interface InterfaceSettings {
   light_accent_color: string;
@@ -17,7 +17,7 @@ const clampUnit = (value: number) => Math.max(0, Math.min(1, value));
 
 const srgbToLinear = (value: number) => {
   const channel = value / 255;
-  return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
 };
 
 const hexToOklch = (hex: string | undefined | null) => {

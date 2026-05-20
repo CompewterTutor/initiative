@@ -1,19 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearch } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearch } from "@tanstack/react-router";
 import type { SortingState } from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  listTasksApiV1TasksGet,
-  getListTasksApiV1TasksGetQueryKey,
-} from "@/api/generated/tasks/tasks";
-import { listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet } from "@/api/generated/task-statuses/task-statuses";
-import { useProjects, useTemplateProjects, useArchivedProjects } from "@/hooks/useProjects";
-import { useUpdateTask } from "@/hooks/useTasks";
 import type {
+  FilterCondition,
   ListTasksApiV1TasksGetParams,
   ProjectRead,
   SortField,
@@ -22,11 +14,19 @@ import type {
   TaskPriority,
   TaskStatusCategory,
   TaskStatusRead,
-  FilterCondition,
 } from "@/api/generated/initiativeAPI.schemas";
-import { getItem, setItem } from "@/lib/storage";
-import { useGuilds } from "@/hooks/useGuilds";
+import { listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet } from "@/api/generated/task-statuses/task-statuses";
+import {
+  getListTasksApiV1TasksGetQueryKey,
+  listTasksApiV1TasksGet,
+} from "@/api/generated/tasks/tasks";
 import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
+import { useGuilds } from "@/hooks/useGuilds";
+import { useArchivedProjects, useProjects, useTemplateProjects } from "@/hooks/useProjects";
+import { useUpdateTask } from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { getItem, setItem } from "@/lib/storage";
 
 const statusFallbackOrder: Record<TaskStatusCategory, TaskStatusCategory[]> = {
   backlog: ["backlog"],
@@ -277,8 +277,12 @@ export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksT
         ids.add(project.id);
       }
     });
-    templates.forEach((project) => ids.add(project.id));
-    archived.forEach((project) => ids.add(project.id));
+    templates.forEach((project) => {
+      ids.add(project.id);
+    });
+    archived.forEach((project) => {
+      ids.add(project.id);
+    });
     return ids;
   }, [projectsQuery.data, templatesQuery.data, archivedProjectsQuery.data]);
 

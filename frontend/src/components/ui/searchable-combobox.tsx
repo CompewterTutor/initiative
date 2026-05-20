@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
+
 import { Button } from "./button";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "./command";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 export interface SearchableComboboxItem {
   value: string;

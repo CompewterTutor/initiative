@@ -1,6 +1,10 @@
 import { ChevronDown, Filter } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { InitiativeRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
+import { PropertyFilter } from "@/components/properties/PropertyFilter";
+import { TagPicker } from "@/components/tags/TagPicker";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -12,10 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TagPicker } from "@/components/tags/TagPicker";
-import { PropertyFilter } from "@/components/properties/PropertyFilter";
-import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
-import type { InitiativeRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 
 const INITIATIVE_FILTER_ALL = "all";
 
@@ -61,7 +61,7 @@ export const DocumentsFilterBar = ({
   return (
     <Collapsible open={filtersOpen} onOpenChange={onFiltersOpenChange} className="space-y-2">
       <div className="flex items-center justify-between sm:hidden">
-        <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+        <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
           <Filter className="h-4 w-4" />
           {t("page.filters")}
         </div>
@@ -75,12 +75,12 @@ export const DocumentsFilterBar = ({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-        <div className="border-muted bg-background/40 mt-2 flex flex-col gap-3 rounded-md border p-3 sm:mt-0">
+        <div className="mt-2 flex flex-col gap-3 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-full space-y-2 sm:flex-1">
               <Label
                 htmlFor="document-search"
-                className="text-muted-foreground block text-xs font-medium"
+                className="block font-medium text-muted-foreground text-xs"
               >
                 {t("page.searchLabel")}
               </Label>
@@ -94,10 +94,10 @@ export const DocumentsFilterBar = ({
             </div>
             {lockedInitiativeId ? (
               <div className="w-full space-y-2 sm:w-60">
-                <Label className="text-muted-foreground block text-xs font-medium">
+                <Label className="block font-medium text-muted-foreground text-xs">
                   {t("page.initiativeLabel")}
                 </Label>
-                <p className="text-sm font-medium">
+                <p className="font-medium text-sm">
                   {lockedInitiativeName ?? t("page.selectedInitiative")}
                 </p>
               </div>
@@ -105,7 +105,7 @@ export const DocumentsFilterBar = ({
               <div className="w-full space-y-2 sm:w-60">
                 <Label
                   htmlFor="document-initiative-filter"
-                  className="text-muted-foreground block text-xs font-medium"
+                  className="block font-medium text-muted-foreground text-xs"
                 >
                   {t("page.initiativeLabel")}
                 </Label>
@@ -134,7 +134,7 @@ export const DocumentsFilterBar = ({
               <div className="w-full space-y-2 sm:w-48">
                 <Label
                   htmlFor="document-tag-filter"
-                  className="text-muted-foreground block text-xs font-medium"
+                  className="block font-medium text-muted-foreground text-xs"
                 >
                   {t("page.filterByTag")}
                 </Label>

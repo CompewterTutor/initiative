@@ -1,5 +1,6 @@
-import { lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
+
 import { useAuth } from "@/hooks/useAuth";
 
 const UserSettingsNotificationsPage = lazy(() =>

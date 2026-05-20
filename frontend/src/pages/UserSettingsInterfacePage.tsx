@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -10,21 +11,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useKeepScreenAwake } from "@/hooks/useKeepScreenAwake";
 import { useUpdateCurrentUser } from "@/hooks/useUsers";
-import { getTheme, getThemeList } from "@/lib/themes";
-import type { ThemeColors } from "@/lib/themes";
+import { toast } from "@/lib/chesterToast";
 import {
-  TASK_COMPLETION_VISUAL_FEEDBACK_VALUES,
-  type TaskCompletionVisualFeedback,
   dispatchTaskCompletionVisualFeedback,
   parseTaskCompletionVisualFeedback,
   playTaskCompletionSound,
+  TASK_COMPLETION_VISUAL_FEEDBACK_VALUES,
+  type TaskCompletionVisualFeedback,
   triggerTaskCompletionHaptic,
 } from "@/lib/taskCompletionFeedback";
-import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import type { ThemeColors } from "@/lib/themes";
+import { getTheme, getThemeList } from "@/lib/themes";
 
 const WEEK_START_OPTIONS = [
   { labelKey: "dates:weekdays.sunday", value: 0 },
@@ -144,11 +144,11 @@ function ThemeColorPreview({ themeId }: { themeId: string }) {
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <p className="text-muted-foreground text-xs font-medium">{t("interface.lightMode")}</p>
+            <p className="font-medium text-muted-foreground text-xs">{t("interface.lightMode")}</p>
             <MiniMockup colors={theme.light} />
           </div>
           <div className="space-y-1.5">
-            <p className="text-muted-foreground text-xs font-medium">{t("interface.darkMode")}</p>
+            <p className="font-medium text-muted-foreground text-xs">{t("interface.darkMode")}</p>
             <MiniMockup colors={theme.dark} />
           </div>
         </div>

@@ -1,5 +1,3 @@
-import type { JSX } from "react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
@@ -16,8 +14,8 @@ import {
   $isTextNode,
   COPY_COMMAND,
   CUT_COMMAND,
-  PASTE_COMMAND,
   type LexicalNode,
+  PASTE_COMMAND,
 } from "lexical";
 import {
   Clipboard,
@@ -28,6 +26,9 @@ import {
   SpellCheck,
   Trash2,
 } from "lucide-react";
+import type { JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+
 import { checkWord, getSuggestions, initSpellCheck, isSpellCheckReady } from "@/lib/spell-check";
 
 interface WordAtCursor {
@@ -216,7 +217,7 @@ export function ContextMenuPlugin(): JSX.Element {
       }),
       new NodeContextMenuOption(`Paste`, {
         $onSelect: () => {
-          navigator.clipboard.read().then(async function () {
+          navigator.clipboard.read().then(async () => {
             const data = new DataTransfer();
 
             const readClipboardItems = await navigator.clipboard.read();
@@ -248,7 +249,7 @@ export function ContextMenuPlugin(): JSX.Element {
       }),
       new NodeContextMenuOption(`Paste as Plain Text`, {
         $onSelect: () => {
-          navigator.clipboard.read().then(async function () {
+          navigator.clipboard.read().then(async () => {
             const permission = await navigator.permissions.query({
               // @ts-expect-error These types are incorrect.
               name: "clipboard-read",
@@ -300,7 +301,7 @@ export function ContextMenuPlugin(): JSX.Element {
 
   return (
     <NodeContextMenuPlugin
-      className="bg-popover text-popover-foreground z-50! overflow-hidden rounded-md border shadow-md outline-none [&:has(*)]:z-10!"
+      className="z-50! overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md outline-none [&:has(*)]:z-10!"
       itemClassName="relative w-full flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50"
       separatorClassName="bg-border -mx-1 h-px"
       items={items}

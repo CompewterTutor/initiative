@@ -1,27 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import { addYears, endOfYear, startOfYear, subYears } from "date-fns";
 import { ChevronDown, Download, Filter, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { invalidateAllTasks, invalidateAllCalendarEvents } from "@/api/query-keys";
+import { apiClient } from "@/api/client";
 import type {
   ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
   TaskPriority,
   TaskStatusCategory,
 } from "@/api/generated/initiativeAPI.schemas";
-import { useGlobalTasksTable } from "@/hooks/useGlobalTasksTable";
-import { useGlobalCalendarEventsList } from "@/hooks/useCalendarEvents";
-import { CalendarView, type CalendarEntry, type CalendarViewMode } from "@/components/calendar";
+import { invalidateAllCalendarEvents, invalidateAllTasks } from "@/api/query-keys";
+import { type CalendarEntry, CalendarView, type CalendarViewMode } from "@/components/calendar";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { PullToRefresh } from "@/components/PullToRefresh";
 import { useAuth } from "@/hooks/useAuth";
+import { useGlobalCalendarEventsList } from "@/hooks/useCalendarEvents";
+import { useGlobalTasksTable } from "@/hooks/useGlobalTasksTable";
 import { useGuilds } from "@/hooks/useGuilds";
-import { apiClient } from "@/api/client";
+import { toast } from "@/lib/chesterToast";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
 import { getItem, setItem } from "@/lib/storage";
 
@@ -220,7 +220,7 @@ export const MyCalendarPage = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{t("tasks:myCalendar.title")}</h1>
+            <h1 className="font-semibold text-3xl tracking-tight">{t("tasks:myCalendar.title")}</h1>
             <p className="text-muted-foreground">{t("tasks:myCalendar.subtitle")}</p>
           </div>
           <Button variant="outline" size="sm" onClick={handleExport}>
@@ -235,7 +235,7 @@ export const MyCalendarPage = () => {
           className="space-y-2"
         >
           <div className="flex items-center justify-between sm:hidden">
-            <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+            <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
               <Filter className="h-4 w-4" />
               {t("tasks:filters.heading")}
             </div>
@@ -249,9 +249,9 @@ export const MyCalendarPage = () => {
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-            <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+            <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("tasks:filters.filterByStatusCategory")}
                 </Label>
                 <MultiSelect
@@ -263,7 +263,7 @@ export const MyCalendarPage = () => {
                 />
               </div>
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("tasks:filters.filterByPriority")}
                 </Label>
                 <MultiSelect
@@ -278,7 +278,7 @@ export const MyCalendarPage = () => {
                 />
               </div>
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("tasks:filters.filterByGuild")}
                 </Label>
                 <MultiSelect

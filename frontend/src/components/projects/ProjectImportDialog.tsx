@@ -1,10 +1,10 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useRouter } from "@tanstack/react-router";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { InitiativeRead, ProjectExportEnvelope } from "@/api/generated/initiativeAPI.schemas";
 import { useImportProjectApiV1ProjectsImportPost } from "@/api/generated/projects/projects";
 import { invalidateAllProjects } from "@/api/query-keys";
-import type { InitiativeRead, ProjectExportEnvelope } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -158,7 +158,7 @@ export const ProjectImportDialog = ({
           </div>
 
           {envelope ? (
-            <div className="bg-muted space-y-1 rounded-md p-3 text-sm">
+            <div className="space-y-1 rounded-md bg-muted p-3 text-sm">
               <p>
                 <strong>{t("import.previewProject")}:</strong> {envelope.project.name}
               </p>

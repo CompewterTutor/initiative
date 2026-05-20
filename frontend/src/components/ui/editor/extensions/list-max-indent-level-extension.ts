@@ -1,13 +1,13 @@
-import { defineExtension } from "lexical";
 import { $getListDepth, $isListItemNode, $isListNode } from "@lexical/list";
+import type { ElementNode, RangeSelection } from "lexical";
 import {
   $getSelection,
   $isElementNode,
   $isRangeSelection,
   COMMAND_PRIORITY_CRITICAL,
+  defineExtension,
   INDENT_CONTENT_COMMAND,
 } from "lexical";
-import type { ElementNode, RangeSelection } from "lexical";
 
 const MAX_DEPTH = 7;
 

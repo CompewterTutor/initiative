@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
-  getLatestDockerhubVersionApiV1VersionLatestGet,
   getGetLatestDockerhubVersionApiV1VersionLatestGetQueryKey,
+  getLatestDockerhubVersionApiV1VersionLatestGet,
 } from "@/api/generated/version/version";
 
 interface VersionResponse {

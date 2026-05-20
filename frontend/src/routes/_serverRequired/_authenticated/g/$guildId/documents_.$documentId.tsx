@@ -1,13 +1,13 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 import {
-  readDocumentApiV1DocumentsDocumentIdGet,
-  getReadDocumentApiV1DocumentsDocumentIdGetQueryKey,
-} from "@/api/generated/documents/documents";
-import {
-  listCommentsApiV1CommentsGet,
   getListCommentsApiV1CommentsGetQueryKey,
+  listCommentsApiV1CommentsGet,
 } from "@/api/generated/comments/comments";
+import {
+  getReadDocumentApiV1DocumentsDocumentIdGetQueryKey,
+  readDocumentApiV1DocumentsDocumentIdGet,
+} from "@/api/generated/documents/documents";
 
 export const Route = createFileRoute(
   "/_serverRequired/_authenticated/g/$guildId/documents_/$documentId"

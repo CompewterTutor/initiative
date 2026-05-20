@@ -1,17 +1,17 @@
-import { useEffect } from "react";
 import {
   editorStateFromSerializedDocument,
-  SerializedDocument,
+  type SerializedDocument,
   serializedDocumentFromEditorState,
 } from "@lexical/file";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { CLEAR_HISTORY_COMMAND } from "lexical";
 import { SendIcon } from "lucide-react";
+import { useEffect } from "react";
 
-import { toast } from "@/lib/chesterToast";
-import { docFromHash, docToHash } from "@/components/ui/editor/utils/doc-serialization";
 import { Button } from "@/components/ui/button";
+import { docFromHash, docToHash } from "@/components/ui/editor/utils/doc-serialization";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/lib/chesterToast";
 
 export function ShareContentPlugin() {
   const [editor] = useLexicalComposerContext();

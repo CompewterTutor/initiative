@@ -1,10 +1,17 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
+
+import type {
+  ProjectPermissionLevel,
+  ProjectRead,
+  ProjectRolePermissionRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { Label } from "@/components/ui/label";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import {
   Select,
   SelectContent,
@@ -12,24 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { TabsContent } from "@/components/ui/tabs";
 import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
 import {
   useAddProjectMember,
-  useUpdateProjectMember,
-  useRemoveProjectMember,
   useAddProjectMembersBulk,
-  useRemoveProjectMembersBulk,
   useAddProjectRolePermission,
-  useUpdateProjectRolePermission,
+  useRemoveProjectMember,
+  useRemoveProjectMembersBulk,
   useRemoveProjectRolePermission,
+  useUpdateProjectMember,
+  useUpdateProjectRolePermission,
 } from "@/hooks/useProjects";
-import type {
-  ProjectPermissionLevel,
-  ProjectRead,
-  ProjectRolePermissionRead,
-} from "@/api/generated/initiativeAPI.schemas";
 
 interface PermissionRow {
   userId: number;
@@ -317,7 +318,7 @@ export const ProjectSettingsAccessTab = ({ project, projectId }: ProjectSettings
         header: () => <div className="text-right">{t("settings.access.actionsColumn")}</div>,
         cell: ({ row }) => {
           if (row.original.isOwner) {
-            return <div className="text-muted-foreground text-right text-xs">-</div>;
+            return <div className="text-right text-muted-foreground text-xs">-</div>;
           }
           return (
             <div className="text-right">
@@ -443,8 +444,8 @@ export const ProjectSettingsAccessTab = ({ project, projectId }: ProjectSettings
         <CardContent className="space-y-4">
           {/* Bulk action bar */}
           {selectedMembers.length > 0 && (
-            <div className="bg-muted flex items-center gap-3 rounded-md p-3">
-              <span className="text-sm font-medium">
+            <div className="flex items-center gap-3 rounded-md bg-muted p-3">
+              <span className="font-medium text-sm">
                 {t("settings.access.selected", { count: selectedMembers.length })}
               </span>
               <Select

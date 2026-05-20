@@ -1,11 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { AlertCircle, CheckCircle2, FileText, Upload } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
-import { useAuth } from "@/hooks/useAuth";
-import { useParseVikunjaJson, useImportFromVikunja } from "@/hooks/useImports";
-import { useProjects, useProjectTaskStatuses } from "@/hooks/useProjects";
+import type { TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
+import { useAuth } from "@/hooks/useAuth";
+import { useImportFromVikunja, useParseVikunjaJson } from "@/hooks/useImports";
+import { useProjects, useProjectTaskStatuses } from "@/hooks/useProjects";
+import { toast } from "@/lib/chesterToast";
 import type { DialogProps } from "@/types/dialog";
 
 interface VikunjaBucket {
@@ -226,12 +226,12 @@ export const VikunjaImportDialog = ({ open, onOpenChange }: VikunjaImportDialogP
             <div>
               <Label>{t("vikunja.uploadFileLabel")}</Label>
               <div className="mt-2">
-                <label className="border-muted hover:bg-accent flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors">
-                  <Upload className="text-muted-foreground mb-2 h-8 w-8" />
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-muted border-dashed p-6 transition-colors hover:bg-accent">
+                  <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
                   <span className="text-muted-foreground text-sm">
                     {t("common.uploadDragDrop")}
                   </span>
-                  <span className="text-muted-foreground mt-1 text-xs">
+                  <span className="mt-1 text-muted-foreground text-xs">
                     {t("vikunja.uploadHint")}
                   </span>
                   <input
@@ -244,7 +244,7 @@ export const VikunjaImportDialog = ({ open, onOpenChange }: VikunjaImportDialogP
               </div>
             </div>
 
-            <div className="text-muted-foreground text-center text-sm">{t("common.or")}</div>
+            <div className="text-center text-muted-foreground text-sm">{t("common.or")}</div>
 
             <div>
               <Label htmlFor="json-content">{t("vikunja.pasteLabel")}</Label>
@@ -276,12 +276,12 @@ export const VikunjaImportDialog = ({ open, onOpenChange }: VikunjaImportDialogP
 
         {step === "select-project" && parseResult && (
           <div className="space-y-4">
-            <div className="bg-muted rounded-lg p-4">
+            <div className="rounded-lg bg-muted p-4">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 <span className="font-medium">{t("vikunja.exportParsed")}</span>
               </div>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-muted-foreground text-sm">
                 {t("vikunja.totalTasks", {
                   projectCount: parseResult.projects.length,
                   projectLabel: t("vikunja.projectsDetected", {
@@ -432,11 +432,11 @@ export const VikunjaImportDialog = ({ open, onOpenChange }: VikunjaImportDialogP
             </div>
 
             {importResult.errors.length > 0 && (
-              <div className="bg-muted max-h-40 overflow-y-auto rounded-lg p-3">
-                <p className="mb-2 text-sm font-medium">{t("common.errors")}</p>
-                <ul className="text-muted-foreground space-y-1 text-xs">
-                  {importResult.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
+              <div className="max-h-40 overflow-y-auto rounded-lg bg-muted p-3">
+                <p className="mb-2 font-medium text-sm">{t("common.errors")}</p>
+                <ul className="space-y-1 text-muted-foreground text-xs">
+                  {importResult.errors.map((error) => (
+                    <li key={error}>{error}</li>
                   ))}
                 </ul>
               </div>

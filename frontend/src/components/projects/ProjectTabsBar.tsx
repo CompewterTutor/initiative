@@ -2,13 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { cn } from "@/lib/utils";
-import { guildPath } from "@/lib/guildUrl";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { useGuilds } from "@/hooks/useGuilds";
 import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useGuilds } from "@/hooks/useGuilds";
+import { guildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { cn } from "@/lib/utils";
 
 interface ProjectTabsBarProps {
   projects?: ProjectRead[];
@@ -37,7 +37,7 @@ export const ProjectTabsBar = ({
     <ScrollArea className="h-12 pt-2.5">
       <div className="flex h-full items-end gap-2 px-4">
         {loading ? (
-          <p className="text-muted-foreground py-3 text-xs">{t("tabsBar.loadingRecent")}</p>
+          <p className="py-3 text-muted-foreground text-xs">{t("tabsBar.loadingRecent")}</p>
         ) : (
           projects?.map((project) => {
             const isActive = project.id === activeProjectId;
@@ -64,7 +64,7 @@ export const ProjectTabsBar = ({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground ml-1 h-7 w-7"
+                  className="ml-1 h-7 w-7 text-muted-foreground hover:text-foreground"
                   onClick={(event) => {
                     event.preventDefault();
                     onClose(project.id);

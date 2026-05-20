@@ -1,13 +1,13 @@
 import { EyeOff, FileText, ListChecks } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { TagBadge } from "@/components/tags/TagBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { TagBadge } from "@/components/tags/TagBadge";
 import { getInitials } from "@/lib/initials";
-import { cn } from "@/lib/utils";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
-import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { cn } from "@/lib/utils";
 
 interface QueueItemRowProps {
   item: QueueItemRead;
@@ -31,12 +31,12 @@ export const QueueItemRow = ({ item, isActive, onEdit, onSetActive }: QueueItemR
       onDoubleClick={() => onSetActive(item.id)}
       className={cn(
         "group flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition",
-        "hover:bg-accent/50 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-        isActive && "border-primary bg-primary/5 ring-primary/20 ring-1"
+        "hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isActive && "border-primary bg-primary/5 ring-1 ring-primary/20"
       )}
     >
       {/* Position number */}
-      <div className="text-muted-foreground w-10 shrink-0 text-center font-mono text-sm font-medium">
+      <div className="w-10 shrink-0 text-center font-medium font-mono text-muted-foreground text-sm">
         {item.position}
       </div>
 
@@ -56,13 +56,13 @@ export const QueueItemRow = ({ item, isActive, onEdit, onSetActive }: QueueItemR
             {item.label}
           </span>
           {isActive && (
-            <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+            <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground text-xs">
               {t("currentTurn")}
             </span>
           )}
           {!item.is_visible && (
             <EyeOff
-              className="text-muted-foreground h-3.5 w-3.5 shrink-0"
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
               aria-label={t("hidden")}
             />
           )}
@@ -70,7 +70,7 @@ export const QueueItemRow = ({ item, isActive, onEdit, onSetActive }: QueueItemR
 
         {/* User name */}
         {item.user && (
-          <p className="text-muted-foreground mt-0.5 text-xs">
+          <p className="mt-0.5 text-muted-foreground text-xs">
             {item.user.full_name || item.user.email}
           </p>
         )}
@@ -89,7 +89,7 @@ export const QueueItemRow = ({ item, isActive, onEdit, onSetActive }: QueueItemR
 
         {/* Notes preview */}
         {item.notes && (
-          <p className="text-muted-foreground mt-1 line-clamp-1 text-xs">{item.notes}</p>
+          <p className="mt-1 line-clamp-1 text-muted-foreground text-xs">{item.notes}</p>
         )}
       </div>
 
