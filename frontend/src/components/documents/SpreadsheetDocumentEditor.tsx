@@ -198,7 +198,11 @@ export const SpreadsheetDocumentEditor = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeStartRef = useRef<{ pos: number; size: number }>({ pos: 0, size: 0 });
-  // Stable ref so the resize effect can call the latest formatting mutators
+  // Owns the window listeners attached during a resize drag.  Held in a ref
+  // so the unmount cleanup (below) can abort an in-flight drag, preventing
+  // a stale formatting write after the editor has gone away.
+  const resizeAbortRef = useRef<AbortController | null>(null);
+  // Stable ref so the resize handler can call the latest formatting mutators
   // without listing `formatting` (a new object every render) as a dependency.
   const formattingRef = useRef(formatting);
   formattingRef.current = formatting; // keep current on every render
@@ -720,6 +724,12 @@ export const SpreadsheetDocumentEditor = ({
   // is handled".  The previous useEffect approach had an inherent race: React
   // defers effects until after paint, so a quick release (common on Mac
   // trackpads) could fire pointerup before the effect had a chance to run.
+  //
+  // An AbortController owns listener lifetime so:
+  //   - commit / cancel both tear down with a single ``.abort()`` call
+  //   - the unmount effect (below) aborts an in-flight drag, preventing a
+  //     stale ``formattingRef.current.updateColumn`` write into a Yjs doc
+  //     whose view has already been unmounted.
   const startResize = useCallback(
     (kind: "col" | "row", index: number, e: ReactPointerEvent) => {
       if (readOnly) return;
@@ -733,6 +743,13 @@ export const SpreadsheetDocumentEditor = ({
       const next = { kind, index, size };
       dragRef.current = next;
       setDrag(next);
+
+      // Abort any previous drag's listeners (defensive — shouldn't happen,
+      // but a missed pointerup would otherwise leak them indefinitely).
+      resizeAbortRef.current?.abort();
+      const controller = new AbortController();
+      resizeAbortRef.current = controller;
+      const { signal } = controller;
 
       const onMove = (ev: PointerEvent) => {
         const cur = dragRef.current;
@@ -753,27 +770,46 @@ export const SpreadsheetDocumentEditor = ({
         setDrag(updated);
       };
 
-      const finish = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", finish);
-        window.removeEventListener("pointercancel", finish);
+      const teardown = () => {
+        controller.abort();
+        if (resizeAbortRef.current === controller) resizeAbortRef.current = null;
+        dragRef.current = null;
+        setDrag(null);
+      };
+
+      const commit = () => {
         const cur = dragRef.current;
         if (cur) {
           const fmt = formattingRef.current;
           if (cur.kind === "col") fmt.updateColumn(cur.index, { width: cur.size });
           else fmt.updateRow(cur.index, { height: cur.size });
         }
-        dragRef.current = null;
-        setDrag(null);
+        teardown();
       };
 
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", finish);
-      // pointercancel fires on Mac when the OS takes over a trackpad gesture.
-      window.addEventListener("pointercancel", finish);
+      // pointercancel fires on Mac when the OS reclassifies a trackpad
+      // gesture as a scroll — the user wasn't trying to resize, so discard
+      // the in-flight drag instead of writing whatever intermediate size
+      // it happened to reach.
+      const cancel = () => {
+        teardown();
+      };
+
+      window.addEventListener("pointermove", onMove, { signal });
+      window.addEventListener("pointerup", commit, { signal });
+      window.addEventListener("pointercancel", cancel, { signal });
     },
     [readOnly, colWidth, rowHeight]
   );
+
+  // Abort any in-flight resize drag when the editor unmounts so the window
+  // listeners can't fire against a stale formattingRef afterwards.
+  useEffect(() => {
+    return () => {
+      resizeAbortRef.current?.abort();
+      resizeAbortRef.current = null;
+    };
+  }, []);
   const resetSize = useCallback(
     (kind: "col" | "row", index: number) => {
       if (readOnly) return;
