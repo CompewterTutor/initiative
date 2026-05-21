@@ -198,6 +198,10 @@ export const SpreadsheetDocumentEditor = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeStartRef = useRef<{ pos: number; size: number }>({ pos: 0, size: 0 });
+  // Stable ref so the resize effect can call the latest formatting mutators
+  // without listing `formatting` (a new object every render) as a dependency.
+  const formattingRef = useRef(formatting);
+  formattingRef.current = formatting; // keep current on every render
 
   // Effective per-index sizes: an in-flight resize preview wins over the
   // shared formatting value, which wins over the constant default.
@@ -711,39 +715,11 @@ export const SpreadsheetDocumentEditor = ({
   }, [pendingImport, replaceAll, formatting, docForData, t]);
 
   // --- column / row resize ----------------------------------------------
-  useEffect(() => {
-    if (!drag) return;
-    const onMove = (e: PointerEvent) => {
-      const cur = dragRef.current;
-      if (!cur) return;
-      const delta =
-        cur.kind === "col"
-          ? e.clientX - resizeStartRef.current.pos
-          : e.clientY - resizeStartRef.current.pos;
-      const lo = cur.kind === "col" ? MIN_COL_WIDTH : MIN_ROW_HEIGHT;
-      const hi = cur.kind === "col" ? MAX_COL_WIDTH : MAX_ROW_HEIGHT;
-      const size = Math.max(lo, Math.min(resizeStartRef.current.size + delta, hi));
-      const next = { ...cur, size };
-      dragRef.current = next;
-      setDrag(next);
-    };
-    const onUp = () => {
-      const cur = dragRef.current;
-      if (cur) {
-        if (cur.kind === "col") formatting.updateColumn(cur.index, { width: cur.size });
-        else formatting.updateRow(cur.index, { height: cur.size });
-      }
-      dragRef.current = null;
-      setDrag(null);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [drag, formatting]);
-
+  // Listeners are attached synchronously inside startResize (the pointerdown
+  // handler) so there is never a gap between "drag started" and "pointerup
+  // is handled".  The previous useEffect approach had an inherent race: React
+  // defers effects until after paint, so a quick release (common on Mac
+  // trackpads) could fire pointerup before the effect had a chance to run.
   const startResize = useCallback(
     (kind: "col" | "row", index: number, e: ReactPointerEvent) => {
       if (readOnly) return;
@@ -757,6 +733,44 @@ export const SpreadsheetDocumentEditor = ({
       const next = { kind, index, size };
       dragRef.current = next;
       setDrag(next);
+
+      const onMove = (ev: PointerEvent) => {
+        const cur = dragRef.current;
+        if (!cur) return;
+        const delta =
+          cur.kind === "col"
+            ? ev.clientX - resizeStartRef.current.pos
+            : ev.clientY - resizeStartRef.current.pos;
+        const lo = cur.kind === "col" ? MIN_COL_WIDTH : MIN_ROW_HEIGHT;
+        const hi = cur.kind === "col" ? MAX_COL_WIDTH : MAX_ROW_HEIGHT;
+        // Round to integer: pointer coords are fractional on Retina/Mac, and
+        // sanitizeColumnFmt/RowFmt drop non-integer sizes (clampInt requires
+        // Number.isInteger), which previously caused the commit to silently
+        // delete the entry and revert to the default width/height.
+        const newSize = Math.round(Math.max(lo, Math.min(resizeStartRef.current.size + delta, hi)));
+        const updated = { ...cur, size: newSize };
+        dragRef.current = updated;
+        setDrag(updated);
+      };
+
+      const finish = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", finish);
+        window.removeEventListener("pointercancel", finish);
+        const cur = dragRef.current;
+        if (cur) {
+          const fmt = formattingRef.current;
+          if (cur.kind === "col") fmt.updateColumn(cur.index, { width: cur.size });
+          else fmt.updateRow(cur.index, { height: cur.size });
+        }
+        dragRef.current = null;
+        setDrag(null);
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", finish);
+      // pointercancel fires on Mac when the OS takes over a trackpad gesture.
+      window.addEventListener("pointercancel", finish);
     },
     [readOnly, colWidth, rowHeight]
   );
