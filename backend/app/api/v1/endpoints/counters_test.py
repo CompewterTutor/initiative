@@ -318,6 +318,45 @@ async def test_update_min_max_reclamps_count(client: AsyncClient, session: Async
 
 
 @pytest.mark.integration
+async def test_update_null_non_nullable_fields_is_noop(client: AsyncClient, session: AsyncSession):
+    """Explicit null for NOT NULL columns (step/initial_count/position/name/
+    view_mode) must not 500 — it's treated as 'field not provided'."""
+    admin, guild, initiative = await _setup_admin(session)
+    headers = get_guild_headers(guild, admin)
+    group = await _create_group(client, headers, initiative.id)
+    counter = await _add_counter(
+        client, headers, group["id"], name="HP", count="5", step="2", initial_count="0",
+    )
+
+    response = await client.patch(
+        f"/api/v1/counter-groups/{group['id']}/counters/{counter['id']}",
+        headers=headers,
+        json={"step": None, "initial_count": None, "position": None, "name": None},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Original values are preserved.
+    assert data["name"] == "HP"
+    assert Decimal(data["step"]) == Decimal("2")
+
+
+@pytest.mark.integration
+async def test_update_step_zero_rejected(client: AsyncClient, session: AsyncSession):
+    """A provided step of 0 is a clean 422, not a 500."""
+    admin, guild, initiative = await _setup_admin(session)
+    headers = get_guild_headers(guild, admin)
+    group = await _create_group(client, headers, initiative.id)
+    counter = await _add_counter(client, headers, group["id"])
+
+    response = await client.patch(
+        f"/api/v1/counter-groups/{group['id']}/counters/{counter['id']}",
+        headers=headers,
+        json={"step": "0"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.integration
 async def test_decimal_serialization_no_exponent(client: AsyncClient, session: AsyncSession):
     """Numeric(20, 10) zeros must not round-trip as ``0E-10``."""
     admin, guild, initiative = await _setup_admin(session)

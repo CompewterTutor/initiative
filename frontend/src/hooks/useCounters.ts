@@ -564,11 +564,15 @@ export const useSteppedCount = (groupId: number) => {
 
   // Re-assert pending targets over any external cache write (WebSocket echo,
   // background refetch) so in-flight clicks survive until the server confirms
-  // the latest value. Guard with size === 0 so the common idle case is cheap.
+  // the latest value. Guard with size === 0 so the common idle case is cheap,
+  // and ignore cache events for any query other than this group's so unrelated
+  // app-wide mutations during a click burst don't trigger the comparison loop.
   useEffect(() => {
     const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe(() => {
+    const groupKeyHash = JSON.stringify(groupKey);
+    const unsubscribe = cache.subscribe((event) => {
       if (pending.current.size === 0) return;
+      if (JSON.stringify(event.query.queryKey) !== groupKeyHash) return;
       const data = queryClient.getQueryData<CounterGroupRead>(groupKey);
       if (!data) return;
       let changed = false;

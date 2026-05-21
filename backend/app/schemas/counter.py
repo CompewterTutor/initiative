@@ -96,9 +96,14 @@ class CounterCreate(CounterBase):
 class CounterUpdate(SanitizedBaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     color: Optional[str] = None
+    # ``min``/``max`` are nullable columns — an explicit null clears the bound.
+    # The remaining fields back NOT NULL columns, so a null is meaningless; the
+    # endpoint drops explicit nulls for them. ``gt=0`` rejects a provided step
+    # of 0/negative with a clean 422. ``position`` allows negatives so a
+    # fractional drop-to-front (prev - 1) still validates.
     min: Optional[Decimal] = None
     max: Optional[Decimal] = None
-    step: Optional[Decimal] = None
+    step: Optional[Decimal] = Field(default=None, gt=0)
     initial_count: Optional[Decimal] = None
     view_mode: Optional[CounterViewMode] = None
     position: Optional[Decimal] = None
