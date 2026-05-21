@@ -53,8 +53,11 @@
     "invalidGuildId": "Identifiant de groupe invalide dans le lien.",
     "noAccess": "Vous n'avez pas accès à ce groupe.",
     "switchError": "Impossible de changer de groupe pour ce lien.",
-    "redirecting": "Redirection vers le bon groupe\u2026",
-    "finalizing": "Finalisation de la redirection\u2026",
+    "redirecting": "Redirection vers le bon groupe…",
+    "finalizing": "Finalisation de la redirection…",
     "goHome": "Retourner à l'accueil"
-  }
+  },
+  "counters": "Compteurs",
+  "allCounters": "Tous les compteurs",
+  "createCounterGroup": "Nouveau groupe de compteurs"
 }

@@ -35,6 +35,8 @@
     "tag": "Tag",
     "queue": "Queue",
     "queue_item": "Queue item",
-    "calendar_event": "Calendar event"
+    "calendar_event": "Calendar event",
+    "counter_group": "Counter group",
+    "counter": "Counter"
   }
 }

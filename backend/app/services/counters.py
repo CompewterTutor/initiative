@@ -1,0 +1,237 @@
+"""Counter service layer — DAC, query helpers, and value operations.
+
+Mirrors the queues service. CounterGroups are owned containers under an
+Initiative; Counters are independent numeric values clamped to optional
+[min, max] bounds.
+"""
+
+from datetime import datetime, timezone
+from decimal import Decimal
+from typing import Any, Optional
+
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
+
+from app.core.messages import CounterMessages
+from app.models.counter import (
+    Counter,
+    CounterGroup,
+    CounterGroupPermission,
+    CounterGroupRolePermission,
+    CounterPermissionLevel,
+)
+from app.models.initiative import Initiative, InitiativeMember
+from app.models.user import User
+from app.services.permissions import effective_permission_level, role_permission_level
+
+
+# ---------------------------------------------------------------------------
+# DAC constants
+# ---------------------------------------------------------------------------
+
+COUNTER_LEVEL_ORDER: dict[CounterPermissionLevel, int] = {
+    CounterPermissionLevel.read: 0,
+    CounterPermissionLevel.write: 1,
+    CounterPermissionLevel.owner: 2,
+}
+
+
+# ---------------------------------------------------------------------------
+# Visibility subquery
+# ---------------------------------------------------------------------------
+
+def visible_counter_group_ids_subquery(user_id: int):
+    """Return a subquery of counter-group IDs the user can access (DAC only)."""
+    user_perm_subq = (
+        select(CounterGroupPermission.counter_group_id)
+        .where(CounterGroupPermission.user_id == user_id)
+    )
+    role_perm_subq = (
+        select(CounterGroupRolePermission.counter_group_id)
+        .join(
+            InitiativeMember,
+            (InitiativeMember.role_id == CounterGroupRolePermission.initiative_role_id)
+            & (InitiativeMember.user_id == user_id),
+        )
+    )
+    return user_perm_subq.union(role_perm_subq)
+
+
+# ---------------------------------------------------------------------------
+# DAC helpers
+# ---------------------------------------------------------------------------
+
+def counter_group_role_permission_level(
+    group: Any,
+    user_id: int,
+) -> CounterPermissionLevel | None:
+    role_perms = getattr(group, "role_permissions", None)
+    initiative = getattr(group, "initiative", None)
+    memberships = getattr(initiative, "memberships", None) if initiative else None
+    return role_permission_level(role_perms, memberships, user_id, COUNTER_LEVEL_ORDER)
+
+
+def effective_counter_group_permission(
+    user_level: CounterPermissionLevel | None,
+    role_level: CounterPermissionLevel | None,
+) -> CounterPermissionLevel | None:
+    return effective_permission_level(user_level, role_level, COUNTER_LEVEL_ORDER)
+
+
+def compute_counter_group_permission(
+    group: CounterGroup,
+    user_id: int,
+) -> str | None:
+    user_level: CounterPermissionLevel | None = None
+    perms = getattr(group, "permissions", None) or []
+    for perm in perms:
+        if perm.user_id == user_id:
+            user_level = perm.level
+            break
+
+    role_level = counter_group_role_permission_level(group, user_id)
+    effective = effective_counter_group_permission(user_level, role_level)
+    return effective.value if effective else None
+
+
+def _effective_level(group: CounterGroup, user: User) -> CounterPermissionLevel | None:
+    user_level: CounterPermissionLevel | None = None
+    perms = getattr(group, "permissions", None) or []
+    for perm in perms:
+        if perm.user_id == user.id:
+            user_level = perm.level
+            break
+    role_level = counter_group_role_permission_level(group, user.id)
+    return effective_counter_group_permission(user_level, role_level)
+
+
+def require_counter_group_access(
+    group: CounterGroup,
+    user: User,
+    *,
+    access: str = "read",
+    require_owner: bool = False,
+) -> None:
+    effective = _effective_level(group, user)
+
+    if require_owner:
+        if effective != CounterPermissionLevel.owner:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=CounterMessages.OWNER_REQUIRED,
+            )
+        return
+
+    if effective is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=CounterMessages.PERMISSION_REQUIRED,
+        )
+
+    if access == "write" and effective == CounterPermissionLevel.read:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=CounterMessages.WRITE_ACCESS_REQUIRED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Query helpers
+# ---------------------------------------------------------------------------
+
+async def get_counter_group(
+    session: AsyncSession,
+    group_id: int,
+    *,
+    populate_existing: bool = False,
+) -> CounterGroup | None:
+    stmt = (
+        select(CounterGroup)
+        .where(CounterGroup.id == group_id)
+        .options(
+            selectinload(CounterGroup.counters),
+            selectinload(CounterGroup.permissions),
+            selectinload(CounterGroup.role_permissions)
+            .selectinload(CounterGroupRolePermission.role),
+            selectinload(CounterGroup.initiative)
+            .selectinload(Initiative.memberships),
+        )
+    )
+    if populate_existing:
+        stmt = stmt.execution_options(populate_existing=True)
+    result = await session.exec(stmt)
+    return result.one_or_none()
+
+
+async def get_counter(
+    session: AsyncSession,
+    counter_id: int,
+    *,
+    populate_existing: bool = False,
+) -> Counter | None:
+    stmt = select(Counter).where(Counter.id == counter_id)
+    if populate_existing:
+        stmt = stmt.execution_options(populate_existing=True)
+    result = await session.exec(stmt)
+    return result.one_or_none()
+
+
+# ---------------------------------------------------------------------------
+# Value operations (pure: caller commits)
+# ---------------------------------------------------------------------------
+
+
+def clamp(value: Decimal, lo: Optional[Decimal], hi: Optional[Decimal]) -> Decimal:
+    if lo is not None and value < lo:
+        value = lo
+    if hi is not None and value > hi:
+        value = hi
+    return value
+
+
+def _touch(counter: Counter) -> None:
+    counter.updated_at = datetime.now(timezone.utc)
+
+
+async def set_count(session: AsyncSession, counter: Counter, value: Decimal) -> Counter:
+    counter.count = clamp(value, counter.min, counter.max)
+    _touch(counter)
+    session.add(counter)
+    return counter
+
+
+async def increment_counter(session: AsyncSession, counter: Counter) -> Counter:
+    counter.count = clamp(counter.count + counter.step, counter.min, counter.max)
+    _touch(counter)
+    session.add(counter)
+    return counter
+
+
+async def decrement_counter(session: AsyncSession, counter: Counter) -> Counter:
+    counter.count = clamp(counter.count - counter.step, counter.min, counter.max)
+    _touch(counter)
+    session.add(counter)
+    return counter
+
+
+async def reset_counter(session: AsyncSession, counter: Counter) -> Counter:
+    counter.count = clamp(counter.initial_count, counter.min, counter.max)
+    _touch(counter)
+    session.add(counter)
+    return counter
+
+
+async def reset_all_counters(session: AsyncSession, group: CounterGroup) -> CounterGroup:
+    counters = getattr(group, "counters", None) or []
+    now = datetime.now(timezone.utc)
+    for counter in counters:
+        if counter.deleted_at is not None:
+            continue
+        counter.count = clamp(counter.initial_count, counter.min, counter.max)
+        counter.updated_at = now
+        session.add(counter)
+    group.updated_at = now
+    session.add(group)
+    return group

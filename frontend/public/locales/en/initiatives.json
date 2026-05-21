@@ -42,7 +42,9 @@
     "initiativeSettings": "Initiative settings",
     "documents": "Documents",
     "projects": "Projects",
-    "queues": "Queues"
+    "queues": "Queues",
+    "calendar": "Calendar",
+    "counters": "Counters"
   },
   "settings": {
     "title": "Initiative settings",
@@ -143,7 +145,8 @@
       "projects": "Projects",
       "queues": "Queues",
       "events": "Events",
-      "advancedTool": "Advanced Tool"
+      "advancedTool": "Advanced Tool",
+      "counters": "Counters"
     },
     "permissions": {
       "viewDocuments": "View Documents",
@@ -155,7 +158,9 @@
       "viewEvents": "View Events",
       "createEvents": "Create Events",
       "viewAdvancedTool": "Open Advanced Tool",
-      "createAdvancedTool": "Create in Advanced Tool"
+      "createAdvancedTool": "Create in Advanced Tool",
+      "viewCounters": "View Counters",
+      "createCounters": "Create Counters"
     }
   },
   "advancedTools": "Advanced Tools",
@@ -164,6 +169,8 @@
   "queuesFeatureDescription": "Organize items by priority, track turn order, and manage who goes next.",
   "eventsFeature": "Calendar",
   "eventsFeatureDescription": "Schedule and manage calendar events with attendees and RSVP tracking.",
+  "countersFeature": "Counters",
+  "countersFeatureDescription": "Track numeric values like HP, scores, or budgets — clamped, stepped, and shown as numbers, bars, or radial gauges.",
   "advancedToolFeatureDescription": "Embed the {{name}} panel under this initiative.",
   "advancedTool": {
     "connecting": "Connecting…",

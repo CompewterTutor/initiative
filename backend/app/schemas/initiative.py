@@ -22,6 +22,7 @@ class InitiativeBase(SanitizedBaseModel):
     queues_enabled: bool = False
     events_enabled: bool = False
     advanced_tool_enabled: bool = False
+    counters_enabled: bool = False
 
 
 class InitiativeCreate(InitiativeBase):
@@ -35,6 +36,7 @@ class InitiativeUpdate(SanitizedBaseModel):
     queues_enabled: Optional[bool] = None
     events_enabled: Optional[bool] = None
     advanced_tool_enabled: Optional[bool] = None
+    counters_enabled: Optional[bool] = None
 
 
 # Role schemas
@@ -149,11 +151,13 @@ class InitiativeMemberRead(SanitizedBaseModel):
     can_view_queues: bool = False
     can_view_events: bool = False
     can_view_advanced_tool: bool = False
+    can_view_counters: bool = False
     can_create_docs: bool = False
     can_create_projects: bool = False
     can_create_queues: bool = False
     can_create_events: bool = False
     can_create_advanced_tool: bool = False
+    can_create_counters: bool = False
 
 
 class InitiativeRead(InitiativeBase):
@@ -189,6 +193,7 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
     initiative_queues_enabled = getattr(initiative, "queues_enabled", False)
     initiative_events_enabled = getattr(initiative, "events_enabled", False)
     initiative_advanced_tool_enabled = getattr(initiative, "advanced_tool_enabled", False)
+    initiative_counters_enabled = getattr(initiative, "counters_enabled", False)
     members: List[InitiativeMemberRead] = []
     for membership in getattr(initiative, "memberships", []) or []:
         if membership.user is None:
@@ -205,11 +210,13 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
         can_view_queues = False
         can_view_events = False
         can_view_advanced_tool = False
+        can_view_counters = False
         can_create_docs = False
         can_create_projects = False
         can_create_queues = False
         can_create_events = False
         can_create_advanced_tool = False
+        can_create_counters = False
         if is_manager:
             # Managers have all permissions
             can_create_docs = True
@@ -220,6 +227,8 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
             can_create_events = True
             can_view_advanced_tool = True
             can_create_advanced_tool = True
+            can_view_counters = True
+            can_create_counters = True
         elif role_ref:
             # Check role permissions (use getattr to avoid lazy loading)
             role_permissions = getattr(role_ref, "permissions", None) or []
@@ -244,6 +253,10 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
                     can_view_advanced_tool = perm.enabled
                 elif perm.permission_key == PermissionKey.create_advanced_tool and perm.enabled:
                     can_create_advanced_tool = True
+                elif perm.permission_key == PermissionKey.counters_enabled:
+                    can_view_counters = perm.enabled
+                elif perm.permission_key == PermissionKey.create_counters and perm.enabled:
+                    can_create_counters = True
 
         # Initiative-level master switch overrides role-level queue permissions
         if not initiative_queues_enabled:
@@ -259,6 +272,11 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
         if not initiative_advanced_tool_enabled:
             can_view_advanced_tool = False
             can_create_advanced_tool = False
+
+        # Initiative-level master switch overrides role-level counter perms
+        if not initiative_counters_enabled:
+            can_view_counters = False
+            can_create_counters = False
 
         # Determine legacy role for backward compatibility
         legacy_role = (
@@ -282,11 +300,13 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
                 can_view_queues=can_view_queues,
                 can_view_events=can_view_events,
                 can_view_advanced_tool=can_view_advanced_tool,
+                can_view_counters=can_view_counters,
                 can_create_docs=can_create_docs,
                 can_create_projects=can_create_projects,
                 can_create_queues=can_create_queues,
                 can_create_events=can_create_events,
                 can_create_advanced_tool=can_create_advanced_tool,
+                can_create_counters=can_create_counters,
             )
         )
     return InitiativeRead(
@@ -299,6 +319,7 @@ def serialize_initiative(initiative: "Initiative") -> InitiativeRead:
         queues_enabled=initiative_queues_enabled,
         events_enabled=initiative_events_enabled,
         advanced_tool_enabled=initiative_advanced_tool_enabled,
+        counters_enabled=initiative_counters_enabled,
         created_at=initiative.created_at,
         updated_at=initiative.updated_at,
         members=members,

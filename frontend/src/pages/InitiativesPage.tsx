@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import type { InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllInitiatives } from "@/api/query-keys";
+import { AdvancedToolsSection } from "@/components/initiatives/AdvancedToolsToggles";
 import { Markdown } from "@/components/Markdown";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentsList } from "@/hooks/useDocuments";
@@ -113,6 +113,9 @@ export const InitiativesPage = () => {
   const [newDescription, setNewDescription] = useState("");
   const [newColor, setNewColor] = useState(DEFAULT_INITIATIVE_COLOR);
   const [queuesEnabled, setQueuesEnabled] = useState(false);
+  const [eventsEnabled, setEventsEnabled] = useState(false);
+  const [countersEnabled, setCountersEnabled] = useState(false);
+  const [advancedToolEnabled, setAdvancedToolEnabled] = useState(false);
   const lastConsumedParams = useRef<string>("");
 
   // Check for query params to open create dialog (consume once)
@@ -141,6 +144,9 @@ export const InitiativesPage = () => {
         description: newDescription.trim() || undefined,
         color: newColor,
         queues_enabled: queuesEnabled,
+        events_enabled: eventsEnabled,
+        counters_enabled: countersEnabled,
+        advanced_tool_enabled: advancedToolEnabled,
       },
       {
         onSuccess: () => {
@@ -149,6 +155,9 @@ export const InitiativesPage = () => {
           setNewDescription("");
           setNewColor(DEFAULT_INITIATIVE_COLOR);
           setQueuesEnabled(false);
+          setEventsEnabled(false);
+          setCountersEnabled(false);
+          setAdvancedToolEnabled(false);
         },
       }
     );
@@ -316,20 +325,20 @@ export const InitiativesPage = () => {
                       <p className="mb-3 text-muted-foreground text-sm">
                         {t("advancedToolsDescription")}
                       </p>
-                      <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="create-queues-toggle">{t("queuesFeature")}</Label>
-                          <p className="text-muted-foreground text-xs">
-                            {t("queuesFeatureDescription")}
-                          </p>
-                        </div>
-                        <Switch
-                          id="create-queues-toggle"
-                          checked={queuesEnabled}
-                          onCheckedChange={setQueuesEnabled}
-                          disabled={createInitiative.isPending}
-                        />
-                      </div>
+                      <AdvancedToolsSection
+                        layout="plain"
+                        canManage={!createInitiative.isPending}
+                        isSaving={createInitiative.isPending}
+                        eventsEnabled={eventsEnabled}
+                        onToggleEvents={setEventsEnabled}
+                        queuesEnabled={queuesEnabled}
+                        onToggleQueues={setQueuesEnabled}
+                        countersEnabled={countersEnabled}
+                        onToggleCounters={setCountersEnabled}
+                        advancedToolEnabled={advancedToolEnabled}
+                        onToggleAdvancedTool={setAdvancedToolEnabled}
+                        idPrefix="create"
+                      />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>

@@ -44,6 +44,8 @@ const ENTITY_INVALIDATION_PREFIXES: Record<TrashItemEntityType, string[]> = {
   queue: ["queues"],
   queue_item: ["queues"],
   calendar_event: ["calendar-events", "calendarEvents"],
+  counter_group: ["counter-groups"],
+  counter: ["counter-groups"],
 };
 
 export type RestoreTrashVars = {

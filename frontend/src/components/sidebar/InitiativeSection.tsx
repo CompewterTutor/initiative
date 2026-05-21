@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CircleChevronRight,
   GalleryHorizontalEnd,
+  Gauge,
   ListTodo,
   MoreVertical,
   Plus,
@@ -41,11 +42,14 @@ export interface InitiativeSectionProps {
   canViewQueues: boolean;
   canViewEvents: boolean;
   canViewAdvancedTool: boolean;
+  canViewCounters: boolean;
   canCreateDocs: boolean;
   canCreateProjects: boolean;
   canCreateQueues: boolean;
   canCreateEvents: boolean;
+  canCreateCounters: boolean;
   queueCount: number;
+  counterGroupCount: number;
   activeGuildId: number | null;
   /** Changing this value re-syncs the open/closed state from storage. */
   collapseKey?: number;
@@ -64,11 +68,14 @@ export const InitiativeSection = memo(
     canViewQueues,
     canViewEvents,
     canViewAdvancedTool,
+    canViewCounters,
     canCreateDocs,
     canCreateProjects,
     canCreateQueues,
     canCreateEvents,
+    canCreateCounters,
     queueCount,
+    counterGroupCount,
     activeGuildId,
     collapseKey,
   }: InitiativeSectionProps) => {
@@ -385,6 +392,47 @@ export const InitiativeSection = memo(
                         </TooltipTrigger>
                         <TooltipContent side="top">
                           <p>{t("createQueue")}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </SidebarMenuItem>
+              )}
+
+              {/* Counter Groups Link */}
+              {canViewCounters && (
+                <SidebarMenuItem>
+                  <div className="group/counters flex w-full min-w-0 items-center gap-1">
+                    <SidebarMenuButton asChild size="sm" className="min-w-0 flex-1">
+                      <Link
+                        to={gp("/counter-groups")}
+                        search={{ initiativeId: String(initiative.id) }}
+                        className="flex items-center gap-2"
+                      >
+                        <Gauge className="h-4 w-4" />
+                        <span>{t("counters")}</span>
+                        <span className="text-muted-foreground text-xs">{counterGroupCount}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    {canCreateCounters && (
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hidden h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover/counters:opacity-100 lg:flex"
+                            asChild
+                          >
+                            <Link
+                              to={gp("/counter-groups")}
+                              search={{ create: "true", initiativeId: String(initiative.id) }}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>{t("createCounterGroup")}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}

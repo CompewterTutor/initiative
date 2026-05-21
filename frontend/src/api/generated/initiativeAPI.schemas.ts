@@ -552,6 +552,163 @@ export interface CommentUpdate {
   content: string;
 }
 
+export type CounterViewMode = (typeof CounterViewMode)[keyof typeof CounterViewMode];
+
+export const CounterViewMode = {
+  number: "number",
+  progress_bar: "progress_bar",
+  segmented_clock: "segmented_clock",
+} as const;
+
+export interface CounterCreate {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  color?: string | null;
+  count?: number | string;
+  min?: number | string | null;
+  max?: number | string | null;
+  step?: number | string;
+  initial_count?: number | string;
+  view_mode?: CounterViewMode;
+  position?: number | string;
+}
+
+export type CounterPermissionLevel =
+  (typeof CounterPermissionLevel)[keyof typeof CounterPermissionLevel];
+
+export const CounterPermissionLevel = {
+  owner: "owner",
+  write: "write",
+  read: "read",
+} as const;
+
+export interface CounterGroupRolePermissionCreate {
+  initiative_role_id: number;
+  level?: CounterPermissionLevel;
+}
+
+export interface CounterGroupPermissionCreate {
+  user_id: number;
+  level?: CounterPermissionLevel;
+}
+
+export interface CounterGroupCreate {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  description?: string | null;
+  initiative_id: number;
+  role_permissions?: CounterGroupRolePermissionCreate[] | null;
+  user_permissions?: CounterGroupPermissionCreate[] | null;
+}
+
+export interface CounterGroupSummary {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  description: string | null;
+  id: number;
+  initiative_id: number;
+  guild_id: number;
+  created_by_id: number;
+  counter_count: number;
+  my_permission_level: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CounterGroupListResponse {
+  items: CounterGroupSummary[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+export interface CounterGroupPermissionRead {
+  user_id: number;
+  level: CounterPermissionLevel;
+  created_at: string;
+}
+
+/**
+ * Serialized counter. Numeric fields are returned as plain decimal
+strings (e.g. "0", "12.5") rather than ``Decimal`` so JSON never emits
+PostgreSQL's exponent notation (``0E-10``) from ``Numeric(20, 10)``
+columns.
+ */
+export interface CounterRead {
+  id: number;
+  counter_group_id: number;
+  guild_id: number;
+  name: string;
+  color: string | null;
+  count: string;
+  min: string | null;
+  max: string | null;
+  step: string;
+  initial_count: string;
+  view_mode: CounterViewMode;
+  position: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CounterGroupRolePermissionRead {
+  initiative_role_id: number;
+  role_name: string;
+  role_display_name: string;
+  level: CounterPermissionLevel;
+  created_at: string;
+}
+
+export interface CounterGroupRead {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  description: string | null;
+  id: number;
+  initiative_id: number;
+  guild_id: number;
+  created_by_id: number;
+  counter_count: number;
+  my_permission_level: string | null;
+  created_at: string;
+  updated_at: string;
+  counters: CounterRead[];
+  permissions: CounterGroupPermissionRead[];
+  role_permissions: CounterGroupRolePermissionRead[];
+}
+
+export interface CounterGroupUpdate {
+  name?: string | null;
+  description?: string | null;
+}
+
+export interface CounterSetCountRequest {
+  count: number | string;
+}
+
+export interface CounterUpdate {
+  name?: string | null;
+  color?: string | null;
+  min?: number | string | null;
+  max?: number | string | null;
+  step?: number | string | null;
+  initial_count?: number | string | null;
+  view_mode?: CounterViewMode | null;
+  position?: number | string | null;
+}
+
 /**
  * Response indicating whether user can be deleted and any blockers
  */
@@ -689,11 +846,13 @@ export interface InitiativeMemberRead {
   can_view_queues: boolean;
   can_view_events: boolean;
   can_view_advanced_tool: boolean;
+  can_view_counters: boolean;
   can_create_docs: boolean;
   can_create_projects: boolean;
   can_create_queues: boolean;
   can_create_events: boolean;
   can_create_advanced_tool: boolean;
+  can_create_counters: boolean;
 }
 
 export interface InitiativeRead {
@@ -703,6 +862,7 @@ export interface InitiativeRead {
   queues_enabled: boolean;
   events_enabled: boolean;
   advanced_tool_enabled: boolean;
+  counters_enabled: boolean;
   id: number;
   guild_id: number;
   is_default: boolean;
@@ -1150,6 +1310,7 @@ export interface InitiativeCreate {
   queues_enabled?: boolean;
   events_enabled?: boolean;
   advanced_tool_enabled?: boolean;
+  counters_enabled?: boolean;
 }
 
 /**
@@ -1180,6 +1341,8 @@ export const PermissionKey = {
   create_events: "create_events",
   advanced_tool_enabled: "advanced_tool_enabled",
   create_advanced_tool: "create_advanced_tool",
+  counters_enabled: "counters_enabled",
+  create_counters: "create_counters",
 } as const;
 
 /**
@@ -1230,6 +1393,7 @@ export interface InitiativeUpdate {
   queues_enabled?: boolean | null;
   events_enabled?: boolean | null;
   advanced_tool_enabled?: boolean | null;
+  counters_enabled?: boolean | null;
 }
 
 export interface InterfaceSettingsResponse {
@@ -2691,6 +2855,8 @@ export const TrashItemEntityType = {
   queue: "queue",
   queue_item: "queue_item",
   calendar_event: "calendar_event",
+  counter_group: "counter_group",
+  counter: "counter",
 } as const;
 
 export interface TrashItem {
@@ -3367,6 +3533,23 @@ export type ListQueuesApiV1QueuesGetParams = {
 };
 
 export type ListQueuePermissionsApiV1QueuesQueueIdPermissionsGet200 = { [key: string]: unknown };
+
+export type ListCounterGroupsApiV1CounterGroupsGetParams = {
+  initiative_id?: number | null;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  page_size?: number;
+};
+
+export type ListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet200 = {
+  [key: string]: unknown;
+};
 
 export type ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams = {
   guild_ids?: number[] | null;

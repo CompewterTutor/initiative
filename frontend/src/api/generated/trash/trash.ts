@@ -184,7 +184,9 @@ export const restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = (
     | "tag"
     | "queue"
     | "queue_item"
-    | "calendar_event",
+    | "calendar_event"
+    | "counter_group"
+    | "counter",
   entityId: number,
   restoreRequest: BodyType<RestoreRequest>,
   options?: SecondParameter<typeof apiMutator>,
@@ -219,7 +221,9 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
         | "tag"
         | "queue"
         | "queue_item"
-        | "calendar_event";
+        | "calendar_event"
+        | "counter_group"
+        | "counter";
       entityId: number;
       data: BodyType<RestoreRequest>;
     },
@@ -239,7 +243,9 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
       | "tag"
       | "queue"
       | "queue_item"
-      | "calendar_event";
+      | "calendar_event"
+      | "counter_group"
+      | "counter";
     entityId: number;
     data: BodyType<RestoreRequest>;
   },
@@ -264,7 +270,9 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
         | "tag"
         | "queue"
         | "queue_item"
-        | "calendar_event";
+        | "calendar_event"
+        | "counter_group"
+        | "counter";
       entityId: number;
       data: BodyType<RestoreRequest>;
     }
@@ -312,7 +320,9 @@ export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
           | "tag"
           | "queue"
           | "queue_item"
-          | "calendar_event";
+          | "calendar_event"
+          | "counter_group"
+          | "counter";
         entityId: number;
         data: BodyType<RestoreRequest>;
       },
@@ -334,7 +344,9 @@ export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
       | "tag"
       | "queue"
       | "queue_item"
-      | "calendar_event";
+      | "calendar_event"
+      | "counter_group"
+      | "counter";
     entityId: number;
     data: BodyType<RestoreRequest>;
   },
@@ -361,7 +373,9 @@ export const purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = (
     | "tag"
     | "queue"
     | "queue_item"
-    | "calendar_event",
+    | "calendar_event"
+    | "counter_group"
+    | "counter",
   entityId: number,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
@@ -389,7 +403,9 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
         | "tag"
         | "queue"
         | "queue_item"
-        | "calendar_event";
+        | "calendar_event"
+        | "counter_group"
+        | "counter";
       entityId: number;
     },
     TContext
@@ -408,7 +424,9 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
       | "tag"
       | "queue"
       | "queue_item"
-      | "calendar_event";
+      | "calendar_event"
+      | "counter_group"
+      | "counter";
     entityId: number;
   },
   TContext
@@ -432,7 +450,9 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
         | "tag"
         | "queue"
         | "queue_item"
-        | "calendar_event";
+        | "calendar_event"
+        | "counter_group"
+        | "counter";
       entityId: number;
     }
   > = (props) => {
@@ -476,7 +496,9 @@ export const usePurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = <
           | "tag"
           | "queue"
           | "queue_item"
-          | "calendar_event";
+          | "calendar_event"
+          | "counter_group"
+          | "counter";
         entityId: number;
       },
       TContext
@@ -497,7 +519,9 @@ export const usePurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = <
       | "tag"
       | "queue"
       | "queue_item"
-      | "calendar_event";
+      | "calendar_event"
+      | "counter_group"
+      | "counter";
     entityId: number;
   },
   TContext

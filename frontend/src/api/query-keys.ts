@@ -187,6 +187,13 @@ export const invalidateAllQueues = () => invalidatePrefix("/api/v1/queues");
 
 export const invalidateQueue = (queueId: number) => invalidateExact([`/api/v1/queues/${queueId}`]);
 
+// ── Counter Groups ──────────────────────────────────────────────────────────
+
+export const invalidateAllCounterGroups = () => invalidatePrefix("/api/v1/counter-groups");
+
+export const invalidateCounterGroup = (groupId: number) =>
+  invalidateExact([`/api/v1/counter-groups/${groupId}`]);
+
 // ── Calendar Events ─────────────────────────────────────────────────────────
 
 export const invalidateAllCalendarEvents = () => invalidatePrefix("/api/v1/calendar-events");

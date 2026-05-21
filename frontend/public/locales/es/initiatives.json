@@ -4,7 +4,7 @@
   "newInitiative": "Nueva iniciativa",
   "selectGuild": "Selecciona un gremio",
   "selectGuildDescription": "Cambia a un gremio para ver sus iniciativas y membresías.",
-  "loading": "Cargando iniciativas\u2026",
+  "loading": "Cargando iniciativas…",
   "loadError": "No se pudieron cargar las iniciativas en este momento.",
   "noDescription": "Sin descripción aún.",
   "members": "Miembros:",
@@ -23,7 +23,7 @@
     "descriptionPlaceholder": "Resumen opcional (se admite Markdown)",
     "colorLabel": "Color",
     "colorHint": "Este acento aparece en los proyectos vinculados a la iniciativa.",
-    "creating": "Creando\u2026",
+    "creating": "Creando…",
     "submit": "Crear iniciativa",
     "nameRequired": "El nombre de la iniciativa es obligatorio.",
     "created": "Iniciativa \"{{name}}\" creada.",
@@ -31,7 +31,7 @@
   },
   "detail": {
     "loadingInitiative": "Cargando iniciativa...",
-    "backToInitiatives": "\u2190 Volver a Mis iniciativas",
+    "backToInitiatives": "← Volver a Mis iniciativas",
     "notFound": "Iniciativa no encontrada",
     "notFoundDescription": "La iniciativa que buscas no existe o ya no tienes acceso.",
     "noAccess": "No tienes acceso a ninguna función en esta iniciativa. Contacta a un gerente de iniciativa para obtener ayuda.",
@@ -42,15 +42,17 @@
     "initiativeSettings": "Configuración de la iniciativa",
     "documents": "Documentos",
     "projects": "Proyectos",
-    "queues": "Colas"
+    "queues": "Colas",
+    "calendar": "Calendario",
+    "counters": "Contadores"
   },
   "settings": {
     "title": "Configuración de la iniciativa",
     "subtitle": "Actualiza detalles, gestiona miembros y roles, y controla acciones peligrosas.",
     "breadcrumbSettings": "Configuración",
     "loadingInitiative": "Cargando iniciativa...",
-    "backToInitiatives": "\u2190 Volver a Mis iniciativas",
-    "backToInitiative": "\u2190 Volver a la iniciativa",
+    "backToInitiatives": "← Volver a Mis iniciativas",
+    "backToInitiative": "← Volver a la iniciativa",
     "notFound": "Iniciativa no encontrada",
     "notFoundDescription": "La iniciativa que buscas no existe o ya no tienes acceso.",
     "permissionRequired": "Permiso requerido",
@@ -143,7 +145,8 @@
       "projects": "Proyectos",
       "queues": "Colas",
       "events": "Eventos",
-      "advancedTool": "Herramienta avanzada"
+      "advancedTool": "Herramienta avanzada",
+      "counters": "Contadores"
     },
     "permissions": {
       "viewDocuments": "Ver documentos",
@@ -155,7 +158,9 @@
       "viewEvents": "Ver eventos",
       "createEvents": "Crear eventos",
       "viewAdvancedTool": "Abrir la herramienta avanzada",
-      "createAdvancedTool": "Crear en la herramienta avanzada"
+      "createAdvancedTool": "Crear en la herramienta avanzada",
+      "viewCounters": "Ver contadores",
+      "createCounters": "Crear contadores"
     }
   },
   "advancedTools": "Herramientas avanzadas",
@@ -176,5 +181,7 @@
     "openSettings": "Abrir configuración",
     "guildAdminOnlyTitle": "Solo administradores",
     "guildAdminOnlyDescription": "Solo los administradores del grupo pueden gestionar las automatizaciones a nivel de grupo."
-  }
+  },
+  "countersFeature": "Contadores",
+  "countersFeatureDescription": "Lleva el control de valores numéricos como PG, puntuaciones o presupuestos — acotados, con incremento configurable y mostrados como números, barras o indicadores radiales."
 }

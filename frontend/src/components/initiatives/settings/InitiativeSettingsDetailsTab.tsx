@@ -2,15 +2,14 @@ import { Loader2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AdvancedToolsSection } from "@/components/initiatives/AdvancedToolsToggles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface InitiativeSettingsDetailsTabProps {
   name: string;
@@ -25,6 +24,8 @@ interface InitiativeSettingsDetailsTabProps {
   onToggleEvents: (value: boolean) => void;
   advancedToolEnabled: boolean;
   onToggleAdvancedTool: (value: boolean) => void;
+  countersEnabled: boolean;
+  onToggleCounters: (value: boolean) => void;
   canManageMembers: boolean;
   isSaving: boolean;
   onSaveDetails: (event: FormEvent<HTMLFormElement>) => void;
@@ -43,12 +44,13 @@ export const InitiativeSettingsDetailsTab = ({
   onToggleEvents,
   advancedToolEnabled,
   onToggleAdvancedTool,
+  countersEnabled,
+  onToggleCounters,
   canManageMembers,
   isSaving,
   onSaveDetails,
 }: InitiativeSettingsDetailsTabProps) => {
   const { t } = useTranslation(["initiatives", "common"]);
-  const { advancedTool } = useAppConfig();
 
   return (
     <TabsContent value="details">
@@ -109,56 +111,20 @@ export const InitiativeSettingsDetailsTab = ({
           </form>
         </CardContent>
       </Card>
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>{t("advancedTools")}</CardTitle>
-          <CardDescription>{t("advancedToolsDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="settings-events-toggle">{t("eventsFeature")}</Label>
-                <p className="text-muted-foreground text-xs">{t("eventsFeatureDescription")}</p>
-              </div>
-              <Switch
-                id="settings-events-toggle"
-                checked={eventsEnabled}
-                onCheckedChange={onToggleEvents}
-                disabled={!canManageMembers || isSaving}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="settings-queues-toggle">{t("queuesFeature")}</Label>
-                <p className="text-muted-foreground text-xs">{t("queuesFeatureDescription")}</p>
-              </div>
-              <Switch
-                id="settings-queues-toggle"
-                checked={queuesEnabled}
-                onCheckedChange={onToggleQueues}
-                disabled={!canManageMembers || isSaving}
-              />
-            </div>
-            {advancedTool && (
-              <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-                <div className="space-y-0.5">
-                  <Label htmlFor="settings-advanced-tool-toggle">{advancedTool.name}</Label>
-                  <p className="text-muted-foreground text-xs">
-                    {t("advancedToolFeatureDescription", { name: advancedTool.name })}
-                  </p>
-                </div>
-                <Switch
-                  id="settings-advanced-tool-toggle"
-                  checked={advancedToolEnabled}
-                  onCheckedChange={onToggleAdvancedTool}
-                  disabled={!canManageMembers || isSaving}
-                />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <AdvancedToolsSection
+        layout="card"
+        canManage={canManageMembers}
+        isSaving={isSaving}
+        eventsEnabled={eventsEnabled}
+        onToggleEvents={onToggleEvents}
+        queuesEnabled={queuesEnabled}
+        onToggleQueues={onToggleQueues}
+        countersEnabled={countersEnabled}
+        onToggleCounters={onToggleCounters}
+        advancedToolEnabled={advancedToolEnabled}
+        onToggleAdvancedTool={onToggleAdvancedTool}
+        idPrefix="settings"
+      />
     </TabsContent>
   );
 };
