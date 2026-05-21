@@ -464,7 +464,7 @@ async def test_fractional_position_sort(client: AsyncClient, session: AsyncSessi
     group_id = group_resp["id"]
 
     a = await _add_counter(client, headers, group_id, name="A", position="10.0")
-    b = await _add_counter(client, headers, group_id, name="B", position="20.0")
+    await _add_counter(client, headers, group_id, name="B", position="20.0")
 
     # Drop "A" between (would equal 15.0)
     response = await client.patch(
