@@ -503,6 +503,8 @@ export function CounterGroupSettingsPage() {
         </TabsContent>
 
         {/* ── Access tab ──────────────────────────────────────────── */}
+        {/* Write access can manage permissions; only deleting the group is
+            owner-only (handled in the Advanced tab). */}
         {canManage && (
           <TabsContent value="access" className="space-y-6">
             {/* Role permissions */}

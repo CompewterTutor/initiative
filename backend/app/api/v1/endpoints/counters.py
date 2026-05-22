@@ -687,9 +687,9 @@ async def set_counter_group_permissions(
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
 ) -> List[CounterGroupPermissionRead]:
-    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="read")
-    if not rls_service.is_guild_admin(guild_context.role):
-        counters_service.require_counter_group_access(group, current_user, require_owner=True)
+    # Write access is sufficient to manage permissions; only deleting the group
+    # is reserved for owners. The owner row itself is preserved below regardless.
+    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="write")
 
     owner_user_id: int | None = None
     for p in (group.permissions or []):
@@ -748,9 +748,8 @@ async def set_counter_group_role_permissions(
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
 ) -> List[CounterGroupRolePermissionRead]:
-    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="read")
-    if not rls_service.is_guild_admin(guild_context.role):
-        counters_service.require_counter_group_access(group, current_user, require_owner=True)
+    # Write access is sufficient to manage role permissions (delete is owner-only).
+    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="write")
 
     delete_stmt = sa_delete(CounterGroupRolePermission).where(
         CounterGroupRolePermission.counter_group_id == group.id,
@@ -871,6 +870,14 @@ async def websocket_counter_group(
         group = await counters_service.get_counter_group(session, group_id)
         if not group or group.guild_id != guild_id:
             logger.warning(f"Counter WS: group {group_id} not found in guild {guild_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # Mirror the feature gate enforced on every HTTP endpoint via
+        # _get_counter_group_with_access — don't stream events for a group
+        # whose initiative has counters disabled.
+        if group.initiative and not group.initiative.counters_enabled:
+            logger.warning(f"Counter WS: counters disabled for group {group_id}")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
