@@ -8,6 +8,7 @@ import {
   decrementCounterApiV1CounterGroupsGroupIdCountersCounterIdDecrementPost,
   deleteCounterApiV1CounterGroupsGroupIdCountersCounterIdDelete,
   deleteCounterGroupApiV1CounterGroupsGroupIdDelete,
+  duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost,
   getListCounterGroupsApiV1CounterGroupsGetQueryKey,
   getReadCounterGroupApiV1CounterGroupsGroupIdGetQueryKey,
   incrementCounterApiV1CounterGroupsGroupIdCountersCounterIdIncrementPost,
@@ -18,12 +19,14 @@ import {
   setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost,
   setCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsPut,
   setCounterGroupRolePermissionsApiV1CounterGroupsGroupIdRolePermissionsPut,
+  sortCountersApiV1CounterGroupsGroupIdSortPost,
   updateCounterApiV1CounterGroupsGroupIdCountersCounterIdPatch,
   updateCounterGroupApiV1CounterGroupsGroupIdPatch,
 } from "@/api/generated/counters/counters";
 import type {
   CounterCreate,
   CounterGroupCreate,
+  CounterGroupDuplicateRequest,
   CounterGroupListResponse,
   CounterGroupPermissionCreate,
   CounterGroupPermissionRead,
@@ -33,6 +36,7 @@ import type {
   CounterGroupUpdate,
   CounterRead,
   CounterSetCountRequest,
+  CounterSortRequest,
   CounterUpdate,
   ListCounterGroupsApiV1CounterGroupsGetParams,
 } from "@/api/generated/initiativeAPI.schemas";
@@ -153,6 +157,31 @@ export const useUpdateCounterGroup = (
       ) as unknown as Promise<CounterGroupRead>,
     onSuccess: (...args) => {
       void invalidateCounterGroup(groupId);
+      void invalidateAllCounterGroups();
+      onSuccess?.(...args);
+    },
+    onError: (...args) => {
+      toast.error(t("error"));
+      onError?.(...args);
+    },
+    onSettled,
+  });
+};
+
+export const useDuplicateCounterGroup = (
+  groupId: number,
+  options?: MutationOpts<CounterGroupRead, CounterGroupDuplicateRequest>
+) => {
+  const { t } = useTranslation("counters");
+  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  return useMutation({
+    ...rest,
+    mutationFn: async (data: CounterGroupDuplicateRequest) =>
+      duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost(
+        groupId,
+        data
+      ) as unknown as Promise<CounterGroupRead>,
+    onSuccess: (...args) => {
       void invalidateAllCounterGroups();
       onSuccess?.(...args);
     },
@@ -422,6 +451,67 @@ export const useResetAllCounters = (
         return {
           ...old,
           counters: old.counters.map((c) => ({ ...c, count: optimisticReset(c) })),
+        };
+      });
+      return { previousGroup };
+    },
+    onError: (...args) => {
+      const ctx = args[2] as OptimisticContext | undefined;
+      rollbackGroup(queryClient, groupId, ctx);
+      toast.error(t("error"));
+      (onError as any)?.(...args);
+    },
+    onSuccess: (...args) => {
+      (onSuccess as any)?.(...args);
+    },
+    onSettled: (...args) => {
+      void invalidateCounterGroup(groupId);
+      (onSettled as any)?.(...args);
+    },
+  });
+};
+
+/** Comparator mirroring the backend `sort_counters` service: case-insensitive
+ * name (or numeric count) with `id` as a deterministic final tie-break, so the
+ * optimistic order matches what the server will persist. */
+const compareCounters =
+  (field: CounterSortRequest["field"], direction: CounterSortRequest["direction"]) =>
+  (a: CounterRead, b: CounterRead): number => {
+    let cmp: number;
+    if (field === "count") {
+      cmp = Number(a.count) - Number(b.count);
+      if (cmp === 0) cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    } else {
+      cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    }
+    if (cmp === 0) cmp = a.id - b.id;
+    return direction === "desc" ? -cmp : cmp;
+  };
+
+export const useSortCounters = (
+  groupId: number,
+  options?: MutationOpts<CounterGroupRead, CounterSortRequest>
+) => {
+  const { t } = useTranslation("counters");
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  return useMutation<CounterGroupRead, Error, CounterSortRequest, OptimisticContext>({
+    ...rest,
+    mutationFn: async (data: CounterSortRequest) =>
+      sortCountersApiV1CounterGroupsGroupIdSortPost(
+        groupId,
+        data
+      ) as unknown as Promise<CounterGroupRead>,
+    onMutate: async ({ field, direction }) => {
+      const key = getReadCounterGroupApiV1CounterGroupsGroupIdGetQueryKey(groupId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previousGroup = queryClient.getQueryData<CounterGroupRead>(key);
+      queryClient.setQueryData<CounterGroupRead>(key, (old) => {
+        if (!old) return old;
+        const sorted = [...old.counters].sort(compareCounters(field, direction));
+        return {
+          ...old,
+          counters: sorted.map((c, index) => ({ ...c, position: String(index + 1) })),
         };
       });
       return { previousGroup };

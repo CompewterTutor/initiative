@@ -24,6 +24,7 @@ from app.models.counter import (
 )
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.user import User
+from app.schemas.counter import CounterSortDirection, CounterSortField
 from app.services.permissions import effective_permission_level, role_permission_level
 
 
@@ -230,6 +231,111 @@ async def reset_all_counters(session: AsyncSession, group: CounterGroup) -> Coun
         if counter.deleted_at is not None:
             continue
         counter.count = clamp(counter.initial_count, counter.min, counter.max)
+        counter.updated_at = now
+        session.add(counter)
+    group.updated_at = now
+    session.add(group)
+    return group
+
+
+async def duplicate_counter_group(
+    session: AsyncSession,
+    source: CounterGroup,
+    *,
+    name: str,
+    user_id: int,
+    guild_id: int,
+) -> CounterGroup:
+    """Create a copy of ``source`` within the same initiative.
+
+    Copies every live counter (values, bounds, view mode, position) and the
+    source's role + user permissions, then makes ``user_id`` the owner of the
+    copy. Adds the new rows to the session and flushes; the caller commits.
+    """
+    new_group = CounterGroup(
+        guild_id=guild_id,
+        initiative_id=source.initiative_id,
+        created_by_id=user_id,
+        name=name,
+        description=source.description,
+    )
+    session.add(new_group)
+    await session.flush()
+
+    session.add(CounterGroupPermission(
+        counter_group_id=new_group.id,
+        user_id=user_id,
+        guild_id=guild_id,
+        level=CounterPermissionLevel.owner,
+    ))
+
+    for rp in (getattr(source, "role_permissions", None) or []):
+        if rp.level == CounterPermissionLevel.owner:
+            continue
+        session.add(CounterGroupRolePermission(
+            counter_group_id=new_group.id,
+            initiative_role_id=rp.initiative_role_id,
+            guild_id=guild_id,
+            level=rp.level,
+        ))
+
+    for perm in (getattr(source, "permissions", None) or []):
+        if perm.level == CounterPermissionLevel.owner or perm.user_id == user_id:
+            continue
+        session.add(CounterGroupPermission(
+            counter_group_id=new_group.id,
+            user_id=perm.user_id,
+            guild_id=guild_id,
+            level=perm.level,
+        ))
+
+    for counter in (getattr(source, "counters", None) or []):
+        if counter.deleted_at is not None:
+            continue
+        session.add(Counter(
+            guild_id=guild_id,
+            counter_group_id=new_group.id,
+            name=counter.name,
+            color=counter.color,
+            count=counter.count,
+            min=counter.min,
+            max=counter.max,
+            step=counter.step,
+            initial_count=counter.initial_count,
+            view_mode=counter.view_mode,
+            position=counter.position,
+        ))
+
+    return new_group
+
+
+async def sort_counters(
+    session: AsyncSession,
+    group: CounterGroup,
+    *,
+    field: CounterSortField,
+    direction: CounterSortDirection,
+) -> CounterGroup:
+    """Reassign every live counter's position to a clean ``1..N`` sequence.
+
+    The sort key always appends ``id`` as a final tie-break so the order is
+    deterministic and repeatable — descending is the exact reverse of
+    ascending, and re-sorting an already-sorted group is idempotent.
+    """
+    counters = [c for c in (getattr(group, "counters", None) or []) if c.deleted_at is None]
+
+    if field == CounterSortField.name:
+        def key(c: Counter):
+            return (c.name.casefold(), c.id)
+    else:
+        def key(c: Counter):
+            return (c.count, c.name.casefold(), c.id)
+
+    counters.sort(key=key, reverse=direction == CounterSortDirection.desc)
+
+    now = datetime.now(timezone.utc)
+    for index, counter in enumerate(counters):
+        counter.position = Decimal(index + 1)
         counter.updated_at = now
         session.add(counter)
     group.updated_at = now
