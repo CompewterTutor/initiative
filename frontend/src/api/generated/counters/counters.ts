@@ -23,6 +23,7 @@ import type {
 import type {
   CounterCreate,
   CounterGroupCreate,
+  CounterGroupDuplicateRequest,
   CounterGroupListResponse,
   CounterGroupPermissionCreate,
   CounterGroupPermissionRead,
@@ -32,6 +33,7 @@ import type {
   CounterGroupUpdate,
   CounterRead,
   CounterSetCountRequest,
+  CounterSortRequest,
   CounterUpdate,
   HTTPValidationError,
   ListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet200,
@@ -622,6 +624,103 @@ export const useDeleteCounterGroupApiV1CounterGroupsGroupIdDelete = <
 > => {
   return useMutation(
     getDeleteCounterGroupApiV1CounterGroupsGroupIdDeleteMutationOptions(options),
+    queryClient
+  );
+};
+/**
+ * @summary Duplicate Counter Group
+ */
+export const duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost = (
+  groupId: number,
+  counterGroupDuplicateRequest: BodyType<CounterGroupDuplicateRequest>,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<CounterGroupRead>(
+    {
+      url: `/api/v1/counter-groups/${groupId}/duplicate`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: counterGroupDuplicateRequest,
+      signal,
+    },
+    options
+  );
+};
+
+export const getDuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>,
+    TError,
+    { groupId: number; data: BodyType<CounterGroupDuplicateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>,
+  TError,
+  { groupId: number; data: BodyType<CounterGroupDuplicateRequest> },
+  TContext
+> => {
+  const mutationKey = ["duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>,
+    { groupId: number; data: BodyType<CounterGroupDuplicateRequest> }
+  > = (props) => {
+    const { groupId, data } = props ?? {};
+
+    return duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost(
+      groupId,
+      data,
+      requestOptions
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>
+>;
+export type DuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePostMutationBody =
+  BodyType<CounterGroupDuplicateRequest>;
+export type DuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePostMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Duplicate Counter Group
+ */
+export const useDuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>,
+      TError,
+      { groupId: number; data: BodyType<CounterGroupDuplicateRequest> },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof duplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePost>>,
+  TError,
+  { groupId: number; data: BodyType<CounterGroupDuplicateRequest> },
+  TContext
+> => {
+  return useMutation(
+    getDuplicateCounterGroupApiV1CounterGroupsGroupIdDuplicatePostMutationOptions(options),
     queryClient
   );
 };
@@ -1399,6 +1498,99 @@ export const useResetAllCountersApiV1CounterGroupsGroupIdResetAllPost = <
 > => {
   return useMutation(
     getResetAllCountersApiV1CounterGroupsGroupIdResetAllPostMutationOptions(options),
+    queryClient
+  );
+};
+/**
+ * @summary Sort Counters
+ */
+export const sortCountersApiV1CounterGroupsGroupIdSortPost = (
+  groupId: number,
+  counterSortRequest: BodyType<CounterSortRequest>,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<CounterGroupRead>(
+    {
+      url: `/api/v1/counter-groups/${groupId}/sort`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: counterSortRequest,
+      signal,
+    },
+    options
+  );
+};
+
+export const getSortCountersApiV1CounterGroupsGroupIdSortPostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>,
+    TError,
+    { groupId: number; data: BodyType<CounterSortRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>,
+  TError,
+  { groupId: number; data: BodyType<CounterSortRequest> },
+  TContext
+> => {
+  const mutationKey = ["sortCountersApiV1CounterGroupsGroupIdSortPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>,
+    { groupId: number; data: BodyType<CounterSortRequest> }
+  > = (props) => {
+    const { groupId, data } = props ?? {};
+
+    return sortCountersApiV1CounterGroupsGroupIdSortPost(groupId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SortCountersApiV1CounterGroupsGroupIdSortPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>
+>;
+export type SortCountersApiV1CounterGroupsGroupIdSortPostMutationBody =
+  BodyType<CounterSortRequest>;
+export type SortCountersApiV1CounterGroupsGroupIdSortPostMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Sort Counters
+ */
+export const useSortCountersApiV1CounterGroupsGroupIdSortPost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>,
+      TError,
+      { groupId: number; data: BodyType<CounterSortRequest> },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof sortCountersApiV1CounterGroupsGroupIdSortPost>>,
+  TError,
+  { groupId: number; data: BodyType<CounterSortRequest> },
+  TContext
+> => {
+  return useMutation(
+    getSortCountersApiV1CounterGroupsGroupIdSortPostMutationOptions(options),
     queryClient
   );
 };

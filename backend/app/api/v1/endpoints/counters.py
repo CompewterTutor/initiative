@@ -35,6 +35,7 @@ from app.models.user import User, UserStatus
 from app.schemas.counter import (
     CounterCreate,
     CounterGroupCreate,
+    CounterGroupDuplicateRequest,
     CounterGroupListResponse,
     CounterGroupPermissionCreate,
     CounterGroupPermissionRead,
@@ -44,6 +45,7 @@ from app.schemas.counter import (
     CounterGroupUpdate,
     CounterRead,
     CounterSetCountRequest,
+    CounterSortRequest,
     CounterUpdate,
     serialize_counter,
     serialize_counter_group,
@@ -347,6 +349,38 @@ async def create_counter_group(
     )
 
 
+@router.post("/{group_id}/duplicate", response_model=CounterGroupRead, status_code=status.HTTP_201_CREATED)
+async def duplicate_counter_group(
+    group_id: int,
+    payload: CounterGroupDuplicateRequest,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> CounterGroupRead:
+    source = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="read")
+
+    new_name = (
+        payload.name.strip()
+        if payload.name and payload.name.strip()
+        else f"{source.name} (Copy)"
+    )
+    new_group = await counters_service.duplicate_counter_group(
+        session,
+        source,
+        name=new_name,
+        user_id=current_user.id,
+        guild_id=guild_context.guild_id,
+    )
+    await session.commit()
+    await reapply_rls_context(session)
+
+    hydrated = await _refetch_group(session, new_group.id)
+    return serialize_counter_group(
+        hydrated,
+        my_permission_level=_compute_my_permission(hydrated, current_user, guild_context),
+    )
+
+
 @router.patch("/{group_id}", response_model=CounterGroupRead)
 async def update_counter_group(
     group_id: int,
@@ -639,6 +673,30 @@ async def reset_all_counters(
     return result
 
 
+@router.post("/{group_id}/sort", response_model=CounterGroupRead)
+async def sort_counters(
+    group_id: int,
+    payload: CounterSortRequest,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> CounterGroupRead:
+    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="write")
+    await counters_service.sort_counters(
+        session, group, field=payload.field, direction=payload.direction
+    )
+    await session.commit()
+    await reapply_rls_context(session)
+
+    hydrated = await _refetch_group(session, group.id)
+    result = serialize_counter_group(
+        hydrated,
+        my_permission_level=_compute_my_permission(hydrated, current_user, guild_context),
+    )
+    await counter_manager.broadcast(group_id, "counters_reordered", result.model_dump(mode="json"))
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Permissions (DAC)
 # ---------------------------------------------------------------------------
@@ -824,8 +882,8 @@ async def websocket_counter_group(
 
     Protocol: client sends `{"token": "...", "guild_id": <int>}` first, server
     validates auth + DAC, then broadcasts `counter_added`, `counter_removed`,
-    `counter_updated`, `count_changed`, `counters_reset`, `group_updated`,
-    `group_deleted`, `permissions_changed` events.
+    `counter_updated`, `count_changed`, `counters_reset`, `counters_reordered`,
+    `group_updated`, `group_deleted`, `permissions_changed` events.
     """
     await websocket.accept()
 

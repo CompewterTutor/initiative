@@ -607,6 +607,10 @@ export interface CounterGroupCreate {
   user_permissions?: CounterGroupPermissionCreate[] | null;
 }
 
+export interface CounterGroupDuplicateRequest {
+  name?: string | null;
+}
+
 export interface CounterGroupSummary {
   /**
    * @minLength 1
@@ -696,6 +700,25 @@ export interface CounterGroupUpdate {
 
 export interface CounterSetCountRequest {
   count: number | string;
+}
+
+export type CounterSortDirection = (typeof CounterSortDirection)[keyof typeof CounterSortDirection];
+
+export const CounterSortDirection = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type CounterSortField = (typeof CounterSortField)[keyof typeof CounterSortField];
+
+export const CounterSortField = {
+  name: "name",
+  count: "count",
+} as const;
+
+export interface CounterSortRequest {
+  field: CounterSortField;
+  direction?: CounterSortDirection;
 }
 
 export interface CounterUpdate {

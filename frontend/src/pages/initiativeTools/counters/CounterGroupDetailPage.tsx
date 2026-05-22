@@ -13,7 +13,16 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Link, useParams, useRouter } from "@tanstack/react-router";
-import { ArrowLeft, LayoutGrid, List, Loader2, Plus, RotateCcw, Settings } from "lucide-react";
+import {
+  ArrowDownUp,
+  ArrowLeft,
+  LayoutGrid,
+  List,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Settings,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -22,6 +31,12 @@ import { CounterFormDialog } from "@/components/initiativeTools/counters/Counter
 import { type CounterLayout, CounterRow } from "@/components/initiativeTools/counters/CounterRow";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCounterGroupRealtime } from "@/hooks/useCounterGroupRealtime";
 import {
   useCounterGroup,
@@ -29,6 +44,7 @@ import {
   useResetAllCounters,
   useResetCounter,
   useSetCount,
+  useSortCounters,
   useSteppedCount,
   useUpdateCounter,
 } from "@/hooks/useCounters";
@@ -75,6 +91,7 @@ export function CounterGroupDetailPage() {
   const resetOne = useResetCounter(groupId ?? 0);
   const resetAll = useResetAllCounters(groupId ?? 0);
   const deleteCounter = useDeleteCounter(groupId ?? 0);
+  const sortCounters = useSortCounters(groupId ?? 0);
 
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<CounterRead | null>(null);
@@ -197,6 +214,38 @@ export function CounterGroupDetailPage() {
                 <Plus className="h-4 w-4" />
                 {t("addCounter")}
               </Button>
+              {counters.length > 1 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={sortCounters.isPending}>
+                      <ArrowDownUp className="h-4 w-4" />
+                      {t("sort")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={() => sortCounters.mutate({ field: "name", direction: "asc" })}
+                    >
+                      {t("sortNameAsc")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => sortCounters.mutate({ field: "name", direction: "desc" })}
+                    >
+                      {t("sortNameDesc")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => sortCounters.mutate({ field: "count", direction: "asc" })}
+                    >
+                      {t("sortCountAsc")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => sortCounters.mutate({ field: "count", direction: "desc" })}
+                    >
+                      {t("sortCountDesc")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setResetAllOpen(true)}

@@ -520,3 +520,155 @@ async def test_fractional_position_sort(client: AsyncClient, session: AsyncSessi
     a_pos = next(Decimal(c["position"]) for c in group["counters"] if c["name"] == "A")
     b_pos = next(Decimal(c["position"]) for c in group["counters"] if c["name"] == "B")
     assert a_pos < b_pos
+
+
+# ---------------------------------------------------------------------------
+# Sort all counters
+# ---------------------------------------------------------------------------
+
+
+def _ordered_names(group: dict) -> list[str]:
+    counters = sorted(group["counters"], key=lambda c: Decimal(c["position"]))
+    return [c["name"] for c in counters]
+
+
+@pytest.mark.integration
+async def test_sort_counters(client: AsyncClient, session: AsyncSession):
+    admin, guild, initiative = await _setup_admin(session)
+    headers = get_guild_headers(guild, admin)
+    group = await _create_group(client, headers, initiative.id)
+    gid = group["id"]
+
+    # Scrambled order; "alpha" is lowercase to exercise case-insensitive sort.
+    await _add_counter(client, headers, gid, name="Charlie", count="5", position="0")
+    await _add_counter(client, headers, gid, name="alpha", count="1", position="1")
+    await _add_counter(client, headers, gid, name="Bravo", count="3", position="2")
+
+    async def sort(field: str, direction: str) -> dict:
+        resp = await client.post(
+            f"/api/v1/counter-groups/{gid}/sort",
+            headers=headers,
+            json={"field": field, "direction": direction},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
+    body = await sort("name", "asc")
+    assert _ordered_names(body) == ["alpha", "Bravo", "Charlie"]
+    # Positions are reassigned to a clean 1..N sequence.
+    positions = sorted(Decimal(c["position"]) for c in body["counters"])
+    assert positions == [Decimal("1"), Decimal("2"), Decimal("3")]
+
+    assert _ordered_names(await sort("name", "desc")) == ["Charlie", "Bravo", "alpha"]
+    assert _ordered_names(await sort("count", "asc")) == ["alpha", "Bravo", "Charlie"]
+    assert _ordered_names(await sort("count", "desc")) == ["Charlie", "Bravo", "alpha"]
+
+    # The reorder persists on a fresh read.
+    fetched = (await client.get(f"/api/v1/counter-groups/{gid}", headers=headers)).json()
+    assert _ordered_names(fetched) == ["Charlie", "Bravo", "alpha"]
+
+
+@pytest.mark.integration
+async def test_sort_counters_read_only_forbidden(client: AsyncClient, session: AsyncSession):
+    admin, member, guild, initiative = await _setup_with_member(session)
+    admin_headers = get_guild_headers(guild, admin)
+    group = await _create_group(client, admin_headers, initiative.id)
+    gid = group["id"]
+    await _add_counter(client, admin_headers, gid, name="A", position="0")
+
+    # Grant the member read-only access on the group.
+    grant = await client.put(
+        f"/api/v1/counter-groups/{gid}/permissions",
+        headers=admin_headers,
+        json=[{"user_id": member.id, "level": "read"}],
+    )
+    assert grant.status_code == 200, grant.text
+
+    member_headers = get_guild_headers(guild, member)
+    resp = await client.post(
+        f"/api/v1/counter-groups/{gid}/sort",
+        headers=member_headers,
+        json={"field": "name", "direction": "asc"},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "COUNTER_WRITE_ACCESS_REQUIRED"
+
+
+# ---------------------------------------------------------------------------
+# Duplicate
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_duplicate_counter_group(client: AsyncClient, session: AsyncSession):
+    admin, guild, initiative = await _setup_admin(session)
+    headers = get_guild_headers(guild, admin)
+    source = await _create_group(client, headers, initiative.id, name="Original")
+    sid = source["id"]
+    await _add_counter(client, headers, sid, name="HP", count="40", initial_count="100", position="0")
+    await _add_counter(
+        client, headers, sid, name="Mana", count="5", min_value=None, max_value=None,
+        view_mode="number", initial_count="0", position="1",
+    )
+
+    response = await client.post(f"/api/v1/counter-groups/{sid}/duplicate", headers=headers, json={})
+    assert response.status_code == 201, response.text
+    copy = response.json()
+
+    # New group with a distinct id and the default "(Copy)" name.
+    assert copy["id"] != sid
+    assert copy["name"] == "Original (Copy)"
+    assert copy["my_permission_level"] == "owner"
+
+    # Counters are copied with their values, bounds and order preserved.
+    by_name = {c["name"]: c for c in sorted(copy["counters"], key=lambda c: Decimal(c["position"]))}
+    assert [c["name"] for c in sorted(copy["counters"], key=lambda c: Decimal(c["position"]))] == ["HP", "Mana"]
+    assert Decimal(by_name["HP"]["count"]) == Decimal("40")
+    assert Decimal(by_name["HP"]["initial_count"]) == Decimal("100")
+    assert by_name["Mana"]["view_mode"] == "number"
+
+    # The source group is untouched.
+    src = (await client.get(f"/api/v1/counter-groups/{sid}", headers=headers)).json()
+    assert src["name"] == "Original"
+    assert len(src["counters"]) == 2
+
+
+@pytest.mark.integration
+async def test_duplicate_counter_group_custom_name(client: AsyncClient, session: AsyncSession):
+    admin, guild, initiative = await _setup_admin(session)
+    headers = get_guild_headers(guild, admin)
+    source = await _create_group(client, headers, initiative.id, name="Original")
+
+    response = await client.post(
+        f"/api/v1/counter-groups/{source['id']}/duplicate",
+        headers=headers,
+        json={"name": "My Clone"},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["name"] == "My Clone"
+
+
+@pytest.mark.integration
+async def test_duplicate_counter_group_read_user_becomes_owner(
+    client: AsyncClient, session: AsyncSession
+):
+    """A read-only user can duplicate and owns the copy (read suffices to copy)."""
+    admin, member, guild, initiative = await _setup_with_member(session)
+    admin_headers = get_guild_headers(guild, admin)
+    source = await _create_group(client, admin_headers, initiative.id, name="Shared")
+    sid = source["id"]
+    await _add_counter(client, admin_headers, sid, name="A", position="0")
+
+    grant = await client.put(
+        f"/api/v1/counter-groups/{sid}/permissions",
+        headers=admin_headers,
+        json=[{"user_id": member.id, "level": "read"}],
+    )
+    assert grant.status_code == 200, grant.text
+
+    member_headers = get_guild_headers(guild, member)
+    response = await client.post(
+        f"/api/v1/counter-groups/{sid}/duplicate", headers=member_headers, json={}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["my_permission_level"] == "owner"

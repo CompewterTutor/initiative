@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Sort all counters in a group at once.** A "Sort" dropdown on the counter group toolbar reorders every counter by name (A→Z / Z→A) or current count (low→high / high→low). The sort persists by reassigning each counter's position on the backend and broadcasts over WebSocket so other viewers update live; manual drag-and-drop reordering still works afterward.
+- **Duplicate a counter group.** A "Duplicate" action in the counter group settings (Advanced tab) creates a copy with all of its counters and their current values, bounds, view modes, and order. The copy keeps the source group's role and user permissions and makes you the owner; you can name the copy or accept the default "(Copy)" suffix.
+
 ## [0.45.0] - 2026-05-22
 
 ### Added
