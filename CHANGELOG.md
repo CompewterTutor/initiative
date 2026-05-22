@@ -11,8 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Counters advanced tool for initiatives.** A new initiative-scoped feature for tracking numeric values like HP, ammo, scores, or budgets. Data model is `Initiative > Counter Group > Counter`, mirroring Queues with full DAC (user + role permissions), guild-scoped RLS, soft-delete, and real-time WebSocket updates. Each counter has its own `count`, `min`/`max` bounds, `step`, `initial_count`, and view mode (`number`, `progress_bar`, or `segmented_clock`). Counts can be set directly, incremented/decremented by step, or reset to the initial value; a "Reset All" button on the group resets every counter at once. Counters use fractional-position indexing (`Numeric(20,10)`) for single-PATCH drag-and-drop reordering within a group. Adds the `counters_enabled` initiative master switch and `counters_enabled` / `create_counters` per-role permission keys (backfilled: managers ON, members OFF). New routes: `/counter-groups`, `/counter-groups/:groupId`, `/counter-groups/:groupId/settings`.
 
-- **Reusable `AdvancedToolsSection` toggle component.** The advanced-tools toggle rows (Events, Queues, Counters, and the optional embedded Advanced Tool) are now a single component used in both the initiative settings page and the New Initiative dialog. The create dialog previously only exposed Queues; it now surfaces all four toggles, persisting each one to the new initiative.
-
 ### Fixed
 
 - **Spreadsheet column/row resize now persists on Mac (and other high-DPI/Retina devices).** Pointer events on Retina displays report fractional coordinates (e.g. `clientX = 123.5`), which the spreadsheet's `clampInt` integer validator rejected. The sanitized formatting record then came back empty, and `updateColumn` / `updateRow` interpreted that as "delete the entry" — so releasing the mouse silently reverted the column or row to its default size. The resize handler now rounds the new size to an integer before committing. Also rewrote the resize event wiring to attach `pointermove` / `pointerup` / `pointercancel` listeners synchronously inside `pointerdown` (eliminating a latent race where a fast release on a Mac trackpad could miss `pointerup` before the React effect attached).
@@ -21,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Frontend tooling: migrated from ESLint + Prettier to Biome.** Single tool now handles linting, formatting, and import organization with significantly faster pre-commit hooks. The previous ESLint rule set is preserved (a11y, React hooks, i18next, TypeScript) and Tailwind class sorting replaces `prettier-plugin-tailwindcss`. New scripts: `pnpm check` / `check:fix` (all-in-one), `pnpm lint` / `lint:fix`, `pnpm format`; the TypeScript-only check moved from `pnpm check` to `pnpm typecheck`. `useExhaustiveDependencies` is configured with `reportUnnecessaryDependencies: false` to preserve intentional trigger-deps (e.g. "reset page when filters change"). Removed dev dependencies: `eslint`, `@eslint/js`, `@typescript-eslint/*`, `eslint-plugin-i18next`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react`, `eslint-plugin-react-hooks`, `prettier`, `prettier-plugin-tailwindcss`.
+- **Frontend tooling: migrated from ESLint + Prettier to Biome.**
 
 ## [0.44.3] - 2026-05-18
 
