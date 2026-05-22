@@ -1,10 +1,21 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, MessageSquare } from "lucide-react";
 import { useRouter } from "@tanstack/react-router";
+import { GripVertical, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type {
+  TaskListRead,
+  TaskPriority,
+  TaskStatusCategory,
+  TaskStatusRead,
+} from "@/api/generated/initiativeAPI.schemas";
+import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
+import { TagBadge } from "@/components/tags";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { statusTriggerStyle, TaskStatusOption } from "@/components/tasks/TaskStatusOption";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -12,21 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  TaskListRead,
-  TaskPriority,
-  TaskStatusCategory,
-  TaskStatusRead,
-} from "@/api/generated/initiativeAPI.schemas";
-import { truncateText } from "@/lib/text";
-import { summarizeRecurrence } from "@/lib/recurrence";
-import type { TranslateFn } from "@/types/i18n";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
-import { TagBadge } from "@/components/tags";
 import { useGuildPath } from "@/lib/guildUrl";
-import { TaskStatusOption, statusTriggerStyle } from "@/components/tasks/TaskStatusOption";
+import { summarizeRecurrence } from "@/lib/recurrence";
+import { truncateText } from "@/lib/text";
+import type { TranslateFn } from "@/types/i18n";
 
 interface SortableTaskRowProps {
   task: TaskListRead;
@@ -125,7 +125,7 @@ export const SortableTaskRow = ({
         <div className="flex items-start gap-2">
           <button
             type="button"
-            className="text-muted-foreground mt-1"
+            className="mt-1 text-muted-foreground"
             {...attributes}
             {...listeners}
             disabled={dragDisabled}
@@ -148,7 +148,7 @@ export const SortableTaskRow = ({
             {task.description ? (
               <p className="text-muted-foreground text-sm">{truncateText(task.description, 100)}</p>
             ) : null}
-            <div className="text-muted-foreground space-y-1 text-xs">
+            <div className="space-y-1 text-muted-foreground text-xs">
               {task.assignees.length > 0 ? (
                 <TaskAssigneeList assignees={task.assignees} className="text-xs" />
               ) : null}

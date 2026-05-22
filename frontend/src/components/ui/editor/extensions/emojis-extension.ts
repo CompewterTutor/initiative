@@ -1,5 +1,4 @@
-import { defineExtension } from "lexical";
-import { TextNode } from "lexical";
+import { defineExtension, TextNode } from "lexical";
 
 import { $createEmojiNode, EmojiNode } from "@/components/ui/editor/nodes/emoji-node";
 
@@ -18,7 +17,7 @@ function $findAndTransformEmoji(node: TextNode): null | TextNode {
 
     if (emojiData !== undefined) {
       const [emojiStyle, emojiText] = emojiData;
-      let targetNode;
+      let targetNode: any;
 
       if (i === 0) {
         [targetNode] = node.splitText(i + 2);

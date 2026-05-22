@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+
 import { syncFaviconWithTheme } from "@/lib/favicon";
 import { getItem, setItem } from "@/lib/storage";
 

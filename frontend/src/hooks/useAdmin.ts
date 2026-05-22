@@ -1,41 +1,41 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
-  listAllUsersApiV1AdminUsersGet,
-  getListAllUsersApiV1AdminUsersGetQueryKey,
-  getPlatformAdminCountApiV1AdminPlatformAdminCountGet,
-  getGetPlatformAdminCountApiV1AdminPlatformAdminCountGetQueryKey,
-  checkUserDeletionEligibilityApiV1AdminUsersUserIdDeletionEligibilityGet,
-  getCheckUserDeletionEligibilityApiV1AdminUsersUserIdDeletionEligibilityGetQueryKey,
-  deleteUserApiV1AdminUsersUserIdDelete,
   adminDeleteGuildApiV1AdminGuildsGuildIdDelete,
   adminDeleteInitiativeApiV1AdminInitiativesInitiativeIdDelete,
   adminUpdateGuildMemberRoleApiV1AdminGuildsGuildIdMembersUserIdRolePatch,
   adminUpdateInitiativeMemberRoleApiV1AdminInitiativesInitiativeIdMembersUserIdRolePatch,
-  triggerPasswordResetApiV1AdminUsersUserIdResetPasswordPost,
-  reactivateUserApiV1AdminUsersUserIdReactivatePost,
-  updatePlatformRoleApiV1AdminUsersUserIdPlatformRolePatch,
+  checkUserDeletionEligibilityApiV1AdminUsersUserIdDeletionEligibilityGet,
+  deleteUserApiV1AdminUsersUserIdDelete,
   exportPlatformUsersCsvApiV1AdminUsersExportCsvGet,
+  getCheckUserDeletionEligibilityApiV1AdminUsersUserIdDeletionEligibilityGetQueryKey,
+  getGetPlatformAdminCountApiV1AdminPlatformAdminCountGetQueryKey,
+  getListAllUsersApiV1AdminUsersGetQueryKey,
+  getPlatformAdminCountApiV1AdminPlatformAdminCountGet,
+  listAllUsersApiV1AdminUsersGet,
+  reactivateUserApiV1AdminUsersUserIdReactivatePost,
+  triggerPasswordResetApiV1AdminUsersUserIdResetPasswordPost,
+  updatePlatformRoleApiV1AdminUsersUserIdPlatformRolePatch,
 } from "@/api/generated/admin/admin";
+import type {
+  AccountDeletionResponse,
+  AdminDeletionEligibilityResponse,
+  AdminUserDeleteRequest,
+  DeletionEligibilityResponse,
+  ExportPlatformUsersCsvApiV1AdminUsersExportCsvGetParams,
+  PlatformAdminCountResponse,
+  UserRead,
+  UserRole,
+  VerificationSendResponse,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
   checkDeletionEligibilityApiV1UsersMeDeletionEligibilityGet,
   getCheckDeletionEligibilityApiV1UsersMeDeletionEligibilityGetQueryKey,
 } from "@/api/generated/users/users";
-import type {
-  PlatformAdminCountResponse,
-  AdminDeletionEligibilityResponse,
-  DeletionEligibilityResponse,
-  UserRead,
-  AccountDeletionResponse,
-  AdminUserDeleteRequest,
-  UserRole,
-  VerificationSendResponse,
-  ExportPlatformUsersCsvApiV1AdminUsersExportCsvGetParams,
-} from "@/api/generated/initiativeAPI.schemas";
-import type { MutationOpts } from "@/types/mutation";
-import type { QueryOpts } from "@/types/query";
 import { invalidateAdminUsers, invalidateAllGuilds } from "@/api/query-keys";
 import { downloadBlob } from "@/lib/csv";
+import type { MutationOpts } from "@/types/mutation";
+import type { QueryOpts } from "@/types/query";
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 

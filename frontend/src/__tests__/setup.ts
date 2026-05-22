@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
+
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
-import { server } from "./helpers/msw-server";
 import { resetFactories } from "./factories";
+import { server } from "./helpers/msw-server";
 import "./helpers/i18n-test";
 
 // ---------------------------------------------------------------------------

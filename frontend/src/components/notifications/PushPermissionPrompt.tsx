@@ -1,11 +1,11 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
 
-import { getItem, setItem } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { getItem, setItem } from "@/lib/storage";
 
 const DISMISS_STORAGE_KEY = "push-prompt-dismissed";
 const SHOW_DELAY_MS = 3000;
@@ -62,13 +62,13 @@ export const PushPermissionPrompt = () => {
   }
 
   return (
-    <div className="border-b border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950/30">
+    <div className="border-blue-200 border-b bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950/30">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+          <p className="font-medium text-blue-900 text-sm dark:text-blue-100">
             {t("notifications.push.enableTitle")}
           </p>
-          <p className="mt-0.5 text-sm text-blue-700 dark:text-blue-300">
+          <p className="mt-0.5 text-blue-700 text-sm dark:text-blue-300">
             {t("notifications.push.enableDescription")}
           </p>
         </div>

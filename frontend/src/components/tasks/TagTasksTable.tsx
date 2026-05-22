@@ -1,38 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import { keepPreviousData } from "@tanstack/react-query";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { ChevronDown, Filter, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import { useTasks, usePrefetchTasks, useUpdateTask } from "@/hooks/useTasks";
-import { listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet } from "@/api/generated/task-statuses/task-statuses";
-import { useGuildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { DataTable } from "@/components/ui/data-table";
-import { useGuilds } from "@/hooks/useGuilds";
-import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
 import type {
+  FilterCondition,
+  ListTasksApiV1TasksGetParams,
   SortField,
   TaskListRead,
   TaskPriority,
   TaskStatusCategory,
   TaskStatusRead,
-  FilterCondition,
-  ListTasksApiV1TasksGetParams,
 } from "@/api/generated/initiativeAPI.schemas";
+import { listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet } from "@/api/generated/task-statuses/task-statuses";
+import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
 import { SortIcon } from "@/components/SortIcon";
-import { dateSortingFn, prioritySortingFn } from "@/lib/sorting";
 import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
 import { DateCell } from "@/components/tasks/TaskDateCell";
 import { TaskPrioritySelector } from "@/components/tasks/TaskPrioritySelector";
 import { TaskStatusSelector } from "@/components/tasks/TaskStatusSelector";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DataTable } from "@/components/ui/data-table";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useGuilds } from "@/hooks/useGuilds";
+import { usePrefetchTasks, useTasks, useUpdateTask } from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
+import { dateSortingFn, prioritySortingFn } from "@/lib/sorting";
 
 const statusFallbackOrder: Record<TaskStatusCategory, TaskStatusCategory[]> = {
   backlog: ["backlog"],
@@ -331,7 +331,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
             <div className="flex">
               <Link
                 to={gp(`/tasks/${task.id}`)}
-                className="text-foreground flex w-full items-center gap-2 font-medium hover:underline"
+                className="flex w-full items-center gap-2 font-medium text-foreground hover:underline"
               >
                 {task.title}
               </Link>
@@ -356,7 +356,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
           <div className="min-w-30">
             <Link
               to={gp(`/projects/${task.project_id}`)}
-              className="text-primary text-sm font-medium hover:underline"
+              className="font-medium text-primary text-sm hover:underline"
             >
               {task.project_name ?? t("projectFallback", { id: task.project_id })}
             </Link>
@@ -479,7 +479,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
     <div className="space-y-4">
       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
         <div className="flex items-center justify-between sm:hidden">
-          <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+          <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
             <Filter className="h-4 w-4" />
             {t("filters.heading")}
           </div>
@@ -493,9 +493,9 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-          <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+          <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
             <div className="w-full sm:w-60 lg:flex-1">
-              <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+              <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                 {t("filters.statusCategory")}
               </Label>
               <MultiSelect
@@ -510,7 +510,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
               />
             </div>
             <div className="w-full sm:w-60 lg:flex-1">
-              <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+              <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                 {t("filters.priorityLabel")}
               </Label>
               <MultiSelect
@@ -530,8 +530,8 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
 
       <div className="relative">
         {isRefetching ? (
-          <div className="bg-background/60 absolute inset-0 z-10 flex items-start justify-center pt-4">
-            <div className="bg-background border-border flex items-center gap-2 rounded-md border px-4 py-2 shadow-sm">
+          <div className="absolute inset-0 z-10 flex items-start justify-center bg-background/60 pt-4">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-muted-foreground text-sm">{t("updating")}</span>
             </div>
@@ -542,7 +542,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : hasError ? (
-          <p className="text-destructive py-8 text-center text-sm">{t("tagTasks.loadError")}</p>
+          <p className="py-8 text-center text-destructive text-sm">{t("tagTasks.loadError")}</p>
         ) : (
           <DataTable
             columns={columns}
@@ -555,6 +555,7 @@ export const TagTasksTable = ({ tagId }: TagTasksTableProps) => {
             manualPagination
             pageCount={totalPages}
             rowCount={totalCount}
+            pageIndex={page - 1}
             onPaginationChange={(pag) => {
               if (pag.pageSize !== pageSize) {
                 setPageSize(pag.pageSize);

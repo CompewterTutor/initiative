@@ -1,10 +1,11 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { MentionEntityType, MentionSuggestion } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
 import { MentionPopover } from "./MentionPopover";
-import type { MentionEntityType, MentionSuggestion } from "@/api/generated/initiativeAPI.schemas";
 
 interface MentionTrigger {
   type: MentionEntityType;

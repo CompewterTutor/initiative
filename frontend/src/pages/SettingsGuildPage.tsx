@@ -1,12 +1,10 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import {
-  updateGuildApiV1GuildsGuildIdPatch,
   deleteGuildApiV1GuildsGuildIdDelete,
+  updateGuildApiV1GuildsGuildIdPatch,
 } from "@/api/generated/guilds/guilds";
-import { useGuilds } from "@/hooks/useGuilds";
-import { getErrorMessage } from "@/lib/errorMessage";
 import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
 import {
   AlertDialog,
@@ -23,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useGuilds } from "@/hooks/useGuilds";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export const SettingsGuildPage = () => {
   const { activeGuild, refreshGuilds, updateGuildInState } = useGuilds();
@@ -132,7 +132,7 @@ export const SettingsGuildPage = () => {
   if (!activeGuild) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">{t("settings.title")}</h2>
+        <h2 className="font-semibold text-2xl">{t("settings.title")}</h2>
         <p className="text-muted-foreground text-sm">{t("settings.noActiveGuild")}</p>
       </div>
     );
@@ -263,7 +263,7 @@ export const SettingsGuildPage = () => {
             <AlertDialogAction
               onClick={() => void confirmDeleteGuild()}
               disabled={!canConfirmDelete || deleting}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
               {deleting ? t("settings.deleting") : t("common:delete")}
             </AlertDialogAction>

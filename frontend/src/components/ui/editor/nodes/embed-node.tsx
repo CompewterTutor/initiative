@@ -2,9 +2,10 @@
  * Legacy EmbedNode for backwards compatibility with old document content.
  * New embeds should use YouTubeNode or TweetNode instead.
  */
-import type { JSX } from "react";
+
 import DOMPurify from "dompurify";
 import {
+  $applyNodeReplacement,
   DecoratorNode,
   type DOMConversionMap,
   type DOMConversionOutput,
@@ -14,8 +15,8 @@ import {
   type LexicalNode,
   type NodeKey,
   type SerializedLexicalNode,
-  $applyNodeReplacement,
 } from "lexical";
+import type { JSX } from "react";
 
 export type SerializedEmbedNode = SerializedLexicalNode & {
   type: "embed";

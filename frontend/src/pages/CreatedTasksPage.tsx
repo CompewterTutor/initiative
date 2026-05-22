@@ -1,24 +1,23 @@
+import { useNavigate } from "@tanstack/react-router";
+import { CalendarDays, Loader2, Plus, Table2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
 
+import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllTasks } from "@/api/query-keys";
-import { useAuth } from "@/hooks/useAuth";
-import { useGuilds } from "@/hooks/useGuilds";
-import { useGlobalTasksTable } from "@/hooks/useGlobalTasksTable";
-import { useProperties } from "@/hooks/useProperties";
-import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
-import { type TaskListRead } from "@/api/generated/initiativeAPI.schemas";
-import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
-import { globalTaskColumns } from "@/components/tasks/globalTaskColumns";
-import { GlobalTaskFilters } from "@/components/tasks/GlobalTaskFilters";
-import { CalendarView, type CalendarEntry, type CalendarViewMode } from "@/components/calendar";
-import { DataTable } from "@/components/ui/data-table";
-import { Button } from "@/components/ui/button";
+import { type CalendarEntry, CalendarView, type CalendarViewMode } from "@/components/calendar";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { CalendarDays, Plus, Table2 } from "lucide-react";
+import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
 import { getOpenCreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
+import { GlobalTaskFilters } from "@/components/tasks/GlobalTaskFilters";
+import { globalTaskColumns } from "@/components/tasks/globalTaskColumns";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { useAuth } from "@/hooks/useAuth";
+import { useGlobalTasksTable } from "@/hooks/useGlobalTasksTable";
+import { useGuilds } from "@/hooks/useGuilds";
+import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
+import { useProperties } from "@/hooks/useProperties";
 import { useGuildPath } from "@/lib/guildUrl";
 import type { TranslateFn } from "@/types/i18n";
 
@@ -145,7 +144,7 @@ export const CreatedTasksPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{t("createdTasks.title")}</h1>
+            <h1 className="font-semibold text-3xl tracking-tight">{t("createdTasks.title")}</h1>
             <p className="text-muted-foreground">{t("createdTasks.subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -190,8 +189,8 @@ export const CreatedTasksPage = () => {
 
             <div className="relative">
               {table.isRefetching ? (
-                <div className="bg-background/60 absolute inset-0 z-10 flex items-start justify-center pt-4">
-                  <div className="bg-background border-border flex items-center gap-2 rounded-md border px-4 py-2 shadow-sm">
+                <div className="absolute inset-0 z-10 flex items-start justify-center bg-background/60 pt-4">
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 shadow-sm">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-muted-foreground text-sm">{t("updating")}</span>
                   </div>
@@ -202,7 +201,7 @@ export const CreatedTasksPage = () => {
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : table.hasError ? (
-                <p className="text-destructive py-8 text-center text-sm">
+                <p className="py-8 text-center text-destructive text-sm">
                   {t("createdTasks.loadError")}
                 </p>
               ) : (
@@ -227,6 +226,7 @@ export const CreatedTasksPage = () => {
                   manualPagination
                   pageCount={table.totalPages}
                   rowCount={table.totalCount}
+                  pageIndex={table.page - 1}
                   onPaginationChange={(pag) => {
                     if (pag.pageSize !== table.pageSize) {
                       table.setPageSize(pag.pageSize);

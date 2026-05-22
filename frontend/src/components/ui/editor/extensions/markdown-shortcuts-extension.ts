@@ -1,4 +1,3 @@
-import { defineExtension } from "lexical";
 import {
   CHECK_LIST,
   ELEMENT_TRANSFORMERS,
@@ -7,6 +6,7 @@ import {
   TEXT_FORMAT_TRANSFORMERS,
   TEXT_MATCH_TRANSFORMERS,
 } from "@lexical/markdown";
+import { defineExtension } from "lexical";
 
 import { EMOJI } from "@/components/ui/editor/transformers/markdown-emoji-transformer";
 import { HR } from "@/components/ui/editor/transformers/markdown-hr-transformer";

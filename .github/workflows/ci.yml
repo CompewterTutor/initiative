@@ -184,7 +184,7 @@ jobs:
         if: steps.filter.outputs.skip != 'true'
         run: |
           cd frontend
-          pnpm check
+          pnpm typecheck
 
       - name: Run tests
         if: steps.filter.outputs.skip != 'true'

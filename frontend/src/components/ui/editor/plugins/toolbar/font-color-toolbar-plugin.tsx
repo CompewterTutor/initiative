@@ -1,17 +1,17 @@
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import { $getSelectionStyleValueForProperty, $patchStyleText } from "@lexical/selection";
 import {
   $getSelection,
   $isRangeSelection,
   $setSelection,
-  BaseSelection,
-  RangeSelection,
+  type BaseSelection,
+  type RangeSelection,
 } from "lexical";
 import { BaselineIcon } from "lucide-react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const EditorColorPickerContent = lazy(() => import("./editor-color-picker-content"));

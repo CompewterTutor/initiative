@@ -1,8 +1,10 @@
 import "i18next";
 
+import type access from "../../public/locales/en/access.json";
 import type auth from "../../public/locales/en/auth.json";
 import type command from "../../public/locales/en/command.json";
 import type common from "../../public/locales/en/common.json";
+import type counters from "../../public/locales/en/counters.json";
 import type dashboard from "../../public/locales/en/dashboard.json";
 import type dates from "../../public/locales/en/dates.json";
 import type documents from "../../public/locales/en/documents.json";
@@ -30,9 +32,11 @@ declare module "i18next" {
     returnNull: false;
     returnObjects: false;
     resources: {
+      access: typeof access;
       auth: typeof auth;
       command: typeof command;
       common: typeof common;
+      counters: typeof counters;
       dashboard: typeof dashboard;
       dates: typeof dates;
       documents: typeof documents;

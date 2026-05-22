@@ -1,23 +1,19 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Navigate, useParams, useRouter } from "@tanstack/react-router";
 import {
+  ListTodo,
   Loader2,
   ScrollText,
-  ListTodo,
   SearchX,
-  SquareCheckBig,
   Settings,
-  Trash2,
+  SquareCheckBig,
   TagIcon,
+  Trash2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import { StatusMessage } from "@/components/StatusMessage";
-import { useTag, useTagEntities, useDeleteTag, useUpdateTag } from "@/hooks/useTags";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+import { TagTasksTable } from "@/components/tasks/TagTasksTable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,10 +25,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagTasksTable } from "@/components/tasks/TagTasksTable";
-import { ProjectsView } from "@/pages/ProjectsPage";
+import { useDeleteTag, useTag, useTagEntities, useUpdateTag } from "@/hooks/useTags";
+import { toast } from "@/lib/chesterToast";
 import { DocumentsView } from "@/pages/DocumentsPage";
+import { ProjectsView } from "@/pages/ProjectsPage";
 
 export const TagDetailPage = () => {
   const { t } = useTranslation(["tags", "common"]);
@@ -66,7 +66,7 @@ export const TagDetailPage = () => {
   if (tagLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -156,7 +156,7 @@ export const TagDetailPage = () => {
               </div>
             ) : (
               <>
-                <h1 className="text-3xl font-semibold tracking-tight">{tag.name}</h1>
+                <h1 className="font-semibold text-3xl tracking-tight">{tag.name}</h1>
                 <p className="text-muted-foreground text-sm">
                   {t("detail.taggedItems", { count: totalCount })}
                 </p>

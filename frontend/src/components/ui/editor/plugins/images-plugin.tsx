@@ -1,13 +1,13 @@
-import { JSX, useEffect, useRef, useState } from "react";
 import { createCommand, type LexicalCommand, type LexicalEditor } from "lexical";
+import { type JSX, useEffect, useRef, useState } from "react";
 
-import { type ImagePayload } from "@/components/ui/editor/nodes/image-node";
-import { uploadAttachment } from "@/lib/attachmentUtils";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
+import type { ImagePayload } from "@/components/ui/editor/nodes/image-node";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { uploadAttachment } from "@/lib/attachmentUtils";
 
 export type InsertImagePayload = Readonly<ImagePayload>;
 

@@ -1,5 +1,5 @@
-import { JSX, useState } from "react";
 import { createCommand, type LexicalCommand, type LexicalEditor, type NodeKey } from "lexical";
+import { type JSX, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {

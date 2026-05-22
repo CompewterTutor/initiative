@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { OidcClaimMappingsSection } from "@/components/admin/OidcClaimMappingsSection";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +16,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useOidcSettings, useUpdateOidcSettings } from "@/hooks/useSettings";
-import { OidcClaimMappingsSection } from "@/components/admin/OidcClaimMappingsSection";
 
 interface OidcSettings {
   enabled: boolean;
@@ -98,11 +98,11 @@ export const SettingsAuthPage = () => {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="bg-muted/40 flex items-center justify-between rounded-md border px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
               <div>
                 <Label
                   htmlFor="oidc-enabled"
-                  className="flex items-center gap-2 text-base font-medium"
+                  className="flex items-center gap-2 font-medium text-base"
                 >
                   {t("auth.enabledLabel")}
                 </Label>
@@ -176,20 +176,20 @@ export const SettingsAuthPage = () => {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="text-muted-foreground flex flex-col gap-2 text-sm">
+        <CardFooter className="flex flex-col gap-2 text-muted-foreground text-sm">
           <div>
             {t("auth.callbackUrl")}{" "}
-            <code className="bg-muted rounded px-1 py-0.5">{oidcQuery.data.redirect_uri}</code>
+            <code className="rounded bg-muted px-1 py-0.5">{oidcQuery.data.redirect_uri}</code>
           </div>
           <div>
             {t("auth.postLoginRedirect")}{" "}
-            <code className="bg-muted rounded px-1 py-0.5">
+            <code className="rounded bg-muted px-1 py-0.5">
               {oidcQuery.data.post_login_redirect}
             </code>
           </div>
           <div>
             {t("auth.mobileCallback")}{" "}
-            <code className="bg-muted rounded px-1 py-0.5">
+            <code className="rounded bg-muted px-1 py-0.5">
               {oidcQuery.data.mobile_redirect_uri}
             </code>
           </div>

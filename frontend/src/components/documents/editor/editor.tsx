@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useRef } from "react";
 import { CodeExtension } from "@lexical/code";
 import { CodePrismExtension } from "@lexical/code-prism";
 import {
@@ -32,19 +31,11 @@ import {
   type EditorState,
   type SerializedEditorState,
 } from "lexical";
-import * as Y from "yjs";
-
 import { Loader2 } from "lucide-react";
+import { useMemo, useRef } from "react";
+import type * as Y from "yjs";
 
-import { editorTheme } from "@/components/ui/editor/themes/editor-theme";
-import { TooltipProvider } from "@/components/ui/tooltip";
-
-import { EmbedNode } from "@/components/ui/editor/nodes/embed-node";
-import { TweetNode } from "@/components/ui/editor/nodes/embeds/tweet-node";
-import { YouTubeNode } from "@/components/ui/editor/nodes/embeds/youtube-node";
-import { MentionNode } from "@/components/ui/editor/nodes/mention-node";
-import { WikilinkNode } from "@/components/ui/editor/nodes/wikilink-node";
-
+import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
 import { EmojisExtension } from "@/components/ui/editor/extensions/emojis-extension";
 import { HeadingAnchorExtension } from "@/components/ui/editor/extensions/heading-anchor-extension";
 import { ImagesExtension } from "@/components/ui/editor/extensions/images-extension";
@@ -52,14 +43,20 @@ import { KeywordsExtension } from "@/components/ui/editor/extensions/keywords-ex
 import { LayoutExtension } from "@/components/ui/editor/extensions/layout-extension";
 import { ListMaxIndentLevelExtension } from "@/components/ui/editor/extensions/list-max-indent-level-extension";
 import { MarkdownShortcutsExtension } from "@/components/ui/editor/extensions/markdown-shortcuts-extension";
-
+import { EmbedNode } from "@/components/ui/editor/nodes/embed-node";
+import { TweetNode } from "@/components/ui/editor/nodes/embeds/tweet-node";
+import { YouTubeNode } from "@/components/ui/editor/nodes/embeds/youtube-node";
+import { MentionNode } from "@/components/ui/editor/nodes/mention-node";
+import { WikilinkNode } from "@/components/ui/editor/nodes/wikilink-node";
+import { editorTheme } from "@/components/ui/editor/themes/editor-theme";
 import { validateUrl } from "@/components/ui/editor/utils/url";
-import { Plugins } from "./plugins";
-import { cn } from "@/lib/utils";
-import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
-import type { CollaborationProvider } from "@/lib/yjs/CollaborationProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserColorHsl } from "@/lib/userColor";
+import { cn } from "@/lib/utils";
+import type { CollaborationProvider } from "@/lib/yjs/CollaborationProvider";
+
+import { Plugins } from "./plugins";
 
 const URL_REGEX =
   /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)(?<![-.+():%])/;
@@ -201,13 +198,13 @@ export function Editor({
   return (
     <div
       className={cn(
-        "bg-background relative scroll-pb-14 overflow-y-auto rounded-lg border shadow",
+        "relative scroll-pb-14 overflow-y-auto rounded-lg border bg-background shadow",
         className
       )}
     >
       {showSyncingOverlay && (
-        <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center">
-          <div className="text-muted-foreground flex items-center gap-2">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>Syncing document...</span>
           </div>

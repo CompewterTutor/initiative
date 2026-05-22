@@ -116,7 +116,7 @@ export function buildPropertyColumns<T>(
       // (``property:Status``).
       meta: { label },
       header: () => (
-        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground text-xs">
           <Icon className="h-3.5 w-3.5" aria-hidden />
           <span className="truncate">{label}</span>
         </span>

@@ -1,5 +1,3 @@
-import { useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import {
   addDays,
   addMonths,
@@ -28,17 +26,19 @@ import {
   Grid3X3,
   List,
 } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { PropertySummary } from "@/api/generated/initiativeAPI.schemas";
+import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
+import { nonEmptyPropertySummaries } from "@/components/properties/propertyHelpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
-import { nonEmptyPropertySummaries } from "@/components/properties/propertyHelpers";
 import { getInitials } from "@/lib/initials";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 import { cn } from "@/lib/utils";
-import type { PropertySummary } from "@/api/generated/initiativeAPI.schemas";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -253,14 +253,13 @@ function CalendarHeader({
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">{t("common:next")}</span>
         </Button>
-        <p className="text-lg font-semibold capitalize">{periodLabel}</p>
+        <p className="font-semibold text-lg capitalize">{periodLabel}</p>
       </div>
 
       {/* Right: view mode switcher */}
       <TooltipProvider delayDuration={300}>
-        <div
-          className="bg-muted flex items-center gap-0.5 rounded-lg p-1"
-          role="group"
+        <fieldset
+          className="flex items-center gap-0.5 rounded-lg bg-muted p-1"
           aria-label={t("common:calendar.viewMode")}
         >
           {VIEW_MODE_CONFIG.filter(({ mode }) => !(hideListView && mode === "list")).map(
@@ -271,8 +270,8 @@ function CalendarHeader({
                     type="button"
                     aria-pressed={viewMode === mode}
                     className={cn(
-                      "inline-flex items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                      "hover:text-accent-foreground focus-visible:ring-ring focus-visible:ring-1 focus-visible:outline-none",
+                      "inline-flex items-center justify-center rounded-md px-2 py-1.5 font-medium text-sm transition-colors",
+                      "hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                       viewMode === mode
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-accent/50"
@@ -287,7 +286,7 @@ function CalendarHeader({
               </Tooltip>
             )
           )}
-        </div>
+        </fieldset>
       </TooltipProvider>
     </div>
   );
@@ -434,7 +433,7 @@ function MonthView({
     <div className="space-y-2 overflow-x-auto sm:overflow-visible">
       <div className="min-w-[700px] sm:min-w-0">
         {/* Weekday headers */}
-        <div className="text-muted-foreground grid grid-cols-7 text-center text-[11px] font-semibold uppercase sm:text-xs">
+        <div className="grid grid-cols-7 text-center font-semibold text-[11px] text-muted-foreground uppercase sm:text-xs">
           {weekdayLabels.map((day) => (
             <div key={day} className="py-2">
               {day}
@@ -443,7 +442,7 @@ function MonthView({
         </div>
 
         {/* Week rows */}
-        <div className="bg-border space-y-px rounded-lg border">
+        <div className="space-y-px rounded-lg border bg-border">
           {weekRows.map((week, weekIdx) => {
             const { spans, singleDay, maxLane } = weekPlacements[weekIdx];
             const spanAreaHeight = maxLane * (SPAN_BAR_HEIGHT + SPAN_BAR_GAP);
@@ -459,14 +458,15 @@ function MonthView({
                     const overflow = daySingles.length - MAX_VISIBLE_ENTRIES;
 
                     return (
+                      // biome-ignore lint/a11y/noStaticElementInteractions: role is set if interactive
                       <div
                         key={key}
                         role={onSlotClick ? "button" : undefined}
                         tabIndex={onSlotClick ? 0 : undefined}
                         className={cn(
-                          "bg-card flex flex-col gap-0.5 p-1.5 text-left text-xs",
+                          "flex flex-col gap-0.5 bg-card p-1.5 text-left text-xs",
                           !isSameMonth(day, focusDate) && "bg-muted/40 text-muted-foreground",
-                          isToday(day) && "ring-primary/80 ring-2",
+                          isToday(day) && "ring-2 ring-primary/80",
                           onSlotClick && "cursor-pointer"
                         )}
                         style={{ minHeight: 80 + spanAreaHeight }}
@@ -486,9 +486,9 @@ function MonthView({
                         }}
                       >
                         <div className="flex items-center justify-between" data-slot="day-number">
-                          <span className="text-sm font-medium">{format(day, "d")}</span>
+                          <span className="font-medium text-sm">{format(day, "d")}</span>
                           {isToday(day) && (
-                            <span className="text-primary text-[10px] font-semibold uppercase">
+                            <span className="font-semibold text-[10px] text-primary uppercase">
                               {t("common:calendar.today")}
                             </span>
                           )}
@@ -505,7 +505,7 @@ function MonthView({
                               className={cn(
                                 "flex w-full items-center gap-1 text-left text-[11px] leading-tight",
                                 onEntryClick
-                                  ? "hover:bg-accent cursor-pointer rounded px-0.5"
+                                  ? "cursor-pointer rounded px-0.5 hover:bg-accent"
                                   : "cursor-default"
                               )}
                               onClick={(e) => {
@@ -517,7 +517,7 @@ function MonthView({
                                 className="h-2 w-2 shrink-0 rounded-full"
                                 style={{ backgroundColor: entry.color || "var(--primary)" }}
                               />
-                              <span className="text-muted-foreground shrink-0 text-[10px]">
+                              <span className="shrink-0 text-[10px] text-muted-foreground">
                                 {entry.allDay ? "" : formatTime(start)}
                               </span>
                               <span className="truncate">{entry.title}</span>
@@ -525,7 +525,7 @@ function MonthView({
                           );
                         })}
                         {overflow > 0 && (
-                          <p className="text-muted-foreground text-[10px]">
+                          <p className="text-[10px] text-muted-foreground">
                             {t("common:calendar.more", { count: overflow })}
                           </p>
                         )}
@@ -546,7 +546,7 @@ function MonthView({
                       key={`${span.entry.id}-${dateKey(week[span.startCol])}`}
                       type="button"
                       className={cn(
-                        "absolute z-10 flex items-center gap-1 overflow-hidden rounded px-2 text-[11px] font-medium text-white",
+                        "absolute z-10 flex items-center gap-1 overflow-hidden rounded px-2 font-medium text-[11px] text-white",
                         onEntryClick ? "cursor-pointer hover:brightness-90" : "cursor-default"
                       )}
                       style={{
@@ -677,7 +677,7 @@ function WeekView({
               <div
                 key={dateKey(day)}
                 className={cn(
-                  "flex flex-col items-center py-2 text-xs font-medium",
+                  "flex flex-col items-center py-2 font-medium text-xs",
                   isToday(day) && "text-primary"
                 )}
               >
@@ -686,7 +686,7 @@ function WeekView({
                 </span>
                 <span
                   className={cn(
-                    "mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold",
+                    "mt-0.5 flex h-7 w-7 items-center justify-center rounded-full font-semibold text-sm",
                     isToday(day) && "bg-primary text-primary-foreground"
                   )}
                 >
@@ -700,7 +700,7 @@ function WeekView({
         {/* All-day / multi-day spanning bar area */}
         {allSpans.spans.length > 0 && (
           <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b">
-            <div className="text-muted-foreground flex items-start justify-end pt-1 pr-2 text-[10px]">
+            <div className="flex items-start justify-end pt-1 pr-2 text-[10px] text-muted-foreground">
               {t("common:calendar.allDay")}
             </div>
             <div className="relative col-span-7" style={{ height: spanAreaHeight + 4 }}>
@@ -713,7 +713,7 @@ function WeekView({
                     key={`${span.entry.id}-${span.startCol}`}
                     type="button"
                     className={cn(
-                      "absolute z-10 flex items-center gap-1 overflow-hidden rounded px-2 text-[11px] font-medium text-white",
+                      "absolute z-10 flex items-center gap-1 overflow-hidden rounded px-2 font-medium text-[11px] text-white",
                       onEntryClick ? "cursor-pointer hover:brightness-90" : "cursor-default"
                     )}
                     style={{
@@ -743,7 +743,7 @@ function WeekView({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="text-muted-foreground flex items-start justify-end border-b pt-1 pr-2 text-[10px]"
+                className="flex items-start justify-end border-b pt-1 pr-2 text-[10px] text-muted-foreground"
                 style={{ height: ROW_HEIGHT }}
               >
                 {formatHourLabel(hour)}
@@ -795,9 +795,10 @@ function WeekView({
               <div key={key} className="relative border-l">
                 {/* Hour slot backgrounds */}
                 {hours.map((hour) => (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: role is set if interactive
                   <div
                     key={hour}
-                    className={cn("border-b", onSlotClick && "hover:bg-accent/30 cursor-pointer")}
+                    className={cn("border-b", onSlotClick && "cursor-pointer hover:bg-accent/30")}
                     style={{ height: ROW_HEIGHT }}
                     role={onSlotClick ? "button" : undefined}
                     tabIndex={onSlotClick ? 0 : undefined}
@@ -849,7 +850,7 @@ function WeekView({
                       <div className="flex flex-col px-1.5 py-0.5">
                         <span className="truncate font-medium">{block.entry.title}</span>
                         {height >= 32 && (
-                          <span className="text-muted-foreground text-[10px]">
+                          <span className="text-[10px] text-muted-foreground">
                             {formatTime(parseEntry(block.entry).start)} –{" "}
                             {formatTime(parseEntry(block.entry).end)}
                           </span>
@@ -943,7 +944,7 @@ function DayView({
       {/* All-day section */}
       {allDayEntries.length > 0 ? (
         <div className="space-y-1 border-b pb-3">
-          <p className="text-muted-foreground text-xs font-semibold uppercase">
+          <p className="font-semibold text-muted-foreground text-xs uppercase">
             {t("common:calendar.allDay")}
           </p>
           {allDayEntries.map((entry) => (
@@ -951,7 +952,7 @@ function DayView({
               key={entry.id}
               type="button"
               className={cn(
-                "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] font-medium text-white transition-colors",
+                "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left font-medium text-[11px] text-white transition-colors",
                 onEntryClick ? "cursor-pointer hover:brightness-90" : "cursor-default"
               )}
               style={{
@@ -972,7 +973,7 @@ function DayView({
           {hours.map((hour) => (
             <div
               key={hour}
-              className="text-muted-foreground flex items-start justify-end border-b pt-1 pr-3 text-[10px]"
+              className="flex items-start justify-end border-b pt-1 pr-3 text-[10px] text-muted-foreground"
               style={{ height: ROW_HEIGHT }}
             >
               {formatHourLabel(hour)}
@@ -984,9 +985,10 @@ function DayView({
         <div className="relative border-l">
           {/* Clickable hour slot backgrounds */}
           {hours.map((hour) => (
+            // biome-ignore lint/a11y/noStaticElementInteractions: role is set if interactive
             <div
               key={hour}
-              className={cn("border-b", onSlotClick && "hover:bg-accent/30 cursor-pointer")}
+              className={cn("border-b", onSlotClick && "cursor-pointer hover:bg-accent/30")}
               style={{ height: ROW_HEIGHT }}
               role={onSlotClick ? "button" : undefined}
               tabIndex={onSlotClick ? 0 : undefined}
@@ -1037,7 +1039,7 @@ function DayView({
               >
                 <div className="flex flex-col px-2 py-1">
                   <span className="truncate font-medium">{block.entry.title}</span>
-                  <span className="text-muted-foreground text-[10px]">
+                  <span className="text-[10px] text-muted-foreground">
                     {formatTime(parseEntry(block.entry).start)} –{" "}
                     {formatTime(parseEntry(block.entry).end)}
                   </span>
@@ -1106,11 +1108,11 @@ function YearView({
 
         return (
           <div key={monthIndex} className="space-y-1">
-            <p className="text-sm font-semibold">{t(`dates:months.${monthIndex}`)}</p>
+            <p className="font-semibold text-sm">{t(`dates:months.${monthIndex}`)}</p>
             {/* Mini weekday header */}
             <div className="grid grid-cols-7 text-center">
-              {weekdayLabelsShort.map((label, i) => (
-                <div key={i} className="text-muted-foreground py-0.5 text-[9px] font-medium">
+              {weekdayLabelsShort.map((label) => (
+                <div key={label} className="py-0.5 font-medium text-[9px] text-muted-foreground">
                   {label}
                 </div>
               ))}
@@ -1130,7 +1132,7 @@ function YearView({
                       "relative flex h-8 w-full flex-col items-center justify-start gap-0 rounded pt-0.5 text-[10px] transition-colors",
                       !inMonth && "text-transparent",
                       inMonth && "hover:bg-accent",
-                      isToday(day) && inMonth && "bg-primary text-primary-foreground font-bold"
+                      isToday(day) && inMonth && "bg-primary font-bold text-primary-foreground"
                     )}
                     disabled={!inMonth}
                     tabIndex={inMonth ? 0 : -1}
@@ -1144,7 +1146,7 @@ function YearView({
                       <div className="flex gap-px">
                         {dayEntries.slice(0, 3).map((entry, i) => (
                           <span
-                            key={i}
+                            key={entry.id}
                             className="h-1 w-1 rounded-full"
                             style={{ backgroundColor: entry.color || "var(--primary)" }}
                           />
@@ -1153,7 +1155,7 @@ function YearView({
                     )}
                     {inMonth && dayEntries.length > 3 && (
                       <span
-                        className="rounded-full px-1 text-[7px] leading-tight font-bold text-white"
+                        className="rounded-full px-1 font-bold text-[7px] text-white leading-tight"
                         style={{ backgroundColor: "var(--primary)" }}
                       >
                         {dayEntries.length}
@@ -1222,7 +1224,7 @@ function ListView({
 
   if (rows.length === 0) {
     return (
-      <div className="text-muted-foreground flex flex-col items-center justify-center py-12 text-sm">
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm">
         <Clock className="mb-2 h-8 w-8 opacity-50" />
         <p>{t("common:calendar.noEntries")}</p>
       </div>
@@ -1244,23 +1246,23 @@ function ListView({
               type="button"
               className={cn(
                 "flex w-full items-start gap-4 rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
-                isToday(displayDate) && "ring-primary/60 ring-1",
-                onEntryClick ? "hover:bg-accent cursor-pointer" : "cursor-default"
+                isToday(displayDate) && "ring-1 ring-primary/60",
+                onEntryClick ? "cursor-pointer hover:bg-accent" : "cursor-default"
               )}
               onClick={() => onEntryClick?.(entry)}
             >
               {/* Date column: day + month */}
               <div className="flex w-14 shrink-0 flex-col items-center pt-0.5 leading-tight">
-                <span className="text-lg font-bold">{day}</span>
-                <span className="text-muted-foreground text-[11px] uppercase">{month}</span>
+                <span className="font-bold text-lg">{day}</span>
+                <span className="text-[11px] text-muted-foreground uppercase">{month}</span>
               </div>
 
               {/* Weekday name */}
-              <span className="text-muted-foreground w-24 shrink-0 pt-1 text-xs">{weekday}</span>
+              <span className="w-24 shrink-0 pt-1 text-muted-foreground text-xs">{weekday}</span>
 
               {/* Color dot */}
               <span
-                className="bg-muted-foreground mt-1.5 h-3 w-3 shrink-0 rounded-full"
+                className="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-muted-foreground"
                 style={{ backgroundColor: entry.color || undefined }}
                 aria-hidden="true"
               />
@@ -1269,7 +1271,7 @@ function ListView({
               <div className="min-w-0 flex-1">
                 <span className="truncate font-medium">{entry.title}</span>
                 {entry.description && (
-                  <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
+                  <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
                     {entry.description}
                   </p>
                 )}
@@ -1300,8 +1302,8 @@ function ListView({
                           resolveUploadUrl(att.avatarUrl) || att.avatarBase64 || undefined;
                         return (
                           <Avatar
-                            key={i}
-                            className="border-card h-6 w-6 border-2 text-[9px] font-semibold uppercase"
+                            key={att.userId}
+                            className="h-6 w-6 border-2 border-card font-semibold text-[9px] uppercase"
                           >
                             {src ? <AvatarImage src={src} alt={att.name} /> : null}
                             <AvatarFallback userId={att.userId}>
@@ -1311,7 +1313,7 @@ function ListView({
                         );
                       })}
                       {entry.attendees.length > 4 && (
-                        <Avatar className="border-card h-6 w-6 border-2 text-[9px] font-semibold">
+                        <Avatar className="h-6 w-6 border-2 border-card font-semibold text-[9px]">
                           <AvatarFallback>+{entry.attendees.length - 4}</AvatarFallback>
                         </Avatar>
                       )}
@@ -1319,8 +1321,8 @@ function ListView({
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     <div className="space-y-0.5 text-xs">
-                      {entry.attendees.map((att, i) => (
-                        <div key={i}>{att.name}</div>
+                      {entry.attendees.map((att) => (
+                        <div key={att.userId}>{att.name}</div>
                       ))}
                     </div>
                   </TooltipContent>
@@ -1328,7 +1330,7 @@ function ListView({
               )}
 
               {/* Time */}
-              <span className="text-muted-foreground shrink-0 pt-1 text-xs">
+              <span className="shrink-0 pt-1 text-muted-foreground text-xs">
                 {entry.allDay || isSpanDay
                   ? t("common:calendar.allDay")
                   : `${formatTime(start)} – ${formatTime(parseEntry(entry).end)}`}
@@ -1359,6 +1361,7 @@ function CalendarSkeleton() {
       </div>
       <div className="grid grid-cols-7 gap-px">
         {Array.from({ length: 35 }).map((_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: This is a static skeleton layout, not dynamic data
           <Skeleton key={i} className="h-28 rounded-none" />
         ))}
       </div>
@@ -1433,14 +1436,14 @@ export const CalendarView = ({
 
   if (isLoading) {
     return (
-      <div className="bg-card space-y-4 rounded-xl border p-4 shadow-sm">
+      <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
         <CalendarSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="bg-card space-y-4 rounded-xl border p-4 shadow-sm">
+    <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
       <CalendarHeader
         viewMode={viewMode}
         onViewModeChange={onViewModeChange}

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
-  getResolvedAiSettingsApiV1SettingsAiResolvedGet,
   getGetResolvedAiSettingsApiV1SettingsAiResolvedGetQueryKey,
+  getResolvedAiSettingsApiV1SettingsAiResolvedGet,
 } from "@/api/generated/ai-settings/ai-settings";
 import type { ResolvedAISettingsResponse } from "@/api/generated/initiativeAPI.schemas";
 

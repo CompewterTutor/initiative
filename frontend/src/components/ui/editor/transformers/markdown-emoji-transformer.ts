@@ -1,4 +1,4 @@
-import { TextMatchTransformer } from "@lexical/markdown";
+import type { TextMatchTransformer } from "@lexical/markdown";
 import { $createTextNode } from "lexical";
 
 import emojiList from "@/components/ui/editor/utils/emoji-list";

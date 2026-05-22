@@ -1,5 +1,5 @@
+import EmojiPickerBase, { type EmojiClickData, EmojiStyle, Theme } from "emoji-picker-react";
 import { useEffect, useRef, useState } from "react";
-import EmojiPickerBase, { EmojiClickData, Theme, EmojiStyle } from "emoji-picker-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export const EmojiPicker = ({
         </Button>
       ) : null}
       {open ? (
-        <div className="bg-background absolute top-full left-0 z-20 mt-2 w-full min-w-[16rem] rounded-md border p-2 shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-2 w-full min-w-[16rem] rounded-md border bg-background p-2 shadow-lg">
           <EmojiPickerBase
             onEmojiClick={handleEmojiClick}
             theme={Theme.AUTO}

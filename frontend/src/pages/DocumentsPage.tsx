@@ -1,46 +1,46 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SortingState } from "@tanstack/react-table";
 import { useRouter, useSearch } from "@tanstack/react-router";
+import type { SortingState } from "@tanstack/react-table";
 import { LayoutGrid, Loader2, Plus, Table, Tags } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  useDocumentsList,
-  useDocumentCounts,
-  useDeleteDocument,
-  useCopyDocument,
-  usePrefetchDocumentsList,
-} from "@/hooks/useDocuments";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { getItem, setItem } from "@/lib/storage";
-import { useGuildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DocumentCard } from "@/components/documents/DocumentCard";
-import { CreateDocumentDialog } from "@/components/documents/CreateDocumentDialog";
-import { BulkEditTagsDialog } from "@/components/documents/BulkEditTagsDialog";
-import { BulkEditAccessDialog } from "@/components/documents/BulkEditAccessDialog";
-import { DocumentsFilterBar } from "@/components/documents/DocumentsFilterBar";
-import { DocumentsTagsView } from "@/components/documents/DocumentsTagsView";
-import { DocumentsListView } from "@/components/documents/DocumentsListView";
-import { PaginationBar } from "@/components/documents/PaginationBar";
-import { useAuth } from "@/hooks/useAuth";
-import { useGuilds } from "@/hooks/useGuilds";
-import {
-  useMyInitiativePermissions,
-  canCreate as canCreatePermission,
-} from "@/hooks/useInitiativeRoles";
 import type {
   DocumentSummary,
   ListDocumentsApiV1DocumentsGetParams,
   TagRead,
   TagSummary,
 } from "@/api/generated/initiativeAPI.schemas";
+import { BulkEditAccessDialog } from "@/components/documents/BulkEditAccessDialog";
+import { BulkEditTagsDialog } from "@/components/documents/BulkEditTagsDialog";
+import { CreateDocumentDialog } from "@/components/documents/CreateDocumentDialog";
+import { DocumentCard } from "@/components/documents/DocumentCard";
+import { DocumentsFilterBar } from "@/components/documents/DocumentsFilterBar";
+import { DocumentsListView } from "@/components/documents/DocumentsListView";
+import { DocumentsTagsView } from "@/components/documents/DocumentsTagsView";
+import { PaginationBar } from "@/components/documents/PaginationBar";
 import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
 import { UNTAGGED_PATH } from "@/components/tags/TagTreeView";
-import { buildTagTree, collectDescendantTagIds, findNodeByPath } from "@/lib/tagTree";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  useCopyDocument,
+  useDeleteDocument,
+  useDocumentCounts,
+  useDocumentsList,
+  usePrefetchDocumentsList,
+} from "@/hooks/useDocuments";
+import { useGuilds } from "@/hooks/useGuilds";
+import {
+  canCreate as canCreatePermission,
+  useMyInitiativePermissions,
+} from "@/hooks/useInitiativeRoles";
+import { useInitiatives } from "@/hooks/useInitiatives";
 import { useTags } from "@/hooks/useTags";
+import { useGuildPath } from "@/lib/guildUrl";
+import { getItem, setItem } from "@/lib/storage";
+import { buildTagTree, collectDescendantTagIds, findNodeByPath } from "@/lib/tagTree";
 
 const INITIATIVE_FILTER_ALL = "all";
 const DOCUMENT_VIEW_KEY = "documents:view-mode";
@@ -277,19 +277,11 @@ export const DocumentsView = ({
   const queryTagIds = viewMode === "tags" ? treeTagIds : effectiveTagFilters;
 
   // Reset to page 1 when filters or view mode change
-  const queryTagIdsKey = JSON.stringify(queryTagIds);
+  const _queryTagIdsKey = JSON.stringify(queryTagIds);
   const propertyFiltersKey = JSON.stringify(propertyFilters);
   useEffect(() => {
     setPage(1);
-  }, [
-    viewMode,
-    initiativeFilter,
-    searchQuery,
-    queryTagIdsKey,
-    treeWantsUntagged,
-    propertyFiltersKey,
-    setPage,
-  ]);
+  }, [setPage]);
 
   // Serialize property filters for the backend query string. The backend
   // expects a JSON-encoded array on ``property_filters`` and we pre-encode
@@ -554,7 +546,7 @@ export const DocumentsView = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-baseline gap-4">
-              <h1 className="text-3xl font-semibold tracking-tight">{t("page.title")}</h1>
+              <h1 className="font-semibold text-3xl tracking-tight">{t("page.title")}</h1>
               {canCreateDocuments ? (
                 <Button size="sm" variant="outline" onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -645,7 +637,7 @@ export const DocumentsView = ({
           </CardHeader>
         </Card>
       ) : documentsQuery.isLoading ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("page.loading")}
         </div>
@@ -708,6 +700,7 @@ export const DocumentsView = ({
             totalPages={totalPages}
             totalCount={totalCount}
             pageSize={pageSize}
+            page={page}
             onPageSizeChange={handlePageSizeChange}
             onPageChange={setPage}
             onPrefetchPage={prefetchPage}
@@ -758,7 +751,7 @@ export const DocumentsView = ({
       {canCreateDocuments ? (
         <Button
           type="button"
-          className="shadow-primary/40 fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg"
+          className="fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg shadow-primary/40"
           onClick={() => setCreateDialogOpen(true)}
         >
           <Plus className="h-4 w-4" />

@@ -1,5 +1,5 @@
-import { memo, useMemo } from "react";
 import { formatDistance, isPast } from "date-fns";
+import { memo, useMemo } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDateLocale } from "@/hooks/useDateLocale";

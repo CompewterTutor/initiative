@@ -1,26 +1,41 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import type {
+  EmailSettingsResponse,
+  EmailSettingsUpdate,
+  FCMConfigResponse,
+  GetChangelogApiV1ChangelogGetParams,
+  InterfaceSettingsResponse,
+  InterfaceSettingsUpdate,
+  OIDCClaimMappingCreate,
+  OIDCClaimMappingRead,
+  OIDCClaimMappingUpdate,
+  OIDCClaimPathUpdate,
+  OIDCMappingsResponse,
+  OIDCSettingsResponse,
+  OIDCSettingsUpdate,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
-  getOidcSettingsApiV1SettingsAuthGet,
-  getGetOidcSettingsApiV1SettingsAuthGetQueryKey,
-  updateOidcSettingsApiV1SettingsAuthPut,
-  getOidcMappingsApiV1SettingsOidcMappingsGet,
-  getGetOidcMappingsApiV1SettingsOidcMappingsGetQueryKey,
-  getOidcMappingOptionsApiV1SettingsOidcMappingsOptionsGet,
-  getGetOidcMappingOptionsApiV1SettingsOidcMappingsOptionsGetQueryKey,
-  updateOidcClaimPathApiV1SettingsOidcMappingsClaimPathPut,
   createOidcMappingApiV1SettingsOidcMappingsPost,
-  updateOidcMappingApiV1SettingsOidcMappingsMappingIdPut,
   deleteOidcMappingApiV1SettingsOidcMappingsMappingIdDelete,
   getEmailSettingsApiV1SettingsEmailGet,
-  getGetEmailSettingsApiV1SettingsEmailGetQueryKey,
-  updateEmailSettingsApiV1SettingsEmailPut,
-  sendTestEmailApiV1SettingsEmailTestPost,
-  getInterfaceSettingsApiV1SettingsInterfaceGet,
-  getGetInterfaceSettingsApiV1SettingsInterfaceGetQueryKey,
-  updateInterfaceSettingsApiV1SettingsInterfacePut,
   getFcmConfigApiV1SettingsFcmConfigGet,
+  getGetEmailSettingsApiV1SettingsEmailGetQueryKey,
   getGetFcmConfigApiV1SettingsFcmConfigGetQueryKey,
+  getGetInterfaceSettingsApiV1SettingsInterfaceGetQueryKey,
+  getGetOidcMappingOptionsApiV1SettingsOidcMappingsOptionsGetQueryKey,
+  getGetOidcMappingsApiV1SettingsOidcMappingsGetQueryKey,
+  getGetOidcSettingsApiV1SettingsAuthGetQueryKey,
+  getInterfaceSettingsApiV1SettingsInterfaceGet,
+  getOidcMappingOptionsApiV1SettingsOidcMappingsOptionsGet,
+  getOidcMappingsApiV1SettingsOidcMappingsGet,
+  getOidcSettingsApiV1SettingsAuthGet,
+  sendTestEmailApiV1SettingsEmailTestPost,
+  updateEmailSettingsApiV1SettingsEmailPut,
+  updateInterfaceSettingsApiV1SettingsInterfacePut,
+  updateOidcClaimPathApiV1SettingsOidcMappingsClaimPathPut,
+  updateOidcMappingApiV1SettingsOidcMappingsMappingIdPut,
+  updateOidcSettingsApiV1SettingsAuthPut,
 } from "@/api/generated/settings/settings";
 import {
   getChangelogApiV1ChangelogGet,
@@ -32,21 +47,6 @@ import {
   invalidateInterfaceSettings,
   invalidateOidcMappings,
 } from "@/api/query-keys";
-import type {
-  OIDCSettingsResponse,
-  OIDCSettingsUpdate,
-  OIDCMappingsResponse,
-  OIDCClaimMappingCreate,
-  OIDCClaimMappingRead,
-  OIDCClaimMappingUpdate,
-  OIDCClaimPathUpdate,
-  EmailSettingsResponse,
-  EmailSettingsUpdate,
-  InterfaceSettingsResponse,
-  InterfaceSettingsUpdate,
-  FCMConfigResponse,
-  GetChangelogApiV1ChangelogGetParams,
-} from "@/api/generated/initiativeAPI.schemas";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 

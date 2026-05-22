@@ -10,9 +10,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+import type { VelocityWeekData } from "@/api/generated/initiativeAPI.schemas";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-import type { VelocityWeekData } from "@/api/generated/initiativeAPI.schemas";
 
 interface VelocityChartProps {
   data: VelocityWeekData[];
@@ -45,7 +46,7 @@ export function VelocityChart({ data }: VelocityChartProps) {
           <CardDescription>{t("velocity.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+          <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
             {t("velocity.noData")}
           </div>
         </CardContent>

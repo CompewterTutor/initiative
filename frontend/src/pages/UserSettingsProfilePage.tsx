@@ -1,8 +1,7 @@
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { useUpdateCurrentUser } from "@/hooks/useUsers";
+import type { UserRead, UserSelfUpdate } from "@/api/generated/initiativeAPI.schemas";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUpdateCurrentUser } from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
 import { getInitials } from "@/lib/initials";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
-import type { UserRead, UserSelfUpdate } from "@/api/generated/initiativeAPI.schemas";
 
 const dataUrl = (value?: string | null) => {
   if (!value) {
@@ -100,7 +100,7 @@ export const UserSettingsProfilePage = ({ user, refreshUser }: UserSettingsProfi
           <AvatarFallback userId={user.id}>{initials}</AvatarFallback>
         </Avatar>
         <div>
-          <p className="text-lg font-semibold">{user.full_name || user.email}</p>
+          <p className="font-semibold text-lg">{user.full_name || user.email}</p>
           <p className="text-muted-foreground text-sm">{t("profile.subtitle")}</p>
         </div>
       </div>

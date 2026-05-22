@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+
+import type { ProjectRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { TagPicker } from "@/components/tags";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TabsContent } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { useSetProjectTags } from "@/hooks/useTags";
-import type { ProjectRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
-import { TabsContent } from "@/components/ui/tabs";
 
 interface ProjectSettingsDetailsTabProps {
   project: ProjectRead;
@@ -70,7 +71,7 @@ export const ProjectSettingsDetailsTab = ({
         <CardContent className="space-y-8">
           <div className="space-y-3">
             <div className="space-y-1">
-              <h3 className="text-base font-medium">{t("settings.details.identityHeading")}</h3>
+              <h3 className="font-medium text-base">{t("settings.details.identityHeading")}</h3>
               <p className="text-muted-foreground text-sm">
                 {t("settings.details.identityDescription")}
               </p>
@@ -135,11 +136,11 @@ export const ProjectSettingsDetailsTab = ({
             )}
           </div>
 
-          <div className="bg-border h-px" />
+          <div className="h-px bg-border" />
 
           <div className="space-y-3">
             <div className="space-y-1">
-              <h3 className="text-base font-medium">{t("settings.details.descriptionHeading")}</h3>
+              <h3 className="font-medium text-base">{t("settings.details.descriptionHeading")}</h3>
               <p className="text-muted-foreground text-sm">
                 {t("settings.details.descriptionDescription")}
               </p>
@@ -179,11 +180,11 @@ export const ProjectSettingsDetailsTab = ({
             )}
           </div>
 
-          <div className="bg-border h-px" />
+          <div className="h-px bg-border" />
 
           <div className="space-y-3">
             <div className="space-y-1">
-              <h3 className="text-base font-medium">{t("settings.details.tagsHeading")}</h3>
+              <h3 className="font-medium text-base">{t("settings.details.tagsHeading")}</h3>
               <p className="text-muted-foreground text-sm">
                 {t("settings.details.tagsDescription")}
               </p>

@@ -1,9 +1,10 @@
+import { formatDistanceToNow } from "date-fns";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatDistanceToNow } from "date-fns";
 
-import { Button } from "@/components/ui/button";
+import type { TrashItem, TrashItemEntityType } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Table,
@@ -13,11 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { TrashScope } from "@/hooks/useTrash";
+import { usePurgeTrashEntity, useRestoreTrashEntity, useTrashList } from "@/hooks/useTrash";
 import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
-import { useTrashList, useRestoreTrashEntity, usePurgeTrashEntity } from "@/hooks/useTrash";
-import type { TrashScope } from "@/hooks/useTrash";
-import type { TrashItem, TrashItemEntityType } from "@/api/generated/initiativeAPI.schemas";
 
 import { ReassignOwnerDialog } from "./ReassignOwnerDialog";
 

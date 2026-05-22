@@ -1,25 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearch } from "@tanstack/react-router";
 import { Loader2, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useQueuesList } from "@/hooks/useQueues";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { useGuildPath } from "@/lib/guildUrl";
-import { useAuth } from "@/hooks/useAuth";
-import { useGuilds } from "@/hooks/useGuilds";
-import {
-  useMyInitiativePermissions,
-  canCreate as canCreatePermission,
-} from "@/hooks/useInitiativeRoles";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { QueueCard } from "@/components/initiativeTools/queues/QueueCard";
 import { CreateQueueDialog } from "@/components/initiativeTools/queues/CreateQueueDialog";
+import { QueueCard } from "@/components/initiativeTools/queues/QueueCard";
 import {
   QueuesFilterBar,
   type StatusFilter,
 } from "@/components/initiativeTools/queues/QueuesFilterBar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { useGuilds } from "@/hooks/useGuilds";
+import {
+  canCreate as canCreatePermission,
+  useMyInitiativePermissions,
+} from "@/hooks/useInitiativeRoles";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { useQueuesList } from "@/hooks/useQueues";
+import { useGuildPath } from "@/lib/guildUrl";
 
 const INITIATIVE_FILTER_ALL = "all";
 
@@ -228,7 +228,7 @@ export const QueuesView = ({ fixedInitiativeId, canCreate }: QueuesViewProps) =>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-baseline gap-4">
-              <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+              <h1 className="font-semibold text-3xl tracking-tight">{t("title")}</h1>
               {canCreateQueues && (
                 <Button size="sm" variant="outline" onClick={() => setCreateDialogOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -266,7 +266,7 @@ export const QueuesView = ({ fixedInitiativeId, canCreate }: QueuesViewProps) =>
 
       {/* Content */}
       {queuesQuery.isLoading ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("loading")}
         </div>
@@ -338,7 +338,7 @@ export const QueuesView = ({ fixedInitiativeId, canCreate }: QueuesViewProps) =>
       {canCreateQueues && (
         <Button
           type="button"
-          className="shadow-primary/40 fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg"
+          className="fixed right-6 bottom-6 z-40 h-12 rounded-full px-6 shadow-lg shadow-primary/40"
           onClick={() => setCreateDialogOpen(true)}
         >
           <Plus className="h-4 w-4" />

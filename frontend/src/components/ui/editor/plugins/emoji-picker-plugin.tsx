@@ -1,14 +1,15 @@
-import { useCallback, useMemo, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   LexicalTypeaheadMenuPlugin,
   MenuOption,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { $createTextNode, $getSelection, $isRangeSelection, TextNode } from "lexical";
+import { $createTextNode, $getSelection, $isRangeSelection, type TextNode } from "lexical";
+import { useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+
 import emojiList from "../utils/emoji-list";
 
 class EmojiOption extends MenuOption {
@@ -101,7 +102,6 @@ export function EmojiPickerPlugin() {
       }}
       menuRenderFn={(
         anchorElementRef: { current: Element | DocumentFragment | null },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }: any
       ) => {
         return anchorElementRef.current && options.length

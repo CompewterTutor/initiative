@@ -1,6 +1,6 @@
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/extension";
-import { useTranslation } from "react-i18next";
 import { ScissorsIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { SelectItem } from "@/components/ui/select";

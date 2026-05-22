@@ -1,14 +1,14 @@
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
-import { useEmailSettings, useUpdateEmailSettings, useSendTestEmail } from "@/hooks/useSettings";
+import { useEmailSettings, useSendTestEmail, useUpdateEmailSettings } from "@/hooks/useSettings";
+import { toast } from "@/lib/chesterToast";
 
 interface EmailPayload {
   host?: string | null;

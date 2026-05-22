@@ -1,11 +1,11 @@
-import { useEffect } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getSelection,
-  BaseSelection,
+  type BaseSelection,
   COMMAND_PRIORITY_CRITICAL,
   SELECTION_CHANGE_COMMAND,
 } from "lexical";
+import { useEffect } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 
@@ -13,6 +13,7 @@ export function useUpdateToolbarHandler(callback: (selection: BaseSelection) => 
   const [editor] = useLexicalComposerContext();
   const { activeEditor } = useToolbarContext();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-register only when the lexical editor itself or the callback changes
   useEffect(() => {
     return activeEditor.registerCommand(
       SELECTION_CHANGE_COMMAND,
@@ -25,7 +26,6 @@ export function useUpdateToolbarHandler(callback: (selection: BaseSelection) => 
       },
       COMMAND_PRIORITY_CRITICAL
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, callback]);
 
   useEffect(() => {

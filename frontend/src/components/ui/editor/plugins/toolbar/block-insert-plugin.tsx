@@ -1,5 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { PlusIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useEditorModal } from "@/components/ui/editor/editor-hooks/use-modal";
 import { Select, SelectContent, SelectGroup, SelectTrigger } from "@/components/ui/select";

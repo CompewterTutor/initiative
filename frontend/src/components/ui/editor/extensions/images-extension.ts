@@ -1,4 +1,3 @@
-import { defineExtension } from "lexical";
 import { $wrapNodeInElement, mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
@@ -14,15 +13,16 @@ import {
   DRAGOVER_COMMAND,
   DRAGSTART_COMMAND,
   DROP_COMMAND,
+  defineExtension,
   type LexicalEditor,
 } from "lexical";
 
 import { $createImageNode, $isImageNode, ImageNode } from "@/components/ui/editor/nodes/image-node";
-import { CAN_USE_DOM } from "@/components/ui/editor/shared/can-use-dom";
 import {
   INSERT_IMAGE_COMMAND,
   type InsertImagePayload,
 } from "@/components/ui/editor/plugins/images-plugin";
+import { CAN_USE_DOM } from "@/components/ui/editor/shared/can-use-dom";
 
 const getDOMSelection = (targetWindow: Window | null): Selection | null =>
   CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
@@ -55,13 +55,12 @@ function canDropImage(event: DragEvent): boolean {
     target &&
     target instanceof HTMLElement &&
     !target.closest("code, span.editor-image") &&
-    target.parentElement &&
-    target.parentElement.closest("div.ContentEditable__root")
+    target.parentElement?.closest("div.ContentEditable__root")
   );
 }
 
 function getDragSelection(event: DragEvent): Range | null | undefined {
-  let range;
+  let range: any;
   const target = event.target as null | Element | Document;
   const targetWindow =
     target == null

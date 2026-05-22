@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { TagPicker } from "@/components/tags/TagPicker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagPicker } from "@/components/tags/TagPicker";
-import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 /** Any entity that has an `id` and optional `tags`. */

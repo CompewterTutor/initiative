@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
+import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,7 @@ export function PullToRefresh({
       >
         <div
           className={cn(
-            "bg-background/95 border-border flex items-center gap-2 rounded-full border px-4 py-2 shadow-sm backdrop-blur-sm transition-transform",
+            "flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 shadow-sm backdrop-blur-sm transition-transform",
             isRefreshing && "animate-pulse"
           )}
           style={{
@@ -66,12 +66,12 @@ export function PullToRefresh({
           }}
         >
           <Loader2
-            className={cn("text-muted-foreground h-4 w-4", isRefreshing && "animate-spin")}
+            className={cn("h-4 w-4 text-muted-foreground", isRefreshing && "animate-spin")}
             style={{
               transform: isRefreshing ? undefined : `rotate(${progress * 360}deg)`,
             }}
           />
-          <span className="text-muted-foreground text-xs font-medium">
+          <span className="font-medium text-muted-foreground text-xs">
             {isRefreshing
               ? "Refreshing..."
               : readyToRefresh

@@ -53,8 +53,11 @@
     "invalidGuildId": "ID de gremio no válido en el enlace.",
     "noAccess": "No tienes acceso a este gremio.",
     "switchError": "No se pudo cambiar de gremio para este enlace.",
-    "redirecting": "Redirigiéndote al gremio correcto\u2026",
-    "finalizing": "Finalizando redirección\u2026",
+    "redirecting": "Redirigiéndote al gremio correcto…",
+    "finalizing": "Finalizando redirección…",
     "goHome": "Volver al inicio"
-  }
+  },
+  "counters": "Contadores",
+  "allCounters": "Todos los contadores",
+  "createCounterGroup": "Nuevo grupo de contadores"
 }

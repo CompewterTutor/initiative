@@ -1,13 +1,3 @@
-import {
-  type ChangeEvent,
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import type { SerializedEditorState } from "lexical";
@@ -26,26 +16,36 @@ import {
   ShieldAlert,
   X,
 } from "lucide-react";
-import { StatusMessage } from "@/components/StatusMessage";
+import {
+  type ChangeEvent,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import { API_BASE_URL } from "@/api/client";
 import { notifyMentionsApiV1DocumentsDocumentIdMentionsPost } from "@/api/generated/documents/documents";
-import { useDocument, useSetDocumentCache, useUpdateDocument } from "@/hooks/useDocuments";
-import { useComments, useCommentsCache } from "@/hooks/useComments";
-import { createEmptyEditorState, normalizeEditorState } from "@/lib/editorState";
-import { CollaborationStatusBadge } from "@/components/documents/editor/CollaborationStatusBadge";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { CreateWikilinkDocumentDialog } from "@/components/documents/CreateWikilinkDocumentDialog";
 import { DocumentBacklinks } from "@/components/documents/DocumentBacklinks";
 import { DocumentSidePanel, useDocumentSidePanel } from "@/components/documents/DocumentSidePanel";
 import { DocumentSummary } from "@/components/documents/DocumentSummary";
-import { TagPicker } from "@/components/tags/TagPicker";
-import { useSetDocumentTags } from "@/hooks/useTags";
-import { PropertyList } from "@/components/properties/PropertyList";
+import { CollaborationStatusBadge } from "@/components/documents/editor/CollaborationStatusBadge";
 import { AddPropertyButton } from "@/components/properties/AddPropertyButton";
+import { PropertyList } from "@/components/properties/PropertyList";
+import { StatusMessage } from "@/components/StatusMessage";
+import { TagPicker } from "@/components/tags/TagPicker";
+import { useComments, useCommentsCache } from "@/hooks/useComments";
+import { useDocument, useSetDocumentCache, useUpdateDocument } from "@/hooks/useDocuments";
 import { useSetDocumentProperties } from "@/hooks/useProperties";
+import { useSetDocumentTags } from "@/hooks/useTags";
+import { toast } from "@/lib/chesterToast";
+import { createEmptyEditorState, normalizeEditorState } from "@/lib/editorState";
 
 // Lazy load heavy components
 const Editor = lazy(() =>
@@ -71,16 +71,21 @@ const SmartLinkDocumentViewer = lazy(() =>
     default: m.SmartLinkDocumentViewer,
   }))
 );
-import type { WhiteboardScene } from "@/components/documents/WhiteboardDocumentEditor";
-import type { SpreadsheetContent } from "@/components/documents/SpreadsheetDocumentEditor";
-import type { SmartLinkContent } from "@/components/documents/SmartLinkDocumentViewer";
-import type * as Y from "yjs";
+
 import type { ProviderAwareness } from "@lexical/yjs";
-import { findNewMentions } from "@/lib/mentionUtils";
-import { useGuildPath } from "@/lib/guildUrl";
-import { useCollaboration } from "@/hooks/useCollaboration";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { cn } from "@/lib/utils";
+import type * as Y from "yjs";
+
+import type {
+  CommentRead,
+  DocumentProjectLink,
+  PropertyDefinitionRead,
+  PropertySummary,
+  TagSummary,
+} from "@/api/generated/initiativeAPI.schemas";
+import type { SmartLinkContent } from "@/components/documents/SmartLinkDocumentViewer";
+import type { SpreadsheetContent } from "@/components/documents/SpreadsheetDocumentEditor";
+import type { WhiteboardScene } from "@/components/documents/WhiteboardDocumentEditor";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -91,27 +96,24 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { resolveUploadUrl } from "@/lib/uploadUrl";
-import type {
-  CommentRead,
-  DocumentProjectLink,
-  PropertyDefinitionRead,
-  PropertySummary,
-  TagSummary,
-} from "@/api/generated/initiativeAPI.schemas";
-import { uploadAttachment } from "@/lib/attachmentUtils";
 import { useAIEnabled } from "@/hooks/useAIEnabled";
 import { useAuth } from "@/hooks/useAuth";
+import { useCollaboration } from "@/hooks/useCollaboration";
 import { useDateLocale } from "@/hooks/useDateLocale";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { uploadAttachment } from "@/lib/attachmentUtils";
 import { getHttpStatus } from "@/lib/errorMessage";
-import { getItem, setItem, removeItem } from "@/lib/storage";
+import { useGuildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { findNewMentions } from "@/lib/mentionUtils";
+import { getItem, removeItem, setItem } from "@/lib/storage";
+import { resolveUploadUrl } from "@/lib/uploadUrl";
+import { cn } from "@/lib/utils";
 
 export const DocumentDetailPage = () => {
   const { t } = useTranslation(["documents", "properties"]);
@@ -546,13 +548,11 @@ export const DocumentDetailPage = () => {
     setWhiteboardYDoc(provider.doc);
     setWhiteboardAwareness(provider.awareness);
     // No cleanup — useCollaboration owns the provider lifecycle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     document?.document_type,
     collaborationEnabled,
     collaboration.providerFactory,
     collaboration.isReady,
-    parsedId,
   ]);
 
   // Same pattern for spreadsheets — separate state so we don't conflate
@@ -575,13 +575,11 @@ export const DocumentDetailPage = () => {
     const provider = collaboration.providerFactory("main", yjsDocMap);
     setSpreadsheetYDoc(provider.doc);
     setSpreadsheetAwareness(provider.awareness);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     document?.document_type,
     collaborationEnabled,
     collaboration.providerFactory,
     collaboration.isReady,
-    parsedId,
   ]);
 
   // Whiteboard scene change handler — mirrors handleContentChange for Lexical.
@@ -988,7 +986,7 @@ export const DocumentDetailPage = () => {
 
   if (documentQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("detail.loading")}
       </div>
@@ -1074,10 +1072,10 @@ export const DocumentDetailPage = () => {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder={t("detail.titlePlaceholder")}
-          className="text-2xl font-semibold"
+          className="font-semibold text-2xl"
           disabled={!canEditDocument}
         />
-        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
           {document.initiative ? (
             <Link
               to={gp(`/initiatives/${document.initiative.id}`)}
@@ -1145,7 +1143,7 @@ export const DocumentDetailPage = () => {
                   <div className="space-y-2">
                     <Label>{t("detail.featuredImage")}</Label>
                     <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                      <div className="bg-muted relative aspect-square w-full overflow-hidden rounded-xl border md:w-50">
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl border bg-muted md:w-50">
                         {featuredImageUrl ? (
                           <img
                             src={resolveUploadUrl(featuredImageUrl) ?? undefined}
@@ -1153,7 +1151,7 @@ export const DocumentDetailPage = () => {
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <div className="text-muted-foreground flex h-full items-center justify-center">
+                          <div className="flex h-full items-center justify-center text-muted-foreground">
                             <ScrollText className="h-10 w-10" />
                           </div>
                         )}
@@ -1255,7 +1253,7 @@ export const DocumentDetailPage = () => {
           <Suspense
             fallback={
               <div className="flex h-96 items-center justify-center">
-                <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             }
           >
@@ -1271,7 +1269,7 @@ export const DocumentDetailPage = () => {
           <div
             className={cn(
               isFullscreen &&
-                "bg-background fixed inset-0 z-50 m-0! flex flex-col gap-4 overflow-hidden p-4"
+                "fixed inset-0 z-50 m-0! flex flex-col gap-4 overflow-hidden bg-background p-4"
             )}
           >
             {/* Collaboration status - shown between featured image and editor.
@@ -1323,7 +1321,7 @@ export const DocumentDetailPage = () => {
             <Suspense
               fallback={
                 <div className="flex h-96 items-center justify-center rounded-xl border">
-                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               }
             >
@@ -1350,7 +1348,7 @@ export const DocumentDetailPage = () => {
                   />
                 ) : (
                   <div className="flex h-96 items-center justify-center rounded-xl border">
-                    <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 )
               ) : document.document_type === "smart_link" ? (
@@ -1443,7 +1441,7 @@ export const DocumentDetailPage = () => {
                         </Label>
                       </div>
                       {!isDirty ? (
-                        <span className="text-muted-foreground self-center text-sm">
+                        <span className="self-center text-muted-foreground text-sm">
                           {t("detail.allChangesSaved")}
                         </span>
                       ) : null}
@@ -1524,7 +1522,7 @@ export const DocumentDetailPage = () => {
         commentsContent={
           <>
             {commentsQuery.isError && (
-              <p className="text-destructive mb-4 text-sm">{t("detail.commentsLoadError")}</p>
+              <p className="mb-4 text-destructive text-sm">{t("detail.commentsLoadError")}</p>
             )}
             <CommentSection
               entityType="document"

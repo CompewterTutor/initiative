@@ -1,5 +1,6 @@
-import { http, HttpResponse } from "msw";
-import { buildTask, buildTaskListResponse, buildDefaultTaskStatuses } from "@/__tests__/factories";
+import { HttpResponse, http } from "msw";
+
+import { buildDefaultTaskStatuses, buildTask, buildTaskListResponse } from "@/__tests__/factories";
 
 export const taskHandlers = [
   http.get("/api/v1/tasks/", () => {

@@ -35,6 +35,8 @@
     "tag": "Étiquette",
     "queue": "File d'attente",
     "queue_item": "Élément de file",
-    "calendar_event": "Événement de calendrier"
+    "calendar_event": "Événement de calendrier",
+    "counter_group": "Groupe de compteurs",
+    "counter": "Compteur"
   }
 }

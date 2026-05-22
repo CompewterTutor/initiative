@@ -2,16 +2,17 @@
  * Status badge component showing collaboration state and active collaborators.
  */
 
-import { useTranslation } from "react-i18next";
 import { Circle, CloudOff, RefreshCw, Users, Wifi, WifiOff } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { ConnectionStatus } from "@/hooks/useCollaboration";
 import { getInitials } from "@/lib/initials";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
+import { cn } from "@/lib/utils";
 import type { CollaboratorInfo } from "@/lib/yjs/CollaborationProvider";
-import type { ConnectionStatus } from "@/hooks/useCollaboration";
 
 export interface CollaborationStatusBadgeProps {
   connectionStatus: ConnectionStatus;
@@ -105,7 +106,7 @@ export function CollaborationStatusBadge({
               <StatusIcon className={cn("h-3 w-3", config.color)} />
               <span className="text-xs">{config.label}</span>
               {isOnline && isCollaborating && collaborators.length > 0 && (
-                <span className="text-muted-foreground ml-0.5 text-xs">
+                <span className="ml-0.5 text-muted-foreground text-xs">
                   ({collaborators.length})
                 </span>
               )}
@@ -122,7 +123,7 @@ export function CollaborationStatusBadge({
                   />
                 ))}
                 {collaborators.length > 4 && (
-                  <div className="bg-muted text-muted-foreground flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-xs font-medium dark:border-gray-800">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-muted font-medium text-muted-foreground text-xs dark:border-gray-800">
                     +{collaborators.length - 4}
                   </div>
                 )}
@@ -130,7 +131,7 @@ export function CollaborationStatusBadge({
             )}
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="bg-popover text-popover-foreground max-w-xs">
+        <TooltipContent side="bottom" className="max-w-xs bg-popover text-popover-foreground">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Circle className={cn("h-2 w-2 fill-current", config.color)} />
@@ -155,7 +156,7 @@ export function CollaborationStatusBadge({
               <p className="text-xs opacity-70">{t("collab.noCollaborators")}</p>
             )}
             {connectionStatus === "error" && (
-              <p className="text-xs text-red-500">{t("collab.failedToConnect")}</p>
+              <p className="text-red-500 text-xs">{t("collab.failedToConnect")}</p>
             )}
           </div>
         </TooltipContent>
@@ -180,7 +181,7 @@ function CollaboratorAvatar({ collaborator, index }: CollaboratorAvatarProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <Avatar
-            className={cn("h-7 w-7 border-2 border-white text-xs font-medium dark:border-gray-800")}
+            className={cn("h-7 w-7 border-2 border-white font-medium text-xs dark:border-gray-800")}
             style={{ zIndex: 10 - index }}
           >
             {avatarSrc ? <AvatarImage src={avatarSrc} alt={collaborator.name} /> : null}

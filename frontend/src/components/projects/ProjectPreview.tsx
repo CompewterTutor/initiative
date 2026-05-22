@@ -1,18 +1,18 @@
-import { HTMLAttributes } from "react";
 import { Link } from "@tanstack/react-router";
 import { GripVertical } from "lucide-react";
+import type { HTMLAttributes } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useGuildPath } from "@/lib/guildUrl";
-import { Progress } from "@/components/ui/progress";
-import { ProgressCircle } from "@/components/ui/progress-circle";
+import type { GuildRole, InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { FavoriteProjectButton } from "@/components/projects/FavoriteProjectButton";
 import { PinProjectButton } from "@/components/projects/PinProjectButton";
 import { TagBadge } from "@/components/tags/TagBadge";
+import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ProgressCircle } from "@/components/ui/progress-circle";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot, resolveInitiativeColor } from "@/lib/initiativeColors";
-import type { GuildRole, InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface ProjectLinkProps {
   project: ProjectRead;
@@ -64,7 +64,7 @@ export const ProjectCardLink = ({ project, dragHandleProps, userId }: ProjectLin
         {dragHandleProps ? (
           <button
             type="button"
-            className="bg-background text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-full border p-1 transition focus-visible:ring-2 focus-visible:outline-none"
+            className="rounded-full border bg-background p-1 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Reorder project"
             {...dragHandleProps}
           >
@@ -87,7 +87,7 @@ export const ProjectCardLink = ({ project, dragHandleProps, userId }: ProjectLin
               <span>{project.name}</span>
             </CardTitle>
           </CardHeader>
-          <CardFooter className="text-muted-foreground flex flex-col gap-3 text-sm">
+          <CardFooter className="flex flex-col gap-3 text-muted-foreground text-sm">
             <div className="flex w-full justify-between gap-6">
               <div>
                 <InitiativeLabel initiative={initiative} />
@@ -132,7 +132,7 @@ export const ProjectRowLink = ({ project, dragHandleProps, userId }: ProjectLink
       {dragHandleProps ? (
         <button
           type="button"
-          className="bg-background text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-full border p-1 transition focus-visible:ring-2 focus-visible:outline-none"
+          className="absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-full border bg-background p-1 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Reorder project"
           {...dragHandleProps}
         >
@@ -167,7 +167,7 @@ export const ProjectRowLink = ({ project, dragHandleProps, userId }: ProjectLink
               <p className="font-semibold">{project.name}</p>
               <div className="flex flex-wrap gap-6">
                 <div className="min-w-30 flex-1">
-                  <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-3 text-xs">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-muted-foreground text-xs">
                     <p>
                       {t("preview.updated", {
                         date: new Date(project.updated_at).toLocaleDateString(undefined),
@@ -208,7 +208,7 @@ export const InitiativeLabel = ({ initiative }: { initiative?: InitiativeRead | 
   return (
     <Link
       to={gp(`/initiatives/${initiative.id}`)}
-      className="text-muted-foreground flex items-center gap-2 text-xs font-medium"
+      className="flex items-center gap-2 font-medium text-muted-foreground text-xs"
     >
       <InitiativeColorDot color={initiative.color} />
       {initiative.name}
@@ -224,13 +224,13 @@ const ProjectProgress = ({ summary }: { summary?: ProjectRead["task_summary"] })
 
   return (
     <div className="@container flex w-full items-center justify-between gap-4">
-      <div className="hidden w-full flex-col gap-2 @xs:flex">
-        <span className="text-muted-foreground flex justify-end text-xs">
+      <div className="@xs:flex hidden w-full flex-col gap-2">
+        <span className="flex justify-end text-muted-foreground text-xs">
           {t("preview.tasksDone", { completed, total })}
         </span>
         <Progress value={percent} className="h-2" aria-label={t("progressLabel")} />
       </div>
-      <div className="flex w-full items-center justify-end gap-3 @xs:hidden">
+      <div className="flex @xs:hidden w-full items-center justify-end gap-3">
         <ProgressCircle value={percent} />
       </div>
     </div>

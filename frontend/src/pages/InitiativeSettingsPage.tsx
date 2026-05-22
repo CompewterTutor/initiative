@@ -1,11 +1,18 @@
-import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useParams, useRouter } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { useGuildPath } from "@/lib/guildUrl";
 import { Loader2 } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
+import type {
+  InitiativeMemberRead,
+  InitiativeRoleRead,
+} from "@/api/generated/initiativeAPI.schemas";
+import { InitiativeSettingsDangerTab } from "@/components/initiatives/settings/InitiativeSettingsDangerTab";
+import { InitiativeSettingsDetailsTab } from "@/components/initiatives/settings/InitiativeSettingsDetailsTab";
+import { InitiativeSettingsDialogs } from "@/components/initiatives/settings/InitiativeSettingsDialogs";
+import { InitiativeSettingsMembersTab } from "@/components/initiatives/settings/InitiativeSettingsMembersTab";
+import { InitiativeSettingsPropertiesTab } from "@/components/initiatives/settings/InitiativeSettingsPropertiesTab";
+import { InitiativeSettingsRolesTab } from "@/components/initiatives/settings/InitiativeSettingsRolesTab";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,20 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useInitiatives, useUpdateInitiative, useDeleteInitiative } from "@/hooks/useInitiatives";
 import { useGuilds } from "@/hooks/useGuilds";
-import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
-import type {
-  InitiativeMemberRead,
-  InitiativeRoleRead,
-} from "@/api/generated/initiativeAPI.schemas";
-import { InitiativeSettingsDetailsTab } from "@/components/initiatives/settings/InitiativeSettingsDetailsTab";
-import { InitiativeSettingsMembersTab } from "@/components/initiatives/settings/InitiativeSettingsMembersTab";
-import { InitiativeSettingsRolesTab } from "@/components/initiatives/settings/InitiativeSettingsRolesTab";
-import { InitiativeSettingsDangerTab } from "@/components/initiatives/settings/InitiativeSettingsDangerTab";
-import { InitiativeSettingsDialogs } from "@/components/initiatives/settings/InitiativeSettingsDialogs";
-import { InitiativeSettingsPropertiesTab } from "@/components/initiatives/settings/InitiativeSettingsPropertiesTab";
+import { useDeleteInitiative, useInitiatives, useUpdateInitiative } from "@/hooks/useInitiatives";
+import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
 
 const DEFAULT_INITIATIVE_COLOR = "#6366F1";
 
@@ -163,6 +163,13 @@ export const InitiativeSettingsPage = () => {
     });
   };
 
+  const handleToggleCounters = (value: boolean) => {
+    updateInitiative.mutate({
+      initiativeId,
+      data: { counters_enabled: value },
+    });
+  };
+
   const handleDeleteInitiative = () => {
     if (initiative?.is_default) {
       return;
@@ -181,7 +188,7 @@ export const InitiativeSettingsPage = () => {
 
   if (initiativesQuery.isLoading || !initiativesQuery.data) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("settings.loadingInitiative")}
       </div>
@@ -195,7 +202,7 @@ export const InitiativeSettingsPage = () => {
           <Link to={gp("/initiatives")}>{t("settings.backToInitiatives")}</Link>
         </Button>
         <div className="rounded-lg border p-6">
-          <h1 className="text-3xl font-semibold tracking-tight">{t("settings.notFound")}</h1>
+          <h1 className="font-semibold text-3xl tracking-tight">{t("settings.notFound")}</h1>
           <p className="text-muted-foreground">{t("settings.notFoundDescription")}</p>
         </div>
       </div>
@@ -234,7 +241,7 @@ export const InitiativeSettingsPage = () => {
         </BreadcrumbList>
       </Breadcrumb>
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("settings.title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("settings.title")}</h1>
         <p className="text-muted-foreground text-sm">{t("settings.subtitle")}</p>
       </div>
 
@@ -259,6 +266,8 @@ export const InitiativeSettingsPage = () => {
           onToggleEvents={handleToggleEvents}
           advancedToolEnabled={initiative?.advanced_tool_enabled ?? false}
           onToggleAdvancedTool={handleToggleAdvancedTool}
+          countersEnabled={initiative?.counters_enabled ?? false}
+          onToggleCounters={handleToggleCounters}
           canManageMembers={canManageMembers}
           isSaving={updateInitiative.isPending}
           onSaveDetails={handleSaveDetails}

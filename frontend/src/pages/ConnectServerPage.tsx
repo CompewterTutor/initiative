@@ -1,12 +1,12 @@
-import { FormEvent, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { LogoIcon } from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogoIcon } from "@/components/LogoIcon";
 import { useServer } from "@/hooks/useServer";
 
 export const ConnectServerPage = () => {
@@ -62,8 +62,8 @@ export const ConnectServerPage = () => {
         backgroundSize: "96px 96px",
       }}
     >
-      <div className="bg-muted/60 flex min-h-screen flex-col items-center justify-center gap-3 px-4 py-12">
-        <div className="text-primary flex items-center gap-3 text-3xl font-semibold tracking-tight">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
+        <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
           <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
           {t("common:appName")}
         </div>

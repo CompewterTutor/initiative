@@ -7,7 +7,9 @@ import type {
   TaskRecurrenceOutputFrequency,
   TaskRecurrenceOutputWeekdaysItem,
 } from "@/api/generated/initiativeAPI.schemas";
-import type { TaskWeekPosition } from "@/lib/recurrence";
+import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,22 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { cn } from "@/lib/utils";
+import type { TaskWeekPosition } from "@/lib/recurrence";
 import {
-  WEEKDAYS,
-  RecurrencePreset,
   createRecurrenceFromPreset,
   detectRecurrencePreset,
   ensureMonthlyDefaults,
   ensureYearlyDefaults,
+  type RecurrencePreset,
   updateMonthlyDay,
   updateMonthlyWeekday,
   updateWeeklyWeekdays,
   updateYearlyMonth,
+  WEEKDAYS,
 } from "@/lib/recurrence";
+import { cn } from "@/lib/utils";
 
 const MONTH_KEYS = [
   "recurrence.monthJanuary",
@@ -364,7 +364,7 @@ export const TaskRecurrenceSelector = ({
   }, [recurrence, referenceDate, t, formatWeekdayList]);
 
   return (
-    <div className="border-border/70 space-y-4 rounded-md border border-dashed p-4">
+    <div className="space-y-4 rounded-md border border-border/70 border-dashed p-4">
       <div className="space-y-2">
         <Label>{t("recurrence.repeat")}</Label>
         <Select
@@ -387,7 +387,7 @@ export const TaskRecurrenceSelector = ({
       </div>
 
       {showCustomFields && recurrence ? (
-        <div className="border-border/70 space-y-4 rounded-md border p-4">
+        <div className="space-y-4 rounded-md border border-border/70 p-4">
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <Label>{t("recurrence.frequency")}</Label>

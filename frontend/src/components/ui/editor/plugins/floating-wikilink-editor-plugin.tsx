@@ -1,29 +1,29 @@
-import { Dispatch, JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $createTextNode,
   $getNodeByKey,
   $getSelection,
   $isRangeSelection,
-  $createTextNode,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
   KEY_ESCAPE_COMMAND,
-  LexicalEditor,
+  type LexicalEditor,
   SELECTION_CHANGE_COMMAND,
 } from "lexical";
 import { ExternalLink, FileText, Link2Off, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { type Dispatch, type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Button } from "@/components/ui/button";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import {
   $createWikilinkNode,
   $isWikilinkNode,
-  WikilinkNode,
+  type WikilinkNode,
 } from "@/components/ui/editor/nodes/wikilink-node";
 import { getSelectedNode } from "@/components/ui/editor/utils/get-selected-node";
 import { setFloatingElemPositionForLinkEditor } from "@/components/ui/editor/utils/set-floating-elem-position-for-link-editor";
-import { Button } from "@/components/ui/button";
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { autocompleteDocuments, type DocumentAutocomplete } from "@/lib/documentUtils";
 
@@ -72,8 +72,7 @@ function FloatingWikilinkEditor({
     if (
       wikilinkNode !== null &&
       nativeSelection !== null &&
-      rootElement !== null &&
-      rootElement.contains(nativeSelection.anchorNode) &&
+      rootElement?.contains(nativeSelection.anchorNode) &&
       editor.isEditable()
     ) {
       const domRect: DOMRect | undefined =
@@ -271,7 +270,7 @@ function FloatingWikilinkEditor({
       className="absolute top-0 left-0 z-50 w-full max-w-sm rounded-md opacity-0 shadow-md"
     >
       {isEditing ? (
-        <div className="bg-card rounded-md border p-2 shadow-lg">
+        <div className="rounded-md border bg-card p-2 shadow-lg">
           <Input
             ref={inputRef}
             value={searchQuery}
@@ -285,7 +284,7 @@ function FloatingWikilinkEditor({
             }}
           />
           {isSearching ? (
-            <div className="text-muted-foreground p-2 text-sm">Searching...</div>
+            <div className="p-2 text-muted-foreground text-sm">Searching...</div>
           ) : (
             <Command className="border-none shadow-none">
               <CommandList>
@@ -297,7 +296,7 @@ function FloatingWikilinkEditor({
                       onSelect={() => handleSelectDocument(doc)}
                       className="flex cursor-pointer items-center gap-2"
                     >
-                      <FileText className="text-muted-foreground h-4 w-4" />
+                      <FileText className="h-4 w-4 text-muted-foreground" />
                       <span className="truncate">{doc.title}</span>
                     </CommandItem>
                   ))}
@@ -307,7 +306,7 @@ function FloatingWikilinkEditor({
                       onSelect={handleCreateDocument}
                       className="flex cursor-pointer items-center gap-2"
                     >
-                      <Plus className="text-muted-foreground h-4 w-4" />
+                      <Plus className="h-4 w-4 text-muted-foreground" />
                       <span className="truncate">Create &ldquo;{searchQuery.trim()}&rdquo;</span>
                     </CommandItem>
                   )}
@@ -322,9 +321,9 @@ function FloatingWikilinkEditor({
           </div>
         </div>
       ) : (
-        <div className="bg-card flex items-center justify-between gap-2 rounded-md border p-2 shadow-lg">
+        <div className="flex items-center justify-between gap-2 rounded-md border bg-card p-2 shadow-lg">
           <div className="flex min-w-0 items-center gap-2">
-            <FileText className="text-muted-foreground h-4 w-4 shrink-0" />
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span
               className={`truncate text-sm ${!isResolved ? "text-muted-foreground italic" : ""}`}
             >
@@ -378,7 +377,7 @@ function FloatingWikilinkEditor({
               variant="ghost"
               onClick={handleDelete}
               title="Delete"
-              className="text-destructive hover:text-destructive h-8 w-8"
+              className="h-8 w-8 text-destructive hover:text-destructive"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

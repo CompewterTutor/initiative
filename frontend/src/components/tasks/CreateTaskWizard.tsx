@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { ChevronLeft, ListTodo, Loader2, Search, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { GuildAvatar } from "@/components/guilds/GuildSidebar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,15 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GuildAvatar } from "@/components/guilds/GuildSidebar";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { guildPath } from "@/lib/guildUrl";
-import { getItem, setItem, removeItem } from "@/lib/storage";
 import { useGuilds } from "@/hooks/useGuilds";
 import { useInitiativesForGuild } from "@/hooks/useInitiatives";
 import { useGlobalProjects } from "@/hooks/useProjects";
+import { guildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { getItem, removeItem, setItem } from "@/lib/storage";
 
 // ── Module-level opener (same pattern as CommandCenter) ─────────────────────
 
@@ -323,13 +323,13 @@ export const CreateTaskWizard = () => {
             {lastUsed && (
               <button
                 type="button"
-                className="border-primary/30 bg-primary/5 hover:bg-primary/10 flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-left transition-colors hover:bg-primary/10"
                 onClick={handleLastUsedClick}
               >
-                <Zap className="text-primary h-5 w-5 shrink-0" />
+                <Zap className="h-5 w-5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{lastUsed.projectName}</p>
-                  <p className="text-muted-foreground truncate text-xs">
+                  <p className="font-medium text-sm">{lastUsed.projectName}</p>
+                  <p className="truncate text-muted-foreground text-xs">
                     {lastUsed.guildName} &gt; {lastUsed.initiativeName}
                   </p>
                 </div>
@@ -342,11 +342,11 @@ export const CreateTaskWizard = () => {
               <button
                 key={guild.id}
                 type="button"
-                className="hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent"
                 onClick={() => handleGuildSelect(guild.id, guild.name)}
               >
                 <GuildAvatar name={guild.name} icon={guild.icon_base64} active={false} size="sm" />
-                <span className="text-sm font-medium">{guild.name}</span>
+                <span className="font-medium text-sm">{guild.name}</span>
               </button>
             ))}
           </div>
@@ -357,10 +357,10 @@ export const CreateTaskWizard = () => {
           <div className="space-y-2">
             {initiativesQuery.isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : initiatives.length === 0 ? (
-              <p className="text-muted-foreground py-4 text-center text-sm">
+              <p className="py-4 text-center text-muted-foreground text-sm">
                 {t("createWizard.noInitiatives")}
               </p>
             ) : (
@@ -368,11 +368,11 @@ export const CreateTaskWizard = () => {
                 <button
                   key={initiative.id}
                   type="button"
-                  className="hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors"
+                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent"
                   onClick={() => handleInitiativeSelect(initiative.id, initiative.name)}
                 >
                   <InitiativeColorDot color={initiative.color} />
-                  <span className="text-sm font-medium">{initiative.name}</span>
+                  <span className="font-medium text-sm">{initiative.name}</span>
                 </button>
               ))
             )}
@@ -383,7 +383,7 @@ export const CreateTaskWizard = () => {
         {step === "select-project" && (
           <div className="space-y-2">
             <div className="relative">
-              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={projectSearch}
                 onChange={(e) => setProjectSearch(e.target.value)}
@@ -394,10 +394,10 @@ export const CreateTaskWizard = () => {
             </div>
             {projectsQuery.isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : filteredProjects.length === 0 && !hasMoreProjects ? (
-              <p className="text-muted-foreground py-4 text-center text-sm">
+              <p className="py-4 text-center text-muted-foreground text-sm">
                 {t("createWizard.noProjects")}
               </p>
             ) : (
@@ -406,11 +406,11 @@ export const CreateTaskWizard = () => {
                   <button
                     key={project.id}
                     type="button"
-                    className="hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors"
+                    className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent"
                     onClick={() => handleProjectSelect(project.id, project.name)}
                   >
-                    <ListTodo className="text-muted-foreground h-4 w-4 shrink-0" />
-                    <span className="text-sm font-medium">{project.name}</span>
+                    <ListTodo className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="font-medium text-sm">{project.name}</span>
                   </button>
                 ))}
                 {hasMoreProjects && (

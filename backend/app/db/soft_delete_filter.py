@@ -25,6 +25,7 @@ from sqlmodel import SQLModel, select as sqlmodel_select
 
 from app.models.calendar_event import CalendarEvent
 from app.models.comment import Comment
+from app.models.counter import Counter, CounterGroup
 from app.models.document import Document
 from app.models.initiative import Initiative
 from app.models.project import Project
@@ -43,6 +44,8 @@ SOFT_DELETE_MODELS: Sequence[type[SQLModel]] = (
     Queue,
     QueueItem,
     CalendarEvent,
+    CounterGroup,
+    Counter,
 )
 
 

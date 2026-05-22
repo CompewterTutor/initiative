@@ -1,26 +1,26 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  listUsersApiV1UsersGet,
-  getListUsersApiV1UsersGetQueryKey,
-  updateUsersMeApiV1UsersMePatch,
-  deleteOwnAccountApiV1UsersMeDeleteAccountPost,
-  approveUserApiV1UsersUserIdApprovePost,
-  exportUsersCsvApiV1UsersExportCsvGet,
-} from "@/api/generated/users/users";
 import { updateGuildMembershipApiV1GuildsGuildIdMembersUserIdPatch } from "@/api/generated/guilds/guilds";
-import { invalidateUsersList, invalidateCurrentUser } from "@/api/query-keys";
-import { downloadBlob } from "@/lib/csv";
-import type { MutationOpts } from "@/types/mutation";
-import type { QueryOpts } from "@/types/query";
 import type {
-  UserGuildMember,
-  GuildRole,
-  UserRead,
   AccountDeletionRequest,
   AccountDeletionResponse,
   ExportUsersCsvApiV1UsersExportCsvGetParams,
+  GuildRole,
+  UserGuildMember,
+  UserRead,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  approveUserApiV1UsersUserIdApprovePost,
+  deleteOwnAccountApiV1UsersMeDeleteAccountPost,
+  exportUsersCsvApiV1UsersExportCsvGet,
+  getListUsersApiV1UsersGetQueryKey,
+  listUsersApiV1UsersGet,
+  updateUsersMeApiV1UsersMePatch,
+} from "@/api/generated/users/users";
+import { invalidateCurrentUser, invalidateUsersList } from "@/api/query-keys";
+import { downloadBlob } from "@/lib/csv";
+import type { MutationOpts } from "@/types/mutation";
+import type { QueryOpts } from "@/types/query";
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 

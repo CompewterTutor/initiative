@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { FolderKanban } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGuildPath } from "@/lib/guildUrl";
-import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface ProjectHealthListProps {
   projects: ProjectRead[];
@@ -44,6 +44,7 @@ export function ProjectHealthList({ projects, isLoading }: ProjectHealthListProp
         {isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: This is a static list of skeleton loaders, so using the index as key is acceptable.
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-1/3" />
                 <Skeleton className="h-2 w-full" />
@@ -51,7 +52,7 @@ export function ProjectHealthList({ projects, isLoading }: ProjectHealthListProp
             ))}
           </div>
         ) : sorted.length === 0 ? (
-          <div className="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+          <div className="flex h-50 items-center justify-center text-muted-foreground text-sm">
             <div className="flex flex-col items-center gap-2">
               <FolderKanban className="h-8 w-8 opacity-50" />
               <span>{t("projectHealth.noProjects")}</span>
@@ -66,7 +67,7 @@ export function ProjectHealthList({ projects, isLoading }: ProjectHealthListProp
                 <Link
                   key={project.id}
                   to={gp(`/projects/${project.id}`)}
-                  className="hover:bg-accent block space-y-1.5 rounded-md p-2 transition-colors"
+                  className="block space-y-1.5 rounded-md p-2 transition-colors hover:bg-accent"
                 >
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 font-medium">
@@ -83,7 +84,7 @@ export function ProjectHealthList({ projects, isLoading }: ProjectHealthListProp
                       className="h-2 flex-1"
                       aria-label={t("projectHealth.progressLabel")}
                     />
-                    <span className="text-muted-foreground w-10 text-right text-xs">
+                    <span className="w-10 text-right text-muted-foreground text-xs">
                       {percent}%
                     </span>
                   </div>

@@ -1,20 +1,19 @@
+import { Link, useParams, useRouter, useSearch } from "@tanstack/react-router";
+import { AlertCircle, SearchX, Settings, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useRouter, useParams, useSearch } from "@tanstack/react-router";
-import { AlertCircle, SearchX, Settings, ShieldAlert } from "lucide-react";
-import { StatusMessage } from "@/components/StatusMessage";
-import { clearLastUsedProject } from "@/components/tasks/CreateTaskWizard";
+
 import {
   invalidateAllTasks,
   invalidateProject,
   invalidateProjectTaskStatuses,
 } from "@/api/query-keys";
-import { useProject, useProjectTaskStatuses, useRecordProjectView } from "@/hooks/useProjects";
-import { useUsers } from "@/hooks/useUsers";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ProjectDocumentsSection } from "@/components/projects/ProjectDocumentsSection";
 import { ProjectOverviewCard } from "@/components/projects/ProjectOverviewCard";
 import { ProjectTasksSection } from "@/components/projects/ProjectTasksSection";
-import { ProjectDocumentsSection } from "@/components/projects/ProjectDocumentsSection";
+import { StatusMessage } from "@/components/StatusMessage";
+import { clearLastUsedProject } from "@/components/tasks/CreateTaskWizard";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,8 +24,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useGuildPath } from "@/lib/guildUrl";
+import { useProject, useProjectTaskStatuses, useRecordProjectView } from "@/hooks/useProjects";
+import { useUsers } from "@/hooks/useUsers";
 import { getHttpStatus } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
 
 export const ProjectDetailPage = () => {
   const { t } = useTranslation("projects");
@@ -76,7 +77,7 @@ export const ProjectDetailPage = () => {
       return;
     }
     recordViewMutation.mutate(viewedProjectId);
-  }, [viewedProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [viewedProjectId, recordViewMutation.mutate]);
 
   // Pure DAC: only users with write access (owner or write level) can be assigned tasks
   // Includes both explicit user permissions and role-based permissions

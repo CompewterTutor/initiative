@@ -1,8 +1,8 @@
 "use client";
 
+import * as Slider from "@radix-ui/react-slider";
 import Color from "color";
 import { PipetteIcon } from "lucide-react";
-import * as Slider from "@radix-ui/react-slider";
 import {
   type ComponentProps,
   createContext,
@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -225,7 +226,7 @@ export const ColorPickerHue = ({ className, ...props }: ColorPickerHueProps) => 
       <Slider.Track className="relative my-0.5 h-3 w-full grow rounded-full bg-[linear-gradient(90deg,#FF0000,#FFFF00,#00FF00,#00FFFF,#0000FF,#FF00FF,#FF0000)]">
         <Slider.Range className="absolute h-full" />
       </Slider.Track>
-      <Slider.Thumb className="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50" />
+      <Slider.Thumb className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
     </Slider.Root>
   );
 };
@@ -254,7 +255,7 @@ export const ColorPickerAlpha = ({ className, ...props }: ColorPickerAlphaProps)
         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent to-black/50" />
         <Slider.Range className="absolute h-full rounded-full bg-transparent" />
       </Slider.Track>
-      <Slider.Thumb className="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50" />
+      <Slider.Thumb className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
     </Slider.Root>
   );
 };
@@ -283,7 +284,7 @@ export const ColorPickerEyeDropper = ({ className, ...props }: ColorPickerEyeDro
 
   return (
     <Button
-      className={cn("text-muted-foreground shrink-0", className)}
+      className={cn("shrink-0 text-muted-foreground", className)}
       onClick={handleEyeDropper}
       size="icon"
       variant="outline"
@@ -328,11 +329,11 @@ const PercentageInput = ({ className, ...props }: PercentageInputProps) => {
         type="text"
         {...props}
         className={cn(
-          "bg-secondary h-8 w-[3.25rem] rounded-l-none px-2 text-xs shadow-none",
+          "h-8 w-[3.25rem] rounded-l-none bg-secondary px-2 text-xs shadow-none",
           className
         )}
       />
-      <span className="text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+      <span className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground text-xs">
         %
       </span>
     </div>
@@ -369,7 +370,7 @@ export const ColorPickerFormat = ({ className, ...props }: ColorPickerFormatProp
         {...props}
       >
         <Input
-          className="bg-secondary h-8 rounded-r-none px-2 text-xs shadow-none"
+          className="h-8 rounded-r-none bg-secondary px-2 text-xs shadow-none"
           type="text"
           value={hexInput}
           onChange={(event) => setHexInput(event.target.value)}
@@ -410,7 +411,7 @@ export const ColorPickerFormat = ({ className, ...props }: ColorPickerFormatProp
         {rgb.map((value, index) => (
           <Input
             className={cn(
-              "bg-secondary h-8 rounded-r-none px-2 text-xs shadow-none",
+              "h-8 rounded-r-none bg-secondary px-2 text-xs shadow-none",
               index && "rounded-l-none",
               className
             )}
@@ -434,7 +435,7 @@ export const ColorPickerFormat = ({ className, ...props }: ColorPickerFormatProp
     return (
       <div className={cn("w-full rounded-md shadow-sm", className)} {...props}>
         <Input
-          className="bg-secondary h-8 w-full px-2 text-xs shadow-none"
+          className="h-8 w-full bg-secondary px-2 text-xs shadow-none"
           readOnly
           type="text"
           value={`rgba(${rgb.join(", ")}, ${alpha}%)`}
@@ -458,7 +459,7 @@ export const ColorPickerFormat = ({ className, ...props }: ColorPickerFormatProp
         {hsl.map((value, index) => (
           <Input
             className={cn(
-              "bg-secondary h-8 rounded-r-none px-2 text-xs shadow-none",
+              "h-8 rounded-r-none bg-secondary px-2 text-xs shadow-none",
               index && "rounded-l-none",
               className
             )}

@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "@/__tests__/helpers/render";
-import { server } from "@/__tests__/helpers/msw-server";
 import { buildPropertyOption, buildPropertySummary } from "@/__tests__/factories/properties";
-import { PropertyType, type PropertySummary } from "@/api/generated/initiativeAPI.schemas";
+import { server } from "@/__tests__/helpers/msw-server";
+import { renderWithProviders } from "@/__tests__/helpers/render";
+import { type PropertySummary, PropertyType } from "@/api/generated/initiativeAPI.schemas";
 
 import { PropertyList } from "./PropertyList";
 

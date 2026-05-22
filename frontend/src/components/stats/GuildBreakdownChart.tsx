@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+
+import type { GuildTaskBreakdown } from "@/api/generated/initiativeAPI.schemas";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
-import type { GuildTaskBreakdown } from "@/api/generated/initiativeAPI.schemas";
 
 interface GuildBreakdownChartProps {
   data: GuildTaskBreakdown[];
@@ -26,7 +27,7 @@ export function GuildBreakdownChart({ data }: GuildBreakdownChartProps) {
           <CardDescription>{t("guildBreakdown.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground flex h-[300px] items-center justify-center text-sm">
+          <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
             {t("guildBreakdown.noData")}
           </div>
         </CardContent>

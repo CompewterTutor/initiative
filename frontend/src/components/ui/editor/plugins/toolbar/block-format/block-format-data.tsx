@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import {
   CodeIcon,
   Heading1Icon,
@@ -11,6 +9,8 @@ import {
   QuoteIcon,
   TextIcon,
 } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 export type BlockFormatEntry = { label: string; icon: React.ReactNode };
 

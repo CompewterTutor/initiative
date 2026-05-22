@@ -1,13 +1,13 @@
+import { ChevronRight, CircleOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, CircleOff } from "lucide-react";
 
-import { getItem, setItem } from "@/lib/storage";
-import { cn } from "@/lib/utils";
-import { buildTagTree, countDocumentsForNode, type TagTreeNode } from "@/lib/tagTree";
+import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { getItem, setItem } from "@/lib/storage";
+import { buildTagTree, countDocumentsForNode, type TagTreeNode } from "@/lib/tagTree";
+import { cn } from "@/lib/utils";
 
 export const UNTAGGED_PATH = "__untagged__";
 
@@ -81,9 +81,9 @@ export const TagTreeView = ({
               selectedTagPaths.has(UNTAGGED_PATH) && "bg-accent"
             )}
           >
-            <CircleOff className="text-muted-foreground h-3 w-3 shrink-0" />
+            <CircleOff className="h-3 w-3 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate text-left">{t("tree.notTagged")}</span>
-            <span className="text-muted-foreground shrink-0 text-xs">{untaggedCount}</span>
+            <span className="shrink-0 text-muted-foreground text-xs">{untaggedCount}</span>
           </button>
         </div>
       </ScrollArea>
@@ -105,7 +105,7 @@ export const TagTreeView = ({
             onToggleTag={onToggleTag}
           />
         ))}
-        <div className="border-muted my-1 border-t" />
+        <div className="my-1 border-muted border-t" />
         <button
           type="button"
           onClick={(e) => onToggleTag(UNTAGGED_PATH, e.ctrlKey || e.metaKey)}
@@ -115,9 +115,9 @@ export const TagTreeView = ({
             selectedTagPaths.has(UNTAGGED_PATH) && "bg-accent"
           )}
         >
-          <CircleOff className="text-muted-foreground h-3 w-3 shrink-0" />
+          <CircleOff className="h-3 w-3 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate text-left">{t("tree.notTagged")}</span>
-          <span className="text-muted-foreground shrink-0 text-xs">{untaggedCount}</span>
+          <span className="shrink-0 text-muted-foreground text-xs">{untaggedCount}</span>
         </button>
       </div>
     </ScrollArea>
@@ -179,7 +179,7 @@ const TagTreeFilterNode = ({
       >
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: nodeColor }} />
         <span className="min-w-0 flex-1 truncate text-left">{node.segment}</span>
-        <span className="text-muted-foreground shrink-0 text-xs">{docCount}</span>
+        <span className="shrink-0 text-muted-foreground text-xs">{docCount}</span>
       </button>
     );
   }
@@ -213,7 +213,7 @@ const TagTreeFilterNode = ({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-left font-medium">{node.segment}</span>
-          <span className="text-muted-foreground shrink-0 text-xs">{docCount}</span>
+          <span className="shrink-0 text-muted-foreground text-xs">{docCount}</span>
         </button>
       </div>
       {isExpanded && (

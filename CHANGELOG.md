@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-05-22
+
+### Added
+
+- **Counters advanced tool for initiatives.** A new initiative-scoped feature for tracking numeric values like HP, ammo, scores, or budgets. Data model is `Initiative > Counter Group > Counter`, mirroring Queues with full DAC (user + role permissions), guild-scoped RLS, soft-delete, and real-time WebSocket updates. Each counter has its own `count`, `min`/`max` bounds, `step`, `initial_count`, and view mode (`number`, `progress_bar`, or `segmented_clock`). Counts can be set directly, incremented/decremented by step, or reset to the initial value; a "Reset All" button on the group resets every counter at once. Counters use fractional-position indexing (`Numeric(20,10)`) for single-PATCH drag-and-drop reordering within a group. Adds the `counters_enabled` initiative master switch and `counters_enabled` / `create_counters` per-role permission keys (backfilled: managers ON, members OFF). New routes: `/counter-groups`, `/counter-groups/:groupId`, `/counter-groups/:groupId/settings`.
+
+### Fixed
+
+- **Spreadsheet column/row resize now persists on Mac (and other high-DPI/Retina devices).** Pointer events on Retina displays report fractional coordinates (e.g. `clientX = 123.5`), which the spreadsheet's `clampInt` integer validator rejected. The sanitized formatting record then came back empty, and `updateColumn` / `updateRow` interpreted that as "delete the entry" — so releasing the mouse silently reverted the column or row to its default size. The resize handler now rounds the new size to an integer before committing. Also rewrote the resize event wiring to attach `pointermove` / `pointerup` / `pointercancel` listeners synchronously inside `pointerdown` (eliminating a latent race where a fast release on a Mac trackpad could miss `pointerup` before the React effect attached).
+
+- **Pagination control now resyncs when external code resets the page.** When a filter change called `setPage(1)` on the My Tasks / My Projects / My Documents / Created Tasks / Documents / Tag Tasks tables, the underlying query refetched page 1 correctly but the DataTable's internal pagination control kept its old `pageIndex`, so the UI continued to show the previous page number and an empty/short data page. DataTable now accepts a controlled `pageIndex` prop in `manualPagination` mode and syncs to it on change. Bug existed since manual pagination was introduced; surfaced while validating filter behavior in the Biome migration.
+
+### Changed
+
+- **Frontend tooling: migrated from ESLint + Prettier to Biome.**
+
 ## [0.44.3] - 2026-05-18
 
 ### Fixed

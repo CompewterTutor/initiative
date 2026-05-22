@@ -1,5 +1,4 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
   ChartColumn,
@@ -8,6 +7,7 @@ import {
   ScrollText,
   SquareCheckBig,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   SidebarContent,
@@ -39,11 +39,10 @@ export const HomeSidebarContent = () => {
         style={{ paddingTop: "var(--safe-area-inset-top)" }}
       >
         <div className="flex h-12 min-w-0 items-center justify-between gap-2 px-2.5">
-          {/* eslint-disable-next-line i18next/no-literal-string */}
-          <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">initiative</h2>
+          <h2 className="min-w-0 flex-1 truncate font-semibold text-lg">initiative</h2>
         </div>
       </SidebarHeader>
-      <SidebarContent className="h-full overflow-x-hidden overflow-y-auto">
+      <SidebarContent className="h-full overflow-y-auto overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   DndContext,
   type DragEndEvent,
@@ -9,27 +7,33 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
-  verticalListSortingStrategy,
+  SortableContext,
   useSortable,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Loader2, GripVertical, Trash2, Save } from "lucide-react";
+import type { TFunction } from "i18next";
+import { GripVertical, Loader2, Save, Trash2 } from "lucide-react";
+import type { IconName } from "lucide-react/dynamic";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { invalidateProjectTaskStatuses, invalidateAllTasks } from "@/api/query-keys";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  useProjectTaskStatuses,
-  useCreateTaskStatus,
-  useUpdateTaskStatus,
-  useDeleteTaskStatus,
-  useReorderTaskStatuses,
-} from "@/hooks/useProjects";
 import type { TaskStatusCategory, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { invalidateAllTasks, invalidateProjectTaskStatuses } from "@/api/query-keys";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { IconPicker } from "@/components/ui/icon-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,21 +51,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { IconPicker } from "@/components/ui/icon-picker";
-import type { IconName } from "lucide-react/dynamic";
-import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
-import { defaultsForCategory, maybeSwapDefaultsOnCategoryChange } from "@/lib/taskStatusDefaults";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  useCreateTaskStatus,
+  useDeleteTaskStatus,
+  useProjectTaskStatuses,
+  useReorderTaskStatuses,
+  useUpdateTaskStatus,
+} from "@/hooks/useProjects";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { defaultsForCategory, maybeSwapDefaultsOnCategoryChange } from "@/lib/taskStatusDefaults";
 import { cn } from "@/lib/utils";
-import type { TFunction } from "i18next";
 
 const CATEGORY_VALUES: TaskStatusCategory[] = ["backlog", "todo", "in_progress", "done"];
 
@@ -406,7 +406,7 @@ export const ProjectTaskStatusesManager = ({
           <p className="text-muted-foreground text-sm">{t("statuses.noManagePermission")}</p>
         ) : null}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold">{t("statuses.addStatus")}</h4>
+          <h4 className="font-semibold text-sm">{t("statuses.addStatus")}</h4>
           <div className="flex flex-wrap items-end gap-3">
             <Input
               className="max-w-xs"
@@ -468,10 +468,10 @@ export const ProjectTaskStatusesManager = ({
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold">{t("statuses.existingStatuses")}</h4>
+            <h4 className="font-semibold text-sm">{t("statuses.existingStatuses")}</h4>
             <div className="flex items-center gap-2">
               {isLoading ? (
-                <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               ) : null}
               {canManage && (
                 <Button
@@ -528,7 +528,7 @@ export const ProjectTaskStatusesManager = ({
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="text-muted-foreground py-6 text-center text-sm"
+                      className="py-6 text-center text-muted-foreground text-sm"
                     >
                       {t("statuses.noStatuses")}
                     </TableCell>
@@ -541,7 +541,7 @@ export const ProjectTaskStatusesManager = ({
       </CardContent>
 
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="bg-card max-h-screen overflow-y-auto">
+        <DialogContent className="max-h-screen overflow-y-auto bg-card">
           <DialogHeader>
             <DialogTitle>{t("statuses.deleteTitle")}</DialogTitle>
             <DialogDescription>

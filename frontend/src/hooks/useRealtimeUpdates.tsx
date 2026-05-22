@@ -2,15 +2,16 @@ import { useEffect, useRef } from "react";
 
 import { API_BASE_URL } from "@/api/client";
 import {
-  invalidateAllTasks,
-  invalidateAllProjects,
   invalidateAllDocuments,
-  invalidateProject,
+  invalidateAllProjects,
+  invalidateAllTasks,
   invalidateDocument,
+  invalidateDocumentComments,
+  invalidateProject,
   invalidateProjectActivity,
   invalidateTaskComments,
-  invalidateDocumentComments,
 } from "@/api/query-keys";
+
 import { useAuth } from "./useAuth";
 
 // Message type for authentication (must match backend)
@@ -180,7 +181,7 @@ export const useRealtimeUpdates = () => {
             return;
           }
           // Use exponential backoff for auth failures
-          scheduleReconnect(Math.min(30000, 2000 * Math.pow(2, authFailureCountRef.current)));
+          scheduleReconnect(Math.min(30000, 2000 * 2 ** authFailureCountRef.current));
           return;
         }
         scheduleReconnect();

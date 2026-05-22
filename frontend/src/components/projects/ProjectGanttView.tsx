@@ -1,8 +1,8 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { addDays, differenceInCalendarDays, parseISO, startOfWeek } from "date-fns";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 type ProjectGanttViewProps = {
   tasks: TaskListRead[];
@@ -100,10 +100,10 @@ export const ProjectGanttView = ({ tasks, canOpenTask, onTaskClick }: ProjectGan
   };
 
   return (
-    <div className="bg-card space-y-4 rounded-xl border p-4 shadow-sm">
+    <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
         <div>
-          <h3 className="text-lg font-semibold">{t("ganttView.title")}</h3>
+          <h3 className="font-semibold text-lg">{t("ganttView.title")}</h3>
           <p className="text-muted-foreground text-sm">{t("ganttView.subtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -144,25 +144,22 @@ export const ProjectGanttView = ({ tasks, canOpenTask, onTaskClick }: ProjectGan
           </Button>
         </div>
       </div>
-      <div
-        ref={scrollContainerRef}
-        className="max-h-[70vh] overflow-auto"
-      >
+      <div ref={scrollContainerRef} className="max-h-[70vh] overflow-auto">
         <div
           className="min-w-[720px] sm:min-w-0"
           style={{ minWidth: NAME_COLUMN_WIDTH + timelineWidth }}
         >
           <div
-            className="bg-card text-muted-foreground sticky top-0 z-10 grid text-[11px] font-semibold uppercase sm:text-xs"
+            className="sticky top-0 z-10 grid bg-card font-semibold text-[11px] text-muted-foreground uppercase sm:text-xs"
             style={{
               gridTemplateColumns: `${NAME_COLUMN_WIDTH}px minmax(${timelineWidth}px, 1fr)`,
             }}
           >
-            <div className="border-border bg-card sticky left-0 z-[5] border-r px-3 py-2">
+            <div className="sticky left-0 z-[5] border-border border-r bg-card px-3 py-2">
               {t("ganttView.taskColumn")}
             </div>
             <div
-              className="bg-background/80 grid"
+              className="grid bg-background/80"
               style={{
                 gridTemplateColumns: `repeat(${daysVisible}, minmax(${DAY_COLUMN_WIDTH}px, 1fr))`,
               }}
@@ -175,7 +172,7 @@ export const ProjectGanttView = ({ tasks, canOpenTask, onTaskClick }: ProjectGan
                   <div>
                     {day.toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}
                   </div>
-                  <div className="text-muted-foreground text-[10px]">
+                  <div className="text-[10px] text-muted-foreground">
                     {day.toLocaleDateString(i18n.language, { weekday: "short" })}
                   </div>
                 </div>
@@ -184,7 +181,7 @@ export const ProjectGanttView = ({ tasks, canOpenTask, onTaskClick }: ProjectGan
           </div>
           <div className="border-t text-xs sm:text-sm">
             {rows.length === 0 ? (
-              <p className="text-muted-foreground px-3 py-6 text-sm">{t("ganttView.noTasks")}</p>
+              <p className="px-3 py-6 text-muted-foreground text-sm">{t("ganttView.noTasks")}</p>
             ) : (
               <>
                 {paddingTop > 0 && <div style={{ height: paddingTop }} />}
@@ -264,11 +261,10 @@ const GanttRow = memo(
           gridTemplateColumns: `${NAME_COLUMN_WIDTH}px minmax(${timelineWidth}px, 1fr)`,
         }}
       >
-        <div className="border-border bg-card sticky left-0 z-[5] flex flex-col justify-center border-r px-3 py-3">
+        <div className="sticky left-0 z-[5] flex flex-col justify-center border-border border-r bg-card px-3 py-3">
           <p className="font-medium">{task.title}</p>
-          <p className="text-muted-foreground text-[11px] sm:text-xs">
-            {start.toLocaleDateString(language)} →{" "}
-            {end.toLocaleDateString(language)}
+          <p className="text-[11px] text-muted-foreground sm:text-xs">
+            {start.toLocaleDateString(language)} → {end.toLocaleDateString(language)}
           </p>
         </div>
         <div
@@ -284,7 +280,7 @@ const GanttRow = memo(
                   <button
                     type="button"
                     className={cn(
-                      "my-2 flex h-12 items-center gap-2 rounded-full px-3 text-xs font-medium text-white shadow-sm",
+                      "my-2 flex h-12 items-center gap-2 rounded-full px-3 font-medium text-white text-xs shadow-sm",
                       isDone
                         ? "bg-muted text-muted-foreground"
                         : isInProgress
@@ -314,7 +310,7 @@ const GanttRow = memo(
             </TooltipProvider>
           ) : (
             <p
-              className="text-muted-foreground px-3 py-3 text-xs"
+              className="px-3 py-3 text-muted-foreground text-xs"
               style={{ gridColumn: `1 / ${daysVisible + 1}` }}
             >
               {t("ganttView.outsideRange")}

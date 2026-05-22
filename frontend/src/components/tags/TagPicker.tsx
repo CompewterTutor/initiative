@@ -1,8 +1,10 @@
+import { Check, ChevronDown, Plus, Tag as TagIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronDown, Plus, Tag as TagIcon } from "lucide-react";
 
+import type { TagRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import {
   Command,
   CommandGroup,
@@ -11,13 +13,12 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
-import { TagBadge } from "./TagBadge";
-import { useTags, useCreateTag } from "@/hooks/useTags";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCreateTag, useTags } from "@/hooks/useTags";
 import { cn } from "@/lib/utils";
-import type { TagRead, TagSummary } from "@/api/generated/initiativeAPI.schemas";
+
+import { TagBadge } from "./TagBadge";
 
 const DEFAULT_TAG_COLORS = [
   "#6366F1", // Indigo
@@ -142,7 +143,7 @@ export function TagPicker({
             aria-expanded={open}
             disabled={disabled}
             className={cn(
-              "border-input ring-offset-background focus:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-sm focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
               selectedTags.length === 0 && "text-muted-foreground",
               className
             )}
@@ -183,7 +184,7 @@ export function TagPicker({
       <PopoverContent className="w-72 p-0" align="start">
         {isCreating ? (
           <div className="space-y-3 p-3">
-            <div className="text-sm font-medium">{t("picker.createHeading")}</div>
+            <div className="font-medium text-sm">{t("picker.createHeading")}</div>
             <Input
               placeholder={t("picker.namePlaceholder")}
               value={newTagName}
@@ -227,7 +228,7 @@ export function TagPicker({
             />
             <CommandList>
               {isLoading ? (
-                <div className="text-muted-foreground py-6 text-center text-sm">
+                <div className="py-6 text-center text-muted-foreground text-sm">
                   {t("picker.loading")}
                 </div>
               ) : (
@@ -252,7 +253,7 @@ export function TagPicker({
                     }
                   >
                     {filteredTags.length === 0 && !canCreateNew ? (
-                      <div className="text-muted-foreground py-6 text-center text-sm">
+                      <div className="py-6 text-center text-muted-foreground text-sm">
                         {t("picker.noTagsFound")}
                       </div>
                     ) : (
@@ -267,7 +268,7 @@ export function TagPicker({
                           >
                             <div
                               className={cn(
-                                "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                                 isSelected
                                   ? "bg-primary text-primary-foreground"
                                   : "opacity-50 [&_svg]:invisible"

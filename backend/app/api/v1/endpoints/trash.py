@@ -32,6 +32,7 @@ from app.db.session import get_admin_session
 from app.db.soft_delete_filter import select_including_deleted
 from app.models.calendar_event import CalendarEvent
 from app.models.comment import Comment
+from app.models.counter import Counter, CounterGroup
 from app.models.document import Document
 from app.models.guild import GuildRole
 from app.models.initiative import Initiative
@@ -73,6 +74,8 @@ ENTITY_REGISTRY: dict[EntityType, tuple[type[SQLModel], str]] = {
     "queue": (Queue, "name"),
     "queue_item": (QueueItem, "label"),
     "calendar_event": (CalendarEvent, "title"),
+    "counter_group": (CounterGroup, "name"),
+    "counter": (Counter, "name"),
 }
 
 
@@ -125,6 +128,8 @@ _DEDUP_PARENTS: dict[type[SQLModel], list[tuple[type[SQLModel], str]]] = {
     Queue: [(Initiative, "initiative_id")],
     QueueItem: [(Queue, "queue_id")],
     CalendarEvent: [(Initiative, "initiative_id")],
+    CounterGroup: [(Initiative, "initiative_id")],
+    Counter: [(CounterGroup, "counter_group_id")],
 }
 
 

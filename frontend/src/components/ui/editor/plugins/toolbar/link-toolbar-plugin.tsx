@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import {
   $isRangeSelection,
-  BaseSelection,
+  type BaseSelection,
   COMMAND_PRIORITY_NORMAL,
   KEY_MODIFIER_COMMAND,
 } from "lexical";
 import { LinkIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";

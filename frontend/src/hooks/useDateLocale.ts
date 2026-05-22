@@ -1,7 +1,7 @@
+import type { Locale } from "date-fns";
+import { enUS, es, fr } from "date-fns/locale";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { enUS, es, fr } from "date-fns/locale";
-import type { Locale } from "date-fns";
 
 const LOCALE_MAP: Record<string, Locale> = {
   en: enUS,

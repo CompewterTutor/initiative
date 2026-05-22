@@ -1,8 +1,7 @@
-import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useTemplateProjects, useUpdateProject } from "@/hooks/useProjects";
 import { Markdown } from "@/components/Markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useTemplateProjects, useUpdateProject } from "@/hooks/useProjects";
 import { guildPath } from "@/lib/guildUrl";
 
 export const TemplatesPage = () => {
@@ -48,7 +48,7 @@ export const TemplatesPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t("tabs.templates")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("tabs.templates")}</h1>
         <p className="text-muted-foreground">{t("templates.description")}</p>
       </div>
 
@@ -69,7 +69,7 @@ export const TemplatesPage = () => {
                   <Markdown content={project.description} className="text-sm" />
                 ) : null}
               </CardHeader>
-              <CardContent className="text-muted-foreground space-y-2 text-sm">
+              <CardContent className="space-y-2 text-muted-foreground text-sm">
                 {project.initiative ? (
                   <p>{t("templates.initiativeLabel", { name: project.initiative.name })}</p>
                 ) : null}

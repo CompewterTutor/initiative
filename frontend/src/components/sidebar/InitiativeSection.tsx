@@ -1,19 +1,20 @@
-import { memo, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import {
-  Settings,
-  Plus,
-  ScrollText,
+  CalendarDays,
   CircleChevronRight,
+  GalleryHorizontalEnd,
+  Gauge,
   ListTodo,
   MoreVertical,
-  GalleryHorizontalEnd,
-  CalendarDays,
+  Plus,
+  ScrollText,
+  Settings,
   Sparkles,
 } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { getItem, setItem } from "@/lib/storage";
+import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -22,12 +23,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { guildPath } from "@/lib/guildUrl";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { guildPath } from "@/lib/guildUrl";
+import { getItem, setItem } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 export interface InitiativeSectionProps {
   initiative: InitiativeRead;
@@ -41,11 +42,14 @@ export interface InitiativeSectionProps {
   canViewQueues: boolean;
   canViewEvents: boolean;
   canViewAdvancedTool: boolean;
+  canViewCounters: boolean;
   canCreateDocs: boolean;
   canCreateProjects: boolean;
   canCreateQueues: boolean;
   canCreateEvents: boolean;
+  canCreateCounters: boolean;
   queueCount: number;
+  counterGroupCount: number;
   activeGuildId: number | null;
   /** Changing this value re-syncs the open/closed state from storage. */
   collapseKey?: number;
@@ -64,11 +68,14 @@ export const InitiativeSection = memo(
     canViewQueues,
     canViewEvents,
     canViewAdvancedTool,
+    canViewCounters,
     canCreateDocs,
     canCreateProjects,
     canCreateQueues,
     canCreateEvents,
+    canCreateCounters,
     queueCount,
+    counterGroupCount,
     activeGuildId,
     collapseKey,
   }: InitiativeSectionProps) => {
@@ -128,8 +135,7 @@ export const InitiativeSection = memo(
       } catch {
         // Ignore parsing errors
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [collapseKey]);
+    }, [collapseKey, initiative.id]);
 
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -150,7 +156,7 @@ export const InitiativeSection = memo(
             </CollapsibleTrigger>
             <Button
               variant="ghost"
-              className="hover:bg-accent min-w-0 flex-1 justify-start px-0 py-1.5 text-sm font-medium"
+              className="min-w-0 flex-1 justify-start px-0 py-1.5 font-medium text-sm hover:bg-accent"
               asChild
             >
               <Link to={gp(`/initiatives/${initiative.id}`)} className="flex min-w-0 items-center">
@@ -386,6 +392,47 @@ export const InitiativeSection = memo(
                         </TooltipTrigger>
                         <TooltipContent side="top">
                           <p>{t("createQueue")}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </SidebarMenuItem>
+              )}
+
+              {/* Counter Groups Link */}
+              {canViewCounters && (
+                <SidebarMenuItem>
+                  <div className="group/counters flex w-full min-w-0 items-center gap-1">
+                    <SidebarMenuButton asChild size="sm" className="min-w-0 flex-1">
+                      <Link
+                        to={gp("/counter-groups")}
+                        search={{ initiativeId: String(initiative.id) }}
+                        className="flex items-center gap-2"
+                      >
+                        <Gauge className="h-4 w-4" />
+                        <span>{t("counters")}</span>
+                        <span className="text-muted-foreground text-xs">{counterGroupCount}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    {canCreateCounters && (
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hidden h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover/counters:opacity-100 lg:flex"
+                            asChild
+                          >
+                            <Link
+                              to={gp("/counter-groups")}
+                              search={{ create: "true", initiativeId: String(initiative.id) }}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>{t("createCounterGroup")}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}

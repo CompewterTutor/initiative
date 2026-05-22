@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
+import type { TaskListRead, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
+import { statusTriggerStyle, TaskStatusOption } from "@/components/tasks/TaskStatusOption";
 import {
   Select,
   SelectContent,
@@ -9,8 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TaskListRead, TaskStatusRead } from "@/api/generated/initiativeAPI.schemas";
-import { TaskStatusOption, statusTriggerStyle } from "@/components/tasks/TaskStatusOption";
+import { toast } from "@/lib/chesterToast";
 
 type TaskStatusSelectorProps = {
   task: TaskListRead;

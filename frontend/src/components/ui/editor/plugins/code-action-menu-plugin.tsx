@@ -1,4 +1,3 @@
-import { JSX, useEffect, useRef, useState } from "react";
 import {
   $isCodeNode,
   CodeNode,
@@ -6,6 +5,7 @@ import {
 } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $getNearestNodeFromDOMNode, isHTMLElement } from "lexical";
+import { type JSX, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDebounce } from "@/components/ui/editor/editor-hooks/use-debounce";

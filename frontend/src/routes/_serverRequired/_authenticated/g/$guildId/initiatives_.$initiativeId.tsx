@@ -1,8 +1,8 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 import {
-  listInitiativesApiV1InitiativesGet,
   getListInitiativesApiV1InitiativesGetQueryKey,
+  listInitiativesApiV1InitiativesGet,
 } from "@/api/generated/initiatives/initiatives";
 
 export const Route = createFileRoute(

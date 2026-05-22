@@ -1,7 +1,14 @@
+import { Plus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus } from "lucide-react";
 
+import {
+  type PropertyDefinitionCreate,
+  type PropertyDefinitionRead,
+  type PropertyOption,
+  PropertyType,
+  type PropertyType as PropertyTypeValue,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -16,15 +23,9 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useCreateProperty, useProperties } from "@/hooks/useProperties";
-import {
-  PropertyType,
-  type PropertyDefinitionCreate,
-  type PropertyDefinitionRead,
-  type PropertyOption,
-  type PropertyType as PropertyTypeValue,
-} from "@/api/generated/initiativeAPI.schemas";
-import { iconForPropertyType } from "./propertyTypeIcons";
+
 import { slugify, typeRequiresOptions } from "./propertyHelpers";
+import { iconForPropertyType } from "./propertyTypeIcons";
 
 export interface AddPropertyButtonProps {
   /**
@@ -172,7 +173,7 @@ export const AddPropertyButton = ({
           type="button"
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground w-full justify-start"
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
           disabled={disabled}
         >
           <Plus className="mr-1 h-4 w-4" />
@@ -182,9 +183,9 @@ export const AddPropertyButton = ({
       <PopoverContent className="w-80 p-0" align="start">
         {isCreating ? (
           <div className="space-y-3 p-3">
-            <div className="text-sm font-medium">{t("properties:picker.createHeading")}</div>
+            <div className="font-medium text-sm">{t("properties:picker.createHeading")}</div>
             <div className="space-y-2">
-              <Label htmlFor="property-new-name" className="text-xs font-normal">
+              <Label htmlFor="property-new-name" className="font-normal text-xs">
                 {t("properties:picker.namePlaceholder")}
               </Label>
               <Input
@@ -196,7 +197,7 @@ export const AddPropertyButton = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="property-new-type" className="text-xs font-normal">
+              <Label htmlFor="property-new-type" className="font-normal text-xs">
                 {t("properties:picker.typeLabel")}
               </Label>
               <Select
@@ -239,12 +240,12 @@ export const AddPropertyButton = ({
 
             {typeRequiresOptions(newType) ? (
               <div className="space-y-2">
-                <Label className="text-xs font-normal">
+                <Label className="font-normal text-xs">
                   {t("properties:manager.optionsLabel")}
                 </Label>
                 <ul className="space-y-2">
                   {newOptions.map((option, index) => (
-                    <li key={index} className="flex items-center gap-2">
+                    <li key={option.value} className="flex items-center gap-2">
                       <Input
                         value={option.value}
                         onChange={(e) => handleOptionChange(index, { value: e.target.value })}
@@ -306,13 +307,13 @@ export const AddPropertyButton = ({
             />
             <CommandList>
               {propertiesQuery.isLoading ? (
-                <div className="text-muted-foreground py-6 text-center text-sm">
+                <div className="py-6 text-center text-muted-foreground text-sm">
                   {t("common:loading")}
                 </div>
               ) : (
                 <>
                   {filteredCandidates.length === 0 ? (
-                    <div className="text-muted-foreground py-6 text-center text-sm">
+                    <div className="py-6 text-center text-muted-foreground text-sm">
                       {t("properties:picker.empty")}
                     </div>
                   ) : (
@@ -329,7 +330,7 @@ export const AddPropertyButton = ({
                             }}
                             className="cursor-pointer"
                           >
-                            <Icon className="text-muted-foreground mr-2 h-4 w-4 shrink-0" />
+                            <Icon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                             <div className="flex flex-col">
                               <span>{definition.name}</span>
                               <span className="text-muted-foreground text-xs">

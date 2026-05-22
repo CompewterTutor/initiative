@@ -1,7 +1,8 @@
 import { parseISO } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import type { HeatmapDayData } from "@/api/generated/initiativeAPI.schemas";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface HeatmapChartProps {
@@ -18,7 +19,7 @@ export function HeatmapChart({ data }: HeatmapChartProps) {
           <CardDescription>{t("heatmap.description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+          <div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
             {t("heatmap.noData")}
           </div>
         </CardContent>
@@ -54,9 +55,9 @@ export function HeatmapChart({ data }: HeatmapChartProps) {
       <CardContent>
         <div className="overflow-x-auto">
           <div className="inline-flex gap-1">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
-                {week.map((day, dayIndex) => {
+            {weeks.map((week) => (
+              <div key={`week-${week[0]?.date}`} className="flex flex-col gap-1">
+                {week.map((day) => {
                   const date = parseISO(day.date);
                   const dateStr = date.toLocaleDateString("en-US", {
                     month: "short",
@@ -65,9 +66,9 @@ export function HeatmapChart({ data }: HeatmapChartProps) {
 
                   return (
                     <div
-                      key={dayIndex}
+                      key={day.date}
                       className={cn(
-                        "hover:ring-primary h-3 w-3 rounded-sm transition-colors hover:ring-2",
+                        "h-3 w-3 rounded-sm transition-colors hover:ring-2 hover:ring-primary",
                         getIntensity(day.activity_count)
                       )}
                       title={`${dateStr}: ${t("heatmap.activity", { count: day.activity_count })}`}
@@ -78,9 +79,9 @@ export function HeatmapChart({ data }: HeatmapChartProps) {
             ))}
           </div>
         </div>
-        <div className="text-muted-foreground mt-4 flex items-center gap-2 text-xs">
+        <div className="mt-4 flex items-center gap-2 text-muted-foreground text-xs">
           <span>{t("heatmap.less")}</span>
-          <div className="bg-muted h-3 w-3 rounded-sm" />
+          <div className="h-3 w-3 rounded-sm bg-muted" />
           <div className="h-3 w-3 rounded-sm bg-green-200 dark:bg-green-900/40" />
           <div className="h-3 w-3 rounded-sm bg-green-400 dark:bg-green-700/60" />
           <div className="h-3 w-3 rounded-sm bg-green-600 dark:bg-green-500/80" />

@@ -1,23 +1,33 @@
-import { useCallback, useMemo, useState } from "react";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
 import {
   addDocumentMembersBulkApiV1DocumentsDocumentIdMembersBulkPost,
   addDocumentRolePermissionApiV1DocumentsDocumentIdRolePermissionsPost,
   removeDocumentMembersBulkApiV1DocumentsDocumentIdMembersBulkDeletePost,
   removeDocumentRolePermissionApiV1DocumentsDocumentIdRolePermissionsRoleIdDelete,
 } from "@/api/generated/documents/documents";
+import type {
+  DocumentPermissionLevel,
+  DocumentSummary,
+  InitiativeMemberRead,
+  InitiativeRoleRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import {
   getListInitiativeRolesApiV1InitiativesInitiativeIdRolesGetQueryKey,
   listInitiativeRolesApiV1InitiativesInitiativeIdRolesGet,
 } from "@/api/generated/initiatives/initiatives";
 import { invalidateAllDocuments } from "@/api/query-keys";
-import { useInitiatives } from "@/hooks/useInitiatives";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -34,22 +44,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Command,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import type {
-  DocumentPermissionLevel,
-  DocumentSummary,
-  InitiativeMemberRead,
-  InitiativeRoleRead,
-} from "@/api/generated/initiativeAPI.schemas";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { cn } from "@/lib/utils";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 interface BulkEditAccessDialogProps extends DialogWithSuccessProps {
@@ -450,7 +450,9 @@ export function BulkEditAccessDialog({
 
           <TabsContent value="roles" className="mt-4 space-y-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("bulkAccess.actionLabel")}</label>
+              <label htmlFor="roleMode" className="font-medium text-sm">
+                {t("bulkAccess.actionLabel")}
+              </label>
               <Select
                 value={roleMode}
                 onValueChange={(v) => {
@@ -460,7 +462,7 @@ export function BulkEditAccessDialog({
                   setRolePickerOpen(false);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id="roleMode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -475,8 +477,11 @@ export function BulkEditAccessDialog({
             ) : (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t("bulkAccess.rolesLabel")}</label>
+                  <label htmlFor="rolePicker" className="font-medium text-sm">
+                    {t("bulkAccess.rolesLabel")}
+                  </label>
                   <ItemMultiPicker
+                    id="rolePicker"
                     items={filteredRoles.map((r) => ({
                       id: r.id,
                       label: r.displayName,
@@ -500,12 +505,14 @@ export function BulkEditAccessDialog({
                 </div>
                 {roleMode === "grant" && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("bulkAccess.permissionLevel")}</label>
+                    <label htmlFor="roleLevel" className="font-medium text-sm">
+                      {t("bulkAccess.permissionLevel")}
+                    </label>
                     <Select
                       value={roleLevel}
                       onValueChange={(v) => setRoleLevel(v as "read" | "write")}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="roleLevel">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -521,7 +528,9 @@ export function BulkEditAccessDialog({
 
           <TabsContent value="users" className="mt-4 space-y-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("bulkAccess.actionLabel")}</label>
+              <label htmlFor="userMode" className="font-medium text-sm">
+                {t("bulkAccess.actionLabel")}
+              </label>
               <Select
                 value={userMode}
                 onValueChange={(v) => {
@@ -531,7 +540,7 @@ export function BulkEditAccessDialog({
                   setUserPickerOpen(false);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id="userMode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -546,8 +555,11 @@ export function BulkEditAccessDialog({
             ) : (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t("bulkAccess.usersLabel")}</label>
+                  <label htmlFor="userPicker" className="font-medium text-sm">
+                    {t("bulkAccess.usersLabel")}
+                  </label>
                   <UserMultiPicker
+                    id="userPicker"
                     users={filteredUsers}
                     selectedIds={selectedUserIds}
                     onToggle={toggleUser}
@@ -567,12 +579,14 @@ export function BulkEditAccessDialog({
                 </div>
                 {userMode === "grant" && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t("bulkAccess.permissionLevel")}</label>
+                    <label htmlFor="userLevel" className="font-medium text-sm">
+                      {t("bulkAccess.permissionLevel")}
+                    </label>
                     <Select
                       value={level}
                       onValueChange={(v) => setLevel(v as DocumentPermissionLevel)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="userLevel">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -634,6 +648,7 @@ export function BulkEditAccessDialog({
 
 // Reusable multi-select user picker
 function UserMultiPicker({
+  id,
   users,
   selectedIds,
   onToggle,
@@ -646,6 +661,7 @@ function UserMultiPicker({
   selectedMessage,
   searchPlaceholder,
 }: {
+  id?: string;
   users: SelectableUser[];
   selectedIds: Set<number>;
   onToggle: (id: number) => void;
@@ -664,11 +680,12 @@ function UserMultiPicker({
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "border-input ring-offset-background focus:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm focus:ring-1 focus:outline-none",
+            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring",
             selectedCount === 0 && "text-muted-foreground"
           )}
         >
@@ -688,7 +705,7 @@ function UserMultiPicker({
           <CommandList>
             <CommandGroup>
               {users.length === 0 ? (
-                <div className="text-muted-foreground py-6 text-center text-sm">{emptyMessage}</div>
+                <div className="py-6 text-center text-muted-foreground text-sm">{emptyMessage}</div>
               ) : (
                 users.map((user) => {
                   const isSelected = selectedIds.has(user.id);
@@ -701,7 +718,7 @@ function UserMultiPicker({
                     >
                       <div
                         className={cn(
-                          "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                           isSelected
                             ? "bg-primary text-primary-foreground"
                             : "opacity-50 [&_svg]:invisible"
@@ -712,7 +729,7 @@ function UserMultiPicker({
                       <div className="flex flex-col">
                         <span className="truncate text-sm">{user.name}</span>
                         {user.name !== user.email && (
-                          <span className="text-muted-foreground truncate text-xs">
+                          <span className="truncate text-muted-foreground text-xs">
                             {user.email}
                           </span>
                         )}
@@ -731,6 +748,7 @@ function UserMultiPicker({
 
 // Reusable multi-select item picker (for roles)
 function ItemMultiPicker({
+  id,
   items,
   selectedIds,
   onToggle,
@@ -743,6 +761,7 @@ function ItemMultiPicker({
   selectedMessage,
   searchPlaceholder,
 }: {
+  id?: string;
   items: { id: number; label: string; sublabel?: string }[];
   selectedIds: Set<number>;
   onToggle: (id: number) => void;
@@ -761,11 +780,12 @@ function ItemMultiPicker({
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
+          id={id}
           type="button"
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "border-input ring-offset-background focus:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm focus:ring-1 focus:outline-none",
+            "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring",
             selectedCount === 0 && "text-muted-foreground"
           )}
         >
@@ -785,7 +805,7 @@ function ItemMultiPicker({
           <CommandList>
             <CommandGroup>
               {items.length === 0 ? (
-                <div className="text-muted-foreground py-6 text-center text-sm">{emptyMessage}</div>
+                <div className="py-6 text-center text-muted-foreground text-sm">{emptyMessage}</div>
               ) : (
                 items.map((item) => {
                   const isSelected = selectedIds.has(item.id);
@@ -798,7 +818,7 @@ function ItemMultiPicker({
                     >
                       <div
                         className={cn(
-                          "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                           isSelected
                             ? "bg-primary text-primary-foreground"
                             : "opacity-50 [&_svg]:invisible"
@@ -809,7 +829,7 @@ function ItemMultiPicker({
                       <div className="flex flex-col">
                         <span className="truncate text-sm">{item.label}</span>
                         {item.sublabel && (
-                          <span className="text-muted-foreground truncate text-xs">
+                          <span className="truncate text-muted-foreground text-xs">
                             {item.sublabel}
                           </span>
                         )}

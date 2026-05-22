@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
+
+import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
+import { TagPicker } from "@/components/tags";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import { TagPicker } from "@/components/tags";
-import type { TagSummary } from "@/api/generated/initiativeAPI.schemas";
 
 interface DocumentSettingsDetailsTabProps {
   isTemplate: boolean;

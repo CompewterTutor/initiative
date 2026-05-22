@@ -1,20 +1,20 @@
-import { JSX, useCallback, useMemo, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   LexicalTypeaheadMenuPlugin,
   MenuOption,
-  MenuTextMatch,
+  type MenuTextMatch,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { TextNode } from "lexical";
+import type { TextNode } from "lexical";
+import { type JSX, useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { $createMentionNode } from "@/components/ui/editor/nodes/mention-node";
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { $createMentionNode } from "@/components/ui/editor/nodes/mention-node";
 import { getInitials } from "@/lib/initials";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
-import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
 
 const PUNCTUATION = "\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%'\"~=<>_:;";
 const NAME = "\\b[A-Z][^\\s" + PUNCTUATION + "]";

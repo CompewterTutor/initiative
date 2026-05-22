@@ -1,11 +1,14 @@
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
-import type { ColumnDef } from "@tanstack/react-table";
 
-import { toast } from "@/lib/chesterToast";
-import { Button } from "@/components/ui/button";
+import type {
+  InitiativeMemberRead,
+  InitiativeRoleRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
@@ -17,17 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TabsContent } from "@/components/ui/tabs";
-import type {
-  InitiativeMemberRead,
-  InitiativeRoleRead,
-} from "@/api/generated/initiativeAPI.schemas";
 import {
   useAddInitiativeMember,
   useRemoveInitiativeMember,
   useUpdateInitiativeMember,
 } from "@/hooks/useInitiatives";
-import { useUsers } from "@/hooks/useUsers";
 import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
+import { useUsers } from "@/hooks/useUsers";
+import { toast } from "@/lib/chesterToast";
 
 interface InitiativeSettingsMembersTabProps {
   initiativeId: number;
@@ -185,7 +185,7 @@ export const InitiativeSettingsMembersTab = ({
         header: t("settings.sourceColumn"),
         cell: ({ row }) => {
           return row.original.oidc_managed ? (
-            <span className="bg-muted text-muted-foreground inline-flex items-center rounded-md px-2 py-1 text-sm font-medium">
+            <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-medium text-muted-foreground text-sm">
               {t("settings.sourceOidc")}
             </span>
           ) : (

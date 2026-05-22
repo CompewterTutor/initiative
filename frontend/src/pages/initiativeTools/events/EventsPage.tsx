@@ -1,38 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter, useSearch } from "@tanstack/react-router";
 import { addYears, endOfYear, format, startOfYear, subYears } from "date-fns";
 import { ChevronDown, Download, Filter, Loader2, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { keepPreviousData } from "@tanstack/react-query";
 
-import { toast } from "@/lib/chesterToast";
-import { CalendarView, type CalendarEntry, type CalendarViewMode } from "@/components/calendar";
-import { useCalendarEventsList } from "@/hooks/useCalendarEvents";
-import { useTasks } from "@/hooks/useTasks";
+import { apiClient } from "@/api/client";
 import type {
-  TaskStatusCategory,
-  TaskPriority,
   FilterCondition,
   ListTasksApiV1TasksGetParams,
+  TaskPriority,
+  TaskStatusCategory,
 } from "@/api/generated/initiativeAPI.schemas";
-import { useGuildPath } from "@/lib/guildUrl";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  useMyInitiativePermissions,
-  canCreate as canCreatePermission,
-} from "@/hooks/useInitiativeRoles";
-import { apiClient } from "@/api/client";
-import { getItem, setItem } from "@/lib/storage";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { type CalendarEntry, CalendarView, type CalendarViewMode } from "@/components/calendar";
 import { CreateEventDialog } from "@/components/initiativeTools/events/CreateEventDialog";
 import { ICalImportDialog } from "@/components/initiativeTools/events/ICalImportDialog";
 import {
   PropertyFilter,
   type PropertyFilterCondition,
 } from "@/components/properties/PropertyFilter";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useAuth } from "@/hooks/useAuth";
+import { useCalendarEventsList } from "@/hooks/useCalendarEvents";
+import {
+  canCreate as canCreatePermission,
+  useMyInitiativePermissions,
+} from "@/hooks/useInitiativeRoles";
+import { useTasks } from "@/hooks/useTasks";
+import { toast } from "@/lib/chesterToast";
+import { useGuildPath } from "@/lib/guildUrl";
+import { getItem, setItem } from "@/lib/storage";
 
 const STORAGE_KEY = "initiative-events-prefs";
 
@@ -429,7 +429,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+        <h1 className="font-semibold text-3xl tracking-tight">{t("title")}</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="mr-1.5 h-4 w-4" />
@@ -447,7 +447,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
       {/* Filters */}
       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2">
         <div className="flex items-center justify-between sm:hidden">
-          <div className="text-muted-foreground inline-flex items-center gap-2 text-sm font-medium">
+          <div className="inline-flex items-center gap-2 font-medium text-muted-foreground text-sm">
             <Filter className="h-4 w-4" />
             {t("filters.heading")}
           </div>
@@ -461,11 +461,11 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-          <div className="border-muted bg-background/40 mt-2 flex flex-wrap items-end gap-4 rounded-md border p-3 sm:mt-0">
+          <div className="mt-2 flex flex-wrap items-end gap-4 rounded-md border border-muted bg-background/40 p-3 sm:mt-0">
             {/* Status filter (for tasks) */}
             {showTasks && (
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("tasks:filters.filterByStatusCategory")}
                 </Label>
                 <MultiSelect
@@ -481,7 +481,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
             {/* Priority filter (for tasks) */}
             {showTasks && (
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("tasks:filters.filterByPriority")}
                 </Label>
                 <MultiSelect
@@ -500,7 +500,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
             {/* Project filter (for tasks) */}
             {showTasks && (projectOptions.length > 1 || projectFilters.length > 0) && (
               <div className="w-full sm:w-48 lg:flex-1">
-                <Label className="text-muted-foreground mb-2 block text-xs font-medium">
+                <Label className="mb-2 block font-medium text-muted-foreground text-xs">
                   {t("common:project", "Project")}
                 </Label>
                 <MultiSelect
@@ -549,7 +549,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
       </Collapsible>
 
       {isLoading ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("loading")}
         </div>

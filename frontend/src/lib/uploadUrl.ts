@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+
 import { apiClient, getAuthToken } from "@/api/client";
 
 /**

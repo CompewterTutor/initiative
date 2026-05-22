@@ -1,8 +1,8 @@
 import type { TaskAssigneeSummary, UserPublic } from "@/api/generated/initiativeAPI.schemas";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { resolveUploadUrl } from "@/lib/uploadUrl";
 import { getInitialsForUser, getUserDisplayName, isAnonymizedUser } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
-import { resolveUploadUrl } from "@/lib/uploadUrl";
 
 interface TaskAssigneeListProps {
   assignees: (UserPublic | TaskAssigneeSummary)[];
@@ -29,7 +29,7 @@ export const TaskAssigneeList = ({ assignees, size = "sm", className }: TaskAssi
   const styles = sizeStyles[size];
 
   return (
-    <div className={cn("text-muted-foreground flex flex-wrap gap-3", className)}>
+    <div className={cn("flex flex-wrap gap-3 text-muted-foreground", className)}>
       {assignees.map((assignee) => {
         const anonymized = isAnonymizedUser(assignee);
         const displayName = getUserDisplayName(assignee);

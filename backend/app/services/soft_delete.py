@@ -32,6 +32,7 @@ from app.models.comment import Comment
 from app.models.document import Document
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.project import Project
+from app.models.counter import Counter, CounterGroup
 from app.models.queue import Queue, QueueItem
 from app.models.task import Task
 from app.models.user import User, UserStatus
@@ -47,11 +48,13 @@ CASCADE_CHILDREN: dict[type, list[tuple[type, str]]] = {
         (Document, "initiative_id"),
         (Queue, "initiative_id"),
         (CalendarEvent, "initiative_id"),
+        (CounterGroup, "initiative_id"),
     ],
     Project: [(Task, "project_id")],
     Document: [(Comment, "document_id")],
     Task: [(Comment, "task_id")],
     Queue: [(QueueItem, "queue_id")],
+    CounterGroup: [(Counter, "counter_group_id")],
     Comment: [(Comment, "parent_comment_id")],
 }
 

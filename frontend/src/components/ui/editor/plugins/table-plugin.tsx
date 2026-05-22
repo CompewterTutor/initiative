@@ -1,20 +1,20 @@
-import { createContext, JSX, useContext, useEffect, useMemo, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createTableNodeWithDimensions, INSERT_TABLE_COMMAND, TableNode } from "@lexical/table";
 import {
   $insertNodes,
   COMMAND_PRIORITY_EDITOR,
   createCommand,
-  EditorThemeClasses,
-  Klass,
-  LexicalCommand,
-  LexicalEditor,
-  LexicalNode,
+  type EditorThemeClasses,
+  type Klass,
+  type LexicalCommand,
+  type LexicalEditor,
+  type LexicalNode,
 } from "lexical";
+import { createContext, type JSX, useContext, useEffect, useMemo, useState } from "react";
 
-import { invariant } from "@/components/ui/editor/shared/invariant";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
+import { invariant } from "@/components/ui/editor/shared/invariant";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 

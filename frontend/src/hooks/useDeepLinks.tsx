@@ -1,6 +1,7 @@
-import { useEffect } from "react";
-import { App, URLOpenListenerEvent } from "@capacitor/app";
+import { App, type URLOpenListenerEvent } from "@capacitor/app";
 import { useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
+
 import { useServer } from "./useServer";
 
 /**

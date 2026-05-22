@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import {
+  BarChart3,
   CheckSquare,
   ListTodo,
   PenLine,
   Plus,
   ScrollText,
-  Users,
   Settings,
-  BarChart3,
   UserCog,
+  Users,
 } from "lucide-react";
-import { getOpenCreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { getOpenCreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
 import {
   CommandDialog,
   CommandEmpty,
@@ -22,15 +23,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { commandFilter } from "@/lib/fuzzyMatch";
-import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
-import { guildPath, useGuildPath } from "@/lib/guildUrl";
-import { useRecentProjects, useProjects } from "@/hooks/useProjects";
-import { useAllDocumentIds } from "@/hooks/useDocuments";
-import { useTasks } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
+import { useAllDocumentIds } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
-import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { useProjects, useRecentProjects } from "@/hooks/useProjects";
+import { useTasks } from "@/hooks/useTasks";
+import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
+import { commandFilter } from "@/lib/fuzzyMatch";
+import { guildPath, useGuildPath } from "@/lib/guildUrl";
 
 // Module-level callback so other components can open the command center
 let openCommandCenter: (() => void) | null = null;

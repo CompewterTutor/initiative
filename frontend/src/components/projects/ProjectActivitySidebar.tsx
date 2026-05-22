@@ -1,23 +1,23 @@
-import { useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { ChevronRight, MessageSquare } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  projectActivityFeedApiV1ProjectsProjectIdActivityGet,
-  getProjectActivityFeedApiV1ProjectsProjectIdActivityGetQueryKey,
-} from "@/api/generated/projects/projects";
-import { useDateLocale } from "@/hooks/useDateLocale";
 import type {
   ProjectActivityEntry,
   ProjectActivityResponse,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  getProjectActivityFeedApiV1ProjectsProjectIdActivityGetQueryKey,
+  projectActivityFeedApiV1ProjectsProjectIdActivityGet,
+} from "@/api/generated/projects/projects";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { guildPath } from "@/lib/guildUrl";
+import { useDateLocale } from "@/hooks/useDateLocale";
 import { useGuilds } from "@/hooks/useGuilds";
+import { guildPath } from "@/lib/guildUrl";
+import { cn } from "@/lib/utils";
 
 interface ProjectActivitySidebarProps {
   projectId: number | null;
@@ -72,7 +72,7 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
         collapsed ? "w-15" : "w-80"
       )}
     >
-      <div className="bg-card flex h-full w-full flex-col border-l shadow-sm">
+      <div className="flex h-full w-full flex-col border-l bg-card shadow-sm">
         <div
           className="flex flex-col border-b"
           style={{ paddingTop: "var(--safe-area-inset-top)" }}
@@ -80,8 +80,8 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
           <div className="flex h-12 items-center justify-between px-3">
             {!collapsed && (
               <div className="flex items-center gap-2">
-                <MessageSquare className="text-muted-foreground h-4 w-4" aria-hidden="true" />
-                <p className="text-sm font-semibold">{t("activitySidebar.title")}</p>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <p className="font-semibold text-sm">{t("activitySidebar.title")}</p>
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -93,7 +93,7 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
                 onClick={toggleCollapsed}
               >
                 {collapsed ? (
-                  <MessageSquare className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 ) : (
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 )}
@@ -105,7 +105,7 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
           </div>
         </div>
         {collapsed ? (
-          <div className="text-muted-foreground flex-1 px-2 py-4 text-center text-xs">
+          <div className="flex-1 px-2 py-4 text-center text-muted-foreground text-xs">
             {t("activitySidebar.activity")}
           </div>
         ) : (
@@ -124,10 +124,10 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
                   return (
                     <li
                       key={entry.comment_id}
-                      className="border-border/60 bg-background rounded-lg border px-3 py-2"
+                      className="rounded-lg border border-border/60 bg-background px-3 py-2"
                     >
-                      <div className="text-muted-foreground flex items-center justify-between text-xs">
-                        <span className="text-foreground font-medium">{authorName}</span>
+                      <div className="flex items-center justify-between text-muted-foreground text-xs">
+                        <span className="font-medium text-foreground">{authorName}</span>
                         <span>
                           {formatDistanceToNow(new Date(entry.created_at), {
                             addSuffix: true,
@@ -144,7 +144,7 @@ export const ProjectActivitySidebar = ({ projectId }: ProjectActivitySidebarProp
                           {entry.task_title}
                         </Link>
                       </p>
-                      <p className="text-muted-foreground mt-1 line-clamp-3 text-sm">
+                      <p className="mt-1 line-clamp-3 text-muted-foreground text-sm">
                         “{entry.content}”
                       </p>
                     </li>

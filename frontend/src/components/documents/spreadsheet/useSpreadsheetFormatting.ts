@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as Y from "yjs";
+import type * as Y from "yjs";
 
 import {
   type CellFmt,
   type CellStyle,
   type ColumnFmt,
+  MAX_FROZEN,
   type NumberFormat,
   type RowFmt,
   type SpreadsheetFormatting,
-  MAX_FROZEN,
   sanitizeCellFmt,
   sanitizeColumnFmt,
   sanitizeRowFmt,

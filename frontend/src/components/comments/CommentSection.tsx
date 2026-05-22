@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react";
 import { isAxiosError } from "axios";
-import { useTranslation } from "react-i18next";
 import { HelpCircle, MessageSquarePlus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { CommentRead } from "@/api/generated/initiativeAPI.schemas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useAuth } from "@/hooks/useAuth";
-import { useCreateComment, useUpdateComment, useDeleteComment } from "@/hooks/useComments";
+import { useCreateComment, useDeleteComment, useUpdateComment } from "@/hooks/useComments";
+
 import { CommentInput } from "./CommentInput";
 import { CommentThread } from "./CommentThread";
-import type { CommentRead } from "@/api/generated/initiativeAPI.schemas";
 
 export interface CommentWithReplies extends CommentRead {
   replies: CommentWithReplies[];
@@ -197,7 +198,7 @@ export const CommentSection = ({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquarePlus className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+            <MessageSquarePlus className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <h3>{title ?? t("comments.title")}</h3>
           </div>
           <HoverCard>
@@ -207,25 +208,22 @@ export const CommentSection = ({
               </button>
             </HoverCardTrigger>
             <HoverCardContent side="left" align="start" className="w-56">
-              <p className="text-sm font-medium">{t("comments.mentionSyntax")}</p>
+              <p className="font-medium text-sm">{t("comments.mentionSyntax")}</p>
               <ul className="mt-2 space-y-1.5 text-sm">
                 <li>
-                  <code className="bg-muted rounded px-1 text-xs">@</code>{" "}
+                  <code className="rounded bg-muted px-1 text-xs">@</code>{" "}
                   {t("comments.mentionUser")}
                 </li>
                 <li>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <code className="bg-muted rounded px-1 text-xs">#task:</code>{" "}
+                  <code className="rounded bg-muted px-1 text-xs">#task:</code>{" "}
                   {t("comments.mentionTask")}
                 </li>
                 <li>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <code className="bg-muted rounded px-1 text-xs">#doc:</code>{" "}
+                  <code className="rounded bg-muted px-1 text-xs">#doc:</code>{" "}
                   {t("comments.mentionDoc")}
                 </li>
                 <li>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <code className="bg-muted rounded px-1 text-xs">#project:</code>{" "}
+                  <code className="rounded bg-muted px-1 text-xs">#project:</code>{" "}
                   {t("comments.mentionProject")}
                 </li>
               </ul>

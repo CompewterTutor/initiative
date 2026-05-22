@@ -1,0 +1,22 @@
+allowBuilds:
+  esbuild: true
+  msw: true
+  sharp: true
+minimumReleaseAgeExclude:
+  - '@orval/angular@8.12.3'
+  - '@orval/axios@8.12.3'
+  - '@orval/core@8.12.3'
+  - '@orval/fetch@8.12.3'
+  - '@orval/hono@8.12.3'
+  - '@orval/mcp@8.12.3'
+  - '@orval/mock@8.12.3'
+  - '@orval/query@8.12.3'
+  - '@orval/solid-start@8.12.3'
+  - '@orval/swr@8.12.3'
+  - '@orval/zod@8.12.3'
+  - '@tanstack/react-router@1.170.7'
+  - '@tanstack/router-core@1.171.5'
+  - '@tanstack/router-generator@1.167.9'
+  - '@tanstack/router-plugin@1.168.10'
+  - baseline-browser-mapping@2.10.32
+  - orval@8.12.3

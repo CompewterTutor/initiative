@@ -1,16 +1,16 @@
+import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
 
+import { type PropertySummary, PropertyType } from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import {
   useSetDocumentProperties,
   useSetEventProperties,
   useSetTaskProperties,
 } from "@/hooks/useProperties";
-import { PropertyType, type PropertySummary } from "@/api/generated/initiativeAPI.schemas";
+import { cn } from "@/lib/utils";
 
 import { PropertyInput } from "./PropertyInput";
 import { iconForPropertyType } from "./propertyTypeIcons";
@@ -256,7 +256,7 @@ export const PropertyList = ({
             >
               <Label
                 htmlFor={inputId}
-                className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs font-normal"
+                className="flex min-w-0 items-center gap-1.5 font-normal text-muted-foreground text-xs"
                 title={property.name}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

@@ -1,12 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it, vi } from "vitest";
 
-import { renderWithProviders } from "@/__tests__/helpers/render";
-import { server } from "@/__tests__/helpers/msw-server";
 import { buildTrashItem, buildTrashListResponse } from "@/__tests__/factories/trash.factory";
 import { buildUserGuildMember } from "@/__tests__/factories/user.factory";
+import { server } from "@/__tests__/helpers/msw-server";
+import { renderWithProviders } from "@/__tests__/helpers/render";
 
 import { TrashTable } from "./TrashTable";
 

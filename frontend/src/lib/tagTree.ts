@@ -13,7 +13,9 @@ export interface TagTreeNode {
  */
 export function buildTagTree(tags: TagSummary[]): TagTreeNode[] {
   const tagsByPath = new Map<string, TagSummary>();
-  tags.forEach((tag) => tagsByPath.set(tag.name, tag));
+  tags.forEach((tag) => {
+    tagsByPath.set(tag.name, tag);
+  });
 
   const root: TagTreeNode[] = [];
 

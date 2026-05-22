@@ -1,4 +1,3 @@
-import { Suspense, useMemo, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -8,37 +7,38 @@ import {
   useLocation,
   useSearch,
 } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { Loader2, LogOut, Menu, Plus, Search, Settings, Ticket, UserCog } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { AppSidebar } from "@/components/AppSidebar";
+import { CommandCenter, getOpenCommandCenter } from "@/components/CommandCenter";
+import { PushPermissionPrompt } from "@/components/notifications/PushPermissionPrompt";
+import { ProjectActivitySidebar } from "@/components/projects/ProjectActivitySidebar";
+import { ProjectTabsBar } from "@/components/projects/ProjectTabsBar";
+import { CreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AppSidebar } from "@/components/AppSidebar";
-import { CommandCenter, getOpenCommandCenter } from "@/components/CommandCenter";
-import { CreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
-import { ProjectTabsBar } from "@/components/projects/ProjectTabsBar";
-import { ProjectActivitySidebar } from "@/components/projects/ProjectActivitySidebar";
 import { VersionDialog } from "@/components/VersionDialog";
-import { PushPermissionPrompt } from "@/components/notifications/PushPermissionPrompt";
-import { useGuilds } from "@/hooks/useGuilds";
-import { chooseNoGuildLayout } from "@/lib/noGuildLayout";
-import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
-import { useVersionCheck } from "@/hooks/useVersionCheck";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { useBackButton } from "@/hooks/useBackButton";
 import { useAuth } from "@/hooks/useAuth";
+import { useBackButton } from "@/hooks/useBackButton";
+import { useGuilds } from "@/hooks/useGuilds";
+import { useClearProjectView, useRecentProjects } from "@/hooks/useProjects";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 import { useServer } from "@/hooks/useServer";
-import { useRecentProjects, useClearProjectView } from "@/hooks/useProjects";
-import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import { useVersionCheck } from "@/hooks/useVersionCheck";
+import { chooseNoGuildLayout } from "@/lib/noGuildLayout";
 
 /**
  * Loading fallback for lazy-loaded pages inside the main layout.
  */
 const PageLoader = () => (
   <div className="flex items-center justify-center py-20">
-    <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>
 );
 
@@ -47,7 +47,7 @@ const PageLoader = () => (
  */
 const FullScreenLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
-    <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>
 );
 
@@ -158,7 +158,7 @@ function AppLayout() {
     <>
       <CommandCenter />
       <CreateTaskWizard />
-      <div className="bg-background flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-background">
         <PushPermissionPrompt />
         <div className="flex flex-1">
           <SidebarProvider
@@ -171,9 +171,9 @@ function AppLayout() {
             }
           >
             <AppSidebar />
-            <div className="bg-muted/50 min-w-0 flex-1 md:pl-0">
+            <div className="min-w-0 flex-1 bg-muted/50 md:pl-0">
               <div
-                className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex flex-col border-b backdrop-blur"
+                className="sticky top-0 z-50 flex flex-col border-b bg-card/70 backdrop-blur supports-backdrop-filter:bg-card/60"
                 style={{ paddingTop: "var(--safe-area-inset-top)" }}
               >
                 <div className="flex h-12">
@@ -256,9 +256,9 @@ function NoGuildState({
   };
 
   return (
-    <div className="bg-background flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="mx-auto w-full max-w-md space-y-6 text-center">
-        <h1 className="text-2xl font-bold">{t("noGuild.title")}</h1>
+        <h1 className="font-bold text-2xl">{t("noGuild.title")}</h1>
         <p className="text-muted-foreground">{t("noGuild.description")}</p>
 
         {canCreateGuilds && (
@@ -337,9 +337,9 @@ function NoGuildState({
 function NoGuildSettingsShell({ logout }: { logout: () => void }) {
   const { t } = useTranslation("guilds");
   return (
-    <div className="bg-background flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <div
-        className="bg-card/70 supports-backdrop-filter:bg-card/60 sticky top-0 z-50 flex flex-col border-b backdrop-blur"
+        className="sticky top-0 z-50 flex flex-col border-b bg-card/70 backdrop-blur supports-backdrop-filter:bg-card/60"
         style={{ paddingTop: "var(--safe-area-inset-top)" }}
       >
         <div className="flex h-12 items-center justify-between px-4">

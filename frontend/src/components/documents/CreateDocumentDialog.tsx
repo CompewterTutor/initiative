@@ -1,4 +1,3 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   FileCode,
   FileSpreadsheet,
@@ -11,12 +10,21 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { matchSmartLinkProvider, SUPPORTED_PROVIDER_BADGES } from "@/lib/smartLinkProviders";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { useAllDocumentIds, useCreateDocument, useUploadDocument } from "@/hooks/useDocuments";
-import { useInitiative } from "@/hooks/useInitiatives";
+import type { DocumentRead, InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+import {
+  CreateAccessControl,
+  type RoleGrant,
+  type UserGrant,
+} from "@/components/access/CreateAccessControl";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,19 +45,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  CreateAccessControl,
-  type RoleGrant,
-  type UserGrant,
-} from "@/components/access/CreateAccessControl";
+import { useAllDocumentIds, useCreateDocument, useUploadDocument } from "@/hooks/useDocuments";
+import { useInitiative } from "@/hooks/useInitiatives";
+import { toast } from "@/lib/chesterToast";
 import { formatBytes, getFileTypeLabel } from "@/lib/fileUtils";
-import type { DocumentRead, InitiativeRead } from "@/api/generated/initiativeAPI.schemas";
+import { matchSmartLinkProvider, SUPPORTED_PROVIDER_BADGES } from "@/lib/smartLinkProviders";
 import type { DialogProps } from "@/types/dialog";
 
 type CreateDocumentDialogProps = DialogProps & {
@@ -105,7 +105,7 @@ export const CreateDocumentDialog = ({
 
   // Query the initiative if we have an ID but it's not in the passed list
   const initiativeQuery = useInitiative(
-    open && !!initiativeId && !lockedInitiativeFromList ? initiativeId! : null
+    open && initiativeId && !lockedInitiativeFromList ? initiativeId! : null
   );
 
   const lockedInitiative = lockedInitiativeFromList ?? initiativeQuery.data ?? null;
@@ -214,7 +214,7 @@ export const CreateDocumentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border shadow-2xl">
+      <DialogContent className="max-h-screen w-full max-w-lg overflow-y-auto rounded-2xl border bg-card shadow-2xl">
         <DialogHeader>
           <DialogTitle>{t("create.title")}</DialogTitle>
           <DialogDescription>
@@ -344,9 +344,9 @@ export const CreateDocumentDialog = ({
                 </SelectContent>
               </Select>
             </div>
-            <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium">{t("create.saveAsTemplate")}</p>
+                <p className="font-medium text-sm">{t("create.saveAsTemplate")}</p>
                 <p className="text-muted-foreground text-xs">{t("create.templateDescription")}</p>
               </div>
               <Switch
@@ -372,7 +372,7 @@ export const CreateDocumentDialog = ({
               {selectedFile ? (
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-3">
-                    <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-lg">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                       {getFileTypeLabel(selectedFile.type, selectedFile.name) === "Image" ? (
                         <ImageIcon className="h-5 w-5 text-emerald-500" />
                       ) : getFileTypeLabel(selectedFile.type, selectedFile.name) === "Markdown" ? (
@@ -387,7 +387,7 @@ export const CreateDocumentDialog = ({
                       )}
                     </div>
                     <div>
-                      <p className="max-w-[200px] truncate text-sm font-medium">
+                      <p className="max-w-[200px] truncate font-medium text-sm">
                         {selectedFile.name}
                       </p>
                       <p className="text-muted-foreground text-xs">
@@ -416,7 +416,7 @@ export const CreateDocumentDialog = ({
                   {t("create.chooseFile")}
                 </Button>
               )}
-              <p className="text-muted-foreground text-xs whitespace-pre-line">
+              <p className="whitespace-pre-line text-muted-foreground text-xs">
                 {t("create.fileHelp")}
               </p>
             </div>
@@ -438,16 +438,22 @@ export const CreateDocumentDialog = ({
                 <span className="text-muted-foreground text-xs">
                   {t("create.smartLinkSupportedProviders")}
                 </span>
-                <div className="text-muted-foreground flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                   {SUPPORTED_PROVIDER_BADGES.map((p) => (
-                    <span key={p.id} title={p.label} aria-label={p.label} className="inline-flex">
+                    <span
+                      key={p.id}
+                      title={p.label}
+                      aria-label={p.label}
+                      className="inline-flex"
+                      role="img"
+                    >
                       <p.icon className="h-4 w-4" aria-hidden="true" />
                     </span>
                   ))}
                 </div>
               </div>
               {smartLinkProviderMatch ? (
-                <div className="text-muted-foreground flex items-start gap-2 text-xs">
+                <div className="flex items-start gap-2 text-muted-foreground text-xs">
                   <smartLinkProviderMatch.icon className="mt-0.5 h-4 w-4 shrink-0" />
                   {smartLinkProviderMatch.canEmbed ? (
                     <span>

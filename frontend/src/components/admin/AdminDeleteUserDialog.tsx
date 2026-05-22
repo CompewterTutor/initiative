@@ -1,18 +1,14 @@
+import { AlertCircle, ChevronLeft, Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, ChevronLeft, Loader2, Trash2 } from "lucide-react";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  useUserDeletionEligibility,
-  useAdminDeleteUser,
-  useAdminPromoteGuildMember,
-  useAdminDeleteGuild,
-  useAdminDeleteInitiative,
-  useAdminPromoteInitiativeMember,
-} from "@/hooks/useAdmin";
 import { adminGetInitiativeMembersApiV1AdminInitiativesInitiativeIdMembersGet } from "@/api/generated/admin/admin";
+import type {
+  AdminDeletionEligibilityResponse,
+  GuildBlockerInfo,
+  InitiativeBlockerInfo,
+  UserRead,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,12 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import type {
-  AdminDeletionEligibilityResponse,
-  GuildBlockerInfo,
-  InitiativeBlockerInfo,
-  UserRead,
-} from "@/api/generated/initiativeAPI.schemas";
+import {
+  useAdminDeleteGuild,
+  useAdminDeleteInitiative,
+  useAdminDeleteUser,
+  useAdminPromoteGuildMember,
+  useAdminPromoteInitiativeMember,
+  useUserDeletionEligibility,
+} from "@/hooks/useAdmin";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 import type { DialogWithSuccessProps } from "@/types/dialog";
 
 /**
@@ -393,7 +393,7 @@ export function AdminDeleteUserDialog({
                       <div className="flex-1 space-y-1">
                         <Label
                           htmlFor={option}
-                          className={`cursor-pointer text-base font-medium ${meta.labelClass}`}
+                          className={`cursor-pointer font-medium text-base ${meta.labelClass}`}
                         >
                           {t(meta.titleKey)}
                         </Label>
@@ -411,7 +411,7 @@ export function AdminDeleteUserDialog({
             <div className="space-y-4">
               {isCheckingEligibility && (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
 
@@ -421,8 +421,8 @@ export function AdminDeleteUserDialog({
                   <AlertDescription>
                     <div className="mb-2 font-semibold">{t("adminDeleteUser.blockersTitle")}</div>
                     <ul className="list-inside list-disc space-y-1">
-                      {eligibility.blockers.map((blocker, idx) => (
-                        <li key={idx}>{blocker}</li>
+                      {eligibility.blockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
                       ))}
                     </ul>
                     <p className="mt-2 text-sm">{t("adminDeleteUser.blockersDescription")}</p>
@@ -430,7 +430,7 @@ export function AdminDeleteUserDialog({
                 </Alert>
               )}
 
-              {eligibility && eligibility.can_delete && (
+              {eligibility?.can_delete && (
                 <>
                   {eligibility.warnings.length > 0 && (
                     <Alert>
@@ -440,8 +440,8 @@ export function AdminDeleteUserDialog({
                           {t("adminDeleteUser.warningsTitle")}
                         </div>
                         <ul className="list-inside list-disc space-y-1">
-                          {eligibility.warnings.map((warning, idx) => (
-                            <li key={idx}>{warning}</li>
+                          {eligibility.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
                           ))}
                         </ul>
                       </AlertDescription>
@@ -541,7 +541,10 @@ export function AdminDeleteUserDialog({
                                     label: formatMemberLabel(member),
                                   }))}
                                   onValueChange={(value) =>
-                                    handlePromoteGuildMember(guildBlocker.guild_id, parseInt(value))
+                                    handlePromoteGuildMember(
+                                      guildBlocker.guild_id,
+                                      parseInt(value, 10)
+                                    )
                                   }
                                   placeholder={t("adminDeleteUser.transferSelectPlaceholder")}
                                   emptyMessage={t("adminDeleteUser.noUsersAvailable")}
@@ -563,7 +566,7 @@ export function AdminDeleteUserDialog({
                       {initiativeBlockers.length > 0 && (
                         <div
                           className={
-                            guildBlocker ? "border-l-muted ml-4 space-y-3 border-l-2 pl-4" : ""
+                            guildBlocker ? "ml-4 space-y-3 border-l-2 border-l-muted pl-4" : ""
                           }
                         >
                           {initiativeBlockers.map((initBlocker) => (
@@ -608,7 +611,7 @@ export function AdminDeleteUserDialog({
                                       onValueChange={(value) =>
                                         handlePromoteInitiativeMember(
                                           initBlocker.initiative_id,
-                                          parseInt(value)
+                                          parseInt(value, 10)
                                         )
                                       }
                                       placeholder={t("adminDeleteUser.transferSelectPlaceholder")}
@@ -664,7 +667,7 @@ export function AdminDeleteUserDialog({
                     onValueChange={(value) =>
                       setProjectTransfers((prev) => ({
                         ...prev,
-                        [project.id]: parseInt(value),
+                        [project.id]: parseInt(value, 10),
                       }))
                     }
                     placeholder={t("adminDeleteUser.transferSelectPlaceholder")}

@@ -1,6 +1,7 @@
+import type { AxiosError } from "axios";
 import {
-  ReactNode,
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -8,14 +9,13 @@ import {
   useRef,
   useState,
 } from "react";
-import type { AxiosError } from "axios";
 
-import { toast } from "@/lib/chesterToast";
 import { apiClient, setCurrentGuildId } from "@/api/client";
-import { resetGuildScopedQueries } from "@/api/query-keys";
-import { getItem, setItem, removeItem } from "@/lib/storage";
 import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
+import { resetGuildScopedQueries } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/lib/chesterToast";
+import { getItem, removeItem, setItem } from "@/lib/storage";
 
 interface GuildContextValue {
   guilds: GuildRead[];

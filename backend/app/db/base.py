@@ -21,6 +21,7 @@ from app.models.property import (
 )
 from app.models.queue import Queue, QueueItem, QueueItemTag, QueuePermission, QueueRolePermission, QueueItemDocument, QueueItemTask
 from app.models.calendar_event import CalendarEvent, CalendarEventAttendee, CalendarEventTag, CalendarEventDocument
+from app.models.counter import Counter, CounterGroup, CounterGroupPermission, CounterGroupRolePermission
 from app.models.upload import Upload
 
 __all__ = [
@@ -68,5 +69,9 @@ __all__ = [
     "CalendarEventAttendee",
     "CalendarEventTag",
     "CalendarEventDocument",
+    "Counter",
+    "CounterGroup",
+    "CounterGroupPermission",
+    "CounterGroupRolePermission",
     "Upload",
 ]

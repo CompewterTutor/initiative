@@ -1,5 +1,3 @@
-import * as React from "react";
-import { JSX, Suspense } from "react";
 import type {
   DOMConversionMap,
   DOMConversionOutput,
@@ -13,6 +11,8 @@ import type {
   Spread,
 } from "lexical";
 import { $applyNodeReplacement, createEditor, DecoratorNode } from "lexical";
+import * as React from "react";
+import { type JSX, Suspense } from "react";
 
 const ImageComponent = React.lazy(() => import("../editor-ui/image-component"));
 
@@ -121,7 +121,6 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
 
   static importDOM(): DOMConversionMap | null {
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       img: (node: Node) => ({
         conversion: $convertImageElement,
         priority: 0,

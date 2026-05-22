@@ -1,28 +1,28 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { summarizeRecurrence } from "@/lib/recurrence";
-import type { TranslateFn } from "@/types/i18n";
-import { guildPath } from "@/lib/guildUrl";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
-import { SortIcon } from "@/components/SortIcon";
-import { dateSortingFn, prioritySortingFn } from "@/lib/sorting";
-import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { getTaskDateStatus, getTaskDateStatusLabel } from "@/lib/taskDateStatus";
-import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
-import { DateCell } from "@/components/tasks/TaskDateCell";
-import { TaskPrioritySelector } from "@/components/tasks/TaskPrioritySelector";
-import { TaskStatusSelector } from "@/components/tasks/TaskStatusSelector";
-import { TagBadge } from "@/components/tags/TagBadge";
-import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
 import type {
   ProjectRead,
   TaskListRead,
   TaskStatusCategory,
   TaskStatusRead,
 } from "@/api/generated/initiativeAPI.schemas";
+import { TaskAssigneeList } from "@/components/projects/TaskAssigneeList";
+import { TaskDescriptionHoverCard } from "@/components/projects/TaskDescriptionHoverCard";
+import { SortIcon } from "@/components/SortIcon";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { TaskChecklistProgress } from "@/components/tasks/TaskChecklistProgress";
+import { DateCell } from "@/components/tasks/TaskDateCell";
+import { TaskPrioritySelector } from "@/components/tasks/TaskPrioritySelector";
+import { TaskStatusSelector } from "@/components/tasks/TaskStatusSelector";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { guildPath } from "@/lib/guildUrl";
+import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { summarizeRecurrence } from "@/lib/recurrence";
+import { dateSortingFn, prioritySortingFn } from "@/lib/sorting";
+import { getTaskDateStatus, getTaskDateStatusLabel } from "@/lib/taskDateStatus";
+import type { TranslateFn } from "@/types/i18n";
 
 interface GlobalTaskColumnsOptions {
   activeGuildId: number | null;
@@ -73,7 +73,7 @@ export function globalTaskColumns({
         );
       },
       cell: ({ getValue }) => (
-        <span className="text-base font-medium">
+        <span className="font-medium text-base">
           {getTaskDateStatusLabel(getValue<string>(), t)}
         </span>
       ),
@@ -95,7 +95,7 @@ export function globalTaskColumns({
           </div>
         );
       },
-      cell: ({ getValue }) => <span className="text-base font-medium">{getValue<string>()}</span>,
+      cell: ({ getValue }) => <span className="font-medium text-base">{getValue<string>()}</span>,
       enableHiding: true,
       enableSorting: true,
       sortingFn: "alphanumeric",
@@ -159,13 +159,13 @@ export function globalTaskColumns({
             <div className="flex">
               <Link
                 to={taskGuildPath(task, `/tasks/${task.id}`)}
-                className="text-foreground flex w-full items-center gap-2 font-medium hover:underline"
+                className="flex w-full items-center gap-2 font-medium text-foreground hover:underline"
               >
                 {task.title}
               </Link>
               <TaskDescriptionHoverCard task={task} />
             </div>
-            <div className="text-muted-foreground space-y-1 text-xs">
+            <div className="space-y-1 text-muted-foreground text-xs">
               {showAssignees && task.assignees?.length > 0 ? (
                 <TaskAssigneeList assignees={task.assignees} className="text-xs" />
               ) : null}
@@ -249,7 +249,7 @@ export function globalTaskColumns({
                 <>
                   <Link
                     to={taskGuildPath(task, `/initiatives/${initiativeId}`)}
-                    className="text-muted-foreground flex items-center gap-2 text-sm"
+                    className="flex items-center gap-2 text-muted-foreground text-sm"
                   >
                     <InitiativeColorDot color={initiativeColor ?? undefined} />
                     {initiativeName}
@@ -262,7 +262,7 @@ export function globalTaskColumns({
               ) : null}
               <Link
                 to={taskGuildPath(task, `/projects/${projectIdentifier}`)}
-                className="text-primary text-sm font-medium hover:underline"
+                className="font-medium text-primary text-sm hover:underline"
               >
                 {projectLabel}
               </Link>

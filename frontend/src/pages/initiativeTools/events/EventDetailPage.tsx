@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -10,23 +9,14 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import {
-  useCalendarEvent,
-  useDeleteCalendarEvent,
-  useUpdateEventRSVP,
-} from "@/hooks/useCalendarEvents";
-import { useInitiatives } from "@/hooks/useInitiatives";
-import { useAuth } from "@/hooks/useAuth";
-import { useGuildPath } from "@/lib/guildUrl";
-import { getHttpStatus } from "@/lib/errorMessage";
+import type { RSVPStatus } from "@/api/generated/initiativeAPI.schemas";
+import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
+import { iconForPropertyType } from "@/components/properties/propertyTypeIcons";
 import { StatusMessage } from "@/components/StatusMessage";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -35,6 +25,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -42,9 +35,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PropertyValueCell } from "@/components/properties/PropertyValueCell";
-import { iconForPropertyType } from "@/components/properties/propertyTypeIcons";
-import type { RSVPStatus } from "@/api/generated/initiativeAPI.schemas";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  useCalendarEvent,
+  useDeleteCalendarEvent,
+  useUpdateEventRSVP,
+} from "@/hooks/useCalendarEvents";
+import { useInitiatives } from "@/hooks/useInitiatives";
+import { toast } from "@/lib/chesterToast";
+import { getHttpStatus } from "@/lib/errorMessage";
+import { useGuildPath } from "@/lib/guildUrl";
 
 const RSVP_LABEL_KEYS: Record<
   string,
@@ -192,7 +192,7 @@ export function EventDetailPage() {
 
   if (eventQuery.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("loadingEvent")}
       </div>
@@ -276,7 +276,7 @@ export function EventDetailPage() {
 
       {/* Event title and description */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{event.title}</h1>
+        <h1 className="font-semibold text-2xl tracking-tight">{event.title}</h1>
         {event.description && <p className="text-muted-foreground text-sm">{event.description}</p>}
       </div>
 
@@ -284,7 +284,7 @@ export function EventDetailPage() {
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="flex items-start gap-3">
-            <CalendarDays className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+            <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
             <div>
               <p className="font-medium">
                 {formatDateRange(event.start_at, event.end_at, event.all_day)}
@@ -294,7 +294,7 @@ export function EventDetailPage() {
 
           {event.location && (
             <div className="flex items-start gap-3">
-              <MapPin className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <p className="text-sm">{event.location}</p>
             </div>
           )}
@@ -364,7 +364,7 @@ export function EventDetailPage() {
                   key={attendee.user_id}
                   className="flex items-center justify-between rounded-md border px-3 py-2"
                 >
-                  <span className="text-sm font-medium">
+                  <span className="font-medium text-sm">
                     {attendee.user?.full_name?.trim() ||
                       attendee.user?.email ||
                       `User #${attendee.user_id}`}
@@ -394,7 +394,7 @@ export function EventDetailPage() {
                     key={property.property_id}
                     className="grid grid-cols-[minmax(0,8rem)_1fr] items-center gap-2"
                   >
-                    <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs font-normal">
+                    <span className="flex min-w-0 items-center gap-1.5 font-normal text-muted-foreground text-xs">
                       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       <span className="truncate">{property.name}</span>
                     </span>

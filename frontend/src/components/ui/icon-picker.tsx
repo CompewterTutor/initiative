@@ -1,24 +1,24 @@
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
+import Fuse from "fuse.js";
+import type { LucideIcon, LucideProps } from "lucide-react";
+import { DynamicIcon, dynamicIconImports, type IconName } from "lucide-react/dynamic";
 import * as React from "react";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDebounceValue } from "usehooks-ts";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { LucideProps, LucideIcon } from "lucide-react";
-import { DynamicIcon, dynamicIconImports, IconName } from "lucide-react/dynamic";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { iconsData } from "./icons-data";
-import { useVirtualizer, VirtualItem } from "@tanstack/react-virtual";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import Fuse from "fuse.js";
-import { useDebounceValue } from "usehooks-ts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+import type { iconsData } from "./icons-data";
 
 export type IconData = (typeof iconsData)[number];
 
-interface IconPickerProps extends Omit<
-  React.ComponentPropsWithoutRef<typeof PopoverTrigger>,
-  "onSelect" | "onOpenChange"
-> {
+interface IconPickerProps
+  extends Omit<React.ComponentPropsWithoutRef<typeof PopoverTrigger>, "onSelect" | "onOpenChange"> {
   value?: IconName;
   defaultValue?: IconName;
   onValueChange?: (value: IconName) => void;
@@ -301,7 +301,7 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
           <Tooltip>
             <TooltipTrigger
               className={cn(
-                "hover:bg-foreground/10 rounded-md border p-2 transition",
+                "rounded-md border p-2 transition hover:bg-foreground/10",
                 "flex items-center justify-center"
               )}
               onClick={() => handleIconClick(icon.name as IconName)}
@@ -345,11 +345,11 @@ const IconPicker = React.forwardRef<React.ComponentRef<typeof PopoverTrigger>, I
 
             if (item.type === "category") {
               return (
-                <div key={virtualItem.key} style={itemStyle} className="bg-background top-0 z-10">
-                  <h3 className="text-sm font-medium capitalize">
+                <div key={virtualItem.key} style={itemStyle} className="top-0 z-10 bg-background">
+                  <h3 className="font-medium text-sm capitalize">
                     {categorizedIcons[item.categoryIndex].name}
                   </h3>
-                  <div className="bg-foreground/10 h-[1px] w-full" />
+                  <div className="h-[1px] w-full bg-foreground/10" />
                 </div>
               );
             }
@@ -434,4 +434,4 @@ const Icon = React.forwardRef<React.ComponentRef<LucideIcon>, IconProps>(
 );
 Icon.displayName = "Icon";
 
-export { IconPicker, Icon, type IconName };
+export { Icon, type IconName, IconPicker };

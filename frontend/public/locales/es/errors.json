@@ -225,5 +225,17 @@
   "ADVANCED_TOOL_NOT_ENABLED": "La herramienta avanzada no está activada para esta iniciativa.",
   "AI_INVALID_BASE_URL": "La URL base no está permitida. Use un nombre de host público.",
   "AI_PROVIDER_NOT_ALLOWED": "Ollama solo se puede configurar a nivel de plataforma.",
-  "fallback": "Algo salió mal. Por favor intenta de nuevo."
+  "fallback": "Algo salió mal. Por favor intenta de nuevo.",
+  "COUNTER_NOT_FOUND": "Contador no encontrado",
+  "COUNTER_GROUP_NOT_FOUND": "Grupo de contadores no encontrado",
+  "COUNTER_INITIATIVE_NOT_FOUND": "Iniciativa no encontrada para este grupo de contadores",
+  "COUNTER_PERMISSION_REQUIRED": "Se requiere permiso para este grupo de contadores",
+  "COUNTER_CREATE_PERMISSION_REQUIRED": "Se requiere permiso para crear grupos de contadores",
+  "COUNTER_WRITE_ACCESS_REQUIRED": "Se requiere acceso de escritura a este grupo de contadores",
+  "COUNTER_OWNER_REQUIRED": "Se requiere permiso de propietario del grupo de contadores",
+  "COUNTERS_NOT_ENABLED": "Los contadores no están habilitados para esta iniciativa",
+  "COUNTER_VIEW_MODE_REQUIRES_BOUNDS": "La barra de progreso y el reloj segmentado requieren definir mínimo y máximo",
+  "COUNTER_MIN_GREATER_THAN_MAX": "El mínimo no puede ser mayor que el máximo",
+  "COUNTER_STEP_MUST_BE_POSITIVE": "El incremento debe ser un número positivo",
+  "COUNTER_OUT_OF_RANGE": "El valor está fuera del rango permitido"
 }

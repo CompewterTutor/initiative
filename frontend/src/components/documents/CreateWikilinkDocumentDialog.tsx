@@ -1,10 +1,7 @@
-import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { useAllDocumentIds, useCreateDocument } from "@/hooks/useDocuments";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -14,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useAllDocumentIds, useCreateDocument } from "@/hooks/useDocuments";
+import { toast } from "@/lib/chesterToast";
 
 interface CreateWikilinkDocumentDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admin, ai_settings, attachments, auth, auto_subscriptions, calendar_events, collaboration, comments, config, documents, events, guilds, imports, initiatives, notifications, projects, property_definitions, push, queues, settings, tags, task_statuses, tasks, trash, users, version
+from app.api.v1.endpoints import admin, ai_settings, attachments, auth, auto_subscriptions, calendar_events, collaboration, comments, config, counters, documents, events, guilds, imports, initiatives, notifications, projects, property_definitions, push, queues, settings, tags, task_statuses, tasks, trash, users, version
 
 api_router = APIRouter()
 api_router.include_router(version.router, tags=["version"])
@@ -26,6 +26,7 @@ api_router.include_router(attachments.router, prefix="/attachments", tags=["atta
 api_router.include_router(imports.router, prefix="/imports", tags=["imports"])
 api_router.include_router(collaboration.router, prefix="/collaboration", tags=["collaboration"])
 api_router.include_router(queues.router, prefix="/queues", tags=["queues"])
+api_router.include_router(counters.router, prefix="/counter-groups", tags=["counters"])
 api_router.include_router(calendar_events.router, prefix="/calendar-events", tags=["calendar-events"])
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(property_definitions.router, prefix="/property-definitions", tags=["property-definitions"])

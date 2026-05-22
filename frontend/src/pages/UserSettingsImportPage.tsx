@@ -1,16 +1,16 @@
+import { Upload } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload } from "lucide-react";
 
 import asanaIcon from "@/assets/asana.png";
 import ticktickIcon from "@/assets/ticktick.svg";
 import todoistIcon from "@/assets/todoist.svg";
 import trelloIcon from "@/assets/trello.svg";
 import vikunjaIcon from "@/assets/vikunja.svg";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TickTickImportDialog } from "@/components/import/TickTickImportDialog";
 import { TodoistImportDialog } from "@/components/import/TodoistImportDialog";
 import { VikunjaImportDialog } from "@/components/import/VikunjaImportDialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ImportPlatform {
   id: string;
@@ -102,7 +102,7 @@ export const UserSettingsImportPage = () => {
                 disabled={!platform.available}
                 className={`relative flex items-start gap-4 rounded-lg border p-4 text-left transition-colors ${
                   platform.available
-                    ? "hover:bg-accent hover:border-primary cursor-pointer"
+                    ? "cursor-pointer hover:border-primary hover:bg-accent"
                     : "cursor-not-allowed opacity-60"
                 }`}
               >
@@ -111,7 +111,7 @@ export const UserSettingsImportPage = () => {
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium">{platform.name}</h3>
                     {!platform.available && (
-                      <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs">
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground text-xs">
                         {t("page.comingSoon")}
                       </span>
                     )}

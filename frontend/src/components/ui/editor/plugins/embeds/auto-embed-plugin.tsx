@@ -1,23 +1,23 @@
-import { JSX, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { SiX, SiYoutube } from "@icons-pack/react-simple-icons";
 import {
   AutoEmbedOption,
-  EmbedConfig,
-  EmbedMatchResult,
+  type EmbedConfig,
+  type EmbedMatchResult,
   LexicalAutoEmbedPlugin,
   URL_MATCHER,
 } from "@lexical/react/LexicalAutoEmbedPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { PopoverPortal } from "@radix-ui/react-popover";
 import type { LexicalEditor } from "lexical";
-import { SiYoutube, SiX } from "@icons-pack/react-simple-icons";
+import { type JSX, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useEditorModal } from "@/components/ui/editor/editor-hooks/use-modal";
-import { INSERT_TWEET_COMMAND } from "@/components/ui/editor/plugins/embeds/twitter-plugin";
-import { INSERT_YOUTUBE_COMMAND } from "@/components/ui/editor/plugins/embeds/youtube-plugin";
 import { Button } from "@/components/ui/button";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { DialogFooter } from "@/components/ui/dialog";
+import { useEditorModal } from "@/components/ui/editor/editor-hooks/use-modal";
+import { INSERT_TWEET_COMMAND } from "@/components/ui/editor/plugins/embeds/twitter-plugin";
+import { INSERT_YOUTUBE_COMMAND } from "@/components/ui/editor/plugins/embeds/youtube-plugin";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 

@@ -208,6 +208,7 @@ async def create_initiative(
         queues_enabled=initiative_in.queues_enabled,
         events_enabled=initiative_in.events_enabled,
         advanced_tool_enabled=initiative_in.advanced_tool_enabled,
+        counters_enabled=initiative_in.counters_enabled,
     )
     if initiative_in.color:
         initiative.color = initiative_in.color
@@ -482,6 +483,8 @@ async def get_my_initiative_permissions(
                 "create_events": initiative.events_enabled,
                 "advanced_tool_enabled": initiative.advanced_tool_enabled,
                 "create_advanced_tool": initiative.advanced_tool_enabled,
+                "counters_enabled": initiative.counters_enabled,
+                "create_counters": initiative.counters_enabled,
             },
             advanced_tool_enabled=initiative.advanced_tool_enabled,
         )
@@ -520,6 +523,11 @@ async def get_my_initiative_permissions(
         permissions[PermissionKey.advanced_tool_enabled] = False
         permissions[PermissionKey.create_advanced_tool] = False
     advanced_tool_enabled = initiative.advanced_tool_enabled
+
+    # Initiative-level master switch overrides role-level counters permissions
+    if not initiative.counters_enabled:
+        permissions[PermissionKey.counters_enabled] = False
+        permissions[PermissionKey.create_counters] = False
 
     return MyInitiativePermissions(
         role_id=role.id,

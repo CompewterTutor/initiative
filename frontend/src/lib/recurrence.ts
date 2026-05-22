@@ -6,6 +6,7 @@ import type {
 } from "@/api/generated/initiativeAPI.schemas";
 
 export type TaskWeekPosition = "first" | "second" | "third" | "fourth" | "last";
+
 import type { TranslateFn } from "@/types/i18n";
 
 export type RecurrencePreset =
@@ -34,10 +35,9 @@ export const WEEKDAYS: WeekdayConfig[] = [
   { value: "sunday", label: "Sunday", short: "Sun", dateIndex: 0 },
 ];
 
-const WEEKDAY_ORDER: Record<TaskRecurrenceOutputWeekdaysItem, number> = WEEKDAYS.reduce(
-  (acc, item, index) => ({ ...acc, [item.value]: index }),
-  {} as Record<TaskRecurrenceOutputWeekdaysItem, number>
-);
+const WEEKDAY_ORDER = Object.fromEntries(
+  WEEKDAYS.map((item, index) => [item.value, index])
+) as Record<TaskRecurrenceOutputWeekdaysItem, number>;
 
 const POSITION_LABELS: Record<TaskWeekPosition, string> = {
   first: "first",

@@ -1,7 +1,13 @@
+import { Check, ChevronDown, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronDown, Plus, X } from "lucide-react";
 
+import {
+  type PropertyDefinitionRead,
+  type PropertyOption,
+  type PropertySummary,
+  PropertyType,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,12 +26,6 @@ import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { useAppendPropertyOption } from "@/hooks/useProperties";
 import { useUsers } from "@/hooks/useUsers";
 import { cn } from "@/lib/utils";
-import {
-  PropertyType,
-  type PropertyDefinitionRead,
-  type PropertyOption,
-  type PropertySummary,
-} from "@/api/generated/initiativeAPI.schemas";
 
 type PropertyDefinitionLike = PropertyDefinitionRead | PropertySummary;
 
@@ -443,13 +443,22 @@ const PropertyOptionPicker = ({
                       : t("properties:input.unknownOption", { value: option.value })}
                   </span>
                   {isMulti ? (
+                    // biome-ignore lint/a11y/useSemanticElements: can't nest a <button> inside the parent PopoverTrigger button; span+role is the workaround
                     <span
                       role="button"
+                      tabIndex={0}
                       aria-label={t("properties:input.clear")}
-                      className="text-muted-foreground hover:text-foreground ml-0.5 shrink-0"
+                      className="ml-0.5 shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
                         onChangeMulti((selectedMulti ?? []).filter((v) => v !== option.value));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onChangeMulti((selectedMulti ?? []).filter((v) => v !== option.value));
+                        }
                       }}
                     >
                       <X className="h-3 w-3" />

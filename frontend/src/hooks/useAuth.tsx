@@ -1,18 +1,18 @@
-import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Capacitor } from "@capacitor/core";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
 import {
+  AUTH_UNAUTHORIZED_EVENT,
   apiClient,
   setAuthToken,
   setHasActiveSession,
-  AUTH_UNAUTHORIZED_EVENT,
 } from "@/api/client";
-import { getItem, setItem, removeItem } from "@/lib/storage";
+import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { queryClient } from "@/lib/queryClient";
-import type { UserRead } from "@/api/generated/initiativeAPI.schemas";
+import { getItem, removeItem, setItem } from "@/lib/storage";
 
 interface LoginPayload {
   email: string;

@@ -1,18 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toast } from "@/lib/chesterToast";
-import { getErrorMessage } from "@/lib/errorMessage";
-import {
-  listInitiativeRolesApiV1InitiativesInitiativeIdRolesGet,
-  getListInitiativeRolesApiV1InitiativesInitiativeIdRolesGetQueryKey,
-  createInitiativeRoleApiV1InitiativesInitiativeIdRolesPost,
-  updateInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdPatch,
-  deleteInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdDelete,
-  getMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGet,
-  getGetMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGetQueryKey,
-} from "@/api/generated/initiatives/initiatives";
-import { invalidateInitiativeRoles, invalidateMyPermissions } from "@/api/query-keys";
 import type {
   InitiativeRoleCreate,
   InitiativeRoleRead,
@@ -20,6 +8,18 @@ import type {
   MyInitiativePermissions,
   PermissionKey,
 } from "@/api/generated/initiativeAPI.schemas";
+import {
+  createInitiativeRoleApiV1InitiativesInitiativeIdRolesPost,
+  deleteInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdDelete,
+  getGetMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGetQueryKey,
+  getListInitiativeRolesApiV1InitiativesInitiativeIdRolesGetQueryKey,
+  getMyInitiativePermissionsApiV1InitiativesInitiativeIdMyPermissionsGet,
+  listInitiativeRolesApiV1InitiativesInitiativeIdRolesGet,
+  updateInitiativeRoleApiV1InitiativesInitiativeIdRolesRoleIdPatch,
+} from "@/api/generated/initiatives/initiatives";
+import { invalidateInitiativeRoles, invalidateMyPermissions } from "@/api/query-keys";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export const useInitiativeRoles = (initiativeId: number | null) => {
   return useQuery<InitiativeRoleRead[]>({
@@ -123,13 +123,15 @@ export const hasPermission = (
 // on is_manager here.
 export const isFeatureEnabled = (
   permissions: MyInitiativePermissions | undefined,
-  feature: "docs" | "projects" | "queues"
+  feature: "docs" | "projects" | "queues" | "events" | "counters"
 ): boolean => {
   if (!permissions) return false;
   const keyMap: Record<typeof feature, PermissionKey> = {
     docs: "docs_enabled",
     projects: "projects_enabled",
     queues: "queues_enabled",
+    events: "events_enabled",
+    counters: "counters_enabled",
   };
   return permissions.permissions[keyMap[feature]] ?? false;
 };
@@ -138,7 +140,7 @@ export const isFeatureEnabled = (
 // Same as isFeatureEnabled — reads backend value directly.
 export const canCreate = (
   permissions: MyInitiativePermissions | undefined,
-  entity: "docs" | "projects" | "queues" | "events"
+  entity: "docs" | "projects" | "queues" | "events" | "counters"
 ): boolean => {
   if (!permissions) return false;
   const keyMap: Record<typeof entity, PermissionKey> = {
@@ -146,6 +148,7 @@ export const canCreate = (
     projects: "create_projects",
     queues: "create_queues",
     events: "create_events",
+    counters: "create_counters",
   };
   return permissions.permissions[keyMap[entity]] ?? false;
 };
@@ -162,6 +165,8 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   create_events: "Create Events",
   advanced_tool_enabled: "View Advanced Tool",
   create_advanced_tool: "Create in Advanced Tool",
+  counters_enabled: "View Counters",
+  create_counters: "Create Counters",
 };
 
 // i18n-based permission label keys (use with t())
@@ -176,6 +181,8 @@ export const PERMISSION_LABEL_KEYS: Record<PermissionKey, string> = {
   create_events: "settings.permissions.createEvents",
   advanced_tool_enabled: "settings.permissions.viewAdvancedTool",
   create_advanced_tool: "settings.permissions.createAdvancedTool",
+  counters_enabled: "settings.permissions.viewCounters",
+  create_counters: "settings.permissions.createCounters",
 };
 
 // All permission keys in display order
@@ -190,6 +197,8 @@ export const ALL_PERMISSION_KEYS: PermissionKey[] = [
   "create_events",
   "advanced_tool_enabled",
   "create_advanced_tool",
+  "counters_enabled",
+  "create_counters",
 ];
 
 // Permission groups for card-based layout
@@ -208,6 +217,10 @@ export const CORE_PERMISSION_GROUPS: PermissionGroup[] = [
 export const ADVANCED_PERMISSION_GROUPS: PermissionGroup[] = [
   { labelKey: "settings.permissionGroups.queues", keys: ["queues_enabled", "create_queues"] },
   { labelKey: "settings.permissionGroups.events", keys: ["events_enabled", "create_events"] },
+  {
+    labelKey: "settings.permissionGroups.counters",
+    keys: ["counters_enabled", "create_counters"],
+  },
 ];
 
 // Permission group for the optional embedded advanced tool. Only included

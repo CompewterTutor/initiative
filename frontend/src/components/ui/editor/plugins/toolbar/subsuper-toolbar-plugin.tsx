@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { $isTableSelection } from "@lexical/table";
-import { $isRangeSelection, BaseSelection, FORMAT_TEXT_COMMAND } from "lexical";
+import { $isRangeSelection, type BaseSelection, FORMAT_TEXT_COMMAND } from "lexical";
 import { SubscriptIcon, SuperscriptIcon } from "lucide-react";
+import { useState } from "react";
 
 import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
 import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";

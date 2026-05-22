@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 
 import { API_BASE_URL } from "@/api/client";
+import { invalidateAllQueues, invalidateQueue } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
-import { invalidateAllQueues, invalidateQueue } from "@/api/query-keys";
 
 /**
  * Subscribe to real-time queue updates via WebSocket.

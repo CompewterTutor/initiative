@@ -1,4 +1,3 @@
-import { Dispatch, JSX, useCallback, useEffect, useRef, useState } from "react";
 import { $isCodeHighlightNode } from "@lexical/code";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -10,7 +9,7 @@ import {
   $isTextNode,
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
-  LexicalEditor,
+  type LexicalEditor,
   SELECTION_CHANGE_COMMAND,
 } from "lexical";
 import {
@@ -23,6 +22,7 @@ import {
   SuperscriptIcon,
   UnderlineIcon,
 } from "lucide-react";
+import { type Dispatch, type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { getDOMRangeRect } from "@/components/ui/editor/utils/get-dom-range-rect";
@@ -90,6 +90,7 @@ function FloatingTextFormat({
     }
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: listeners are stable closures over the ref; only re-attach when the ref identity changes
   useEffect(() => {
     if (popupCharStylesEditorRef?.current) {
       document.addEventListener("mousemove", mouseMoveListener);
@@ -117,8 +118,7 @@ function FloatingTextFormat({
       selection !== null &&
       nativeSelection !== null &&
       !nativeSelection.isCollapsed &&
-      rootElement !== null &&
-      rootElement.contains(nativeSelection.anchorNode)
+      rootElement?.contains(nativeSelection.anchorNode)
     ) {
       const rangeRect = getDOMRangeRect(nativeSelection, rootElement);
 
@@ -173,7 +173,7 @@ function FloatingTextFormat({
   return (
     <div
       ref={popupCharStylesEditorRef}
-      className="bg-background absolute top-0 left-0 flex gap-1 rounded-md border p-1 opacity-0 shadow-md transition-opacity duration-300 will-change-transform"
+      className="absolute top-0 left-0 flex gap-1 rounded-md border bg-background p-1 opacity-0 shadow-md transition-opacity duration-300 will-change-transform"
     >
       {editor.isEditable() && (
         <>

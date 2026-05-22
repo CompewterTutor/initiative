@@ -1,12 +1,10 @@
-import { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { $isLinkNode } from "@lexical/link";
 import { $findMatchingParent } from "@lexical/utils";
 import {
   $isElementNode,
   $isRangeSelection,
-  BaseSelection,
-  ElementFormatType,
+  type BaseSelection,
+  type ElementFormatType,
   FORMAT_ELEMENT_COMMAND,
   INDENT_CONTENT_COMMAND,
   OUTDENT_CONTENT_COMMAND,
@@ -20,10 +18,9 @@ import {
   IndentDecreaseIcon,
   IndentIncreaseIcon,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
-import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";
-import { getSelectedNode } from "@/components/ui/editor/utils/get-selected-node";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,6 +29,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToolbarContext } from "@/components/ui/editor/context/toolbar-context";
+import { useUpdateToolbarHandler } from "@/components/ui/editor/editor-hooks/use-update-toolbar";
+import { getSelectedNode } from "@/components/ui/editor/utils/get-selected-node";
 
 type AlignmentType = "left" | "center" | "right" | "justify";
 
@@ -67,7 +67,7 @@ export function ElementFormatToolbarPlugin() {
       const node = getSelectedNode(selection);
       const parent = node.getParent();
 
-      let matchingParent;
+      let matchingParent: any;
       if ($isLinkNode(parent)) {
         // If node is a link, we need to fetch the parent paragraph node to set format
         matchingParent = $findMatchingParent(

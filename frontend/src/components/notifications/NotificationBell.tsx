@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { useRouter } from "@tanstack/react-router";
+import { Bell, CheckCheck, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  useNotifications,
-  useMarkNotificationRead,
-  useMarkAllNotificationsRead,
-} from "@/hooks/useNotifications";
-import { Button } from "@/components/ui/button";
+import type { NotificationRead } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { NotificationRead } from "@/api/generated/initiativeAPI.schemas";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+} from "@/hooks/useNotifications";
 import { guildPath } from "@/lib/guildUrl";
 
 // Build guild-scoped URL directly
@@ -194,7 +194,7 @@ export const NotificationBell = () => {
   const renderContent = () => {
     if (notificationsQuery.isLoading) {
       return (
-        <div className="text-muted-foreground flex items-center justify-center py-8 text-sm">
+        <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           {t("notifications.loadingNotifications")}
         </div>
@@ -202,7 +202,7 @@ export const NotificationBell = () => {
     }
     if (!hasNotifications) {
       return (
-        <div className="text-muted-foreground py-8 text-center text-sm">
+        <div className="py-8 text-center text-muted-foreground text-sm">
           {t("notifications.allCaughtUp")}
         </div>
       );
@@ -214,7 +214,7 @@ export const NotificationBell = () => {
             <li key={notification.id}>
               <button
                 type="button"
-                className="hover:bg-accent/50 flex w-full items-start gap-3 px-2 py-3 text-left transition"
+                className="flex w-full items-start gap-3 px-2 py-3 text-left transition hover:bg-accent/50"
                 onClick={() => void handleNotificationClick(notification)}
               >
                 <div className="flex-1">
@@ -224,12 +224,12 @@ export const NotificationBell = () => {
                       t as (key: string, options?: Record<string, unknown>) => string
                     )}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p className="mt-1 text-muted-foreground text-xs">
                     {new Date(notification.created_at).toLocaleString()}
                   </p>
                 </div>
                 {notification.read_at ? null : (
-                  <span className="bg-primary mt-1 h-2.5 w-2.5 rounded-full" />
+                  <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
                 )}
               </button>
             </li>
@@ -258,7 +258,7 @@ export const NotificationBell = () => {
       </PopoverTrigger>
       <PopoverContent className="w-80">
         <div className="flex items-center justify-between border-b pb-2">
-          <p className="text-sm font-semibold">{t("notifications.title")}</p>
+          <p className="font-semibold text-sm">{t("notifications.title")}</p>
           <Button
             variant="ghost"
             size="sm"

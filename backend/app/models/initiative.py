@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from app.models.document import Document
     from app.models.queue import Queue
     from app.models.calendar_event import CalendarEvent
+    from app.models.counter import CounterGroup
 
 
 # Legacy enum kept for backwards compatibility during migration
@@ -34,6 +35,8 @@ class PermissionKey(str, Enum):
     create_events = "create_events"
     advanced_tool_enabled = "advanced_tool_enabled"
     create_advanced_tool = "create_advanced_tool"
+    counters_enabled = "counters_enabled"
+    create_counters = "create_counters"
 
 
 # Fallback values when a permission is not explicitly set on a role.
@@ -53,6 +56,10 @@ DEFAULT_PERMISSION_VALUES: dict["PermissionKey", bool] = {
     # only managers can view/create unless a custom role grants it.
     PermissionKey.advanced_tool_enabled: False,
     PermissionKey.create_advanced_tool: False,
+    # Counters is an advanced tool — opt-in by default like queues/events,
+    # gated by the initiative master switch.
+    PermissionKey.counters_enabled: False,
+    PermissionKey.create_counters: False,
 }
 
 
@@ -69,6 +76,8 @@ BUILTIN_ROLE_PERMISSIONS = {
         PermissionKey.create_events: True,
         PermissionKey.advanced_tool_enabled: True,
         PermissionKey.create_advanced_tool: True,
+        PermissionKey.counters_enabled: True,
+        PermissionKey.create_counters: True,
     },
     "member": {
         PermissionKey.docs_enabled: True,
@@ -81,6 +90,8 @@ BUILTIN_ROLE_PERMISSIONS = {
         PermissionKey.create_events: False,
         PermissionKey.advanced_tool_enabled: False,
         PermissionKey.create_advanced_tool: False,
+        PermissionKey.counters_enabled: False,
+        PermissionKey.create_counters: False,
     },
 }
 
@@ -191,6 +202,10 @@ class Initiative(SoftDeleteMixin, table=True):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
+    counters_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), nullable=False),
@@ -219,6 +234,10 @@ class Initiative(SoftDeleteMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
     calendar_events: List["CalendarEvent"] = Relationship(
+        back_populates="initiative",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    counter_groups: List["CounterGroup"] = Relationship(
         back_populates="initiative",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

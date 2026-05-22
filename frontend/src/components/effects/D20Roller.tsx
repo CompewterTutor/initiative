@@ -91,9 +91,9 @@ export const D20Roller = ({ x, y, onDone }: D20RollerProps) => {
     >
       <PixelD20 value={face} size={dieSize} />
       {phase === "settled" &&
-        sparklePositions.map((pos, i) => (
+        sparklePositions.map((pos) => (
           <div
-            key={i}
+            key={`sparkle-${x}-${y}`}
             style={{
               position: "absolute",
               left: pos.x,

@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
 import { Link, useRouter, useSearch } from "@tanstack/react-router";
+import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
@@ -49,7 +49,7 @@ export const ResetPasswordPage = () => {
 
   if (!token) {
     return (
-      <div className="bg-muted/60 flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-muted/60 px-4 py-12">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader>
             <CardTitle>{t("resetPassword.titleInvalid")}</CardTitle>
@@ -66,7 +66,7 @@ export const ResetPasswordPage = () => {
   }
 
   return (
-    <div className="bg-muted/60 flex min-h-screen items-center justify-center px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-muted/60 px-4 py-12">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle>{t("resetPassword.title")}</CardTitle>
@@ -74,7 +74,7 @@ export const ResetPasswordPage = () => {
         </CardHeader>
         <CardContent>
           {status === "success" ? (
-            <div className="text-primary space-y-4 text-sm">
+            <div className="space-y-4 text-primary text-sm">
               <p>{t("resetPassword.success")}</p>
               <Button className="w-full" onClick={() => router.navigate({ to: "/login" })}>
                 {t("resetPassword.goToSignIn")}

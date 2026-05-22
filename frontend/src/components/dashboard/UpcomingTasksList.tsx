@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { format, parseISO, isToday, isBefore, startOfDay } from "date-fns";
+import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
 import { CalendarClock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGuildPath } from "@/lib/guildUrl";
-import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 
 interface UpcomingTasksListProps {
   tasks: TaskListRead[];
@@ -64,6 +64,7 @@ export function UpcomingTasksList({ tasks, isLoading }: UpcomingTasksListProps) 
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: This is a static skeleton list, so using index as key is fine.
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="h-4 flex-1" />
                 <Skeleton className="h-5 w-16" />
@@ -71,7 +72,7 @@ export function UpcomingTasksList({ tasks, isLoading }: UpcomingTasksListProps) 
             ))}
           </div>
         ) : sorted.length === 0 ? (
-          <div className="text-muted-foreground flex h-[200px] items-center justify-center text-sm">
+          <div className="flex h-50 items-center justify-center text-muted-foreground text-sm">
             <div className="flex flex-col items-center gap-2">
               <CalendarClock className="h-8 w-8 opacity-50" />
               <span>{t("upcomingTasks.noTasks")}</span>
@@ -86,12 +87,12 @@ export function UpcomingTasksList({ tasks, isLoading }: UpcomingTasksListProps) 
                 <Link
                   key={task.id}
                   to={gp(`/tasks/${task.id}`)}
-                  className="hover:bg-accent flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+                  className="flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{task.title}</p>
+                    <p className="truncate font-medium text-sm">{task.title}</p>
                     {task.project_name && (
-                      <p className="text-muted-foreground truncate text-xs">{task.project_name}</p>
+                      <p className="truncate text-muted-foreground text-xs">{task.project_name}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

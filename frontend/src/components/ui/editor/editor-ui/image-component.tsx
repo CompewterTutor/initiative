@@ -1,4 +1,3 @@
-import { JSX, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
@@ -28,6 +27,7 @@ import {
   SELECTION_CHANGE_COMMAND,
   TextNode,
 } from "lexical";
+import { type JSX, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // import brokenImage from '@/components/ui/editor/images/image-broken.svg';
 import { ContentEditable } from "@/components/ui/editor/editor-ui/content-editable";
@@ -99,6 +99,7 @@ function BrokenImage(): JSX.Element {
         width: 200,
       }}
       draggable="false"
+      alt="Broken"
     />
   );
 }
@@ -282,19 +283,7 @@ export default function ImageComponent({
       unregister();
       rootElement?.removeEventListener("contextmenu", onRightClick);
     };
-  }, [
-    clearSelection,
-    editor,
-    isResizing,
-    isSelected,
-    nodeKey,
-    $onDelete,
-    $onEnter,
-    $onEscape,
-    onClick,
-    onRightClick,
-    setSelected,
-  ]);
+  }, [editor, $onDelete, $onEnter, $onEscape, onClick, onRightClick]);
 
   const setShowCaption = () => {
     editor.update(() => {
@@ -335,7 +324,7 @@ export default function ImageComponent({
             <LazyImage
               className={`max-w-full cursor-default ${
                 isFocused
-                  ? `${$isNodeSelection(selection) ? "draggable cursor-grab active:cursor-grabbing" : ""} focused ring-primary ring-2 ring-offset-2`
+                  ? `${$isNodeSelection(selection) ? "draggable cursor-grab active:cursor-grabbing" : ""} focused ring-2 ring-primary ring-offset-2`
                   : null
               }`}
               src={resolvedSrc}
@@ -348,7 +337,7 @@ export default function ImageComponent({
         </div>
 
         {showCaption && (
-          <div className="image-caption-container bg-background/90 absolute right-0 bottom-1 left-0 m-0 block min-w-[100px] overflow-hidden border-t">
+          <div className="image-caption-container absolute right-0 bottom-1 left-0 m-0 block min-w-[100px] overflow-hidden border-t bg-background/90">
             <LexicalNestedComposer
               initialEditor={caption}
               initialNodes={[RootNode, TextNode, ParagraphNode]}
@@ -358,7 +347,7 @@ export default function ImageComponent({
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
-                    className="ImageNode__contentEditable user-select-text word-break-break-word caret-primary relative block min-h-5 w-[calc(100%-20px)] cursor-text resize-none border-0 p-2.5 text-sm whitespace-pre-wrap outline-none"
+                    className="ImageNode__contentEditable user-select-text word-break-break-word relative block min-h-5 w-[calc(100%-20px)] cursor-text resize-none whitespace-pre-wrap border-0 p-2.5 text-sm caret-primary outline-none"
                     placeholderClassName="ImageNode__placeholder text-sm text-muted-foreground overflow-hidden absolute top-2.5 left-2.5 pointer-events-none text-ellipsis user-select-none whitespace-nowrap inline-block"
                     placeholder="Enter a caption..."
                   />

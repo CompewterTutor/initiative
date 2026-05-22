@@ -1,9 +1,11 @@
-import { useEffect, useState, type RefObject } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin";
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
+import { type RefObject, useEffect, useState } from "react";
 
+import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
 import { ContentEditable } from "@/components/ui/editor/editor-ui/content-editable";
+import { MARKDOWN_TRANSFORMERS } from "@/components/ui/editor/extensions/markdown-shortcuts-extension";
 import { ActionsPlugin } from "@/components/ui/editor/plugins/actions/actions-plugin";
 import { ClearEditorActionPlugin } from "@/components/ui/editor/plugins/actions/clear-editor-plugin";
 import { CounterCharacterPlugin } from "@/components/ui/editor/plugins/actions/counter-character-plugin";
@@ -22,11 +24,9 @@ import { TwitterPlugin } from "@/components/ui/editor/plugins/embeds/twitter-plu
 import { YouTubePlugin } from "@/components/ui/editor/plugins/embeds/youtube-plugin";
 import { EmojiPickerPlugin } from "@/components/ui/editor/plugins/emoji-picker-plugin";
 import { FloatingLinkEditorPlugin } from "@/components/ui/editor/plugins/floating-link-editor-plugin";
-import { FloatingWikilinkEditorPlugin } from "@/components/ui/editor/plugins/floating-wikilink-editor-plugin";
 import { FloatingTextFormatToolbarPlugin } from "@/components/ui/editor/plugins/floating-text-format-plugin";
-import { TableActionMenuPlugin } from "@/components/ui/editor/plugins/table-action-menu-plugin";
+import { FloatingWikilinkEditorPlugin } from "@/components/ui/editor/plugins/floating-wikilink-editor-plugin";
 import { MentionsPlugin } from "@/components/ui/editor/plugins/mentions-plugin";
-import { WikilinksPlugin } from "@/components/ui/editor/plugins/wikilinks-plugin";
 import { AlignmentPickerPlugin } from "@/components/ui/editor/plugins/picker/alignment-picker-plugin";
 import { BulletedListPickerPlugin } from "@/components/ui/editor/plugins/picker/bulleted-list-picker-plugin";
 import { CheckListPickerPlugin } from "@/components/ui/editor/plugins/picker/check-list-picker-plugin";
@@ -44,7 +44,7 @@ import {
   TablePickerPlugin,
 } from "@/components/ui/editor/plugins/picker/table-picker-plugin";
 import { TabFocusPlugin } from "@/components/ui/editor/plugins/tab-focus-plugin";
-import { BlockFormatDropDown } from "@/components/ui/editor/plugins/toolbar/block-format-toolbar-plugin";
+import { TableActionMenuPlugin } from "@/components/ui/editor/plugins/table-action-menu-plugin";
 import { FormatBulletedList } from "@/components/ui/editor/plugins/toolbar/block-format/format-bulleted-list";
 import { FormatCheckList } from "@/components/ui/editor/plugins/toolbar/block-format/format-check-list";
 import { FormatCodeBlock } from "@/components/ui/editor/plugins/toolbar/block-format/format-code-block";
@@ -52,12 +52,13 @@ import { FormatHeading } from "@/components/ui/editor/plugins/toolbar/block-form
 import { FormatNumberedList } from "@/components/ui/editor/plugins/toolbar/block-format/format-numbered-list";
 import { FormatParagraph } from "@/components/ui/editor/plugins/toolbar/block-format/format-paragraph";
 import { FormatQuote } from "@/components/ui/editor/plugins/toolbar/block-format/format-quote";
-import { BlockInsertPlugin } from "@/components/ui/editor/plugins/toolbar/block-insert-plugin";
+import { BlockFormatDropDown } from "@/components/ui/editor/plugins/toolbar/block-format-toolbar-plugin";
 import { InsertColumnsLayout } from "@/components/ui/editor/plugins/toolbar/block-insert/insert-columns-layout";
 import { InsertEmbeds } from "@/components/ui/editor/plugins/toolbar/block-insert/insert-embeds";
 import { InsertHorizontalRule } from "@/components/ui/editor/plugins/toolbar/block-insert/insert-horizontal-rule";
 import { InsertImage } from "@/components/ui/editor/plugins/toolbar/block-insert/insert-image";
 import { InsertTable } from "@/components/ui/editor/plugins/toolbar/block-insert/insert-table";
+import { BlockInsertPlugin } from "@/components/ui/editor/plugins/toolbar/block-insert-plugin";
 import { ClearFormattingToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/clear-formatting-toolbar-plugin";
 import { CodeLanguageToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/code-language-toolbar-plugin";
 import { ElementFormatToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/element-format-toolbar-plugin";
@@ -68,11 +69,10 @@ import { FontSizeToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/fo
 import { HistoryToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/history-toolbar-plugin";
 import { LinkToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/link-toolbar-plugin";
 import { SubSuperToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/subsuper-toolbar-plugin";
-import { ToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/toolbar-plugin";
 import { ToolbarOverflowMenu } from "@/components/ui/editor/plugins/toolbar/toolbar-overflow-menu";
-import { MARKDOWN_TRANSFORMERS } from "@/components/ui/editor/extensions/markdown-shortcuts-extension";
+import { ToolbarPlugin } from "@/components/ui/editor/plugins/toolbar/toolbar-plugin";
+import { WikilinksPlugin } from "@/components/ui/editor/plugins/wikilinks-plugin";
 import { Separator } from "@/components/ui/separator";
-import type { UserPublic } from "@/api/generated/initiativeAPI.schemas";
 
 const placeholder = "Press / for commands...";
 
@@ -119,7 +119,7 @@ export function Plugins({
           {({ blockType }) => (
             <>
               {/* Desktop toolbar - all options inline */}
-              <div className="bg-background vertical-align-middle sticky top-0 z-10 hidden flex-wrap items-center gap-2 overflow-auto border-b p-1 lg:flex">
+              <div className="vertical-align-middle sticky top-0 z-10 hidden flex-wrap items-center gap-2 overflow-auto border-b bg-background p-1 lg:flex">
                 <HistoryToolbarPlugin />
                 <Separator orientation="vertical" className="h-7!" />
                 <BlockFormatDropDown>
@@ -161,7 +161,7 @@ export function Plugins({
               </div>
 
               {/* Compact toolbar - overflow menu */}
-              <div className="bg-background vertical-align-middle sticky top-0 z-10 flex items-center gap-2 border-b p-1 lg:hidden">
+              <div className="vertical-align-middle sticky top-0 z-10 flex items-center gap-2 border-b bg-background p-1 lg:hidden">
                 <HistoryToolbarPlugin />
                 <Separator orientation="vertical" className="h-7!" />
                 <BlockFormatDropDown>
@@ -257,7 +257,7 @@ export function Plugins({
       </div>
       {showToolbar && (
         <ActionsPlugin>
-          <div className="bg-background sticky bottom-0 z-10 clear-both flex items-center justify-between gap-2 overflow-auto border-t p-1">
+          <div className="sticky bottom-0 z-10 clear-both flex items-center justify-between gap-2 overflow-auto border-t bg-background p-1">
             <div className="flex flex-1 justify-start"></div>
             <div>
               <CounterCharacterPlugin charset="UTF-16" />
