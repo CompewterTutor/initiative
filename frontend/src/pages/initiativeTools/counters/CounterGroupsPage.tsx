@@ -102,7 +102,33 @@ export const CounterGroupsView = ({ fixedInitiativeId, canCreate }: CountersView
   }, [canCreate, effectiveInitiativeId, initiativePerms, initiatives.length]);
 
   const [createOpen, setCreateOpen] = useState(searchParams.create === "true");
+  const isClosingCreateDialog = useRef(false);
   const [search, setSearch] = useState("");
+
+  // Open the create dialog whenever ?create=true is present — including when
+  // the sidebar "+" navigates here while already on the page (the useState
+  // initializer above only runs on mount).
+  useEffect(() => {
+    const shouldCreate = searchParams.create === "true";
+    if (shouldCreate && !createOpen && !isClosingCreateDialog.current) {
+      setCreateOpen(true);
+    }
+    if (!shouldCreate) {
+      isClosingCreateDialog.current = false;
+    }
+  }, [searchParams.create, createOpen]);
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setCreateOpen(open);
+    if (!open && searchParams.create) {
+      isClosingCreateDialog.current = true;
+      void router.navigate({
+        to: gp("/counter-groups"),
+        search: { initiativeId: searchParams.initiativeId },
+        replace: true,
+      });
+    }
+  };
   const getDefaultFiltersVisibility = () =>
     typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
   const [filtersOpen, setFiltersOpen] = useState(getDefaultFiltersVisibility);
@@ -199,7 +225,7 @@ export const CounterGroupsView = ({ fixedInitiativeId, canCreate }: CountersView
 
       <CreateCounterGroupDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={handleCreateOpenChange}
         initiativeId={lockedInitiativeId ?? undefined}
         defaultInitiativeId={effectiveInitiativeId ?? undefined}
         onSuccess={handleCreated}
