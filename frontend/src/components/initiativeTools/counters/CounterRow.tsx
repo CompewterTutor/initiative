@@ -242,26 +242,26 @@ export const CounterRow = ({
     );
   }
 
-  // Row layout: [grip] [minus] [name + view (centered)] [plus] [more]
+  // Row layout: name on its own full-width line, then [grip] [-] [view] [+] [more].
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 overflow-hidden rounded-lg border border-black/10 p-3 shadow-sm sm:gap-3 dark:border-white/10",
+        "flex flex-col gap-2 overflow-hidden rounded-lg border border-black/10 p-3 shadow-sm dark:border-white/10",
         isDragging && "opacity-70"
       )}
     >
-      {dragHandle}
-      {minusButton}
-      <div className="min-w-0 flex-1 text-center">
-        <div className="truncate font-semibold text-base" style={{ color: fg }}>
-          {counter.name}
-        </div>
-        <div className="mt-1 flex justify-center">{viewElement}</div>
+      <div className="truncate text-center font-semibold text-base" style={{ color: fg }}>
+        {counter.name}
       </div>
-      {plusButton}
-      {moreMenu}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {dragHandle}
+        {minusButton}
+        <div className="flex min-w-0 flex-1 justify-center">{viewElement}</div>
+        {plusButton}
+        {moreMenu}
+      </div>
     </div>
   );
 };
