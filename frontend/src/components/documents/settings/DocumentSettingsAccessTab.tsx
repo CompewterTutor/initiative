@@ -154,7 +154,6 @@ export const DocumentSettingsAccessTab = ({
       <UserPermissionsCard
         userPermissions={userPermissionRows}
         availableMembers={availableMembers}
-        showEmail
         busy={usersBusy}
         onAdd={(userId, level) =>
           addMember.mutate({ userId, level: level as DocumentPermissionLevel })

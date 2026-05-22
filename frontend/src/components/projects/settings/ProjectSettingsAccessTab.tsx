@@ -159,7 +159,6 @@ export const ProjectSettingsAccessTab = ({ project, projectId }: ProjectSettings
       <UserPermissionsCard
         userPermissions={userPermissionRows}
         availableMembers={availableMembers}
-        showEmail
         busy={usersBusy}
         onAdd={(userId, level) => addMember.mutate({ user_id: userId, level })}
         onUpdateLevel={(userId, level) =>

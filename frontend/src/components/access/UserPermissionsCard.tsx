@@ -34,8 +34,6 @@ export interface MemberOption {
 interface UserPermissionsCardProps {
   userPermissions: UserPermissionRow[];
   availableMembers: MemberOption[];
-  /** Show a dedicated email column (Project/Document); otherwise email is omitted. */
-  showEmail?: boolean;
   busy?: boolean;
   onAdd: (userId: number, level: "read" | "write") => void;
   onUpdateLevel: (userId: number, level: "read" | "write") => void;
@@ -50,7 +48,6 @@ interface UserPermissionsCardProps {
 export const UserPermissionsCard = ({
   userPermissions,
   availableMembers,
-  showEmail = false,
   busy = false,
   onAdd,
   onUpdateLevel,
@@ -66,22 +63,18 @@ export const UserPermissionsCard = ({
   const [selectedLevel, setSelectedLevel] = useState<"read" | "write">("read");
   const [selectedRows, setSelectedRows] = useState<UserPermissionRow[]>([]);
 
-  const columns: ColumnDef<UserPermissionRow>[] = useMemo(() => {
-    const cols: ColumnDef<UserPermissionRow>[] = [
+  const columns: ColumnDef<UserPermissionRow>[] = useMemo(
+    () => [
       {
         accessorKey: "displayName",
         header: t("memberColumn"),
         cell: ({ row }) => <span className="font-medium">{row.original.displayName}</span>,
       },
-    ];
-    if (showEmail) {
-      cols.push({
+      {
         accessorKey: "email",
         header: t("emailColumn"),
         cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
-      });
-    }
-    cols.push(
+      },
       {
         accessorKey: "level",
         header: t("accessLevel"),
@@ -130,10 +123,10 @@ export const UserPermissionsCard = ({
             </div>
           );
         },
-      }
-    );
-    return cols;
-  }, [t, showEmail, busy, onUpdateLevel, onRemove]);
+      },
+    ],
+    [t, busy, onUpdateLevel, onRemove]
+  );
 
   const handleAdd = () => {
     if (!selectedUserId) return;
