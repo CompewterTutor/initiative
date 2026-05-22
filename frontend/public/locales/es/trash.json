@@ -35,6 +35,8 @@
     "tag": "Etiqueta",
     "queue": "Cola",
     "queue_item": "Elemento de cola",
-    "calendar_event": "Evento de calendario"
+    "calendar_event": "Evento de calendario",
+    "counter_group": "Grupo de contadores",
+    "counter": "Contador"
   }
 }

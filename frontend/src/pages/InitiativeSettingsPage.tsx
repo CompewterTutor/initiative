@@ -163,6 +163,13 @@ export const InitiativeSettingsPage = () => {
     });
   };
 
+  const handleToggleCounters = (value: boolean) => {
+    updateInitiative.mutate({
+      initiativeId,
+      data: { counters_enabled: value },
+    });
+  };
+
   const handleDeleteInitiative = () => {
     if (initiative?.is_default) {
       return;
@@ -259,6 +266,8 @@ export const InitiativeSettingsPage = () => {
           onToggleEvents={handleToggleEvents}
           advancedToolEnabled={initiative?.advanced_tool_enabled ?? false}
           onToggleAdvancedTool={handleToggleAdvancedTool}
+          countersEnabled={initiative?.counters_enabled ?? false}
+          onToggleCounters={handleToggleCounters}
           canManageMembers={canManageMembers}
           isSaving={updateInitiative.isPending}
           onSaveDetails={handleSaveDetails}

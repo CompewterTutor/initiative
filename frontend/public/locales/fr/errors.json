@@ -225,5 +225,17 @@
   "ADVANCED_TOOL_NOT_ENABLED": "L’outil avancé n’est pas activé pour cette initiative.",
   "AI_INVALID_BASE_URL": "L'URL de base n'est pas autorisée. Utilisez un nom d'hôte public.",
   "AI_PROVIDER_NOT_ALLOWED": "Ollama ne peut être configuré qu'au niveau de la plateforme.",
-  "fallback": "Une erreur s'est produite. Veuillez réessayer."
+  "fallback": "Une erreur s'est produite. Veuillez réessayer.",
+  "COUNTER_NOT_FOUND": "Compteur introuvable",
+  "COUNTER_GROUP_NOT_FOUND": "Groupe de compteurs introuvable",
+  "COUNTER_INITIATIVE_NOT_FOUND": "Initiative introuvable pour ce groupe de compteurs",
+  "COUNTER_PERMISSION_REQUIRED": "Autorisation requise pour ce groupe de compteurs",
+  "COUNTER_CREATE_PERMISSION_REQUIRED": "Autorisation requise pour créer des groupes de compteurs",
+  "COUNTER_WRITE_ACCESS_REQUIRED": "Accès en écriture requis pour ce groupe de compteurs",
+  "COUNTER_OWNER_REQUIRED": "Autorisation de propriétaire requise pour ce groupe de compteurs",
+  "COUNTERS_NOT_ENABLED": "Les compteurs ne sont pas activés pour cette initiative",
+  "COUNTER_VIEW_MODE_REQUIRES_BOUNDS": "La barre de progression et l’horloge segmentée nécessitent un min et un max",
+  "COUNTER_MIN_GREATER_THAN_MAX": "Le minimum ne peut pas être supérieur au maximum",
+  "COUNTER_STEP_MUST_BE_POSITIVE": "Le pas doit être un nombre positif",
+  "COUNTER_OUT_OF_RANGE": "La valeur est en dehors de la plage autorisée"
 }

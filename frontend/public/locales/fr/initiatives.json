@@ -4,7 +4,7 @@
   "newInitiative": "Nouvelle initiative",
   "selectGuild": "Sélectionner un groupe",
   "selectGuildDescription": "Passez dans un groupe pour voir ses initiatives et ses membres.",
-  "loading": "Chargement des initiatives\u2026",
+  "loading": "Chargement des initiatives…",
   "loadError": "Impossible de charger les initiatives pour l'instant.",
   "noDescription": "Aucune description pour l'instant.",
   "members": "Membres :",
@@ -23,7 +23,7 @@
     "descriptionPlaceholder": "Résumé optionnel (Markdown supporté)",
     "colorLabel": "Couleur",
     "colorHint": "Cette couleur d'accent apparaît sur les projets liés à l'initiative.",
-    "creating": "Création en cours\u2026",
+    "creating": "Création en cours…",
     "submit": "Créer l'initiative",
     "nameRequired": "Le nom de l'initiative est requis.",
     "created": "Initiative \"{{name}}\" créée.",
@@ -42,7 +42,9 @@
     "initiativeSettings": "Paramètres de l'initiative",
     "documents": "Documents",
     "projects": "Projets",
-    "queues": "Files"
+    "queues": "Files",
+    "calendar": "Calendrier",
+    "counters": "Compteurs"
   },
   "settings": {
     "title": "Paramètres de l'initiative",
@@ -143,7 +145,8 @@
       "projects": "Projets",
       "queues": "Files",
       "events": "Événements",
-      "advancedTool": "Outil avancé"
+      "advancedTool": "Outil avancé",
+      "counters": "Compteurs"
     },
     "permissions": {
       "viewDocuments": "Voir les documents",
@@ -155,7 +158,9 @@
       "viewEvents": "Voir les événements",
       "createEvents": "Créer des événements",
       "viewAdvancedTool": "Ouvrir l’outil avancé",
-      "createAdvancedTool": "Créer dans l’outil avancé"
+      "createAdvancedTool": "Créer dans l’outil avancé",
+      "viewCounters": "Voir les compteurs",
+      "createCounters": "Créer des compteurs"
     }
   },
   "advancedTools": "Outils avancés",
@@ -176,5 +181,7 @@
     "openSettings": "Ouvrir les paramètres",
     "guildAdminOnlyTitle": "Réservé aux administrateurs",
     "guildAdminOnlyDescription": "Seuls les administrateurs du guild peuvent gérer les automatisations à l’échelle du guild."
-  }
+  },
+  "countersFeature": "Compteurs",
+  "countersFeatureDescription": "Suivez des valeurs numériques comme les PV, scores ou budgets — bornées, incrémentées par pas et affichées en chiffres, barres ou jauges radiales."
 }

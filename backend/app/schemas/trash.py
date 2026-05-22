@@ -18,6 +18,8 @@ EntityType = Literal[
     "queue",
     "queue_item",
     "calendar_event",
+    "counter_group",
+    "counter",
 ]
 
 

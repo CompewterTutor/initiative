@@ -94,7 +94,15 @@ export const useInitiativeMembers = (
 export const useCreateInitiative = (
   options?: MutationOpts<
     InitiativeRead,
-    { name: string; description?: string; color?: string; queues_enabled?: boolean }
+    {
+      name: string;
+      description?: string;
+      color?: string;
+      queues_enabled?: boolean;
+      events_enabled?: boolean;
+      counters_enabled?: boolean;
+      advanced_tool_enabled?: boolean;
+    }
   >
 ) => {
   const { t } = useTranslation("initiatives");
@@ -107,6 +115,9 @@ export const useCreateInitiative = (
       description?: string;
       color?: string;
       queues_enabled?: boolean;
+      events_enabled?: boolean;
+      counters_enabled?: boolean;
+      advanced_tool_enabled?: boolean;
     }) => {
       return createInitiativeApiV1InitiativesPost(data) as unknown as Promise<InitiativeRead>;
     },

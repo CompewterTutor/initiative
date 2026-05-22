@@ -38,6 +38,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoCloseSidebar } from "@/hooks/useAutoCloseSidebar";
+import { useCounterGroupsList } from "@/hooks/useCounters";
 import { compareVersions, useDockerHubVersion } from "@/hooks/useDockerHubVersion";
 import { useAllDocumentIds } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
@@ -131,6 +132,21 @@ export const AppSidebar = () => {
     return map;
   }, [queuesQuery.data]);
 
+  // Fetch counter groups for counts
+  const counterGroupsQuery = useCounterGroupsList(
+    { page: 1, page_size: 100 },
+    { enabled: Boolean(activeGuild), staleTime: 60_000 }
+  );
+  const counterGroupCountsByInitiative = useMemo(() => {
+    const map = new Map<number, number>();
+    const groups = counterGroupsQuery.data?.items ?? [];
+    groups.forEach((group) => {
+      const count = map.get(group.initiative_id) ?? 0;
+      map.set(group.initiative_id, count + 1);
+    });
+    return map;
+  }, [counterGroupsQuery.data]);
+
   const visibleInitiatives = useMemo(() => {
     if (!user) {
       return [];
@@ -171,10 +187,12 @@ export const AppSidebar = () => {
           canViewQueues: false,
           canViewEvents: false,
           canViewAdvancedTool: false,
+          canViewCounters: false,
           canCreateDocs: false,
           canCreateProjects: false,
           canCreateQueues: false,
           canCreateEvents: false,
+          canCreateCounters: false,
         };
       }
       // Guild admins have all permissions (queues/events/advanced-tool gated
@@ -186,10 +204,12 @@ export const AppSidebar = () => {
           canViewQueues: initiative.queues_enabled ?? false,
           canViewEvents: initiative.events_enabled ?? false,
           canViewAdvancedTool: initiative.advanced_tool_enabled ?? false,
+          canViewCounters: initiative.counters_enabled ?? false,
           canCreateDocs: true,
           canCreateProjects: true,
           canCreateQueues: initiative.queues_enabled ?? false,
           canCreateEvents: initiative.events_enabled ?? false,
+          canCreateCounters: initiative.counters_enabled ?? false,
         };
       }
       const membership = initiative.members.find((m) => m.user.id === user.id);
@@ -200,10 +220,12 @@ export const AppSidebar = () => {
           canViewQueues: false,
           canViewEvents: false,
           canViewAdvancedTool: false,
+          canViewCounters: false,
           canCreateDocs: false,
           canCreateProjects: false,
           canCreateQueues: false,
           canCreateEvents: false,
+          canCreateCounters: false,
         };
       }
       return {
@@ -212,10 +234,12 @@ export const AppSidebar = () => {
         canViewQueues: membership.can_view_queues ?? false,
         canViewEvents: membership.can_view_events ?? false,
         canViewAdvancedTool: membership.can_view_advanced_tool ?? false,
+        canViewCounters: membership.can_view_counters ?? false,
         canCreateDocs: membership.can_create_docs ?? false,
         canCreateProjects: membership.can_create_projects ?? false,
         canCreateQueues: membership.can_create_queues ?? false,
         canCreateEvents: membership.can_create_events ?? false,
+        canCreateCounters: membership.can_create_counters ?? false,
       };
     },
     [user, isGuildAdmin]
@@ -472,11 +496,16 @@ export const AppSidebar = () => {
                                     canViewQueues={permissions.canViewQueues}
                                     canViewEvents={permissions.canViewEvents}
                                     canViewAdvancedTool={permissions.canViewAdvancedTool}
+                                    canViewCounters={permissions.canViewCounters}
                                     canCreateDocs={permissions.canCreateDocs}
                                     canCreateProjects={permissions.canCreateProjects}
                                     canCreateQueues={permissions.canCreateQueues}
                                     canCreateEvents={permissions.canCreateEvents}
+                                    canCreateCounters={permissions.canCreateCounters}
                                     queueCount={queueCountsByInitiative.get(initiative.id) ?? 0}
+                                    counterGroupCount={
+                                      counterGroupCountsByInitiative.get(initiative.id) ?? 0
+                                    }
                                     activeGuildId={activeGuildId}
                                     collapseKey={initiativeCollapseKey}
                                   />
