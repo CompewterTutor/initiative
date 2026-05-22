@@ -148,7 +148,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "msw": "^2.14.6",
-    "orval": "^8.10.0",
+    "orval": "^8.12.3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
