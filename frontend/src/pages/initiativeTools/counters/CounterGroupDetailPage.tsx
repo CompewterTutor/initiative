@@ -237,11 +237,10 @@ export function CounterGroupDetailPage() {
             strategy={layout === "grid" ? rectSortingStrategy : verticalListSortingStrategy}
           >
             <div
-              className={layout === "grid" ? "grid gap-3" : "space-y-2"}
-              style={
+              className={
                 layout === "grid"
-                  ? { gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }
-                  : undefined
+                  ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  : "space-y-2"
               }
             >
               {counters.map((counter) => (
