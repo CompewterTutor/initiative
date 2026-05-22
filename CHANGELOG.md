@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-05-22
+
 ### Added
 
 - **Counters advanced tool for initiatives.** A new initiative-scoped feature for tracking numeric values like HP, ammo, scores, or budgets. Data model is `Initiative > Counter Group > Counter`, mirroring Queues with full DAC (user + role permissions), guild-scoped RLS, soft-delete, and real-time WebSocket updates. Each counter has its own `count`, `min`/`max` bounds, `step`, `initial_count`, and view mode (`number`, `progress_bar`, or `segmented_clock`). Counts can be set directly, incremented/decremented by step, or reset to the initial value; a "Reset All" button on the group resets every counter at once. Counters use fractional-position indexing (`Numeric(20,10)`) for single-PATCH drag-and-drop reordering within a group. Adds the `counters_enabled` initiative master switch and `counters_enabled` / `create_counters` per-role permission keys (backfilled: managers ON, members OFF). New routes: `/counter-groups`, `/counter-groups/:groupId`, `/counter-groups/:groupId/settings`.
