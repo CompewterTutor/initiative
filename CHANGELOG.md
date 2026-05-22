@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Queue item positions are now fractional.** `queue_items.position` is stored as `Numeric(20,10)` instead of an integer, so items sharing the same initiative value can be ordered with finer granularity (e.g. dropping an item at `10.5` between two items at `10` without renumbering them), matching the fractional-position indexing already used by Counters.
+
 ## [0.45.0] - 2026-05-22
 
 ### Added
