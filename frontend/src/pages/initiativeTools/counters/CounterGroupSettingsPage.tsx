@@ -1,5 +1,4 @@
 import { Link, useParams, useRouter } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,9 +6,11 @@ import { useTranslation } from "react-i18next";
 import type {
   CounterGroupPermissionCreate,
   CounterGroupRolePermissionCreate,
-  CounterGroupRolePermissionRead,
-  CounterPermissionLevel,
 } from "@/api/generated/initiativeAPI.schemas";
+import type { AccessLevel, RolePermissionRow } from "@/components/access/RolePermissionsCard";
+import { RolePermissionsCard } from "@/components/access/RolePermissionsCard";
+import type { UserPermissionRow } from "@/components/access/UserPermissionsCard";
+import { UserPermissionsCard } from "@/components/access/UserPermissionsCard";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,17 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -45,14 +37,6 @@ import { useInitiativeRoles } from "@/hooks/useInitiativeRoles";
 import { useInitiativeMembers } from "@/hooks/useInitiatives";
 import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
-
-interface UserPermissionRow {
-  user_id: number;
-  displayName: string;
-  email: string;
-  level: CounterPermissionLevel;
-  isOwner: boolean;
-}
 
 export function CounterGroupSettingsPage() {
   const { t } = useTranslation(["counters", "common"]);
@@ -96,7 +80,7 @@ export function CounterGroupSettingsPage() {
     });
   };
 
-  // ── Access tab ─────────────────────────────────────────────────────────
+  // ── Access tab (local state + bulk PUT) ────────────────────────────────
 
   const rolesQuery = useInitiativeRoles(group?.initiative_id ?? null);
   const membersQuery = useInitiativeMembers(group?.initiative_id ?? null);
@@ -121,20 +105,13 @@ export function CounterGroupSettingsPage() {
   }, [group]);
 
   const setRolePermissions = useSetCounterGroupRolePermissions(parsedId, {
-    onSuccess: () => {
-      toast.success(t("permissionsUpdated", { defaultValue: "Permissions updated" }));
-    },
+    onSuccess: () =>
+      toast.success(t("permissionsUpdated", { defaultValue: "Permissions updated" })),
   });
-
   const setUserPermissions = useSetCounterGroupPermissions(parsedId, {
-    onSuccess: () => {
-      toast.success(t("permissionsUpdated", { defaultValue: "Permissions updated" }));
-    },
+    onSuccess: () =>
+      toast.success(t("permissionsUpdated", { defaultValue: "Permissions updated" })),
   });
-
-  // Role permission helpers
-  const [selectedNewRoleId, setSelectedNewRoleId] = useState<string>("");
-  const [selectedNewRoleLevel, setSelectedNewRoleLevel] = useState<"read" | "write">("read");
 
   const availableRoles = useMemo(() => {
     const roles = rolesQuery.data ?? [];
@@ -142,136 +119,75 @@ export function CounterGroupSettingsPage() {
     return roles.filter((role) => !assigned.has(role.id));
   }, [rolesQuery.data, localRolePerms]);
 
-  const handleAddRolePermission = () => {
-    if (!selectedNewRoleId) return;
-    const newList: CounterGroupRolePermissionCreate[] = [
-      ...localRolePerms,
-      { initiative_role_id: Number(selectedNewRoleId), level: selectedNewRoleLevel },
-    ];
-    setLocalRolePerms(newList);
-    setRolePermissions.mutate(newList);
-    setSelectedNewRoleId("");
-    setSelectedNewRoleLevel("read");
-  };
-
-  const handleUpdateRoleLevel = (roleId: number, level: CounterPermissionLevel) => {
-    const newList = localRolePerms.map((rp) =>
-      rp.initiative_role_id === roleId ? { ...rp, level } : rp
-    );
-    setLocalRolePerms(newList);
-    setRolePermissions.mutate(newList);
-  };
-
-  const handleRemoveRolePermission = (roleId: number) => {
-    const newList = localRolePerms.filter((rp) => rp.initiative_role_id !== roleId);
-    setLocalRolePerms(newList);
-    setRolePermissions.mutate(newList);
-  };
-
-  // User permission helpers
-  const [selectedNewUserId, setSelectedNewUserId] = useState<string>("");
-  const [selectedNewUserLevel, setSelectedNewUserLevel] = useState<CounterPermissionLevel>("read");
-  const [selectedMembers, setSelectedMembers] = useState<UserPermissionRow[]>([]);
-
   const availableMembers = useMemo(() => {
     const members = membersQuery.data ?? [];
     const assigned = new Set(localUserPerms.map((p) => p.user_id));
     return members.filter((m) => !assigned.has(m.id));
   }, [membersQuery.data, localUserPerms]);
 
-  const handleAddUserPermission = () => {
-    if (!selectedNewUserId) return;
-    const newList: CounterGroupPermissionCreate[] = [
-      ...localUserPerms,
-      { user_id: Number(selectedNewUserId), level: selectedNewUserLevel },
-    ];
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-    setSelectedNewUserId("");
-    setSelectedNewUserLevel("read");
-  };
-
-  const handleUpdateUserLevel = (userId: number, level: CounterPermissionLevel) => {
-    const newList = localUserPerms.map((p) => (p.user_id === userId ? { ...p, level } : p));
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-  };
-
-  const handleRemoveUserPermission = (userId: number) => {
-    const newList = localUserPerms.filter((p) => p.user_id !== userId);
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-  };
-
-  const handleBulkUpdateLevel = (level: CounterPermissionLevel) => {
-    const ids = new Set(selectedMembers.filter((m) => !m.isOwner).map((m) => m.user_id));
-    if (ids.size === 0) return;
-    const newList = localUserPerms.map((p) => (ids.has(p.user_id) ? { ...p, level } : p));
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-    setSelectedMembers([]);
-  };
-
-  const handleBulkRemoveUsers = () => {
-    const ids = new Set(selectedMembers.filter((m) => !m.isOwner).map((m) => m.user_id));
-    if (ids.size === 0) return;
-    const newList = localUserPerms.filter((p) => !ids.has(p.user_id));
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-    setSelectedMembers([]);
-  };
-
-  const handleAddAllMembers = () => {
-    if (availableMembers.length === 0) return;
-    const newEntries: CounterGroupPermissionCreate[] = availableMembers.map((m) => ({
-      user_id: m.id,
-      level: selectedNewUserLevel,
-    }));
-    const newList = [...localUserPerms, ...newEntries];
-    setLocalUserPerms(newList);
-    setUserPermissions.mutate(newList);
-  };
-
-  // ── Row materialization ────────────────────────────────────────────────
+  const rolePermissionRows: RolePermissionRow[] = useMemo(() => {
+    const serverRows = group?.role_permissions ?? [];
+    return localRolePerms.map((lrp) => {
+      const serverRow = serverRows.find((sr) => sr.initiative_role_id === lrp.initiative_role_id);
+      const role = (rolesQuery.data ?? []).find((r) => r.id === lrp.initiative_role_id);
+      return {
+        initiative_role_id: lrp.initiative_role_id,
+        role_display_name:
+          serverRow?.role_display_name ?? role?.display_name ?? `Role #${lrp.initiative_role_id}`,
+        level: (lrp.level ?? "read") as AccessLevel,
+      };
+    });
+  }, [localRolePerms, group?.role_permissions, rolesQuery.data]);
 
   const userPermissionRows: UserPermissionRow[] = useMemo(() => {
     const members = membersQuery.data ?? [];
     return localUserPerms.map((p) => {
       const member = members.find((m) => m.id === p.user_id);
-      const displayName = member?.full_name?.trim() || member?.email || `User #${p.user_id}`;
-      const email = member?.email || "";
       return {
         user_id: p.user_id,
-        displayName,
-        email,
-        level: p.level ?? "read",
+        displayName: member?.full_name?.trim() || member?.email || `User #${p.user_id}`,
+        email: member?.email || "",
+        level: (p.level ?? "read") as AccessLevel,
         isOwner: p.level === "owner",
       };
     });
   }, [localUserPerms, membersQuery.data]);
 
-  const rolePermissionRows: (
-    | CounterGroupRolePermissionRead
-    | {
-        initiative_role_id: number;
-        role_display_name: string;
-        level: CounterPermissionLevel;
-      }
-  )[] = useMemo(() => {
-    const serverRows = group?.role_permissions ?? [];
-    return localRolePerms.map((lrp) => {
-      const serverRow = serverRows.find((sr) => sr.initiative_role_id === lrp.initiative_role_id);
-      if (serverRow) {
-        return { ...serverRow, level: lrp.level ?? serverRow.level ?? "read" };
-      }
-      const role = (rolesQuery.data ?? []).find((r) => r.id === lrp.initiative_role_id);
-      return {
-        initiative_role_id: lrp.initiative_role_id,
-        role_display_name: role?.display_name ?? `Role #${lrp.initiative_role_id}`,
-        level: lrp.level ?? "read",
-      };
-    });
-  }, [localRolePerms, group?.role_permissions, rolesQuery.data]);
+  // Role permission mutators (bulk PUT the full list each change).
+  const commitRoles = (next: CounterGroupRolePermissionCreate[]) => {
+    setLocalRolePerms(next);
+    setRolePermissions.mutate(next);
+  };
+  const handleAddRole = (roleId: number, level: "read" | "write") =>
+    commitRoles([...localRolePerms, { initiative_role_id: roleId, level }]);
+  const handleUpdateRoleLevel = (roleId: number, level: "read" | "write") =>
+    commitRoles(
+      localRolePerms.map((rp) => (rp.initiative_role_id === roleId ? { ...rp, level } : rp))
+    );
+  const handleRemoveRole = (roleId: number) =>
+    commitRoles(localRolePerms.filter((rp) => rp.initiative_role_id !== roleId));
+
+  // User permission mutators.
+  const commitUsers = (next: CounterGroupPermissionCreate[]) => {
+    setLocalUserPerms(next);
+    setUserPermissions.mutate(next);
+  };
+  const handleAddUser = (userId: number, level: "read" | "write") =>
+    commitUsers([...localUserPerms, { user_id: userId, level }]);
+  const handleUpdateUserLevel = (userId: number, level: "read" | "write") =>
+    commitUsers(localUserPerms.map((p) => (p.user_id === userId ? { ...p, level } : p)));
+  const handleRemoveUser = (userId: number) =>
+    commitUsers(localUserPerms.filter((p) => p.user_id !== userId));
+  const handleBulkUpdate = (userIds: number[], level: "read" | "write") => {
+    const ids = new Set(userIds);
+    commitUsers(localUserPerms.map((p) => (ids.has(p.user_id) ? { ...p, level } : p)));
+  };
+  const handleBulkRemove = (userIds: number[]) => {
+    const ids = new Set(userIds);
+    commitUsers(localUserPerms.filter((p) => !ids.has(p.user_id)));
+  };
+  const handleAddAll = (level: "read" | "write") =>
+    commitUsers([...localUserPerms, ...availableMembers.map((m) => ({ user_id: m.id, level }))]);
 
   // ── Delete ─────────────────────────────────────────────────────────────
 
@@ -285,129 +201,7 @@ export function CounterGroupSettingsPage() {
     },
   });
 
-  // ── Column definitions ─────────────────────────────────────────────────
-
-  const roleColumns: ColumnDef<(typeof rolePermissionRows)[number]>[] = useMemo(
-    () => [
-      {
-        accessorKey: "role_display_name",
-        header: t("rolePermissions"),
-        cell: ({ row }) => <span className="font-medium">{row.original.role_display_name}</span>,
-      },
-      {
-        accessorKey: "level",
-        header: t("permissionLevel", { defaultValue: "Permission level" }),
-        cell: ({ row }) => (
-          <Select
-            value={row.original.level}
-            onValueChange={(value) =>
-              handleUpdateRoleLevel(
-                row.original.initiative_role_id,
-                value as CounterPermissionLevel
-              )
-            }
-            disabled={setRolePermissions.isPending}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="read">{t("permissionRead")}</SelectItem>
-              <SelectItem value="write">{t("permissionWrite")}</SelectItem>
-            </SelectContent>
-          </Select>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => <div className="text-right">{t("common:actions")}</div>,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={() => handleRemoveRolePermission(row.original.initiative_role_id)}
-              disabled={setRolePermissions.isPending}
-            >
-              {t("removeRole", { defaultValue: "Remove" })}
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers are local
-    [t, setRolePermissions.isPending, handleRemoveRolePermission, handleUpdateRoleLevel]
-  );
-
-  const userColumns: ColumnDef<UserPermissionRow>[] = useMemo(
-    () => [
-      {
-        accessorKey: "displayName",
-        header: t("addMember", { defaultValue: "Member" }),
-        cell: ({ row }) => (
-          <div>
-            <span className="font-medium">{row.original.displayName}</span>
-            {row.original.email && (
-              <span className="ml-2 text-muted-foreground text-sm">{row.original.email}</span>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "level",
-        header: t("permissionLevel", { defaultValue: "Permission level" }),
-        cell: ({ row }) => {
-          if (row.original.isOwner) {
-            return <span className="text-muted-foreground">{t("permissionOwner")}</span>;
-          }
-          return (
-            <Select
-              value={row.original.level}
-              onValueChange={(value) =>
-                handleUpdateUserLevel(row.original.user_id, value as CounterPermissionLevel)
-              }
-              disabled={setUserPermissions.isPending}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="read">{t("permissionRead")}</SelectItem>
-                <SelectItem value="write">{t("permissionWrite")}</SelectItem>
-              </SelectContent>
-            </Select>
-          );
-        },
-      },
-      {
-        id: "actions",
-        header: () => <div className="text-right">{t("common:actions")}</div>,
-        cell: ({ row }) => {
-          if (row.original.isOwner) {
-            return <div className="text-right text-muted-foreground text-xs">-</div>;
-          }
-          return (
-            <div className="text-right">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => handleRemoveUserPermission(row.original.user_id)}
-                disabled={setUserPermissions.isPending}
-              >
-                {t("removeMember", { defaultValue: "Remove" })}
-              </Button>
-            </div>
-          );
-        },
-      },
-    ],
-    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers are local
-    [t, setUserPermissions.isPending, handleUpdateUserLevel, handleRemoveUserPermission]
-  );
+  const accessBusy = setRolePermissions.isPending || setUserPermissions.isPending;
 
   // ── Early returns ──────────────────────────────────────────────────────
 
@@ -507,198 +301,26 @@ export function CounterGroupSettingsPage() {
             owner-only (handled in the Advanced tab). */}
         {canManage && (
           <TabsContent value="access" className="space-y-6">
-            {/* Role permissions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("rolePermissions")}</CardTitle>
-                <CardDescription>{t("rolePermissionsDescription")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {rolePermissionRows.length > 0 ? (
-                  <DataTable
-                    columns={roleColumns}
-                    data={rolePermissionRows}
-                    getRowId={(row) => String(row.initiative_role_id)}
-                  />
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    {t("noRolePermissions", { defaultValue: "No role permissions configured." })}
-                  </p>
-                )}
-
-                <div className="space-y-2 pt-2">
-                  <Label>{t("addRole", { defaultValue: "Add role" })}</Label>
-                  {availableRoles.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                      {t("noRolePermissions", {
-                        defaultValue: "No role permissions configured.",
-                      })}
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap items-end gap-3">
-                      <Select value={selectedNewRoleId} onValueChange={setSelectedNewRoleId}>
-                        <SelectTrigger className="min-w-[200px]">
-                          <SelectValue
-                            placeholder={t("selectRole", { defaultValue: "Select a role..." })}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableRoles.map((role) => (
-                            <SelectItem key={role.id} value={String(role.id)}>
-                              {role.display_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={selectedNewRoleLevel}
-                        onValueChange={(v) => setSelectedNewRoleLevel(v as "read" | "write")}
-                      >
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="read">{t("permissionRead")}</SelectItem>
-                          <SelectItem value="write">{t("permissionWrite")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        onClick={handleAddRolePermission}
-                        disabled={!selectedNewRoleId || setRolePermissions.isPending}
-                      >
-                        {setRolePermissions.isPending
-                          ? t("adding")
-                          : t("addRole", { defaultValue: "Add role" })}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* User permissions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("userPermissions")}</CardTitle>
-                <CardDescription>{t("userPermissionsDescription")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedMembers.length > 0 && (
-                  <div className="flex items-center gap-3 rounded-md bg-muted p-3">
-                    <span className="font-medium text-sm">
-                      {t("selectedCount", {
-                        count: selectedMembers.length,
-                        defaultValue: "{{count}} selected",
-                      })}
-                    </span>
-                    <Select
-                      onValueChange={(level) =>
-                        handleBulkUpdateLevel(level as CounterPermissionLevel)
-                      }
-                      disabled={setUserPermissions.isPending}
-                    >
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue
-                          placeholder={t("changeAccess", { defaultValue: "Change access..." })}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="read">{t("permissionRead")}</SelectItem>
-                        <SelectItem value="write">{t("permissionWrite")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleBulkRemoveUsers}
-                      disabled={setUserPermissions.isPending}
-                    >
-                      {setUserPermissions.isPending
-                        ? t("removing", { defaultValue: "Removing..." })
-                        : t("removeMember", { defaultValue: "Remove" })}
-                    </Button>
-                  </div>
-                )}
-
-                <DataTable
-                  columns={userColumns}
-                  data={userPermissionRows}
-                  getRowId={(row) => String(row.user_id)}
-                  enableFilterInput
-                  filterInputColumnKey="displayName"
-                  filterInputPlaceholder={t("filterByName")}
-                  enableRowSelection
-                  onRowSelectionChange={setSelectedMembers}
-                  onExitSelection={() => setSelectedMembers([])}
-                  enablePagination
-                />
-
-                <div className="space-y-2 pt-2">
-                  <Label>{t("addMember", { defaultValue: "Add member" })}</Label>
-                  {availableMembers.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                      {t("noUserPermissions", {
-                        defaultValue: "No individual user permissions.",
-                      })}
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap items-end gap-3">
-                      <SearchableCombobox
-                        items={availableMembers.map((m) => ({
-                          value: String(m.id),
-                          label: m.full_name?.trim() || m.email,
-                        }))}
-                        value={selectedNewUserId}
-                        onValueChange={setSelectedNewUserId}
-                        placeholder={t("selectMember", {
-                          defaultValue: "Select a member...",
-                        })}
-                        emptyMessage={t("selectMember", {
-                          defaultValue: "Select a member...",
-                        })}
-                        className="min-w-[200px]"
-                      />
-                      <Select
-                        value={selectedNewUserLevel}
-                        onValueChange={(v) => setSelectedNewUserLevel(v as CounterPermissionLevel)}
-                      >
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="read">{t("permissionRead")}</SelectItem>
-                          <SelectItem value="write">{t("permissionWrite")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        onClick={handleAddUserPermission}
-                        disabled={!selectedNewUserId || setUserPermissions.isPending}
-                      >
-                        {setUserPermissions.isPending
-                          ? t("adding")
-                          : t("addMember", { defaultValue: "Add member" })}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleAddAllMembers}
-                        disabled={setUserPermissions.isPending}
-                      >
-                        {setUserPermissions.isPending
-                          ? t("adding")
-                          : t("addAllCount", {
-                              count: availableMembers.length,
-                              defaultValue: "Add all ({{count}})",
-                            })}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <RolePermissionsCard
+              rolePermissions={rolePermissionRows}
+              availableRoles={availableRoles}
+              busy={accessBusy}
+              loadingRoles={rolesQuery.isLoading}
+              onAdd={handleAddRole}
+              onUpdateLevel={handleUpdateRoleLevel}
+              onRemove={handleRemoveRole}
+            />
+            <UserPermissionsCard
+              userPermissions={userPermissionRows}
+              availableMembers={membersQuery.data ?? []}
+              busy={accessBusy}
+              onAdd={handleAddUser}
+              onUpdateLevel={handleUpdateUserLevel}
+              onRemove={handleRemoveUser}
+              onAddAll={handleAddAll}
+              onBulkUpdate={handleBulkUpdate}
+              onBulkRemove={handleBulkRemove}
+            />
           </TabsContent>
         )}
 
