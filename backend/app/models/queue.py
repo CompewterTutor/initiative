@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import ConfigDict
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlmodel import Enum as SQLEnum, Field, Relationship, SQLModel
 
 from app.models._mixins import SoftDeleteMixin
@@ -84,9 +84,15 @@ class QueueItem(SoftDeleteMixin, table=True):
         ),
     )
     label: str = Field(nullable=False, max_length=255)
-    position: int = Field(
-        default=0,
-        sa_column=Column(Integer, nullable=False, server_default="0"),
+    # NUMERIC(20, 10) on the DB side; ``asdecimal=False`` keeps the Python
+    # value a plain ``float`` so downstream serializers (Pydantic/Orval) don't
+    # have to juggle Decimal. Exact representation in Postgres avoids float
+    # precision rounding when drag-reorder sets midpoint positions.
+    position: float = Field(
+        default=0.0,
+        sa_column=Column(
+            Numeric(20, 10, asdecimal=False), nullable=False, server_default="0"
+        ),
     )
     user_id: Optional[int] = Field(default=None, foreign_key="users.id", nullable=True)
     color: Optional[str] = Field(

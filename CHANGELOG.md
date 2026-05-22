@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sort all counters in a group at once.** A "Sort" dropdown on the counter group toolbar reorders every counter by name (A→Z / Z→A) or current count (low→high / high→low). The sort persists by reassigning each counter's position on the backend and broadcasts over WebSocket so other viewers update live; manual drag-and-drop reordering still works afterward.
 - **Duplicate a counter group.** A "Duplicate" action in the counter group settings (Advanced tab) creates a copy with all of its counters and their current values, bounds, view modes, and order. The copy keeps the source group's role and user permissions and makes you the owner; you can name the copy or accept the default "(Copy)" suffix.
 
+### Changed
+
+- **Queue item positions are now fractional.** `queue_items.position` is stored as `Numeric(20,10)` instead of an integer, so items sharing the same initiative value can be ordered with finer granularity (e.g. dropping an item at `10.5` between two items at `10` without renumbering them), matching the fractional-position indexing already used by Counters.
+- **Queue turn controls feel instant.** Start, stop, next, previous, reset, and set-active now update the displayed current item and round optimistically instead of waiting for the API round trip, then reconcile with the server (and the queue WebSocket) once it responds. A failed request rolls the change back.
+
 ## [0.45.0] - 2026-05-22
 
 ### Added

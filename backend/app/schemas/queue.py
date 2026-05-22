@@ -76,7 +76,7 @@ class QueueItemTaskRead(SanitizedBaseModel):
 
 class QueueItemBase(SanitizedBaseModel):
     label: str = Field(..., min_length=1, max_length=255)
-    position: int = 0
+    position: float = 0.0
     color: Optional[str] = None
     notes: Optional[RichTextStr] = None
     is_visible: bool = True
@@ -91,7 +91,7 @@ class QueueItemCreate(QueueItemBase):
 
 class QueueItemUpdate(SanitizedBaseModel):
     label: Optional[str] = None
-    position: Optional[int] = None
+    position: Optional[float] = None
     user_id: Optional[int] = None
     color: Optional[str] = None
     notes: Optional[RichTextStr] = None
@@ -114,7 +114,7 @@ class QueueItemRead(QueueItemBase):
 class QueueItemReorderRequest(SanitizedBaseModel):
     class ReorderItem(SanitizedBaseModel):
         id: int
-        position: int
+        position: float
 
     items: List[ReorderItem]
 

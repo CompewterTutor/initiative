@@ -53,7 +53,7 @@ async def _create_queue_via_api(client: AsyncClient, headers: dict, initiative_i
     return response.json()
 
 
-async def _add_item_via_api(client: AsyncClient, headers: dict, queue_id: int, label: str, position: int = 0) -> dict:
+async def _add_item_via_api(client: AsyncClient, headers: dict, queue_id: int, label: str, position: float = 0) -> dict:
     """Add an item to a queue via API."""
     response = await client.post(
         f"/api/v1/queues/{queue_id}/items",
@@ -261,6 +261,48 @@ async def test_reorder_queue_items(client: AsyncClient, session: AsyncSession):
     items_by_id = {i["id"]: i for i in data["items"]}
     assert items_by_id[item_a["id"]]["position"] == 20
     assert items_by_id[item_b["id"]]["position"] == 10
+
+
+@pytest.mark.integration
+async def test_fractional_positions(client: AsyncClient, session: AsyncSession):
+    """Items with the same integer initiative can be split by a fractional position."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data = await _create_queue_via_api(client, headers, initiative.id)
+    item_a = await _add_item_via_api(client, headers, queue_data["id"], "A", position=10)
+    await _add_item_via_api(client, headers, queue_data["id"], "B", position=10)
+
+    # Drop C between A and B without renumbering either.
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/items",
+        headers=headers,
+        json={"label": "C", "position": 10.5},
+    )
+    assert response.status_code == 201
+    assert response.json()["position"] == 10.5
+
+    # Persisted precision survives a round-trip.
+    update = await client.patch(
+        f"/api/v1/queues/{queue_data['id']}/items/{item_a['id']}",
+        headers=headers,
+        json={"position": 10.25},
+    )
+    assert update.status_code == 200
+    assert update.json()["position"] == 10.25
+
+    # Positions are now C=10.5, A=10.25, B=10. Turn order must respect the
+    # fractional ordering (descending), not collapse to the shared integer.
+    start = await client.post(f"/api/v1/queues/{queue_data['id']}/start", headers=headers)
+    assert start.status_code == 200
+    assert start.json()["current_item"]["label"] == "C"
+
+    second = await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    assert second.status_code == 200
+    assert second.json()["current_item"]["label"] == "A"
+
+    third = await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    assert third.status_code == 200
+    assert third.json()["current_item"]["label"] == "B"
 
 
 # ---------------------------------------------------------------------------
