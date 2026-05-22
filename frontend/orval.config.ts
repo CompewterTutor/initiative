@@ -17,7 +17,6 @@ export default defineConfig({
           name: "apiMutator",
         },
         query: {
-          useMutation: true,
           signal: true,
         },
       },
