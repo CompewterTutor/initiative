@@ -50,8 +50,8 @@ export const CounterSegmentedClockView = ({
   const strokeDashoffset = circumference - (pct / 100) * circumference;
   const fillColor = textColor ?? "rgba(255,255,255,0.9)";
 
-  const wrapperSize = size === "lg" ? "h-32 w-32" : "h-20 w-20";
-  const inputSize = size === "lg" ? "xl" : "md";
+  const wrapperSize = size === "lg" ? "h-24 w-24" : "h-20 w-20";
+  const inputSize = size === "lg" ? "lg" : "md";
 
   return (
     <div className={cn("relative inline-flex items-center justify-center", wrapperSize, className)}>
