@@ -26,6 +26,7 @@ const labels = (rows: TimelineRow[]): string[] =>
     if (row.kind === "round-divider") return `--R${row.round}--`;
     if (row.kind === "hidden-divider") return "--Hidden--";
     if (row.kind === "held-divider") return "--Held--";
+    if (row.kind === "rotation-divider") return "--Sep--";
     return row.item.label;
   });
 
@@ -117,13 +118,13 @@ describe("buildTimeline", () => {
 
   it("renders held items above the rotation in a Held section", () => {
     // A is held in round 1; current is B. Expected rows:
-    //   [Held] A | B (current) | C | [R2] (pinned)
+    //   [Held] A | [Sep] | B (current) | C | [R2] (pinned)
     const queue = {
       ...baseQueue,
       items: [{ ...a, held_at_round: 1 }, b, c],
       current_item: b,
     };
-    expect(labels(buildTimeline(queue))).toEqual(["--Held--", "A", "B", "C", "--R2--"]);
+    expect(labels(buildTimeline(queue))).toEqual(["--Held--", "A", "--Sep--", "B", "C", "--R2--"]);
   });
 
   it("sorts the Held section by position-desc", () => {
@@ -136,8 +137,8 @@ describe("buildTimeline", () => {
       ],
       current_item: b,
     };
-    // Held block: A (30), C (10); rotation: B; then trailing R2 divider.
-    expect(labels(buildTimeline(queue))).toEqual(["--Held--", "A", "C", "B", "--R2--"]);
+    // Held block: A (30), C (10); separator; rotation: B; trailing R2 divider.
+    expect(labels(buildTimeline(queue))).toEqual(["--Held--", "A", "C", "--Sep--", "B", "--R2--"]);
   });
 
   it("renders Held + Hidden together when both exist", () => {
@@ -149,6 +150,7 @@ describe("buildTimeline", () => {
     expect(labels(buildTimeline(queue))).toEqual([
       "--Held--",
       "A",
+      "--Sep--",
       "B",
       "--R2--",
       "--Hidden--",
@@ -156,8 +158,23 @@ describe("buildTimeline", () => {
     ]);
   });
 
+  it("omits the held↔rotation separator when there's no rotation left", () => {
+    // All visible items are held → rotation is empty, no separator emitted.
+    const queue = {
+      ...baseQueue,
+      items: [
+        { ...a, held_at_round: 1 },
+        { ...b, held_at_round: 1 },
+        { ...c, held_at_round: 1 },
+      ],
+      current_item: null,
+    };
+    expect(labels(buildTimeline(queue))).toEqual(["--Held--", "A", "B", "C"]);
+  });
+
   it("doesn't render a Held section when no items are held", () => {
     const rows = buildTimeline(baseQueue);
     expect(rows.some((row) => row.kind === "held-divider")).toBe(false);
+    expect(rows.some((row) => row.kind === "rotation-divider")).toBe(false);
   });
 });

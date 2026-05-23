@@ -22,6 +22,7 @@ export type TimelineRow =
   | { kind: "round-divider"; round: number }
   | { kind: "held-divider" }
   | { kind: "held-item"; item: QueueItemRead }
+  | { kind: "rotation-divider" }
   | { kind: "hidden-divider" }
   | { kind: "hidden-item"; item: QueueItemRead };
 
@@ -60,6 +61,13 @@ export const buildTimeline = (queue: QueueRead): TimelineRow[] => {
     for (const item of held) {
       rows.push({ kind: "held-item", item });
     }
+  }
+
+  // Unlabeled visual break between the held block and the active rotation,
+  // only when both exist. The Held block has its own "Held" header at the
+  // top; this line closes the section so the rotation reads as its own zone.
+  if (held.length > 0 && visible.length > 0) {
+    rows.push({ kind: "rotation-divider" });
   }
 
   if (visible.length > 0) {
@@ -231,6 +239,17 @@ export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimeli
                 {t("held")}
               </span>
               <span className="h-px flex-1 bg-border" aria-hidden="true" />
+            </li>
+          );
+        }
+        if (row.kind === "rotation-divider") {
+          return (
+            <li
+              key="rotation-divider"
+              className="px-2 pt-2 pb-1"
+              style={{ viewTransitionName: "queue-rotation-divider" }}
+            >
+              <span className="block h-px bg-border" aria-hidden="true" />
             </li>
           );
         }
