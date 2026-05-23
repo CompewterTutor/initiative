@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-05-22
+
 ### Added
 
 - **Hold your turn (queues).** A new Hold button on the queue toolbar pauses the current turn — the held participant leaves the rotation, and Next advances to whoever's up next. Held items appear in a dedicated "Held" section above the rotation in the On Deck view, each with an "Act" button. Clicking Act opens a small menu with two options: **Act in place** keeps them at their original queue position so they re-enter at their natural slot when the rotation reaches it again, while **Act and reposition** rewrites their initiative to land just above the current turn and makes them the current turn — PF2e Delay semantics, where the new slot persists for the rest of the encounter. If they never act, the rotation auto-restores them at their natural slot the next time it comes around — so a held player can't be silently forgotten. Held state is recorded with the round the hold happened in (`held_at_round`), so the auto-release logic knows when their slot is "due back."
