@@ -1,11 +1,16 @@
-import { Zap } from "lucide-react";
+import { ChevronDown, Zap } from "lucide-react";
 import { type ReactNode, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead, QueueRead } from "@/api/generated/initiativeAPI.schemas";
 import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { withViewTransition } from "@/lib/viewTransition";
 
@@ -13,8 +18,13 @@ interface QueueTimelineProps {
   queue: QueueRead;
   onEdit: (item: QueueItemRead) => void;
   onSetActive: (itemId: number) => void;
-  /** Release a held item — they interrupt and become the current turn. */
-  onAct: (itemId: number) => void;
+  /**
+   * Release a held item. `reposition: true` follows PF2e Delay semantics
+   * (move them to act here, permanently changing their initiative slot);
+   * `false` keeps their original slot so they re-enter at their natural
+   * position the next time the rotation reaches it.
+   */
+  onAct: (itemId: number, reposition: boolean) => void;
 }
 
 export type TimelineRow =
@@ -144,35 +154,61 @@ const timelineSignature = (queue: QueueRead): string => {
 
 interface ActButtonProps {
   itemId: number;
-  onAct: (itemId: number) => void;
+  onAct: (itemId: number, reposition: boolean) => void;
   label: string;
+  inPlaceLabel: string;
+  inPlaceDescription: string;
+  repositionLabel: string;
+  repositionDescription: string;
 }
 
 /**
- * Clears the row's hold so it rejoins the rotation. Intentionally doesn't
- * promote the row to current — releasing should rejoin the rotation, not
- * rewind it onto items that already took their turn this round.
+ * Opens a small menu offering two release semantics. "Act in place" keeps
+ * the row at its original initiative — they'll act when the rotation reaches
+ * their natural slot. "Act here" reposition the row to act now (PF2e Delay
+ * semantics: the new slot persists for the rest of the encounter).
+ *
+ * `stopPropagation` on the trigger keeps the surrounding row's click handler
+ * (which opens the edit dialog) from firing.
  */
-const ActButton = ({ itemId, onAct, label }: ActButtonProps) => (
-  <Tooltip delayDuration={300}>
-    <TooltipTrigger asChild>
-      <Button
-        type="button"
-        size="sm"
-        onClick={(event) => {
-          // Stop the click from also reaching the surrounding row (which
-          // would open the edit dialog).
-          event.stopPropagation();
-          onAct(itemId);
-        }}
-        aria-label={label}
-      >
+const ActButton = ({
+  itemId,
+  onAct,
+  label,
+  inPlaceLabel,
+  inPlaceDescription,
+  repositionLabel,
+  repositionDescription,
+}: ActButtonProps) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
+      <Button type="button" size="sm" aria-label={label}>
         <Zap className="mr-1 h-4 w-4" />
         {label}
+        <ChevronDown className="ml-1 h-3 w-3" aria-hidden="true" />
       </Button>
-    </TooltipTrigger>
-    <TooltipContent>{label}</TooltipContent>
-  </Tooltip>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent
+      align="end"
+      // Same stop-propagation guard for the menu items themselves (the items
+      // close the menu and call `onAct`; we don't want the trigger row to
+      // open the edit dialog underneath).
+      onClick={(event) => event.stopPropagation()}
+    >
+      <DropdownMenuItem onSelect={() => onAct(itemId, false)}>
+        <div className="flex flex-col">
+          <span className="font-medium">{inPlaceLabel}</span>
+          <span className="text-muted-foreground text-xs">{inPlaceDescription}</span>
+        </div>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onAct(itemId, true)}>
+        <div className="flex flex-col">
+          <span className="font-medium">{repositionLabel}</span>
+          <span className="text-muted-foreground text-xs">{repositionDescription}</span>
+        </div>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimelineProps) => {
@@ -278,7 +314,17 @@ export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimeli
         const item = row.item;
         let actionButton: ReactNode | undefined;
         if (isHeld) {
-          actionButton = <ActButton itemId={item.id} onAct={onAct} label={t("actNow")} />;
+          actionButton = (
+            <ActButton
+              itemId={item.id}
+              onAct={onAct}
+              label={t("actNow")}
+              inPlaceLabel={t("actInPlace")}
+              inPlaceDescription={t("actInPlaceDescription")}
+              repositionLabel={t("actReposition")}
+              repositionDescription={t("actRepositionDescription")}
+            />
+          );
         }
         return (
           <li

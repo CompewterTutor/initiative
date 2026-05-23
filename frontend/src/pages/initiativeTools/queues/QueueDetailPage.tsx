@@ -334,9 +334,9 @@ export function QueueDetailPage() {
                 setActiveItem.mutate(itemId);
               }
             }}
-            onAct={(itemId) => {
+            onAct={(itemId, reposition) => {
               if (canEdit) {
-                releaseHeld.mutate(itemId);
+                releaseHeld.mutate({ itemId, reposition });
               }
             }}
           />

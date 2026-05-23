@@ -33,6 +33,7 @@ import type {
   QueuePermissionCreate,
   QueuePermissionRead,
   QueueRead,
+  QueueReleaseRequest,
   QueueRolePermissionCreate,
   QueueRolePermissionRead,
   QueueUpdate,
@@ -1534,20 +1535,35 @@ export const useHoldCurrentTurnApiV1QueuesQueueIdHoldPost = <
   );
 };
 /**
- * Release a held item — they interrupt and become the current turn.
+ * Release a held item back into the rotation.
  *
- * Round is unchanged. Works regardless of ``is_active`` so the user can
- * line up an acting item before starting the queue.
+ * Clears ``held_at_round`` on the target so it rejoins the active rotation.
+ * The rotation pointer is unchanged, so this doesn't pull current back onto
+ * items that already took their turn this round.
+ *
+ * When ``options.reposition`` is True (PF2e Delay semantics), the released
+ * item's ``position`` is rewritten to land just after the current item in
+ * turn order — the new initiative slot persists for the rest of the
+ * encounter. Default ``False`` keeps the released item at its original
+ * position so it acts at its natural slot next time the rotation reaches
+ * it.
  * @summary Release Held Item
  */
 export const releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost = (
   queueId: number,
   itemId: number,
+  queueReleaseRequest?: BodyType<QueueReleaseRequest>,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
   return apiMutator<QueueRead>(
-    { url: `/api/v1/queues/${queueId}/release/${itemId}`, method: "POST", signal },
+    {
+      url: `/api/v1/queues/${queueId}/release/${itemId}`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: queueReleaseRequest,
+      signal,
+    },
     options
   );
 };
@@ -1559,14 +1575,14 @@ export const getReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationOption
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
     TError,
-    { queueId: number; itemId: number },
+    { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
     TContext
   >;
   request?: SecondParameter<typeof apiMutator>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
   TError,
-  { queueId: number; itemId: number },
+  { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
   TContext
 > => {
   const mutationKey = ["releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost"];
@@ -1578,11 +1594,16 @@ export const getReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationOption
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
-    { queueId: number; itemId: number }
+    { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> }
   > = (props) => {
-    const { queueId, itemId } = props ?? {};
+    const { queueId, itemId, data } = props ?? {};
 
-    return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(queueId, itemId, requestOptions);
+    return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(
+      queueId,
+      itemId,
+      data,
+      requestOptions
+    );
   };
 
   return { mutationFn, ...mutationOptions };
@@ -1591,7 +1612,9 @@ export const getReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationOption
 export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationResult = NonNullable<
   Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>
 >;
-
+export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationBody =
+  | BodyType<QueueReleaseRequest>
+  | undefined;
 export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationError =
   ErrorType<HTTPValidationError>;
 
@@ -1606,7 +1629,7 @@ export const useReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost = <
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
       TError,
-      { queueId: number; itemId: number },
+      { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
       TContext
     >;
     request?: SecondParameter<typeof apiMutator>;
@@ -1615,7 +1638,7 @@ export const useReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost = <
 ): UseMutationResult<
   Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
   TError,
-  { queueId: number; itemId: number },
+  { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
   TContext
 > => {
   return useMutation(

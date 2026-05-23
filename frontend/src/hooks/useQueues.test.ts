@@ -254,6 +254,37 @@ describe("hold / release", () => {
       expect(released.current_round).toBe(1);
       const updatedA = released.items.find((i) => i.id === a.id);
       expect(updatedA?.held_at_round).toBeNull();
+      // Default behavior: original position preserved.
+      expect(updatedA?.position).toBe(a.position);
+    });
+
+    it("repositions the released item between current and next-lower when asked", () => {
+      // PF2e Delay: A is held; current=B(20); next-lower=C(10).
+      // Release A with reposition → A.position becomes (20 + 10) / 2 = 15.
+      const queue = {
+        ...running,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: b,
+      };
+      const released = releaseHeldState(queue, a.id, { reposition: true });
+      const updatedA = released.items.find((i) => i.id === a.id);
+      expect(updatedA?.position).toBe(15);
+      expect(released.current_item?.id).toBe(b.id); // pointer still untouched
+    });
+
+    it("drops the position just below current when current is the bottom", () => {
+      // Only A and B exist; A held; current=B(20). Reposition → A.position = 19.
+      const queue = buildQueue({
+        is_active: true,
+        items: [
+          { ...a, held_at_round: 1, position: 30 },
+          { ...b, position: 20 },
+        ],
+        current_item: { ...b, position: 20 },
+      });
+      const released = releaseHeldState(queue, a.id, { reposition: true });
+      const updatedA = released.items.find((i) => i.id === a.id);
+      expect(updatedA?.position).toBe(19);
     });
 
     it("is a no-op if the target isn't held", () => {

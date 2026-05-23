@@ -414,19 +414,58 @@ export const holdCurrentState = (queue: QueueRead): QueueRead => {
   return { ...queue, items: heldItems, current_item: null };
 };
 
+export interface ReleaseHeldOptions {
+  /**
+   * PF2e Delay semantics: rewrite the released item's `position` so it lands
+   * just below the current item in the rotation (the new initiative slot
+   * persists for the rest of the encounter). Default `false` keeps the
+   * original position — they re-enter at their natural slot.
+   */
+  reposition?: boolean;
+}
+
 /**
  * Manually release a held item back into the active rotation.
  *
- * Clears `held_at_round` only — `current_item` is intentionally untouched so
- * releasing doesn't rewind the rotation pointer onto items that already took
- * their turn this round. The released item will next act when the rotation
- * reaches its natural position-desc slot. To make a held item act
- * immediately, use `setActiveItemState` (the Set Active path).
+ * Clears `held_at_round` on the target. `current_item` is intentionally
+ * untouched so releasing doesn't rewind the rotation pointer onto items that
+ * already took their turn this round. When `reposition` is set, also
+ * recompute the target's `position` so the next advance lands on it
+ * (mirrors backend `release_held(reposition=True)`).
  */
-export const releaseHeldState = (queue: QueueRead, itemId: number): QueueRead => {
+export const releaseHeldState = (
+  queue: QueueRead,
+  itemId: number,
+  options: ReleaseHeldOptions = {}
+): QueueRead => {
   const target = queue.items.find((i) => i.id === itemId);
   if (!target || target.held_at_round === null) return queue;
-  const released: QueueItemRead = { ...target, held_at_round: null };
+
+  let nextPosition = target.position;
+  const currentId = queue.current_item?.id ?? null;
+  if (options.reposition && currentId !== null && currentId !== itemId) {
+    const current = queue.items.find((i) => i.id === currentId);
+    if (current) {
+      // Next active item strictly below current, position-desc.
+      const below = queue.items
+        .filter(
+          (i) =>
+            i.is_visible &&
+            i.held_at_round === null &&
+            i.id !== itemId &&
+            i.id !== current.id &&
+            i.position < current.position
+        )
+        .sort((a, b) => b.position - a.position)[0];
+      nextPosition = below ? (current.position + below.position) / 2 : current.position - 1.0;
+    }
+  }
+
+  const released: QueueItemRead = {
+    ...target,
+    held_at_round: null,
+    position: nextPosition,
+  };
   return {
     ...queue,
     items: replaceItem(queue, itemId, () => released),
@@ -646,21 +685,31 @@ export const useHoldCurrent = (queueId: number, options?: MutationOpts<QueueRead
   });
 };
 
-export const useReleaseHeld = (queueId: number, options?: MutationOpts<QueueRead, number>) => {
+export interface ReleaseHeldVariables {
+  itemId: number;
+  /** PF2e Delay: reposition the released item just below current. */
+  reposition?: boolean;
+}
+
+export const useReleaseHeld = (
+  queueId: number,
+  options?: MutationOpts<QueueRead, ReleaseHeldVariables>
+) => {
   const { t } = useTranslation("queues");
   const queryClient = useQueryClient();
   const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation<QueueRead, Error, number, QueueTurnContext>({
+  return useMutation<QueueRead, Error, ReleaseHeldVariables, QueueTurnContext>({
     ...rest,
-    mutationFn: async (itemId: number) => {
-      return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(
-        queueId,
-        itemId
-      ) as unknown as Promise<QueueRead>;
+    mutationFn: async ({ itemId, reposition }) => {
+      return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(queueId, itemId, {
+        reposition: reposition ?? false,
+      }) as unknown as Promise<QueueRead>;
     },
-    onMutate: (itemId) =>
-      applyOptimisticTurn(queryClient, queueId, (queue) => releaseHeldState(queue, itemId)),
+    onMutate: ({ itemId, reposition }) =>
+      applyOptimisticTurn(queryClient, queueId, (queue) =>
+        releaseHeldState(queue, itemId, { reposition })
+      ),
     onSuccess,
     onError: (err, vars, onMutateResult, context) => {
       rollbackOptimisticTurn(queryClient, queueId, onMutateResult);

@@ -2262,6 +2262,13 @@ export interface QueueRead {
   role_permissions: QueueRolePermissionRead[];
 }
 
+/**
+ * Options for releasing a held queue item back into the rotation.
+ */
+export interface QueueReleaseRequest {
+  reposition?: boolean;
+}
+
 export interface QueueUpdate {
   name?: string | null;
   description?: string | null;

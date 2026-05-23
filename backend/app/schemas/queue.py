@@ -123,6 +123,17 @@ class QueueItemReorderRequest(SanitizedBaseModel):
     items: List[ReorderItem]
 
 
+class QueueReleaseRequest(SanitizedBaseModel):
+    """Options for releasing a held queue item back into the rotation."""
+
+    # When True (PF2e "Delay" semantics), the released item's position is
+    # rewritten so it lands immediately after the current item in turn order
+    # — i.e. they take their delayed turn at this point and stay at this new
+    # initiative slot for the rest of the encounter. Default False preserves
+    # their original initiative; they re-enter at their natural slot.
+    reposition: bool = False
+
+
 # ---------------------------------------------------------------------------
 # Queue schemas
 # ---------------------------------------------------------------------------

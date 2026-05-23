@@ -496,17 +496,24 @@ async def release_held(
     session: AsyncSession,
     queue: Queue,
     item_id: int,
+    *,
+    reposition: bool = False,
 ) -> Queue:
     """Manually release a held item back into the rotation.
 
     Clears ``held_at_round`` on the target so it rejoins the active rotation.
     ``current_item_id``, ``current_round``, and ``is_active`` are deliberately
     untouched — releasing a hold shouldn't rewind the rotation pointer onto
-    items that already took their turn this round. The released item will
-    next act when the rotation reaches its natural position-desc slot (this
-    round if their position is below the current item's, otherwise next
-    round). Users who want the held item to act immediately can use
-    ``set_active_item`` instead.
+    items that already took their turn this round.
+
+    When ``reposition`` is True (PF2e Delay semantics), the target's
+    ``position`` is rewritten to land immediately after the current item in
+    the position-desc rotation: the midpoint between the current item and
+    the next-lower active item, or just below the current item if it's the
+    bottom of the rotation. The new initiative slot persists for the rest
+    of the encounter — exactly like a PF2e Delay re-entry. Default ``False``
+    keeps the released item at its original position so it acts at its
+    natural slot the next time the rotation reaches it.
     """
     items = getattr(queue, "items", None) or []
     target = next((item for item in items if item.id == item_id), None)
@@ -522,6 +529,33 @@ async def release_held(
         )
 
     target.held_at_round = None
+
+    if reposition and queue.current_item_id is not None and queue.current_item_id != target.id:
+        current = next((x for x in items if x.id == queue.current_item_id), None)
+        if current is not None:
+            # Next active item whose position is strictly below current's.
+            # Held items and the target itself are excluded.
+            actives_below = sorted(
+                (
+                    x
+                    for x in items
+                    if x.is_visible
+                    and x.held_at_round is None
+                    and x.id != target.id
+                    and x.id != current.id
+                    and x.position < current.position
+                ),
+                key=lambda x: x.position,
+                reverse=True,
+            )
+            if actives_below:
+                target.position = (current.position + actives_below[0].position) / 2
+            else:
+                # Current is the bottom of the rotation — drop the released
+                # item just below it. -1.0 is arbitrary but safely under any
+                # other active position.
+                target.position = current.position - 1.0
+
     session.add(target)
     queue.updated_at = datetime.now(timezone.utc)
     session.add(queue)

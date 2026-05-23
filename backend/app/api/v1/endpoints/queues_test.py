@@ -476,6 +476,88 @@ async def test_release_clears_hold_without_rewinding(
 
 
 @pytest.mark.integration
+async def test_release_with_reposition_drops_target_below_current(
+    client: AsyncClient, session: AsyncSession
+):
+    """PF2e Delay semantics: reposition places the released item just below current."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    # Hold A (pos 30) on its turn → current becomes B (pos 20).
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    # Release A with reposition: A's new position should sit between B (20)
+    # and C (10), so the rotation visits A next.
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}",
+        headers=headers,
+        json={"reposition": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == b["id"]  # rotation pointer untouched
+    by_id = _items_by_id(payload)
+    assert by_id[a["id"]]["held_at_round"] is None
+    # A is now strictly between B and C.
+    assert by_id[b["id"]]["position"] > by_id[a["id"]]["position"] > by_id[c["id"]]["position"]
+
+    # Advance from B → next position-desc-active is now A (newly between B/C).
+    after_next = (
+        await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    ).json()
+    assert after_next["current_item"]["id"] == a["id"]
+
+
+@pytest.mark.integration
+async def test_release_with_reposition_when_current_is_lowest(
+    client: AsyncClient, session: AsyncSession
+):
+    """If current is the bottom of the rotation, repositioned item drops just below it."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data = await _create_queue_via_api(client, headers, initiative.id)
+    a = await _add_item_via_api(client, headers, queue_data["id"], "A", position=30)
+    b = await _add_item_via_api(client, headers, queue_data["id"], "B", position=20)
+    # Start → current=A (highest position).
+    await client.post(f"/api/v1/queues/{queue_data['id']}/start", headers=headers)
+    # Hold A (its turn) → A becomes held, current advances to B. B is now
+    # the only un-held active item, i.e. the bottom of the remaining rotation.
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}",
+        headers=headers,
+        json={"reposition": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    by_id = _items_by_id(payload)
+    # A's new position drops strictly below B's; the exact value isn't
+    # important, only the ordering.
+    assert by_id[a["id"]]["position"] < by_id[b["id"]]["position"]
+
+
+@pytest.mark.integration
+async def test_release_without_body_preserves_position(
+    client: AsyncClient, session: AsyncSession
+):
+    """Calling release with an empty body keeps the original behavior (no reposition)."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, _b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    original_position = a["position"]
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}",
+        headers=headers,
+        json={},
+    )
+    assert response.status_code == 200
+    by_id = _items_by_id(response.json())
+    assert by_id[a["id"]]["position"] == original_position
+
+
+@pytest.mark.integration
 async def test_release_while_stopped(client: AsyncClient, session: AsyncSession):
     """Release works when the queue is stopped; is_active is preserved."""
     admin, guild, initiative = await _setup_guild_and_initiative(session)

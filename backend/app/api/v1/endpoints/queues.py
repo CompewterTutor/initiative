@@ -44,6 +44,7 @@ from app.schemas.queue import (
     QueueItemUpdate,
     QueueItemRead,
     QueueItemReorderRequest,
+    QueueReleaseRequest,
     QueuePermissionCreate,
     QueuePermissionRead,
     QueueRolePermissionCreate,
@@ -775,14 +776,23 @@ async def release_held_item(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
+    options: QueueReleaseRequest = QueueReleaseRequest(),  # noqa: B008
 ) -> QueueRead:
-    """Release a held item — they interrupt and become the current turn.
+    """Release a held item back into the rotation.
 
-    Round is unchanged. Works regardless of ``is_active`` so the user can
-    line up an acting item before starting the queue.
+    Clears ``held_at_round`` on the target so it rejoins the active rotation.
+    The rotation pointer is unchanged, so this doesn't pull current back onto
+    items that already took their turn this round.
+
+    When ``options.reposition`` is True (PF2e Delay semantics), the released
+    item's ``position`` is rewritten to land just after the current item in
+    turn order — the new initiative slot persists for the rest of the
+    encounter. Default ``False`` keeps the released item at its original
+    position so it acts at its natural slot next time the rotation reaches
+    it.
     """
     queue = await _get_queue_with_access(session, queue_id, current_user, guild_context, access="write")
-    await queues_service.release_held(session, queue, item_id)
+    await queues_service.release_held(session, queue, item_id, reposition=options.reposition)
     await session.commit()
     await reapply_rls_context(session)
 
