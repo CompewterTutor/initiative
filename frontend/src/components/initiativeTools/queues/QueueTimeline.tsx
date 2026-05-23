@@ -1,16 +1,9 @@
-import { ChevronDown, Zap } from "lucide-react";
 import { type ReactNode, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead, QueueRead } from "@/api/generated/initiativeAPI.schemas";
+import { ActHeldButton } from "@/components/initiativeTools/queues/ActHeldButton";
 import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { withViewTransition } from "@/lib/viewTransition";
 
@@ -152,65 +145,6 @@ const timelineSignature = (queue: QueueRead): string => {
   return `${rotation}|${itemSig}`;
 };
 
-interface ActButtonProps {
-  itemId: number;
-  onAct: (itemId: number, reposition: boolean) => void;
-  label: string;
-  inPlaceLabel: string;
-  inPlaceDescription: string;
-  repositionLabel: string;
-  repositionDescription: string;
-}
-
-/**
- * Opens a small menu offering two release semantics. "Act in place" keeps
- * the row at its original initiative — they'll act when the rotation reaches
- * their natural slot. "Act here" reposition the row to act now (PF2e Delay
- * semantics: the new slot persists for the rest of the encounter).
- *
- * `stopPropagation` on the trigger keeps the surrounding row's click handler
- * (which opens the edit dialog) from firing.
- */
-const ActButton = ({
-  itemId,
-  onAct,
-  label,
-  inPlaceLabel,
-  inPlaceDescription,
-  repositionLabel,
-  repositionDescription,
-}: ActButtonProps) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
-      <Button type="button" size="sm" aria-label={label}>
-        <Zap className="mr-1 h-4 w-4" />
-        {label}
-        <ChevronDown className="ml-1 h-3 w-3" aria-hidden="true" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent
-      align="end"
-      // Same stop-propagation guard for the menu items themselves (the items
-      // close the menu and call `onAct`; we don't want the trigger row to
-      // open the edit dialog underneath).
-      onClick={(event) => event.stopPropagation()}
-    >
-      <DropdownMenuItem onSelect={() => onAct(itemId, false)}>
-        <div className="flex flex-col">
-          <span className="font-medium">{inPlaceLabel}</span>
-          <span className="text-muted-foreground text-xs">{inPlaceDescription}</span>
-        </div>
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onAct(itemId, true)}>
-        <div className="flex flex-col">
-          <span className="font-medium">{repositionLabel}</span>
-          <span className="text-muted-foreground text-xs">{repositionDescription}</span>
-        </div>
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-);
-
 export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimelineProps) => {
   const { t } = useTranslation("queues");
 
@@ -312,20 +246,9 @@ export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimeli
         const isHeld = row.kind === "held-item";
         const isHidden = row.kind === "hidden-item";
         const item = row.item;
-        let actionButton: ReactNode | undefined;
-        if (isHeld) {
-          actionButton = (
-            <ActButton
-              itemId={item.id}
-              onAct={onAct}
-              label={t("actNow")}
-              inPlaceLabel={t("actInPlace")}
-              inPlaceDescription={t("actInPlaceDescription")}
-              repositionLabel={t("actReposition")}
-              repositionDescription={t("actRepositionDescription")}
-            />
-          );
-        }
+        const actionButton: ReactNode | undefined = isHeld ? (
+          <ActHeldButton itemId={item.id} onAct={onAct} />
+        ) : undefined;
         return (
           <li
             // Item ids are unique across all three sections, so the same

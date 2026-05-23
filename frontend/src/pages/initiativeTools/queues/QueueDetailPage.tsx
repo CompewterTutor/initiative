@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { ActHeldButton } from "@/components/initiativeTools/queues/ActHeldButton";
 import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueueItemDialog";
 import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
 import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
@@ -353,6 +354,14 @@ export function QueueDetailPage() {
                     setActiveItem.mutate(itemId);
                   }
                 }}
+                actionButton={
+                  canEdit && item.held_at_round !== null ? (
+                    <ActHeldButton
+                      itemId={item.id}
+                      onAct={(id, reposition) => releaseHeld.mutate({ itemId: id, reposition })}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </div>
