@@ -8,7 +8,8 @@ from app.models.task import Task, TaskAssignee, TaskStatus, Subtask
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.user import User
 from app.models.api_key import AdminApiKey
-from app.models.project_activity import ProjectFavorite, RecentProjectView
+from app.models.project_activity import ProjectFavorite
+from app.models.recent_view import RecentView
 from app.models.comment import Comment
 from app.models.document import Document, DocumentPermission, DocumentRolePermission, ProjectDocument, DocumentLink
 from app.models.notification import Notification
@@ -41,7 +42,7 @@ __all__ = [
     "InitiativeMember",
     "AdminApiKey",
     "ProjectFavorite",
-    "RecentProjectView",
+    "RecentView",
     "Comment",
     "Document",
     "DocumentPermission",

@@ -54,9 +54,11 @@ from app.schemas.counter import (
 )
 from app.schemas.token import TokenPayload
 from app.services import counters as counters_service
+from app.services import recent_views as recent_views_service
 from app.services import rls as rls_service
 from app.services import user_tokens
 from app.services.counter_realtime import counter_manager
+from app.schemas.recent_view import RecentViewWrite
 
 import jwt
 
@@ -958,3 +960,49 @@ async def websocket_counter_group(
     finally:
         await counter_manager.disconnect(group_id, websocket)
         logger.info(f"Counter WS: user {user.id} left group {group_id}")
+
+
+# ---------------------------------------------------------------------------
+# Recent-view tracking (powers the layout header tabs bar)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{group_id}/view", response_model=RecentViewWrite)
+async def record_counter_group_view(
+    group_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> RecentViewWrite:
+    group = await _get_counter_group_with_access(
+        session, group_id, current_user, guild_context, access="read"
+    )
+    record = await recent_views_service.record_view(
+        session,
+        user_id=current_user.id,
+        entity_type="counter_group",
+        entity_id=group.id,
+    )
+    return RecentViewWrite(
+        entity_type="counter_group",
+        entity_id=group.id,
+        last_viewed_at=record.last_viewed_at,
+    )
+
+
+@router.delete("/{group_id}/view", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_counter_group_view(
+    group_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> None:
+    group = await _get_counter_group_with_access(
+        session, group_id, current_user, guild_context, access="read"
+    )
+    await recent_views_service.clear_view(
+        session,
+        user_id=current_user.id,
+        entity_type="counter_group",
+        entity_id=group.id,
+    )

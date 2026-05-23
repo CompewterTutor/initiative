@@ -142,13 +142,6 @@ class ProjectFavoriteStatus(SanitizedBaseModel):
     is_favorited: bool
 
 
-class ProjectRecentViewRead(SanitizedBaseModel):
-    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
-
-    project_id: int
-    last_viewed_at: datetime
-
-
 class ProjectActivityEntry(SanitizedBaseModel):
     comment_id: int
     content: RichTextStr

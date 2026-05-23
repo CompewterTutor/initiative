@@ -7,10 +7,13 @@
     "pages": "Pages",
     "projects": "Projects",
     "tasks": "Tasks",
-    "documents": "Documents"
+    "documents": "Documents",
+    "queues": "Queues",
+    "counterGroups": "Counter Groups"
   },
   "actions": {
-    "addTask": "Add Task"
+    "addTask": "Add Task",
+    "addDocument": "Add Document"
   },
   "pages": {
     "myTasks": "My Tasks",

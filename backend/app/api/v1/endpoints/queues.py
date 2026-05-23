@@ -54,8 +54,10 @@ from app.schemas.queue import (
     serialize_queue_item,
 )
 from app.services import queues as queues_service
+from app.services import recent_views as recent_views_service
 from app.services import rls as rls_service
 from app.services import user_tokens
+from app.schemas.recent_view import RecentViewWrite
 from app.services.queue_realtime import queue_manager
 
 import jwt
@@ -1185,3 +1187,49 @@ async def websocket_queue(
     finally:
         await queue_manager.disconnect(queue_id, websocket)
         logger.info(f"Queue WS: user {user.id} left queue {queue_id}")
+
+
+# ---------------------------------------------------------------------------
+# Recent-view tracking (powers the layout header tabs bar)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{queue_id}/view", response_model=RecentViewWrite)
+async def record_queue_view(
+    queue_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> RecentViewWrite:
+    queue = await _get_queue_with_access(
+        session, queue_id, current_user, guild_context, access="read"
+    )
+    record = await recent_views_service.record_view(
+        session,
+        user_id=current_user.id,
+        entity_type="queue",
+        entity_id=queue.id,
+    )
+    return RecentViewWrite(
+        entity_type="queue",
+        entity_id=queue.id,
+        last_viewed_at=record.last_viewed_at,
+    )
+
+
+@router.delete("/{queue_id}/view", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_queue_view(
+    queue_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> None:
+    queue = await _get_queue_with_access(
+        session, queue_id, current_user, guild_context, access="read"
+    )
+    await recent_views_service.clear_view(
+        session,
+        user_id=current_user.id,
+        entity_type="queue",
+        entity_id=queue.id,
+    )
