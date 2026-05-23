@@ -125,6 +125,10 @@
   "removing": "Removing...",
   "addAllCount": "Add all ({{count}})",
 
+  "viewLabel": "View",
+  "viewList": "List view",
+  "viewOnDeck": "On Deck",
+
   "filters": {
     "heading": "Filters",
     "show": "Show",

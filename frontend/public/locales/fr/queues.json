@@ -125,6 +125,10 @@
   "removing": "Suppression en cours...",
   "addAllCount": "Tout ajouter ({{count}})",
 
+  "viewLabel": "Vue",
+  "viewList": "Vue en liste",
+  "viewOnDeck": "En attente",
+
   "filters": {
     "heading": "Filtres",
     "show": "Afficher",
