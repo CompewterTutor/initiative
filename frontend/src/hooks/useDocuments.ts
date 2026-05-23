@@ -53,12 +53,16 @@ import type { QueryOpts } from "@/types/query";
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
-export const useDocumentsList = (params: ListDocumentsApiV1DocumentsGetParams) => {
+export const useDocumentsList = (
+  params: ListDocumentsApiV1DocumentsGetParams,
+  options?: QueryOpts<DocumentListResponse>
+) => {
   return useQuery<DocumentListResponse>({
     queryKey: getListDocumentsApiV1DocumentsGetQueryKey(params),
     queryFn: () =>
       listDocumentsApiV1DocumentsGet(params) as unknown as Promise<DocumentListResponse>,
     placeholderData: keepPreviousData,
+    ...options,
   });
 };
 
