@@ -125,6 +125,10 @@
   "removing": "Eliminando...",
   "addAllCount": "Añadir todos ({{count}})",
 
+  "viewLabel": "Vista",
+  "viewList": "Vista de lista",
+  "viewOnDeck": "En espera",
+
   "filters": {
     "heading": "Filtros",
     "show": "Mostrar",

@@ -317,15 +317,22 @@ export const setActiveItemState = (queue: QueueRead, itemId: number): QueueRead 
   return item ? { ...queue, current_item: item } : queue;
 };
 
-/** Snapshot + optimistically apply a turn transition to the cached queue. */
-const applyOptimisticTurn = async (
+/**
+ * Synchronously apply an optimistic turn transition. Returns the pre-mutation
+ * snapshot so the caller can roll back on error.
+ *
+ * `cancelQueries` is fired without awaiting — it sends abort signals
+ * synchronously, so a racing refetch (e.g. from the queue WebSocket
+ * invalidation) won't clobber the value we're about to write. Any background
+ * fetch is reconciled by `onSettled`'s invalidation either way.
+ */
+const applyOptimisticTurn = (
   queryClient: QueryClient,
   queueId: number,
   apply: (queue: QueueRead) => QueueRead
-): Promise<QueueTurnContext> => {
+): QueueTurnContext => {
   const key = getReadQueueApiV1QueuesQueueIdGetQueryKey(queueId);
-  // Cancel in-flight refetches so they don't clobber the optimistic value.
-  await queryClient.cancelQueries({ queryKey: key });
+  void queryClient.cancelQueries({ queryKey: key });
   const previous = queryClient.getQueryData<QueueRead>(key);
   if (previous) {
     queryClient.setQueryData<QueueRead>(key, apply(previous));

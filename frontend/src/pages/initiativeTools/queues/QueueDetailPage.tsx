@@ -8,6 +8,8 @@ import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueue
 import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
 import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
 import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
+import { QueueTimeline } from "@/components/initiativeTools/queues/QueueTimeline";
+import { QueueViewToggle } from "@/components/initiativeTools/queues/QueueViewToggle";
 import { StatusMessage } from "@/components/StatusMessage";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,6 +37,7 @@ import {
   useStopQueue,
   useUpdateQueue,
 } from "@/hooks/useQueues";
+import { useQueueView } from "@/hooks/useQueueView";
 import { toast } from "@/lib/chesterToast";
 import { getHttpStatus } from "@/lib/errorMessage";
 import { useGuildPath } from "@/lib/guildUrl";
@@ -48,6 +51,16 @@ export function QueueDetailPage() {
 
   const queueQuery = useQueue(Number.isFinite(parsedId) ? parsedId : null);
   const queue = queueQuery.data;
+
+  // Per-queue view preference (list vs. on-deck), persisted to local storage.
+  const [view, setView] = useQueueView(parsedId);
+
+  // Turn controls just fire the mutation. The optimistic cache write happens
+  // synchronously in the hook's `onMutate`; the On Deck component watches
+  // the resulting queue prop and wraps its own re-render in a View
+  // Transition. That way the animation plays for local clicks, the
+  // mutation's server response, *and* WebSocket-driven refetches when
+  // another user advances the queue.
 
   // Connect WebSocket for live updates
   useQueueRealtime(Number.isFinite(parsedId) ? parsedId : null);
@@ -271,16 +284,19 @@ export function QueueDetailPage() {
 
       {/* Items list */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="font-medium text-lg">
             {t("items")} ({sortedItems.length})
           </h2>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setAddItemOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              {t("addItem")}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <QueueViewToggle view={view} onChange={setView} />
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setAddItemOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />
+                {t("addItem")}
+              </Button>
+            )}
+          </div>
         </div>
 
         {sortedItems.length === 0 ? (
@@ -298,6 +314,16 @@ export function QueueDetailPage() {
               )}
             </CardContent>
           </Card>
+        ) : view === "on-deck" ? (
+          <QueueTimeline
+            queue={queue}
+            onEdit={(editItem) => setEditingItem(editItem)}
+            onSetActive={(itemId) => {
+              if (canEdit && queue.is_active) {
+                setActiveItem.mutate(itemId);
+              }
+            }}
+          />
         ) : (
           <div className="space-y-2">
             {sortedItems.map((item) => (
