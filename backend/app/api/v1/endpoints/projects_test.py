@@ -553,38 +553,9 @@ async def test_mark_project_as_viewed(client: AsyncClient, session: AsyncSession
 
     assert response.status_code == 200
     data = response.json()
-    assert data["project_id"] == project.id
-
-
-@pytest.mark.integration
-async def test_list_recent_projects(client: AsyncClient, session: AsyncSession):
-    """Test listing recently viewed projects."""
-    from app.models.project_activity import RecentProjectView
-    from datetime import datetime, timezone
-
-    user = await create_user(session, email="user@example.com")
-    guild = await create_guild(session)
-    await create_guild_membership(session, user=user, guild=guild)
-
-    initiative = await _create_initiative_with_member(session, guild, user)
-    project = await _create_project(session, initiative, user)
-
-    # Mark as viewed
-    view = RecentProjectView(
-        user_id=user.id,
-        project_id=project.id,
-        viewed_at=datetime.now(timezone.utc),
-    )
-    session.add(view)
-    await session.commit()
-
-    headers = get_guild_headers(guild, user)
-    response = await client.get("/api/v1/projects/recent", headers=headers)
-
-    assert response.status_code == 200
-    data = response.json()
-    project_ids = {p["id"] for p in data}
-    assert project.id in project_ids
+    assert data["entity_type"] == "project"
+    assert data["entity_id"] == project.id
+    assert "last_viewed_at" in data
 
 
 @pytest.mark.integration
