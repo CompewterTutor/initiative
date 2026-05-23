@@ -1941,11 +1941,6 @@ export interface ProjectPermissionUpdate {
   level: ProjectPermissionLevel;
 }
 
-export interface ProjectRecentViewRead {
-  project_id: number;
-  last_viewed_at: string;
-}
-
 export interface ProjectReorderRequest {
   project_ids?: number[];
 }
@@ -2285,6 +2280,53 @@ export interface RecentActivityEntry {
   document_title?: string | null;
   project_id?: number | null;
   project_name?: string | null;
+}
+
+export type RecentItemReadEntityType =
+  (typeof RecentItemReadEntityType)[keyof typeof RecentItemReadEntityType];
+
+export const RecentItemReadEntityType = {
+  project: "project",
+  document: "document",
+  queue: "queue",
+  counter_group: "counter_group",
+} as const;
+
+/**
+ * One entry in the user's recent-items bar.
+ *
+ * Denormalized: contains enough information to render an entity-specific
+ * icon and link without an N+1 fetch per entity type.
+ */
+export interface RecentItemRead {
+  entity_type: RecentItemReadEntityType;
+  entity_id: number;
+  guild_id: number;
+  name: string;
+  last_viewed_at: string;
+  icon: string | null;
+  document_type: string | null;
+  mime_type: string | null;
+  original_filename: string | null;
+}
+
+export type RecentViewWriteEntityType =
+  (typeof RecentViewWriteEntityType)[keyof typeof RecentViewWriteEntityType];
+
+export const RecentViewWriteEntityType = {
+  project: "project",
+  document: "document",
+  queue: "queue",
+  counter_group: "counter_group",
+} as const;
+
+/**
+ * Response body for POST .../{id}/view, common across entity types.
+ */
+export interface RecentViewWrite {
+  entity_type: RecentViewWriteEntityType;
+  entity_id: number;
+  last_viewed_at: string;
 }
 
 export interface ResolvedAISettingsResponse {
