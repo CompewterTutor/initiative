@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import ConfigDict
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlmodel import Enum as SQLEnum, Field, Relationship, SQLModel
 
 from app.models._mixins import SoftDeleteMixin
@@ -84,9 +84,15 @@ class QueueItem(SoftDeleteMixin, table=True):
         ),
     )
     label: str = Field(nullable=False, max_length=255)
-    position: int = Field(
-        default=0,
-        sa_column=Column(Integer, nullable=False, server_default="0"),
+    # NUMERIC(20, 10) on the DB side; ``asdecimal=False`` keeps the Python
+    # value a plain ``float`` so downstream serializers (Pydantic/Orval) don't
+    # have to juggle Decimal. Exact representation in Postgres avoids float
+    # precision rounding when drag-reorder sets midpoint positions.
+    position: float = Field(
+        default=0.0,
+        sa_column=Column(
+            Numeric(20, 10, asdecimal=False), nullable=False, server_default="0"
+        ),
     )
     user_id: Optional[int] = Field(default=None, foreign_key="users.id", nullable=True)
     color: Optional[str] = Field(
@@ -100,6 +106,17 @@ class QueueItem(SoftDeleteMixin, table=True):
     is_visible: bool = Field(
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
+    # NULL when the item is in the rotation. When set, records the
+    # ``current_round`` at the time the user held this item. The rotation
+    # auto-releases held items in ``advance_turn`` when ``current_round``
+    # exceeds ``held_at_round`` AND the rotation reaches the item's natural
+    # position-desc slot — so a held participant can't be forgotten if the
+    # event they were waiting for never happens. See
+    # ``backend/app/services/queues.py:advance_turn``.
+    held_at_round: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, nullable=True),
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

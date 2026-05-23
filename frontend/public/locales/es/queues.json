@@ -51,6 +51,15 @@
   "next": "Siguiente turno",
   "previous": "Turno anterior",
   "setActive": "Establecer activo",
+  "hold": "Retener",
+  "held": "En espera",
+  "actNow": "Actuar",
+  "actInPlace": "Actuar en su lugar",
+  "actInPlaceDescription": "Tomar su turno en su posición original en la cola",
+  "actReposition": "Actuar y reposicionar",
+  "actRepositionDescription": "Tomar su turno y reposicionar a esta posición de la cola",
+  "queueHeld": "Turno retenido",
+  "queueReleased": "Devuelto a la rotación",
   "queueStarted": "Cola iniciada",
   "queueStopped": "Cola detenida",
   "queueReset": "Cola reiniciada",
@@ -124,6 +133,10 @@
   "changeAccess": "Cambiar acceso...",
   "removing": "Eliminando...",
   "addAllCount": "Añadir todos ({{count}})",
+
+  "viewLabel": "Vista",
+  "viewList": "Vista de lista",
+  "viewOnDeck": "En espera",
 
   "filters": {
     "heading": "Filtros",

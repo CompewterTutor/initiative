@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { ActHeldButton } from "@/components/initiativeTools/queues/ActHeldButton";
 import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueueItemDialog";
 import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
 import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
 import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
+import { QueueTimeline } from "@/components/initiativeTools/queues/QueueTimeline";
+import { QueueViewToggle } from "@/components/initiativeTools/queues/QueueViewToggle";
 import { StatusMessage } from "@/components/StatusMessage";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,14 +30,17 @@ import { useQueueRealtime } from "@/hooks/useQueueRealtime";
 import {
   useAdvanceTurn,
   useDeleteQueue,
+  useHoldCurrent,
   usePreviousTurn,
   useQueue,
+  useReleaseHeld,
   useResetQueue,
   useSetActiveItem,
   useStartQueue,
   useStopQueue,
   useUpdateQueue,
 } from "@/hooks/useQueues";
+import { useQueueView } from "@/hooks/useQueueView";
 import { toast } from "@/lib/chesterToast";
 import { getHttpStatus } from "@/lib/errorMessage";
 import { useGuildPath } from "@/lib/guildUrl";
@@ -48,6 +54,16 @@ export function QueueDetailPage() {
 
   const queueQuery = useQueue(Number.isFinite(parsedId) ? parsedId : null);
   const queue = queueQuery.data;
+
+  // Per-queue view preference (list vs. on-deck), persisted to local storage.
+  const [view, setView] = useQueueView(parsedId);
+
+  // Turn controls just fire the mutation. The optimistic cache write happens
+  // synchronously in the hook's `onMutate`; the On Deck component watches
+  // the resulting queue prop and wraps its own re-render in a View
+  // Transition. That way the animation plays for local clicks, the
+  // mutation's server response, *and* WebSocket-driven refetches when
+  // another user advances the queue.
 
   // Connect WebSocket for live updates
   useQueueRealtime(Number.isFinite(parsedId) ? parsedId : null);
@@ -102,13 +118,21 @@ export function QueueDetailPage() {
     onSuccess: () => toast.success(t("queueReset")),
   });
   const setActiveItem = useSetActiveItem(parsedId);
+  const holdCurrent = useHoldCurrent(parsedId, {
+    onSuccess: () => toast.success(t("queueHeld")),
+  });
+  const releaseHeld = useReleaseHeld(parsedId, {
+    onSuccess: () => toast.success(t("queueReleased")),
+  });
 
   const isControlLoading =
     startQueue.isPending ||
     stopQueue.isPending ||
     advanceTurn.isPending ||
     previousTurn.isPending ||
-    resetQueue.isPending;
+    resetQueue.isPending ||
+    holdCurrent.isPending ||
+    releaseHeld.isPending;
 
   // Item dialogs
   const [addItemOpen, setAddItemOpen] = useState(false);
@@ -266,21 +290,25 @@ export function QueueDetailPage() {
         onNext={() => advanceTurn.mutate()}
         onPrevious={() => previousTurn.mutate()}
         onReset={() => resetQueue.mutate()}
+        onHold={() => holdCurrent.mutate()}
         isLoading={isControlLoading}
       />
 
       {/* Items list */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="font-medium text-lg">
             {t("items")} ({sortedItems.length})
           </h2>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setAddItemOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              {t("addItem")}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <QueueViewToggle view={view} onChange={setView} />
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setAddItemOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />
+                {t("addItem")}
+              </Button>
+            )}
+          </div>
         </div>
 
         {sortedItems.length === 0 ? (
@@ -298,6 +326,21 @@ export function QueueDetailPage() {
               )}
             </CardContent>
           </Card>
+        ) : view === "on-deck" ? (
+          <QueueTimeline
+            queue={queue}
+            onEdit={(editItem) => setEditingItem(editItem)}
+            onSetActive={(itemId) => {
+              if (canEdit && queue.is_active) {
+                setActiveItem.mutate(itemId);
+              }
+            }}
+            onAct={(itemId, reposition) => {
+              if (canEdit) {
+                releaseHeld.mutate({ itemId, reposition });
+              }
+            }}
+          />
         ) : (
           <div className="space-y-2">
             {sortedItems.map((item) => (
@@ -311,6 +354,14 @@ export function QueueDetailPage() {
                     setActiveItem.mutate(itemId);
                   }
                 }}
+                actionButton={
+                  canEdit && item.held_at_round !== null ? (
+                    <ActHeldButton
+                      itemId={item.id}
+                      onAct={(id, reposition) => releaseHeld.mutate({ itemId: id, reposition })}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </div>

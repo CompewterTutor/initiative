@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import ConfigDict, Field, model_validator
@@ -113,6 +114,21 @@ class CounterSetCountRequest(SanitizedBaseModel):
     count: Decimal
 
 
+class CounterSortField(str, Enum):
+    name = "name"
+    count = "count"
+
+
+class CounterSortDirection(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
+class CounterSortRequest(SanitizedBaseModel):
+    field: CounterSortField
+    direction: CounterSortDirection = CounterSortDirection.asc
+
+
 class CounterRead(SanitizedBaseModel):
     """Serialized counter. Numeric fields are returned as plain decimal
     strings (e.g. "0", "12.5") rather than ``Decimal`` so JSON never emits
@@ -156,6 +172,10 @@ class CounterGroupCreate(CounterGroupBase):
 class CounterGroupUpdate(SanitizedBaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = None
+
+
+class CounterGroupDuplicateRequest(SanitizedBaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
 
 
 class CounterGroupSummary(CounterGroupBase):

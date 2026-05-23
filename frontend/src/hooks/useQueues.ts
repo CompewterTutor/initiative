@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -24,9 +30,11 @@ import {
   deleteQueueItemApiV1QueuesQueueIdItemsItemIdDelete,
   getListQueuesApiV1QueuesGetQueryKey,
   getReadQueueApiV1QueuesQueueIdGetQueryKey,
+  holdCurrentTurnApiV1QueuesQueueIdHoldPost,
   listQueuesApiV1QueuesGet,
   previousTurnApiV1QueuesQueueIdPreviousPost,
   readQueueApiV1QueuesQueueIdGet,
+  releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost,
   reorderQueueItemsApiV1QueuesQueueIdItemsReorderPut,
   resetQueueApiV1QueuesQueueIdResetPost,
   setActiveItemApiV1QueuesQueueIdSetActiveItemIdPost,
@@ -245,122 +253,395 @@ export const useReorderQueueItems = (
 };
 
 // ── Turn Control Mutations ──────────────────────────────────────────────────
+//
+// Turn changes are applied optimistically: the displayed current item and round
+// update instantly in the cache, then reconcile with the server on settle (and
+// via the queue WebSocket). The transition logic below mirrors
+// `_visible_items_desc` + advance/previous in `backend/app/services/queues.py`;
+// keep the two in sync.
+
+type QueueTurnContext = { previous?: QueueRead };
+
+/**
+ * Visible items sorted by position-desc, including held items. Used by the
+ * `advanceQueueState` walk so it can land on a held item and auto-release it
+ * when its due round arrives.
+ */
+const visibleItemsDesc = (queue: QueueRead): QueueItemRead[] =>
+  queue.items.filter((item) => item.is_visible).sort((a, b) => b.position - a.position);
+
+/**
+ * Rotation-eligible items (visible AND not held), position-desc. Used by
+ * Previous, Start, Reset — anywhere we want to land on an item that's
+ * "currently in the rotation" without triggering auto-release semantics.
+ */
+const activeRotationDesc = (queue: QueueRead): QueueItemRead[] =>
+  visibleItemsDesc(queue).filter((item) => item.held_at_round === null);
+
+/** Replace an item inside `queue.items` with `updater(item)`. */
+const replaceItem = (
+  queue: QueueRead,
+  itemId: number,
+  updater: (item: QueueItemRead) => QueueItemRead
+): QueueItemRead[] => queue.items.map((item) => (item.id === itemId ? updater(item) : item));
+
+/**
+ * Advance to the next rotation slot. Mirrors backend `advance_turn`: walks
+ * `visibleItemsDesc` (which includes held items) so a held item whose due
+ * round has come up can be auto-released; held items not yet due are
+ * skipped. See `backend/app/services/queues.py:advance_turn`.
+ */
+export const advanceQueueState = (queue: QueueRead): QueueRead => {
+  const visible = visibleItemsDesc(queue);
+  if (visible.length === 0) return queue;
+
+  const currentId = queue.current_item?.id ?? null;
+  const startIdx = currentId == null ? -1 : visible.findIndex((item) => item.id === currentId);
+
+  let idx = startIdx;
+  let round = queue.current_round;
+  let hadStart = startIdx !== -1;
+  for (let step = 0; step <= visible.length * 2; step += 1) {
+    const nextIdx = (idx + 1) % visible.length;
+    if (nextIdx === 0 && hadStart) round += 1;
+    const candidate = visible[nextIdx];
+    if (candidate.held_at_round === null) {
+      return { ...queue, current_item: candidate, current_round: round };
+    }
+    if (candidate.held_at_round < round) {
+      const released: QueueItemRead = { ...candidate, held_at_round: null };
+      return {
+        ...queue,
+        items: replaceItem(queue, candidate.id, () => released),
+        current_item: released,
+        current_round: round,
+      };
+    }
+    // Held and not yet due — skip; subsequent wraps from here bump the round.
+    idx = nextIdx;
+    hadStart = true;
+  }
+  // Every rotation item is held and not yet due — clear current.
+  return { ...queue, current_item: null, current_round: round };
+};
+
+/**
+ * Step backward through the active rotation. Held items are skipped without
+ * auto-release — auto-release is a forward-time effect of advance only.
+ */
+export const previousQueueState = (queue: QueueRead): QueueRead => {
+  const rotation = activeRotationDesc(queue);
+  if (rotation.length === 0) return queue;
+  const currentId = queue.current_item?.id ?? null;
+  const idx = currentId == null ? -1 : rotation.findIndex((item) => item.id === currentId);
+  if (idx <= 0) {
+    return {
+      ...queue,
+      current_item: rotation[rotation.length - 1],
+      current_round: Math.max(1, queue.current_round - 1),
+    };
+  }
+  return { ...queue, current_item: rotation[idx - 1] };
+};
+
+export const startQueueState = (queue: QueueRead): QueueRead => {
+  const rotation = activeRotationDesc(queue);
+  if (rotation.length === 0) return queue;
+  return { ...queue, is_active: true, current_item: rotation[0], current_round: 1 };
+};
+
+export const stopQueueState = (queue: QueueRead): QueueRead => ({ ...queue, is_active: false });
+
+export const resetQueueState = (queue: QueueRead): QueueRead => {
+  const rotation = activeRotationDesc(queue);
+  if (rotation.length === 0) return queue;
+  return { ...queue, current_round: 1, current_item: rotation[0] };
+};
+
+/**
+ * Set the current to a specific item. If the target is currently held, clear
+ * `held_at_round` on the same write so the invariant "current ∉ held set"
+ * holds (mirrors backend `set_active_item`).
+ */
+export const setActiveItemState = (queue: QueueRead, itemId: number): QueueRead => {
+  const target = queue.items.find((i) => i.id === itemId);
+  if (!target) return queue;
+  if (target.held_at_round !== null) {
+    const cleared: QueueItemRead = { ...target, held_at_round: null };
+    return {
+      ...queue,
+      items: replaceItem(queue, itemId, () => cleared),
+      current_item: cleared,
+    };
+  }
+  return { ...queue, current_item: target };
+};
+
+/**
+ * Hold the current turn: stamp it with `held_at_round = current_round` and
+ * advance to the next rotation slot. If holding empties the rotation,
+ * `current_item` becomes `null` and `current_round` is unchanged.
+ */
+export const holdCurrentState = (queue: QueueRead): QueueRead => {
+  const currentId = queue.current_item?.id ?? null;
+  if (currentId == null) return queue;
+  const heldRound = queue.current_round;
+  const heldItems = replaceItem(queue, currentId, (item) => ({
+    ...item,
+    held_at_round: heldRound,
+  }));
+  // Walk position-desc starting from the held item; find the next rotation
+  // slot among the updated items.
+  const visible = heldItems
+    .filter((item) => item.is_visible)
+    .sort((a, b) => b.position - a.position);
+  const startIdx = visible.findIndex((item) => item.id === currentId);
+  let round = queue.current_round;
+  for (let step = 1; step <= visible.length; step += 1) {
+    const nextIdx = (startIdx + step) % visible.length;
+    if (nextIdx <= startIdx) round = queue.current_round + 1;
+    const candidate = visible[nextIdx];
+    if (candidate.held_at_round === null) {
+      return {
+        ...queue,
+        items: heldItems,
+        current_item: candidate,
+        current_round: round,
+      };
+    }
+  }
+  // No rotation-eligible item left.
+  return { ...queue, items: heldItems, current_item: null };
+};
+
+export interface ReleaseHeldOptions {
+  /**
+   * PF2e Delay semantics: the target acts now (becomes the current turn)
+   * and its `position` is rewritten to land just above the previous current
+   * item. The new initiative slot persists for the rest of the encounter.
+   * Default `false` keeps the original position and the current pointer —
+   * the released item re-enters at its natural slot.
+   */
+  reposition?: boolean;
+}
+
+/**
+ * Manually release a held item back into the active rotation.
+ *
+ * Clears `held_at_round` on the target. With `reposition: false` (default),
+ * `current_item` is intentionally untouched so releasing doesn't rewind the
+ * rotation pointer onto items that already took their turn. With
+ * `reposition: true`, the target's `position` is rewritten just above the
+ * previous current and the target becomes the new current — mirrors backend
+ * `release_held(reposition=True)`.
+ */
+export const releaseHeldState = (
+  queue: QueueRead,
+  itemId: number,
+  options: ReleaseHeldOptions = {}
+): QueueRead => {
+  const target = queue.items.find((i) => i.id === itemId);
+  if (!target || target.held_at_round === null) return queue;
+
+  let nextPosition = target.position;
+  let promoteToCurrent = false;
+  const currentId = queue.current_item?.id ?? null;
+  if (options.reposition && currentId !== null && currentId !== itemId) {
+    const current = queue.items.find((i) => i.id === currentId);
+    if (current) {
+      // Closest active item strictly above current.
+      const above = queue.items
+        .filter(
+          (i) =>
+            i.is_visible &&
+            i.held_at_round === null &&
+            i.id !== itemId &&
+            i.id !== current.id &&
+            i.position > current.position
+        )
+        .sort((a, b) => a.position - b.position)[0];
+      nextPosition = above ? (current.position + above.position) / 2 : current.position + 1.0;
+      promoteToCurrent = true;
+    }
+  }
+
+  const released: QueueItemRead = {
+    ...target,
+    held_at_round: null,
+    position: nextPosition,
+  };
+  return {
+    ...queue,
+    items: replaceItem(queue, itemId, () => released),
+    current_item: promoteToCurrent ? released : queue.current_item,
+  };
+};
+
+/**
+ * Synchronously apply an optimistic turn transition. Returns the pre-mutation
+ * snapshot so the caller can roll back on error.
+ *
+ * `cancelQueries` is fired without awaiting — it sends abort signals
+ * synchronously, so a racing refetch (e.g. from the queue WebSocket
+ * invalidation) won't clobber the value we're about to write. Any background
+ * fetch is reconciled by `onSettled`'s invalidation either way.
+ */
+const applyOptimisticTurn = (
+  queryClient: QueryClient,
+  queueId: number,
+  apply: (queue: QueueRead) => QueueRead
+): QueueTurnContext => {
+  const key = getReadQueueApiV1QueuesQueueIdGetQueryKey(queueId);
+  void queryClient.cancelQueries({ queryKey: key });
+  const previous = queryClient.getQueryData<QueueRead>(key);
+  if (previous) {
+    queryClient.setQueryData<QueueRead>(key, apply(previous));
+  }
+  return { previous };
+};
+
+/** Restore the pre-mutation queue snapshot after a failed turn change. */
+const rollbackOptimisticTurn = (
+  queryClient: QueryClient,
+  queueId: number,
+  context: QueueTurnContext | undefined
+) => {
+  if (context?.previous) {
+    queryClient.setQueryData(getReadQueueApiV1QueuesQueueIdGetQueryKey(queueId), context.previous);
+  }
+};
 
 export const useAdvanceTurn = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
     ...rest,
     mutationFn: async () => {
       return advanceTurnApiV1QueuesQueueIdNextPost(queueId) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, advanceQueueState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
-      toast.error(t("error"));
-      onError?.(...args);
-    },
-    onSettled,
   });
 };
 
 export const usePreviousTurn = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
     ...rest,
     mutationFn: async () => {
       return previousTurnApiV1QueuesQueueIdPreviousPost(queueId) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, previousQueueState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
-      toast.error(t("error"));
-      onError?.(...args);
-    },
-    onSettled,
   });
 };
 
 export const useStartQueue = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
     ...rest,
     mutationFn: async () => {
       return startQueueApiV1QueuesQueueIdStartPost(queueId) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, startQueueState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
-      toast.error(t("error"));
-      onError?.(...args);
-    },
-    onSettled,
   });
 };
 
 export const useStopQueue = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
     ...rest,
     mutationFn: async () => {
       return stopQueueApiV1QueuesQueueIdStopPost(queueId) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, stopQueueState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
-      toast.error(t("error"));
-      onError?.(...args);
-    },
-    onSettled,
   });
 };
 
 export const useResetQueue = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
     ...rest,
     mutationFn: async () => {
       return resetQueueApiV1QueuesQueueIdResetPost(queueId) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, resetQueueState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
-      toast.error(t("error"));
-      onError?.(...args);
-    },
-    onSettled,
   });
 };
 
 export const useSetActiveItem = (queueId: number, options?: MutationOpts<QueueRead, number>) => {
   const { t } = useTranslation("queues");
-  const { onSuccess, onError, onSettled, ...rest } = options ?? {};
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
 
-  return useMutation({
+  return useMutation<QueueRead, Error, number, QueueTurnContext>({
     ...rest,
     mutationFn: async (itemId: number) => {
       return setActiveItemApiV1QueuesQueueIdSetActiveItemIdPost(
@@ -368,16 +649,83 @@ export const useSetActiveItem = (queueId: number, options?: MutationOpts<QueueRe
         itemId
       ) as unknown as Promise<QueueRead>;
     },
-    onSuccess: (...args) => {
+    onMutate: (itemId) =>
+      applyOptimisticTurn(queryClient, queueId, (queue) => setActiveItemState(queue, itemId)),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
       void invalidateQueue(queueId);
       void invalidateAllQueues();
-      onSuccess?.(...args);
+      onSettled?.(...args);
     },
-    onError: (...args) => {
+  });
+};
+
+export const useHoldCurrent = (queueId: number, options?: MutationOpts<QueueRead, void>) => {
+  const { t } = useTranslation("queues");
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
+
+  return useMutation<QueueRead, Error, void, QueueTurnContext>({
+    ...rest,
+    mutationFn: async () => {
+      return holdCurrentTurnApiV1QueuesQueueIdHoldPost(queueId) as unknown as Promise<QueueRead>;
+    },
+    onMutate: () => applyOptimisticTurn(queryClient, queueId, holdCurrentState),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
       toast.error(t("error"));
-      onError?.(...args);
+      onError?.(err, vars, onMutateResult, context);
     },
-    onSettled,
+    onSettled: (...args) => {
+      void invalidateQueue(queueId);
+      void invalidateAllQueues();
+      onSettled?.(...args);
+    },
+  });
+};
+
+export interface ReleaseHeldVariables {
+  itemId: number;
+  /** PF2e Delay: reposition the released item just below current. */
+  reposition?: boolean;
+}
+
+export const useReleaseHeld = (
+  queueId: number,
+  options?: MutationOpts<QueueRead, ReleaseHeldVariables>
+) => {
+  const { t } = useTranslation("queues");
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, onSettled, onMutate: _ignored, ...rest } = options ?? {};
+
+  return useMutation<QueueRead, Error, ReleaseHeldVariables, QueueTurnContext>({
+    ...rest,
+    mutationFn: async ({ itemId, reposition }) => {
+      return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(queueId, itemId, {
+        reposition: reposition ?? false,
+      }) as unknown as Promise<QueueRead>;
+    },
+    onMutate: ({ itemId, reposition }) =>
+      applyOptimisticTurn(queryClient, queueId, (queue) =>
+        releaseHeldState(queue, itemId, { reposition })
+      ),
+    onSuccess,
+    onError: (err, vars, onMutateResult, context) => {
+      rollbackOptimisticTurn(queryClient, queueId, onMutateResult);
+      toast.error(t("error"));
+      onError?.(err, vars, onMutateResult, context);
+    },
+    onSettled: (...args) => {
+      void invalidateQueue(queueId);
+      void invalidateAllQueues();
+      onSettled?.(...args);
+    },
   });
 };
 

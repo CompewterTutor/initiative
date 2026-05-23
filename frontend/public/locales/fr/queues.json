@@ -51,6 +51,15 @@
   "next": "Passage suivant",
   "previous": "Passage précédent",
   "setActive": "Définir comme actif",
+  "hold": "Reporter",
+  "held": "En attente",
+  "actNow": "Agir",
+  "actInPlace": "Agir à sa place",
+  "actInPlaceDescription": "Prendre son tour à sa position d'origine dans la file",
+  "actReposition": "Agir et repositionner",
+  "actRepositionDescription": "Prendre son tour et se repositionner à cet emplacement de la file",
+  "queueHeld": "Tour reporté",
+  "queueReleased": "Retour dans la rotation",
   "queueStarted": "File démarrée",
   "queueStopped": "File arrêtée",
   "queueReset": "File réinitialisée",
@@ -124,6 +133,10 @@
   "changeAccess": "Modifier l'accès...",
   "removing": "Suppression en cours...",
   "addAllCount": "Tout ajouter ({{count}})",
+
+  "viewLabel": "Vue",
+  "viewList": "Vue en liste",
+  "viewOnDeck": "En attente",
 
   "filters": {
     "heading": "Filtres",

@@ -1,5 +1,5 @@
 import { Link, useParams, useRouter } from "@tanstack/react-router";
-import { Loader2, Trash2 } from "lucide-react";
+import { Copy, Loader2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -22,6 +22,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useCounterGroup,
   useDeleteCounterGroup,
+  useDuplicateCounterGroup,
   useSetCounterGroupPermissions,
   useSetCounterGroupRolePermissions,
   useUpdateCounterGroup,
@@ -189,6 +198,29 @@ export function CounterGroupSettingsPage() {
   const handleAddAll = (level: "read" | "write") =>
     commitUsers([...localUserPerms, ...availableMembers.map((m) => ({ user_id: m.id, level }))]);
 
+  // ── Duplicate ──────────────────────────────────────────────────────────
+
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState("");
+
+  const duplicateGroup = useDuplicateCounterGroup(parsedId, {
+    onSuccess: (created) => {
+      toast.success(t("duplicate.success"));
+      setDuplicateDialogOpen(false);
+      router.navigate({ to: gp(`/counter-groups/${created.id}/settings`) });
+    },
+  });
+
+  const openDuplicateDialog = () => {
+    setDuplicateName(group ? t("duplicate.defaultName", { name: group.name }) : "");
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleDuplicate = () => {
+    const trimmed = duplicateName.trim();
+    duplicateGroup.mutate({ name: trimmed || undefined });
+  };
+
   // ── Delete ─────────────────────────────────────────────────────────────
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -326,6 +358,19 @@ export function CounterGroupSettingsPage() {
 
         {/* ── Advanced tab ────────────────────────────────────────── */}
         <TabsContent value="advanced" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("duplicate.title")}</CardTitle>
+              <CardDescription>{t("duplicate.description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button type="button" variant="outline" onClick={openDuplicateDialog}>
+                <Copy className="mr-2 h-4 w-4" />
+                {t("duplicate.action")}
+              </Button>
+            </CardContent>
+          </Card>
+
           {isOwner && (
             <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
               <CardHeader>
@@ -347,6 +392,44 @@ export function CounterGroupSettingsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("duplicate.title")}</DialogTitle>
+            <DialogDescription>{t("duplicate.dialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="duplicate-counter-group-name">{t("name")}</Label>
+            <Input
+              id="duplicate-counter-group-name"
+              value={duplicateName}
+              onChange={(e) => setDuplicateName(e.target.value)}
+              placeholder={t("namePlaceholder")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && duplicateName.trim()) handleDuplicate();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDuplicateDialogOpen(false)}
+              disabled={duplicateGroup.isPending}
+            >
+              {t("common:cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDuplicate}
+              disabled={duplicateGroup.isPending || !duplicateName.trim()}
+            >
+              {duplicateGroup.isPending ? t("duplicate.duplicating") : t("duplicate.action")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={deleteDialogOpen}
