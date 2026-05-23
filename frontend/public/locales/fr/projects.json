@@ -144,8 +144,8 @@
     "archivedInfo": "Ce projet est archivé. Désarchivez-le depuis les paramètres pour ajouter ou mettre à jour des tâches."
   },
   "tabsBar": {
-    "loadingRecent": "Chargement des projets récents\u2026",
-    "closeProject": "Fermer {{name}}"
+    "loadingRecent": "Chargement des éléments récents\u2026",
+    "closeItem": "Fermer {{name}}"
   },
   "favorite": {
     "remove": "Retirer des favoris",

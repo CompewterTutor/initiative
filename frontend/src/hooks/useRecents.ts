@@ -37,7 +37,7 @@ type QueryOpts<TData> = Omit<UseQueryOptions<TData>, "queryKey" | "queryFn">;
 export const useRecents = (options?: QueryOpts<RecentItemRead[]>) => {
   return useQuery<RecentItemRead[]>({
     queryKey: getListRecentsApiV1RecentsGetQueryKey(),
-    queryFn: () => listRecentsApiV1RecentsGet() as unknown as Promise<RecentItemRead[]>,
+    queryFn: () => listRecentsApiV1RecentsGet(),
     staleTime: 30 * 1000,
     ...options,
   });

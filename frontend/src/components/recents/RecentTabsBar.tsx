@@ -62,7 +62,7 @@ export const RecentTabsBar = ({ items, activeKey, loading, onClose }: RecentTabs
                     event.preventDefault();
                     onClose(item);
                   }}
-                  aria-label={t("tabsBar.closeProject", { name: item.name })}
+                  aria-label={t("tabsBar.closeItem", { name: item.name })}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>

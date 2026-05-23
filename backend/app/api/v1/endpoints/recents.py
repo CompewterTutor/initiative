@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Annotated, Dict, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -130,7 +130,9 @@ async def list_recents(
                 permissions_service.require_project_access(
                     project, current_user, access="read"
                 )
-            except Exception:
+            except HTTPException:
+                # Permission denied / not found — drop the row from the bar
+                # but let any other error bubble up so latent bugs are visible.
                 continue
             items.append(
                 RecentItemRead(
@@ -150,7 +152,9 @@ async def list_recents(
                 permissions_service.require_document_access(
                     document, current_user, access="read"
                 )
-            except Exception:
+            except HTTPException:
+                # Permission denied / not found — drop the row from the bar
+                # but let any other error bubble up so latent bugs are visible.
                 continue
             items.append(
                 RecentItemRead(
@@ -177,7 +181,9 @@ async def list_recents(
                     queues_service.require_queue_access(
                         queue, current_user, access="read"
                     )
-                except Exception:
+                except HTTPException:
+                    # Permission denied — drop the row but let unexpected
+                    # errors bubble up.
                     continue
             items.append(
                 RecentItemRead(
@@ -197,7 +203,9 @@ async def list_recents(
                     counters_service.require_counter_group_access(
                         group, current_user, access="read"
                     )
-                except Exception:
+                except HTTPException:
+                    # Permission denied — drop the row but let unexpected
+                    # errors bubble up.
                     continue
             items.append(
                 RecentItemRead(
