@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/command";
 import { useAuth } from "@/hooks/useAuth";
 import { useCounterGroupsList } from "@/hooks/useCounters";
-import { useAllDocumentIds } from "@/hooks/useDocuments";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useDocumentsList } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
 import { useProjects } from "@/hooks/useProjects";
 import { useQueuesList } from "@/hooks/useQueues";
@@ -46,11 +47,23 @@ export function getOpenCommandCenter() {
 
 export function CommandCenter() {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { t } = useTranslation(["command", "common"]);
   const router = useRouter();
   const { user } = useAuth();
   const { activeGuild, activeGuildId } = useGuilds();
   const getGuildPath = useGuildPath();
+
+  // Switch the tasks query into "guild-wide title search" mode once the
+  // debounced query is at least 2 characters. Single-character queries fire
+  // too noisily and rarely narrow enough to be useful.
+  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 200);
+  const isSearchingTasks = debouncedSearch.length >= 2;
+
+  // Reset the input whenever the dialog closes so reopening starts fresh.
+  useEffect(() => {
+    if (!open) setSearchQuery("");
+  }, [open]);
 
   // Expose open callback for external triggers (e.g. sidebar button)
   useEffect(() => {
@@ -86,13 +99,43 @@ export function CommandCenter() {
   // Data hooks — all use existing cached data except tasks which fetches when dialog opens
   const recentQuery = useRecents({ staleTime: 30_000 });
   const projectsQuery = useProjects(undefined, { staleTime: 60_000 });
-  const documentsQuery = useAllDocumentIds({ staleTime: 60_000 });
   const queuesQuery = useQueuesList({ page_size: 100 }, { staleTime: 60_000 });
   const counterGroupsQuery = useCounterGroupsList({ page_size: 100 }, { staleTime: 60_000 });
+  // Documents mirror the task behaviour: default to the 25 most recently
+  // updated (the backend's default sort when ``sort_by`` is omitted), and
+  // swap to a server-side title search once the input has ≥2 characters.
+  const isSearchingDocuments = debouncedSearch.length >= 2;
+  const documentsQuery = useDocumentsList(
+    {
+      page_size: 25,
+      ...(isSearchingDocuments ? { search: debouncedSearch } : {}),
+    },
+    { enabled: open, staleTime: 60_000 }
+  );
+  // Two modes for the tasks query:
+  //  - Idle: surface tasks the user is actively working on (assigned to them,
+  //    not done, most recently updated). The default backend sort
+  //    (``sort_order`` asc) returns the top of every project's kanban which
+  //    is rarely what's relevant "in the moment".
+  //  - Searching: drop the "my tasks" / "not done" lenses and let the user
+  //    find any task in the active guild whose title matches. The ``ilike``
+  //    op on ``title`` is wrapped server-side as ``%query%``.
   const tasksQuery = useTasks(
     {
-      page_size: 50,
-      conditions: user ? [{ field: "assignee_ids", op: "in_" as const, value: [user.id] }] : [],
+      page_size: 25,
+      conditions: user
+        ? isSearchingTasks
+          ? [{ field: "title", op: "ilike" as const, value: debouncedSearch }]
+          : [
+              { field: "assignee_ids", op: "in_" as const, value: [user.id] },
+              {
+                field: "status_category",
+                op: "in_" as const,
+                value: ["backlog", "todo", "in_progress"],
+              },
+            ]
+        : [],
+      sorting: [{ field: "updated_at", dir: "desc" as const }],
     },
     { enabled: open && !!user, staleTime: 30_000 }
   );
@@ -101,7 +144,7 @@ export function CommandCenter() {
   // (same payload that backs the layout tabs bar).
   const recentItems = recentQuery.data ?? [];
   const projects = projectsQuery.data?.items ?? [];
-  const documents = documentsQuery.data ?? [];
+  const documents = documentsQuery.data?.items ?? [];
   const queues = queuesQuery.data?.items ?? [];
   const counterGroups = counterGroupsQuery.data?.items ?? [];
   const tasks = tasksQuery.data?.items ?? [];
@@ -162,6 +205,8 @@ export function CommandCenter() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen} filter={commandFilter}>
       <CommandInput
+        value={searchQuery}
+        onValueChange={setSearchQuery}
         placeholder={t("placeholder", {
           activeGuildName: activeGuild?.name ?? t("common:appName"),
         })}
