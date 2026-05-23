@@ -54,11 +54,16 @@ export function CommandCenter() {
   const { activeGuild, activeGuildId } = useGuilds();
   const getGuildPath = useGuildPath();
 
-  // Switch the tasks query into "guild-wide title search" mode once the
-  // debounced query is at least 2 characters. Single-character queries fire
-  // too noisily and rarely narrow enough to be useful.
-  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 200);
-  const isSearchingTasks = debouncedSearch.length >= 2;
+  // Switch into "guild-wide title search" mode once the debounced query is at
+  // least 2 characters. Single-character queries fire too noisily and rarely
+  // narrow enough to be useful. If the raw input is already empty (e.g.
+  // immediately after dialog close) treat the debounced value as empty too,
+  // so a quick close+reopen within the 200 ms window doesn't briefly fall
+  // into search mode against the stale prior query.
+  const trimmedQuery = searchQuery.trim();
+  const debouncedSearch = useDebouncedValue(trimmedQuery, 200);
+  const effectiveSearch = trimmedQuery === "" ? "" : debouncedSearch;
+  const isSearching = effectiveSearch.length >= 2;
 
   // Reset the input whenever the dialog closes so reopening starts fresh.
   useEffect(() => {
@@ -104,13 +109,14 @@ export function CommandCenter() {
   // Documents mirror the task behaviour: default to the 25 most recently
   // updated (the backend's default sort when ``sort_by`` is omitted), and
   // swap to a server-side title search once the input has ≥2 characters.
-  const isSearchingDocuments = debouncedSearch.length >= 2;
+  // ``!!user`` matches the tasks guard — defends against a brief unauth state
+  // (e.g. token expiry mid-session) firing a 401-bound request.
   const documentsQuery = useDocumentsList(
     {
       page_size: 25,
-      ...(isSearchingDocuments ? { search: debouncedSearch } : {}),
+      ...(isSearching ? { search: effectiveSearch } : {}),
     },
-    { enabled: open, staleTime: 60_000 }
+    { enabled: open && !!user, staleTime: 60_000 }
   );
   // Two modes for the tasks query:
   //  - Idle: surface tasks the user is actively working on (assigned to them,
@@ -124,8 +130,8 @@ export function CommandCenter() {
     {
       page_size: 25,
       conditions: user
-        ? isSearchingTasks
-          ? [{ field: "title", op: "ilike" as const, value: debouncedSearch }]
+        ? isSearching
+          ? [{ field: "title", op: "ilike" as const, value: effectiveSearch }]
           : [
               { field: "assignee_ids", op: "in_" as const, value: [user.id] },
               {
