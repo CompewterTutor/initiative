@@ -135,10 +135,10 @@ export const LoginPage = () => {
   return (
     <div
       style={{
-        backgroundImage: `url(${isDark ? "/images/gridWhite.svg" : "/images/gridBlack.svg"})`,
+        backgroundImage: `url(${isDark ? "/images/hexWhite.svg" : "/images/hexBlack.svg"})`,
         backgroundPosition: "center",
         backgroundBlendMode: "screen",
-        backgroundSize: "96px 96px",
+        backgroundSize: "67px 116px",
       }}
     >
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
