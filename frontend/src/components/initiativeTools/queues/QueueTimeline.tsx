@@ -1,7 +1,8 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { type ReactNode, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead, QueueRead } from "@/api/generated/initiativeAPI.schemas";
+import { ActHeldButton } from "@/components/initiativeTools/queues/ActHeldButton";
 import { QueueItemRow } from "@/components/initiativeTools/queues/QueueItemRow";
 import { cn } from "@/lib/utils";
 import { withViewTransition } from "@/lib/viewTransition";
@@ -10,38 +11,67 @@ interface QueueTimelineProps {
   queue: QueueRead;
   onEdit: (item: QueueItemRead) => void;
   onSetActive: (itemId: number) => void;
+  /**
+   * Release a held item. `reposition: true` follows PF2e Delay semantics
+   * (move them to act here, permanently changing their initiative slot);
+   * `false` keeps their original slot so they re-enter at their natural
+   * position the next time the rotation reaches it.
+   */
+  onAct: (itemId: number, reposition: boolean) => void;
 }
 
 export type TimelineRow =
   | { kind: "item"; item: QueueItemRead; round: number }
   | { kind: "round-divider"; round: number }
+  | { kind: "held-divider" }
+  | { kind: "held-item"; item: QueueItemRead }
+  | { kind: "rotation-divider" }
   | { kind: "hidden-divider" }
   | { kind: "hidden-item"; item: QueueItemRead };
 
 /**
  * Build the timeline display sequence:
  *
- * - **Visible rotation**: the next `N` visible items starting from the current
- *   item, wrapping around.
- * - **Round divider**: always emitted, either at the boundary inside the
- *   rotation (when the rotation wraps into the next round) or pinned to the
- *   end of the rotation as a preview of the next round. Pinning means the row
- *   count stays constant across turns — important for the View Transitions
- *   API, which morphs the divider's position smoothly instead of having it
- *   pop in/out at the round boundary.
- * - **Hidden items**: any items with `is_visible: false` are appended below a
- *   "Hidden" section divider so the user can still click them to edit (e.g.
- *   to toggle visibility back on) without leaving the On Deck view.
+ * - **Held section** (pinned at the top, when any items are held): items whose
+ *   user explicitly delayed their turn. They wait here until released via
+ *   their per-row Act button, or auto-release when the rotation's natural
+ *   slot for their position comes around in a later round (see
+ *   `advanceQueueState`).
+ * - **Active rotation**: the next `N` un-held visible items starting from the
+ *   current item, wrapping around.
+ * - **Round divider**: always emitted within the rotation block, either at
+ *   the boundary inside the rotation (when it wraps into the next round) or
+ *   pinned to the end of the rotation as a preview. Constant row count makes
+ *   the View Transitions API morph the divider's position smoothly across
+ *   turns instead of having it pop in/out.
+ * - **Hidden items**: any items with `is_visible: false` go below a "Hidden"
+ *   divider so the user can still click them to edit (e.g. to toggle
+ *   visibility back on) without leaving the On Deck view.
  *
  * When the queue isn't running the rotation degenerates to a static list and
- * the round divider is suppressed (the "rounds" concept doesn't apply yet).
+ * the round divider is suppressed.
  */
 export const buildTimeline = (queue: QueueRead): TimelineRow[] => {
   const sortedAll = [...queue.items].sort((a, b) => b.position - a.position);
-  const visible = sortedAll.filter((item) => item.is_visible);
+  const held = sortedAll.filter((item) => item.is_visible && item.held_at_round !== null);
+  const visible = sortedAll.filter((item) => item.is_visible && item.held_at_round === null);
   const hidden = sortedAll.filter((item) => !item.is_visible);
 
   const rows: TimelineRow[] = [];
+
+  if (held.length > 0) {
+    rows.push({ kind: "held-divider" });
+    for (const item of held) {
+      rows.push({ kind: "held-item", item });
+    }
+  }
+
+  // Unlabeled visual break between the held block and the active rotation,
+  // only when both exist. The Held block has its own "Held" header at the
+  // top; this line closes the section so the rotation reads as its own zone.
+  if (held.length > 0 && visible.length > 0) {
+    rows.push({ kind: "rotation-divider" });
+  }
 
   if (visible.length > 0) {
     const currentId = queue.current_item?.id ?? null;
@@ -93,8 +123,15 @@ export const buildTimeline = (queue: QueueRead): TimelineRow[] => {
  * irrelevant cache update.
  */
 const timelineSignature = (queue: QueueRead): string => {
+  // Per-item segment: `held` is one of the three sections each row can land
+  // in, so toggling visibility OR hold-state triggers a transition.
   const itemSig = queue.items
-    .map((i) => `${i.id}:${i.position}:${i.is_visible ? "v" : "h"}`)
+    .map((i) => {
+      let state = "v";
+      if (!i.is_visible) state = "h";
+      else if (i.held_at_round !== null) state = "p"; // p = paused/held
+      return `${i.id}:${i.position}:${state}`;
+    })
     .sort()
     .join(",");
   // When the queue isn't running the rendered rows don't depend on the saved
@@ -108,7 +145,7 @@ const timelineSignature = (queue: QueueRead): string => {
   return `${rotation}|${itemSig}`;
 };
 
-export const QueueTimeline = ({ queue, onEdit, onSetActive }: QueueTimelineProps) => {
+export const QueueTimeline = ({ queue, onEdit, onSetActive, onAct }: QueueTimelineProps) => {
   const { t } = useTranslation("queues");
 
   // Mirror the upstream queue into local state so we control *when* the
@@ -165,6 +202,32 @@ export const QueueTimeline = ({ queue, onEdit, onSetActive }: QueueTimelineProps
             </li>
           );
         }
+        if (row.kind === "held-divider") {
+          return (
+            <li
+              key="held-divider"
+              className="flex items-center gap-3 px-2 pt-1 pb-1"
+              style={{ viewTransitionName: "queue-held-divider" }}
+            >
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                {t("held")}
+              </span>
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+            </li>
+          );
+        }
+        if (row.kind === "rotation-divider") {
+          return (
+            <li
+              key="rotation-divider"
+              className="px-2 pt-2 pb-1"
+              style={{ viewTransitionName: "queue-rotation-divider" }}
+            >
+              <span className="block h-px bg-border" aria-hidden="true" />
+            </li>
+          );
+        }
         if (row.kind === "hidden-divider") {
           return (
             <li
@@ -180,24 +243,30 @@ export const QueueTimeline = ({ queue, onEdit, onSetActive }: QueueTimelineProps
             </li>
           );
         }
-        const isVisibleRow = row.kind === "item";
+        const isHeld = row.kind === "held-item";
+        const isHidden = row.kind === "hidden-item";
         const item = row.item;
+        const actionButton: ReactNode | undefined = isHeld ? (
+          <ActHeldButton itemId={item.id} onAct={onAct} />
+        ) : undefined;
         return (
           <li
-            // Item ids are unique across visible/hidden, so the same
-            // view-transition-name in either section lets the API morph an
-            // item that gets toggled between visible and hidden.
+            // Item ids are unique across all three sections, so the same
+            // view-transition-name in any section lets the API morph an item
+            // that moves between rotation, held, and hidden.
             key={`item-${item.id}`}
-            className={cn(!isVisibleRow && "opacity-60")}
+            className={cn(isHidden && "opacity-60")}
             style={{ viewTransitionName: `queue-item-${item.id}` }}
           >
             <QueueItemRow
               item={item}
-              isActive={isVisibleRow && item.id === currentId}
+              isActive={!isHeld && !isHidden && item.id === currentId}
               onEdit={onEdit}
-              // Hidden items can't take a turn, but they remain editable —
-              // double-clicking shouldn't try to set them active.
-              onSetActive={isVisibleRow ? onSetActive : () => {}}
+              // Held and hidden rows can't take a turn from a double-click —
+              // their respective controls (Act / unhide in edit dialog) are
+              // the only ways to re-enter the rotation.
+              onSetActive={isHeld || isHidden ? () => {} : onSetActive}
+              actionButton={actionButton}
             />
           </li>
         );

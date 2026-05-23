@@ -4,7 +4,9 @@ import { buildQueue, buildQueueItem } from "@/__tests__/factories";
 
 import {
   advanceQueueState,
+  holdCurrentState,
   previousQueueState,
+  releaseHeldState,
   resetQueueState,
   setActiveItemState,
   startQueueState,
@@ -136,5 +138,185 @@ describe("queue turn transitions", () => {
     expect(previousQueueState(empty)).toBe(empty);
     expect(startQueueState(empty)).toBe(empty);
     expect(resetQueueState(empty)).toBe(empty);
+  });
+});
+
+describe("hold / release", () => {
+  // Helpful baseline: items A(30), B(20), C(10) — same shape the backend
+  // tests exercise. Each `held` mutation here mirrors the matching backend
+  // service call in `backend/app/services/queues.py`.
+  const a = buildQueueItem({ id: 1, label: "A", position: 30 });
+  const b = buildQueueItem({ id: 2, label: "B", position: 20 });
+  const c = buildQueueItem({ id: 3, label: "C", position: 10 });
+  const running = buildQueue({
+    is_active: true,
+    current_round: 1,
+    items: [a, b, c],
+    current_item: a,
+  });
+
+  describe("holdCurrentState", () => {
+    it("stamps the current item with the current round and advances", () => {
+      const held = holdCurrentState(running);
+      expect(held.current_item?.id).toBe(b.id);
+      expect(held.current_round).toBe(1);
+      const heldA = held.items.find((i) => i.id === a.id);
+      expect(heldA?.held_at_round).toBe(1);
+    });
+
+    it("clears the current when the only rotation-eligible item is held", () => {
+      const solo = buildQueue({
+        is_active: true,
+        current_round: 1,
+        items: [a],
+        current_item: a,
+      });
+      const held = holdCurrentState(solo);
+      expect(held.current_item).toBeNull();
+      expect(held.items[0]?.held_at_round).toBe(1);
+    });
+
+    it("is a no-op when no current item is set", () => {
+      const idle = { ...running, current_item: null };
+      expect(holdCurrentState(idle)).toBe(idle);
+    });
+  });
+
+  describe("advanceQueueState auto-release", () => {
+    it("returns a held item to current when its slot comes around again", () => {
+      // Hold A in round 1; advance past B, C, then wrap into round 2.
+      const afterHold = holdCurrentState(running); // current = B, A held@1
+      const afterB = advanceQueueState(afterHold); // current = C
+      const afterC = advanceQueueState(afterB); // wraps → A auto-released
+      expect(afterC.current_item?.id).toBe(a.id);
+      expect(afterC.current_round).toBe(2);
+      const releasedA = afterC.items.find((i) => i.id === a.id);
+      expect(releasedA?.held_at_round).toBeNull();
+    });
+
+    it("skips a held item whose due round hasn't arrived yet", () => {
+      // Hand-craft: B is held in round 1; current is A. Advancing from A
+      // should land on C (skipping B), still in round 1.
+      const queue = {
+        ...running,
+        items: [a, { ...b, held_at_round: 1 }, c],
+        current_item: a,
+      };
+      const next = advanceQueueState(queue);
+      expect(next.current_item?.id).toBe(c.id);
+      expect(next.current_round).toBe(1);
+      const stillHeldB = next.items.find((i) => i.id === b.id);
+      expect(stillHeldB?.held_at_round).toBe(1);
+    });
+  });
+
+  describe("previousQueueState", () => {
+    it("skips held items without auto-release", () => {
+      const queue = {
+        ...running,
+        items: [a, { ...b, held_at_round: 1 }, c],
+        current_item: c,
+      };
+      const prev = previousQueueState(queue);
+      // C → A (skipping held B); B remains held.
+      expect(prev.current_item?.id).toBe(a.id);
+      const stillHeldB = prev.items.find((i) => i.id === b.id);
+      expect(stillHeldB?.held_at_round).toBe(1);
+    });
+  });
+
+  describe("setActiveItemState clears held", () => {
+    it("clears held_at_round on the target when promoting it to current", () => {
+      const queue = {
+        ...running,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: b,
+      };
+      const next = setActiveItemState(queue, a.id);
+      expect(next.current_item?.id).toBe(a.id);
+      expect(next.current_item?.held_at_round).toBeNull();
+      const updatedA = next.items.find((i) => i.id === a.id);
+      expect(updatedA?.held_at_round).toBeNull();
+    });
+  });
+
+  describe("releaseHeldState", () => {
+    it("clears the hold without rewinding the rotation pointer", () => {
+      // Releasing should rejoin the rotation but not pull current back onto
+      // an item the rotation already advanced past.
+      const queue = {
+        ...running,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: b,
+      };
+      const released = releaseHeldState(queue, a.id);
+      expect(released.current_item?.id).toBe(b.id); // unchanged
+      expect(released.current_round).toBe(1);
+      const updatedA = released.items.find((i) => i.id === a.id);
+      expect(updatedA?.held_at_round).toBeNull();
+      // Default behavior: original position preserved.
+      expect(updatedA?.position).toBe(a.position);
+    });
+
+    it("lifts the released item above current and promotes it to current", () => {
+      // A is held; current=B(20). With A held there's nothing active above
+      // B, so releasing A "here" should set A.position = B.position + 1 = 21
+      // and make A the current turn — A acts now, before B does.
+      const queue = {
+        ...running,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: b,
+      };
+      const released = releaseHeldState(queue, a.id, { reposition: true });
+      const updatedA = released.items.find((i) => i.id === a.id);
+      expect(updatedA?.position).toBe(21);
+      expect(released.current_item?.id).toBe(a.id);
+    });
+
+    it("lands between current and next-higher when one exists", () => {
+      // B is held in the middle; current=C(10) with A(30) still above. Release
+      // B with reposition → B.position lands at the midpoint between 10 and 30
+      // (= 20), and B becomes current.
+      const queue = {
+        ...running,
+        items: [a, { ...b, held_at_round: 1 }, c],
+        current_item: c,
+      };
+      const released = releaseHeldState(queue, b.id, { reposition: true });
+      const updatedB = released.items.find((i) => i.id === b.id);
+      expect(updatedB?.position).toBe(20);
+      expect(released.current_item?.id).toBe(b.id);
+    });
+
+    it("is a no-op if the target isn't held", () => {
+      const released = releaseHeldState(running, b.id);
+      expect(released).toBe(running);
+    });
+  });
+
+  describe("startQueueState / resetQueueState skip held items", () => {
+    it("start picks the highest un-held item", () => {
+      const queue = buildQueue({
+        is_active: false,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: null,
+      });
+      const started = startQueueState(queue);
+      expect(started.current_item?.id).toBe(b.id);
+    });
+
+    it("reset jumps to the highest un-held item and preserves held state", () => {
+      const queue = {
+        ...running,
+        items: [{ ...a, held_at_round: 1 }, b, c],
+        current_item: c,
+        current_round: 4,
+      };
+      const reset = resetQueueState(queue);
+      expect(reset.current_item?.id).toBe(b.id);
+      expect(reset.current_round).toBe(1);
+      const stillHeldA = reset.items.find((i) => i.id === a.id);
+      expect(stillHeldA?.held_at_round).toBe(1);
+    });
   });
 });

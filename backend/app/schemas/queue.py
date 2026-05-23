@@ -108,6 +108,10 @@ class QueueItemRead(QueueItemBase):
     tags: List[TagSummary] = Field(default_factory=list)
     documents: List[QueueItemDocumentRead] = Field(default_factory=list)
     tasks: List[QueueItemTaskRead] = Field(default_factory=list)
+    # Round in which the user held this item (NULL = not held). The rotation
+    # auto-releases the item at its natural slot in ``held_at_round + 1`` so
+    # held participants can't be forgotten.
+    held_at_round: Optional[int] = None
     created_at: datetime
 
 
@@ -117,6 +121,17 @@ class QueueItemReorderRequest(SanitizedBaseModel):
         position: float
 
     items: List[ReorderItem]
+
+
+class QueueReleaseRequest(SanitizedBaseModel):
+    """Options for releasing a held queue item back into the rotation."""
+
+    # When True (PF2e "Delay" semantics), the released item's position is
+    # rewritten so it lands immediately after the current item in turn order
+    # — i.e. they take their delayed turn at this point and stay at this new
+    # initiative slot for the rest of the encounter. Default False preserves
+    # their original initiative; they re-enter at their natural slot.
+    reposition: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +240,7 @@ def serialize_queue_item(item: "QueueItem") -> QueueItemRead:
         color=item.color,
         notes=item.notes,
         is_visible=item.is_visible,
+        held_at_round=item.held_at_round,
         tags=_serialize_queue_item_tags(item),
         documents=_serialize_queue_item_documents(item),
         tasks=_serialize_queue_item_tasks(item),

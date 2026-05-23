@@ -367,6 +367,329 @@ async def test_reset_queue(client: AsyncClient, session: AsyncSession):
 
 
 # ---------------------------------------------------------------------------
+# Hold / release
+# ---------------------------------------------------------------------------
+
+
+async def _running_queue_with_abc(
+    client: AsyncClient, headers: dict, initiative_id: int
+) -> tuple[dict, dict, dict, dict]:
+    """Helper: queue with three items A(30), B(20), C(10), started; current=A."""
+    queue_data = await _create_queue_via_api(client, headers, initiative_id)
+    a = await _add_item_via_api(client, headers, queue_data["id"], "A", position=30)
+    b = await _add_item_via_api(client, headers, queue_data["id"], "B", position=20)
+    c = await _add_item_via_api(client, headers, queue_data["id"], "C", position=10)
+    await client.post(f"/api/v1/queues/{queue_data['id']}/start", headers=headers)
+    return queue_data, a, b, c
+
+
+def _items_by_id(payload: dict) -> dict[int, dict]:
+    return {item["id"]: item for item in payload["items"]}
+
+
+@pytest.mark.integration
+async def test_hold_current_records_round_and_advances(
+    client: AsyncClient, session: AsyncSession
+):
+    """Hold the current item: held_at_round is set, current advances past it."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    response = await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == b["id"]
+    assert payload["current_round"] == 1
+    by_id = _items_by_id(payload)
+    assert by_id[a["id"]]["held_at_round"] == 1
+
+
+@pytest.mark.integration
+async def test_hold_only_item_clears_current(client: AsyncClient, session: AsyncSession):
+    """Holding the last rotation-eligible item leaves current_item = None."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data = await _create_queue_via_api(client, headers, initiative.id)
+    a = await _add_item_via_api(client, headers, queue_data["id"], "Solo", position=10)
+    await client.post(f"/api/v1/queues/{queue_data['id']}/start", headers=headers)
+
+    response = await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"] is None
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] == 1
+
+
+@pytest.mark.integration
+async def test_advance_auto_releases_at_natural_slot(
+    client: AsyncClient, session: AsyncSession
+):
+    """Held A returns to current when round 2 reaches A's position-desc slot."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    # Hold A; current is now B in round 1.
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    # B -> C, still round 1.
+    after_bc = (
+        await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    ).json()
+    assert after_bc["current_item"]["id"] == c["id"]
+    assert after_bc["current_round"] == 1
+    # C -> wraps to round 2; A is the next visible position-desc slot and is
+    # auto-released because held_at_round (1) < new round (2).
+    after_wrap = (
+        await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    ).json()
+    assert after_wrap["current_item"]["id"] == a["id"]
+    assert after_wrap["current_round"] == 2
+    assert _items_by_id(after_wrap)[a["id"]]["held_at_round"] is None
+    # B and C are untouched.
+    assert _items_by_id(after_wrap)[b["id"]]["held_at_round"] is None
+
+
+@pytest.mark.integration
+async def test_release_clears_hold_without_rewinding(
+    client: AsyncClient, session: AsyncSession
+):
+    """Release clears `held_at_round` but leaves the current pointer alone.
+
+    The released item rejoins the rotation; whoever was currently up stays up
+    so the rotation doesn't double-act items that already took their turn.
+    """
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    # Hold A; current is B.
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}", headers=headers
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == b["id"]  # unchanged
+    assert payload["current_round"] == 1
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] is None
+
+
+@pytest.mark.integration
+async def test_release_with_reposition_lifts_target_above_current(
+    client: AsyncClient, session: AsyncSession
+):
+    """Reposition places the released item above current and makes them act now."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    # Hold A (pos 30) on its turn → current becomes B (pos 20). After hold,
+    # the only items above B in the rotation are... none (A is held, so B is
+    # effectively the top of the active rotation).
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    # Release A with reposition: A acts now (becomes current), and its new
+    # position drops just above B (which was current).
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}",
+        headers=headers,
+        json={"reposition": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == a["id"]  # A is now current
+    by_id = _items_by_id(payload)
+    assert by_id[a["id"]]["held_at_round"] is None
+    # A's new position is strictly above B's (and B is still above C).
+    assert by_id[a["id"]]["position"] > by_id[b["id"]]["position"] > by_id[c["id"]]["position"]
+
+    # Advancing from A goes to B next — A's elevated position persists.
+    after_next = (
+        await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    ).json()
+    assert after_next["current_item"]["id"] == b["id"]
+
+
+@pytest.mark.integration
+async def test_release_with_reposition_between_current_and_higher(
+    client: AsyncClient, session: AsyncSession
+):
+    """When other active items sit above current, target lands between them."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data = await _create_queue_via_api(client, headers, initiative.id)
+    a = await _add_item_via_api(client, headers, queue_data["id"], "A", position=30)
+    b = await _add_item_via_api(client, headers, queue_data["id"], "B", position=20)
+    c = await _add_item_via_api(client, headers, queue_data["id"], "C", position=10)
+    await client.post(f"/api/v1/queues/{queue_data['id']}/start", headers=headers)
+    # Advance to B (current goes A → B). Then hold B → current becomes C.
+    await client.post(f"/api/v1/queues/{queue_data['id']}/next", headers=headers)
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    # Now A (pos 30) is active and above C (current, pos 10). Release B with
+    # reposition: B's new position should land between C (10) and A (30) — the
+    # midpoint is 20.
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{b['id']}",
+        headers=headers,
+        json={"reposition": True},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    by_id = _items_by_id(payload)
+    assert by_id[b["id"]]["position"] == 20  # midpoint of 30 (A) and 10 (C)
+    # B is now current — they're acting now, between A and C.
+    assert payload["current_item"]["id"] == b["id"]
+    # Sanity: A is still strictly above B, B above C.
+    assert by_id[a["id"]]["position"] > by_id[b["id"]]["position"] > by_id[c["id"]]["position"]
+
+
+@pytest.mark.integration
+async def test_release_without_body_preserves_position(
+    client: AsyncClient, session: AsyncSession
+):
+    """Calling release with an empty body keeps the original behavior (no reposition)."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, _b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    original_position = a["position"]
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}",
+        headers=headers,
+        json={},
+    )
+    assert response.status_code == 200
+    by_id = _items_by_id(response.json())
+    assert by_id[a["id"]]["position"] == original_position
+
+
+@pytest.mark.integration
+async def test_release_while_stopped(client: AsyncClient, session: AsyncSession):
+    """Release works when the queue is stopped; is_active is preserved."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    await client.post(f"/api/v1/queues/{queue_data['id']}/stop", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}", headers=headers
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_active"] is False
+    # Current pointer is whatever it was when we stopped — release doesn't
+    # rewind it.
+    assert payload["current_item"]["id"] == b["id"]
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] is None
+
+
+@pytest.mark.integration
+async def test_set_active_clears_held(client: AsyncClient, session: AsyncSession):
+    """set-active on a held item also clears its held_at_round."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, _b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/set-active/{a['id']}", headers=headers
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == a["id"]
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] is None
+
+
+@pytest.mark.integration
+async def test_previous_skips_held_no_auto_release(
+    client: AsyncClient, session: AsyncSession
+):
+    """Previous never lands on a held item, and never clears its hold."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, _b, c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    # Hold A (round 1, current was A); current becomes B.
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    # Previous from B should wrap (B is first in the active rotation now) to C
+    # in round 0 → clamped to round 1.
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/previous", headers=headers
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_item"]["id"] == c["id"]
+    # A is still held.
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] == 1
+
+
+@pytest.mark.integration
+async def test_reset_preserves_held(client: AsyncClient, session: AsyncSession):
+    """Reset jumps to the highest un-held item; held items stay held."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/reset", headers=headers
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_round"] == 1
+    assert payload["current_item"]["id"] == b["id"]
+    assert _items_by_id(payload)[a["id"]]["held_at_round"] == 1
+
+
+@pytest.mark.integration
+async def test_hold_no_current_item(client: AsyncClient, session: AsyncSession):
+    """Hold with no current item returns 400 NO_CURRENT_ITEM."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data = await _create_queue_via_api(client, headers, initiative.id)
+    await _add_item_via_api(client, headers, queue_data["id"], "Solo", position=10)
+    # Don't start: current_item_id stays None.
+
+    response = await client.post(f"/api/v1/queues/{queue_data['id']}/hold", headers=headers)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "QUEUE_NO_CURRENT_ITEM"
+
+
+@pytest.mark.integration
+async def test_release_unheld_item_returns_400(
+    client: AsyncClient, session: AsyncSession
+):
+    """Calling release on an item that isn't held returns ITEM_NOT_HELD."""
+    admin, guild, initiative = await _setup_guild_and_initiative(session)
+    headers = get_guild_headers(guild, admin)
+    queue_data, a, _b, _c = await _running_queue_with_abc(client, headers, initiative.id)
+
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/release/{a['id']}", headers=headers
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "QUEUE_ITEM_NOT_HELD"
+
+
+@pytest.mark.integration
+async def test_hold_requires_write_access(client: AsyncClient, session: AsyncSession):
+    """Members without write permission can't hold."""
+    admin, member, guild, initiative = await _setup_with_member(session)
+    admin_headers = get_guild_headers(guild, admin)
+    member_headers = get_guild_headers(guild, member)
+    queue_data, _a, _b, _c = await _running_queue_with_abc(
+        client, admin_headers, initiative.id
+    )
+
+    response = await client.post(
+        f"/api/v1/queues/{queue_data['id']}/hold", headers=member_headers
+    )
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
 # Permissions (DAC)
 # ---------------------------------------------------------------------------
 

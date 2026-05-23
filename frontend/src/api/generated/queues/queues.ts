@@ -33,6 +33,7 @@ import type {
   QueuePermissionCreate,
   QueuePermissionRead,
   QueueRead,
+  QueueReleaseRequest,
   QueueRolePermissionCreate,
   QueueRolePermissionRead,
   QueueUpdate,
@@ -1443,6 +1444,207 @@ export const useResetQueueApiV1QueuesQueueIdResetPost = <
   TContext
 > => {
   return useMutation(getResetQueueApiV1QueuesQueueIdResetPostMutationOptions(options), queryClient);
+};
+/**
+ * Hold the current turn — the item leaves the rotation until it acts.
+ *
+ * The held item is recorded with the current round; the rotation
+ * auto-releases it when its natural position-desc slot comes back around in
+ * a later round. Users can also call ``/release/{item_id}`` to act sooner.
+ * @summary Hold Current Turn
+ */
+export const holdCurrentTurnApiV1QueuesQueueIdHoldPost = (
+  queueId: number,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<QueueRead>(
+    { url: `/api/v1/queues/${queueId}/hold`, method: "POST", signal },
+    options
+  );
+};
+
+export const getHoldCurrentTurnApiV1QueuesQueueIdHoldPostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>,
+    TError,
+    { queueId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>,
+  TError,
+  { queueId: number },
+  TContext
+> => {
+  const mutationKey = ["holdCurrentTurnApiV1QueuesQueueIdHoldPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>,
+    { queueId: number }
+  > = (props) => {
+    const { queueId } = props ?? {};
+
+    return holdCurrentTurnApiV1QueuesQueueIdHoldPost(queueId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HoldCurrentTurnApiV1QueuesQueueIdHoldPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>
+>;
+
+export type HoldCurrentTurnApiV1QueuesQueueIdHoldPostMutationError = ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Hold Current Turn
+ */
+export const useHoldCurrentTurnApiV1QueuesQueueIdHoldPost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>,
+      TError,
+      { queueId: number },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof holdCurrentTurnApiV1QueuesQueueIdHoldPost>>,
+  TError,
+  { queueId: number },
+  TContext
+> => {
+  return useMutation(
+    getHoldCurrentTurnApiV1QueuesQueueIdHoldPostMutationOptions(options),
+    queryClient
+  );
+};
+/**
+ * Release a held item back into the rotation.
+ *
+ * Clears ``held_at_round`` on the target so it rejoins the active rotation.
+ * The rotation pointer is unchanged, so this doesn't pull current back onto
+ * items that already took their turn this round.
+ *
+ * When ``options.reposition`` is True (PF2e Delay semantics), the released
+ * item's ``position`` is rewritten to land just after the current item in
+ * turn order — the new initiative slot persists for the rest of the
+ * encounter. Default ``False`` keeps the released item at its original
+ * position so it acts at its natural slot next time the rotation reaches
+ * it.
+ * @summary Release Held Item
+ */
+export const releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost = (
+  queueId: number,
+  itemId: number,
+  queueReleaseRequest?: BodyType<QueueReleaseRequest>,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<QueueRead>(
+    {
+      url: `/api/v1/queues/${queueId}/release/${itemId}`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: queueReleaseRequest,
+      signal,
+    },
+    options
+  );
+};
+
+export const getReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
+    TError,
+    { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
+  TError,
+  { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
+  TContext
+> => {
+  const mutationKey = ["releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
+    { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> }
+  > = (props) => {
+    const { queueId, itemId, data } = props ?? {};
+
+    return releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost(
+      queueId,
+      itemId,
+      data,
+      requestOptions
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>
+>;
+export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationBody =
+  | BodyType<QueueReleaseRequest>
+  | undefined;
+export type ReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Release Held Item
+ */
+export const useReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
+      TError,
+      { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof releaseHeldItemApiV1QueuesQueueIdReleaseItemIdPost>>,
+  TError,
+  { queueId: number; itemId: number; data?: BodyType<QueueReleaseRequest> },
+  TContext
+> => {
+  return useMutation(
+    getReleaseHeldItemApiV1QueuesQueueIdReleaseItemIdPostMutationOptions(options),
+    queryClient
+  );
 };
 /**
  * Set tags on a queue item. Replaces all existing tags.

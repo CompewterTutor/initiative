@@ -2176,6 +2176,7 @@ export interface QueueItemRead {
   tags: TagSummary[];
   documents: QueueItemDocumentRead[];
   tasks: QueueItemTaskRead[];
+  held_at_round: number | null;
   created_at: string;
 }
 
@@ -2259,6 +2260,13 @@ export interface QueueRead {
   current_item: QueueItemRead | null;
   permissions: QueuePermissionRead[];
   role_permissions: QueueRolePermissionRead[];
+}
+
+/**
+ * Options for releasing a held queue item back into the rotation.
+ */
+export interface QueueReleaseRequest {
+  reposition?: boolean;
 }
 
 export interface QueueUpdate {

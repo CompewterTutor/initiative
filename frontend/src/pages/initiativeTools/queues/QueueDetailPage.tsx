@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { QueueItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { ActHeldButton } from "@/components/initiativeTools/queues/ActHeldButton";
 import { AddQueueItemDialog } from "@/components/initiativeTools/queues/AddQueueItemDialog";
 import { EditQueueItemDialog } from "@/components/initiativeTools/queues/EditQueueItemDialog";
 import { QueueControls } from "@/components/initiativeTools/queues/QueueControls";
@@ -29,8 +30,10 @@ import { useQueueRealtime } from "@/hooks/useQueueRealtime";
 import {
   useAdvanceTurn,
   useDeleteQueue,
+  useHoldCurrent,
   usePreviousTurn,
   useQueue,
+  useReleaseHeld,
   useResetQueue,
   useSetActiveItem,
   useStartQueue,
@@ -115,13 +118,21 @@ export function QueueDetailPage() {
     onSuccess: () => toast.success(t("queueReset")),
   });
   const setActiveItem = useSetActiveItem(parsedId);
+  const holdCurrent = useHoldCurrent(parsedId, {
+    onSuccess: () => toast.success(t("queueHeld")),
+  });
+  const releaseHeld = useReleaseHeld(parsedId, {
+    onSuccess: () => toast.success(t("queueReleased")),
+  });
 
   const isControlLoading =
     startQueue.isPending ||
     stopQueue.isPending ||
     advanceTurn.isPending ||
     previousTurn.isPending ||
-    resetQueue.isPending;
+    resetQueue.isPending ||
+    holdCurrent.isPending ||
+    releaseHeld.isPending;
 
   // Item dialogs
   const [addItemOpen, setAddItemOpen] = useState(false);
@@ -279,6 +290,7 @@ export function QueueDetailPage() {
         onNext={() => advanceTurn.mutate()}
         onPrevious={() => previousTurn.mutate()}
         onReset={() => resetQueue.mutate()}
+        onHold={() => holdCurrent.mutate()}
         isLoading={isControlLoading}
       />
 
@@ -323,6 +335,11 @@ export function QueueDetailPage() {
                 setActiveItem.mutate(itemId);
               }
             }}
+            onAct={(itemId, reposition) => {
+              if (canEdit) {
+                releaseHeld.mutate({ itemId, reposition });
+              }
+            }}
           />
         ) : (
           <div className="space-y-2">
@@ -337,6 +354,14 @@ export function QueueDetailPage() {
                     setActiveItem.mutate(itemId);
                   }
                 }}
+                actionButton={
+                  canEdit && item.held_at_round !== null ? (
+                    <ActHeldButton
+                      itemId={item.id}
+                      onAct={(id, reposition) => releaseHeld.mutate({ itemId: id, reposition })}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </div>
