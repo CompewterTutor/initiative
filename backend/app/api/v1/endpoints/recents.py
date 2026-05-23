@@ -135,7 +135,11 @@ async def list_recents(
                 # but let any other error bubble up so latent bugs are visible.
                 continue
             items.append(
-                RecentItemRead(
+                # ``model_construct`` skips the SanitizedBaseModel validator
+                # so trusted DB columns (already sanitized on input) aren't
+                # double-escaped on the way out — e.g. ``Foo & Bar`` would
+                # otherwise round-trip as ``Foo &amp; Bar``.
+                RecentItemRead.model_construct(
                     entity_type="project",
                     entity_id=project.id,
                     guild_id=project.guild_id,
@@ -157,7 +161,7 @@ async def list_recents(
                 # but let any other error bubble up so latent bugs are visible.
                 continue
             items.append(
-                RecentItemRead(
+                RecentItemRead.model_construct(
                     entity_type="document",
                     entity_id=document.id,
                     guild_id=document.guild_id,
@@ -186,7 +190,7 @@ async def list_recents(
                     # errors bubble up.
                     continue
             items.append(
-                RecentItemRead(
+                RecentItemRead.model_construct(
                     entity_type="queue",
                     entity_id=queue.id,
                     guild_id=queue.guild_id,
@@ -208,7 +212,7 @@ async def list_recents(
                     # errors bubble up.
                     continue
             items.append(
-                RecentItemRead(
+                RecentItemRead.model_construct(
                     entity_type="counter_group",
                     entity_id=group.id,
                     guild_id=group.guild_id,
