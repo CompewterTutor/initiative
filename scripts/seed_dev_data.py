@@ -63,7 +63,8 @@ from app.models.project import (  # noqa: E402
     ProjectPermission,
     ProjectPermissionLevel,
 )
-from app.models.project_activity import ProjectFavorite, RecentProjectView  # noqa: E402
+from app.models.project_activity import ProjectFavorite  # noqa: E402
+from app.models.recent_view import RecentView  # noqa: E402
 from app.models.tag import DocumentTag, ProjectTag, Tag, TaskTag  # noqa: E402
 from app.models.task import (  # noqa: E402
     Subtask,
@@ -233,7 +234,7 @@ class IDTracker:
             "projects": [],
             "project_permissions": [],
             "project_favorites": [],
-            "recent_project_views": [],
+            "recent_views": [],
             "task_statuses": [],
             "tasks": [],
             "subtasks": [],
@@ -737,13 +738,21 @@ async def _create_recent_views(
 ) -> None:
     """Record recent project views for users."""
     for user, project in views:
-        view = RecentProjectView(
+        view = RecentView(
             user_id=user.id,
-            project_id=project.id,
+            entity_type="project",
+            entity_id=project.id,
             guild_id=guild.id,
         )
         session.add(view)
-        ids.add("recent_project_views", {"user_id": user.id, "project_id": project.id})
+        ids.add(
+            "recent_views",
+            {
+                "user_id": user.id,
+                "entity_type": "project",
+                "entity_id": project.id,
+            },
+        )
     await session.flush()
 
 
@@ -2737,15 +2746,16 @@ async def clean() -> None:
             await session.flush()
             print("  Removed project favorites")
 
-            # Recent project views (composite key)
-            for rv in state.get("recent_project_views", []):
+            # Recent views (composite key on user_id + entity_type + entity_id)
+            for rv in state.get("recent_views", []):
                 obj = await session.get(
-                    RecentProjectView, (rv["user_id"], rv["project_id"])
+                    RecentView,
+                    (rv["user_id"], rv["entity_type"], rv["entity_id"]),
                 )
                 if obj:
                     await session.delete(obj)
             await session.flush()
-            print("  Removed recent project views")
+            print("  Removed recent views")
 
             # Project documents (composite key)
             for pd in state.get("project_documents", []):

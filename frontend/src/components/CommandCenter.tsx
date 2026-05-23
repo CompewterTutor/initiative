@@ -2,6 +2,8 @@ import { useRouter } from "@tanstack/react-router";
 import {
   BarChart3,
   CheckSquare,
+  GalleryHorizontalEnd,
+  Gauge,
   ListTodo,
   PenLine,
   Plus,
@@ -13,7 +15,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { getOpenCreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
 import {
   CommandDialog,
@@ -24,13 +25,18 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useAuth } from "@/hooks/useAuth";
+import { useCounterGroupsList } from "@/hooks/useCounters";
 import { useAllDocumentIds } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
-import { useProjects, useRecentProjects } from "@/hooks/useProjects";
+import { useProjects } from "@/hooks/useProjects";
+import { useQueuesList } from "@/hooks/useQueues";
+import { useRecents } from "@/hooks/useRecents";
 import { useTasks } from "@/hooks/useTasks";
 import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
 import { commandFilter } from "@/lib/fuzzyMatch";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
+import { renderRecentIcon } from "@/lib/recentIcon";
+import { recentRoute } from "@/lib/recentRoute";
 
 // Module-level callback so other components can open the command center
 let openCommandCenter: (() => void) | null = null;
@@ -78,9 +84,11 @@ export function CommandCenter() {
   }, []);
 
   // Data hooks — all use existing cached data except tasks which fetches when dialog opens
-  const recentQuery = useRecentProjects({ staleTime: 30_000 });
+  const recentQuery = useRecents({ staleTime: 30_000 });
   const projectsQuery = useProjects(undefined, { staleTime: 60_000 });
   const documentsQuery = useAllDocumentIds({ staleTime: 60_000 });
+  const queuesQuery = useQueuesList({ page_size: 100 }, { staleTime: 60_000 });
+  const counterGroupsQuery = useCounterGroupsList({ page_size: 100 }, { staleTime: 60_000 });
   const tasksQuery = useTasks(
     {
       page_size: 50,
@@ -89,9 +97,13 @@ export function CommandCenter() {
     { enabled: open && !!user, staleTime: 30_000 }
   );
 
-  const recentProjects = (recentQuery.data as ProjectRead[] | undefined) ?? [];
+  // Suggested = mixed-type recent items, ordered by ``last_viewed_at`` desc
+  // (same payload that backs the layout tabs bar).
+  const recentItems = recentQuery.data ?? [];
   const projects = projectsQuery.data?.items ?? [];
   const documents = documentsQuery.data ?? [];
+  const queues = queuesQuery.data?.items ?? [];
+  const counterGroups = counterGroupsQuery.data?.items ?? [];
   const tasks = tasksQuery.data?.items ?? [];
 
   const isGuildAdmin = activeGuild?.role === "admin";
@@ -171,28 +183,19 @@ export function CommandCenter() {
           </CommandItem>
         </CommandGroup>
 
-        {/* Suggested — only when not searching (cmdk hides empty groups automatically) */}
-        {recentProjects.length > 0 && (
+        {/* Suggested — mixed recents across projects/documents/queues/counter
+            groups (cmdk hides empty groups automatically when searching). */}
+        {recentItems.length > 0 && (
           <CommandGroup heading={t("groups.suggested")}>
-            {recentProjects.slice(0, 5).map((project) => (
+            {recentItems.slice(0, 5).map((item) => (
               <CommandItem
-                key={`suggested-${project.id}`}
-                value={`suggested-${project.id}-${project.name}`}
-                keywords={[project.description ?? "", project.initiative?.name ?? ""]}
-                onSelect={() =>
-                  handleSelect(
-                    activeGuildId
-                      ? guildPath(activeGuildId, `/projects/${project.id}`)
-                      : `/projects/${project.id}`
-                  )
-                }
+                key={`suggested-${item.entity_type}-${item.entity_id}`}
+                value={`suggested-${item.entity_type}-${item.entity_id}-${item.name}`}
+                keywords={[item.name]}
+                onSelect={() => handleSelect(recentRoute(item, activeGuildId))}
               >
-                {project.icon ? (
-                  <span className="text-base leading-none">{project.icon}</span>
-                ) : (
-                  <ListTodo className="text-muted-foreground" />
-                )}
-                <span>{project.name}</span>
+                {renderRecentIcon(item) ?? <ListTodo className="text-muted-foreground" />}
+                <span>{item.name}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -272,6 +275,48 @@ export function CommandCenter() {
               </CommandItem>
             );
           })}
+        </CommandGroup>
+
+        {/* Queues */}
+        <CommandGroup heading={t("groups.queues")}>
+          {queues.map((queue) => (
+            <CommandItem
+              key={`queue-${queue.id}`}
+              value={`queue-${queue.id}-${queue.name}`}
+              keywords={[queue.description ?? ""]}
+              onSelect={() =>
+                handleSelect(
+                  activeGuildId
+                    ? guildPath(activeGuildId, `/queues/${queue.id}`)
+                    : `/queues/${queue.id}`
+                )
+              }
+            >
+              <GalleryHorizontalEnd className="text-muted-foreground" />
+              <span>{queue.name}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        {/* Counter Groups */}
+        <CommandGroup heading={t("groups.counterGroups")}>
+          {counterGroups.map((group) => (
+            <CommandItem
+              key={`counter-group-${group.id}`}
+              value={`counter-group-${group.id}-${group.name}`}
+              keywords={[group.description ?? ""]}
+              onSelect={() =>
+                handleSelect(
+                  activeGuildId
+                    ? guildPath(activeGuildId, `/counter-groups/${group.id}`)
+                    : `/counter-groups/${group.id}`
+                )
+              }
+            >
+              <Gauge className="text-muted-foreground" />
+              <span>{group.name}</span>
+            </CommandItem>
+          ))}
         </CommandGroup>
 
         {/* Tasks */}

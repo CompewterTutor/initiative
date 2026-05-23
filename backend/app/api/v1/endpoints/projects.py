@@ -18,7 +18,8 @@ from app.api.deps import (
 from app.db.session import reapply_rls_context
 from app.models.project import Project, ProjectPermission, ProjectPermissionLevel, ProjectRolePermission
 from app.models.project_order import ProjectOrder
-from app.models.project_activity import ProjectFavorite, RecentProjectView
+from app.models.project_activity import ProjectFavorite
+from app.models.recent_view import RecentView
 from app.models.task import Task, TaskAssignee, TaskStatus, TaskStatusCategory, Subtask
 from app.models.comment import Comment
 from app.models.initiative import Initiative, InitiativeMember, InitiativeRoleModel, PermissionKey
@@ -52,7 +53,6 @@ from app.schemas.project import (
     ProjectReorderRequest,
     ProjectUpdate,
     ProjectFavoriteStatus,
-    ProjectRecentViewRead,
     ProjectActivityEntry,
     ProjectActivityResponse,
 )
@@ -67,6 +67,8 @@ from app.schemas.project_export import (
 from app.schemas.tag import TagSetRequest, TagSummary
 from app.services import project_export as project_export_service
 from app.services import project_import as project_import_service
+from app.services import recent_views as recent_views_service
+from app.schemas.recent_view import RecentViewWrite
 
 router = APIRouter()
 
@@ -541,9 +543,10 @@ async def _project_meta_for_user(
         for row in favorite_rows
     }
 
-    view_stmt = select(RecentProjectView.project_id, RecentProjectView.last_viewed_at).where(
-        RecentProjectView.user_id == user_id,
-        RecentProjectView.project_id.in_(tuple(project_ids)),
+    view_stmt = select(RecentView.entity_id, RecentView.last_viewed_at).where(
+        RecentView.user_id == user_id,
+        RecentView.entity_type == "project",
+        RecentView.entity_id.in_(tuple(project_ids)),
     )
     view_result = await session.exec(view_stmt)
     view_rows = view_result.all()
@@ -552,7 +555,7 @@ async def _project_meta_for_user(
         if isinstance(row, tuple):
             project_id, last_viewed_at = row
         else:
-            project_id, last_viewed_at = row.project_id, row.last_viewed_at  # type: ignore[attr-defined]
+            project_id, last_viewed_at = row.entity_id, row.last_viewed_at  # type: ignore[attr-defined]
         view_map[int(project_id)] = last_viewed_at
     return favorite_ids, view_map
 
@@ -565,7 +568,7 @@ async def _project_metadata_for_user(
     """Fetch sort orders, favorites, and recent views in a single pass.
 
     Combines what was previously three separate queries (ProjectOrder,
-    ProjectFavorite, RecentProjectView) into one function that issues
+    ProjectFavorite, RecentView) into one function that issues
     them together, reducing overall latency.
 
     Returns (order_map, favorite_ids, view_map).
@@ -654,67 +657,8 @@ def _build_project_payload(
     )
 
 
-async def _record_recent_project_view(
-    session: SessionDep,
-    *,
-    user_id: int,
-    project_id: int,
-) -> RecentProjectView:
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-    now = datetime.now(timezone.utc)
-    # Use upsert to handle race conditions
-    stmt = pg_insert(RecentProjectView).values(
-        user_id=user_id,
-        project_id=project_id,
-        last_viewed_at=now,
-    ).on_conflict_do_update(
-        index_elements=["user_id", "project_id"],
-        set_={"last_viewed_at": now},
-    )
-
-    await session.execute(stmt)
-    await session.commit()
-    await reapply_rls_context(session)
-
-    # Fetch the record we just upserted
-    fetch_stmt = select(RecentProjectView).where(
-        RecentProjectView.user_id == user_id,
-        RecentProjectView.project_id == project_id,
-    )
-    result = await session.exec(fetch_stmt)
-    record = result.one()
-
-    prune_stmt = (
-        select(RecentProjectView)
-        .where(RecentProjectView.user_id == user_id)
-        .order_by(RecentProjectView.last_viewed_at.desc())
-        .offset(MAX_RECENT_PROJECTS)
-    )
-    prune_result = await session.exec(prune_stmt)
-    stale_records = prune_result.all()
-    if stale_records:
-        for stale in stale_records:
-            await session.delete(stale)
-        await session.commit()
-    return record
-
-
-async def _delete_recent_project_view(
-    session: SessionDep,
-    *,
-    user_id: int,
-    project_id: int,
-) -> None:
-    stmt = select(RecentProjectView).where(
-        RecentProjectView.user_id == user_id,
-        RecentProjectView.project_id == project_id,
-    )
-    result = await session.exec(stmt)
-    record = result.one_or_none()
-    if record:
-        await session.delete(record)
-        await session.commit()
+# Recent project views are now stored in the polymorphic ``recent_views``
+# table; record/clear is delegated to ``recent_views_service``.
 
 
 async def _set_favorite_state(
@@ -1332,53 +1276,8 @@ async def unarchive_project(
     )
 
 
-@router.get("/recent", response_model=List[ProjectRead])
-async def recent_projects(
-    session: RLSSessionDep,
-    current_user: Annotated[User, Depends(get_current_active_user)],
-    guild_context: GuildContextDep,
-) -> List[ProjectRead]:
-    stmt = (
-        select(RecentProjectView)
-        .where(RecentProjectView.user_id == current_user.id)
-        .order_by(RecentProjectView.last_viewed_at.desc())
-        .limit(MAX_RECENT_PROJECTS)
-    )
-    result = await session.exec(stmt)
-    records = result.all()
-    if not records:
-        return []
-    project_ids = [record.project_id for record in records]
-    project_map = await _projects_by_ids(session, project_ids, guild_id=guild_context.guild_id)
-    favorite_ids, view_map = await _project_meta_for_user(session, current_user.id, project_ids)
-
-    payloads: List[ProjectRead] = []
-    for record in records:
-        project = project_map.get(record.project_id)
-        if not project:
-            continue
-        try:
-            await _require_project_membership(
-                project,
-                current_user,
-                session,
-                access="read",
-                            )
-        except HTTPException:
-            continue
-        payloads.append(
-            _build_project_payload(
-                project,
-                sort_order=None,
-                favorite_ids=favorite_ids,
-                view_map=view_map,
-                my_permission_level=_compute_my_permission_level(
-                    project, current_user.id,
-                ),
-                user_id=current_user.id,
-            )
-        )
-    return payloads
+# Note: ``GET /projects/recent`` has been removed. The polymorphic
+# ``GET /api/v1/recents`` endpoint replaces it for the layout tabs bar.
 
 
 @router.get("/favorites", response_model=List[ProjectRead])
@@ -1429,22 +1328,31 @@ async def favorite_projects(
     return payloads
 
 
-@router.post("/{project_id}/view", response_model=ProjectRecentViewRead)
+@router.post("/{project_id}/view", response_model=RecentViewWrite)
 async def record_project_view(
     project_id: int,
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> ProjectRecentViewRead:
+) -> RecentViewWrite:
     project = await _get_project_or_404(project_id, session, guild_context.guild_id)
     await _require_project_membership(
         project,
         current_user,
         session,
         access="read",
-            )
-    record = await _record_recent_project_view(session, user_id=current_user.id, project_id=project.id)
-    return ProjectRecentViewRead(project_id=project.id, last_viewed_at=record.last_viewed_at)
+    )
+    record = await recent_views_service.record_view(
+        session,
+        user_id=current_user.id,
+        entity_type="project",
+        entity_id=project.id,
+    )
+    return RecentViewWrite(
+        entity_type="project",
+        entity_id=project.id,
+        last_viewed_at=record.last_viewed_at,
+    )
 
 
 @router.delete("/{project_id}/view", status_code=status.HTTP_204_NO_CONTENT)
@@ -1460,8 +1368,13 @@ async def clear_project_view(
         current_user,
         session,
         access="read",
-            )
-    await _delete_recent_project_view(session, user_id=current_user.id, project_id=project.id)
+    )
+    await recent_views_service.clear_view(
+        session,
+        user_id=current_user.id,
+        entity_type="project",
+        entity_id=project.id,
+    )
 
 
 @router.post("/{project_id}/favorite", response_model=ProjectFavoriteStatus)

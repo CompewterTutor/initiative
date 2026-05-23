@@ -46,6 +46,7 @@ import type {
   HTTPValidationError,
   ListDocumentsApiV1DocumentsGetParams,
   PropertyValuesSetRequest,
+  RecentViewWrite,
   TagSetRequest,
 } from "../initiativeAPI.schemas";
 
@@ -2622,6 +2623,177 @@ export const useRemoveDocumentRolePermissionApiV1DocumentsDocumentIdRolePermissi
     getRemoveDocumentRolePermissionApiV1DocumentsDocumentIdRolePermissionsRoleIdDeleteMutationOptions(
       options
     ),
+    queryClient
+  );
+};
+/**
+ * Record a recent-view for the layout tabs bar.
+ * @summary Record Document View
+ */
+export const recordDocumentViewApiV1DocumentsDocumentIdViewPost = (
+  documentId: number,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<RecentViewWrite>(
+    { url: `/api/v1/documents/${documentId}/view`, method: "POST", signal },
+    options
+  );
+};
+
+export const getRecordDocumentViewApiV1DocumentsDocumentIdViewPostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>,
+    TError,
+    { documentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>,
+  TError,
+  { documentId: number },
+  TContext
+> => {
+  const mutationKey = ["recordDocumentViewApiV1DocumentsDocumentIdViewPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>,
+    { documentId: number }
+  > = (props) => {
+    const { documentId } = props ?? {};
+
+    return recordDocumentViewApiV1DocumentsDocumentIdViewPost(documentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordDocumentViewApiV1DocumentsDocumentIdViewPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>
+>;
+
+export type RecordDocumentViewApiV1DocumentsDocumentIdViewPostMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Record Document View
+ */
+export const useRecordDocumentViewApiV1DocumentsDocumentIdViewPost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>,
+      TError,
+      { documentId: number },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof recordDocumentViewApiV1DocumentsDocumentIdViewPost>>,
+  TError,
+  { documentId: number },
+  TContext
+> => {
+  return useMutation(
+    getRecordDocumentViewApiV1DocumentsDocumentIdViewPostMutationOptions(options),
+    queryClient
+  );
+};
+/**
+ * @summary Clear Document View
+ */
+export const clearDocumentViewApiV1DocumentsDocumentIdViewDelete = (
+  documentId: number,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<void>(
+    { url: `/api/v1/documents/${documentId}/view`, method: "DELETE", signal },
+    options
+  );
+};
+
+export const getClearDocumentViewApiV1DocumentsDocumentIdViewDeleteMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>,
+    TError,
+    { documentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>,
+  TError,
+  { documentId: number },
+  TContext
+> => {
+  const mutationKey = ["clearDocumentViewApiV1DocumentsDocumentIdViewDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>,
+    { documentId: number }
+  > = (props) => {
+    const { documentId } = props ?? {};
+
+    return clearDocumentViewApiV1DocumentsDocumentIdViewDelete(documentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClearDocumentViewApiV1DocumentsDocumentIdViewDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>
+>;
+
+export type ClearDocumentViewApiV1DocumentsDocumentIdViewDeleteMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Clear Document View
+ */
+export const useClearDocumentViewApiV1DocumentsDocumentIdViewDelete = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>,
+      TError,
+      { documentId: number },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof clearDocumentViewApiV1DocumentsDocumentIdViewDelete>>,
+  TError,
+  { documentId: number },
+  TContext
+> => {
+  return useMutation(
+    getClearDocumentViewApiV1DocumentsDocumentIdViewDeleteMutationOptions(options),
     queryClient
   );
 };

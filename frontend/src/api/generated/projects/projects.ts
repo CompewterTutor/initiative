@@ -39,12 +39,12 @@ import type {
   ProjectPermissionRead,
   ProjectPermissionUpdate,
   ProjectRead,
-  ProjectRecentViewRead,
   ProjectReorderRequest,
   ProjectRolePermissionCreate,
   ProjectRolePermissionRead,
   ProjectRolePermissionUpdate,
   ProjectUpdate,
+  RecentViewWrite,
   TagSetRequest,
 } from "../initiativeAPI.schemas";
 
@@ -840,145 +840,6 @@ export const useUnarchiveProjectApiV1ProjectsProjectIdUnarchivePost = <
   );
 };
 /**
- * @summary Recent Projects
- */
-export const recentProjectsApiV1ProjectsRecentGet = (
-  options?: SecondParameter<typeof apiMutator>,
-  signal?: AbortSignal
-) => {
-  return apiMutator<ProjectRead[]>(
-    { url: `/api/v1/projects/recent`, method: "GET", signal },
-    options
-  );
-};
-
-export const getRecentProjectsApiV1ProjectsRecentGetQueryKey = () => {
-  return [`/api/v1/projects/recent`] as const;
-};
-
-export const getRecentProjectsApiV1ProjectsRecentGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>, TError, TData>
-  >;
-  request?: SecondParameter<typeof apiMutator>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getRecentProjectsApiV1ProjectsRecentGetQueryKey();
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>
-  > = ({ signal }) => recentProjectsApiV1ProjectsRecentGet(requestOptions, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type RecentProjectsApiV1ProjectsRecentGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>
->;
-export type RecentProjectsApiV1ProjectsRecentGetQueryError = ErrorType<HTTPValidationError>;
-
-export function useRecentProjectsApiV1ProjectsRecentGet<
-  TData = Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-          TError,
-          Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useRecentProjectsApiV1ProjectsRecentGet<
-  TData = Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-          TError,
-          Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useRecentProjectsApiV1ProjectsRecentGet<
-  TData = Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary Recent Projects
- */
-
-export function useRecentProjectsApiV1ProjectsRecentGet<
-  TData = Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof recentProjectsApiV1ProjectsRecentGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getRecentProjectsApiV1ProjectsRecentGetQueryOptions(options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
  * @summary Favorite Projects
  */
 export const favoriteProjectsApiV1ProjectsFavoritesGet = (
@@ -1129,7 +990,7 @@ export const recordProjectViewApiV1ProjectsProjectIdViewPost = (
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
-  return apiMutator<ProjectRecentViewRead>(
+  return apiMutator<RecentViewWrite>(
     { url: `/api/v1/projects/${projectId}/view`, method: "POST", signal },
     options
   );

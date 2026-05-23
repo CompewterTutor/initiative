@@ -145,8 +145,8 @@
     "archivedInfo": "Este proyecto está archivado. Desarchívalo desde la configuración para agregar o actualizar tareas."
   },
   "tabsBar": {
-    "loadingRecent": "Cargando proyectos recientes\u2026",
-    "closeProject": "Cerrar {{name}}"
+    "loadingRecent": "Cargando elementos recientes\u2026",
+    "closeItem": "Cerrar {{name}}"
   },
   "favorite": {
     "remove": "Quitar de favoritos",

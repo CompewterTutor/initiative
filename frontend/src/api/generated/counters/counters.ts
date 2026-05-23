@@ -38,6 +38,7 @@ import type {
   HTTPValidationError,
   ListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet200,
   ListCounterGroupsApiV1CounterGroupsGetParams,
+  RecentViewWrite,
 } from "../initiativeAPI.schemas";
 
 import { apiMutator } from "../../mutator";
@@ -2000,6 +2001,176 @@ export const useSetCounterGroupRolePermissionsApiV1CounterGroupsGroupIdRolePermi
     getSetCounterGroupRolePermissionsApiV1CounterGroupsGroupIdRolePermissionsPutMutationOptions(
       options
     ),
+    queryClient
+  );
+};
+/**
+ * @summary Record Counter Group View
+ */
+export const recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost = (
+  groupId: number,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<RecentViewWrite>(
+    { url: `/api/v1/counter-groups/${groupId}/view`, method: "POST", signal },
+    options
+  );
+};
+
+export const getRecordCounterGroupViewApiV1CounterGroupsGroupIdViewPostMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>,
+    TError,
+    { groupId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>,
+  TError,
+  { groupId: number },
+  TContext
+> => {
+  const mutationKey = ["recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>,
+    { groupId: number }
+  > = (props) => {
+    const { groupId } = props ?? {};
+
+    return recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost(groupId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordCounterGroupViewApiV1CounterGroupsGroupIdViewPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>
+>;
+
+export type RecordCounterGroupViewApiV1CounterGroupsGroupIdViewPostMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Record Counter Group View
+ */
+export const useRecordCounterGroupViewApiV1CounterGroupsGroupIdViewPost = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>,
+      TError,
+      { groupId: number },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost>>,
+  TError,
+  { groupId: number },
+  TContext
+> => {
+  return useMutation(
+    getRecordCounterGroupViewApiV1CounterGroupsGroupIdViewPostMutationOptions(options),
+    queryClient
+  );
+};
+/**
+ * @summary Clear Counter Group View
+ */
+export const clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete = (
+  groupId: number,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<void>(
+    { url: `/api/v1/counter-groups/${groupId}/view`, method: "DELETE", signal },
+    options
+  );
+};
+
+export const getClearCounterGroupViewApiV1CounterGroupsGroupIdViewDeleteMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>,
+    TError,
+    { groupId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>,
+  TError,
+  { groupId: number },
+  TContext
+> => {
+  const mutationKey = ["clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>,
+    { groupId: number }
+  > = (props) => {
+    const { groupId } = props ?? {};
+
+    return clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete(groupId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClearCounterGroupViewApiV1CounterGroupsGroupIdViewDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>
+>;
+
+export type ClearCounterGroupViewApiV1CounterGroupsGroupIdViewDeleteMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Clear Counter Group View
+ */
+export const useClearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>,
+      TError,
+      { groupId: number },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete>>,
+  TError,
+  { groupId: number },
+  TContext
+> => {
+  return useMutation(
+    getClearCounterGroupViewApiV1CounterGroupsGroupIdViewDeleteMutationOptions(options),
     queryClient
   );
 };

@@ -59,7 +59,9 @@ from app.services import initiatives as initiatives_service
 from app.services import notifications as notifications_service
 from app.services import permissions as permissions_service
 from app.services import properties as properties_service
+from app.services import recent_views as recent_views_service
 from app.services import rls as rls_service
+from app.schemas.recent_view import RecentViewWrite
 from app.services.ai_generation import AIGenerationError, generate_document_summary
 from app.services.collaboration import collaboration_manager
 
@@ -1714,3 +1716,47 @@ async def download_document_file(
     if inline:
         return FileResponse(file_path, media_type=document.file_content_type or None, headers=headers)
     return FileResponse(file_path, filename=document.original_filename or filename, headers=headers)
+
+
+@router.post("/{document_id}/view", response_model=RecentViewWrite)
+async def record_document_view(
+    document_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> RecentViewWrite:
+    """Record a recent-view for the layout tabs bar."""
+    document = await _get_document_or_404(
+        session, document_id=document_id, guild_id=guild_context.guild_id
+    )
+    _require_document_access(document, current_user, access="read")
+    record = await recent_views_service.record_view(
+        session,
+        user_id=current_user.id,
+        entity_type="document",
+        entity_id=document.id,
+    )
+    return RecentViewWrite(
+        entity_type="document",
+        entity_id=document.id,
+        last_viewed_at=record.last_viewed_at,
+    )
+
+
+@router.delete("/{document_id}/view", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_document_view(
+    document_id: int,
+    session: RLSSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_context: GuildContextDep,
+) -> None:
+    document = await _get_document_or_404(
+        session, document_id=document_id, guild_id=guild_context.guild_id
+    )
+    _require_document_access(document, current_user, access="read")
+    await recent_views_service.clear_view(
+        session,
+        user_id=current_user.id,
+        entity_type="document",
+        entity_id=document.id,
+    )

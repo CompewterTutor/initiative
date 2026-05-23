@@ -7,7 +7,9 @@
     "pages": "Pages",
     "projects": "Projets",
     "tasks": "Tâches",
-    "documents": "Documents"
+    "documents": "Documents",
+    "queues": "Files",
+    "counterGroups": "Groupes de compteurs"
   },
   "actions": {
     "addTask": "Ajouter une tâche"
