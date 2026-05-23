@@ -216,9 +216,7 @@ export function useListSubscriptionsApiV1AutoSubscriptionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListSubscriptionsApiV1AutoSubscriptionsGet<
   TData = Awaited<ReturnType<typeof listSubscriptionsApiV1AutoSubscriptionsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -242,9 +240,7 @@ export function useListSubscriptionsApiV1AutoSubscriptionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListSubscriptionsApiV1AutoSubscriptionsGet<
   TData = Awaited<ReturnType<typeof listSubscriptionsApiV1AutoSubscriptionsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -260,9 +256,7 @@ export function useListSubscriptionsApiV1AutoSubscriptionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List Subscriptions
  */
@@ -282,9 +276,7 @@ export function useListSubscriptionsApiV1AutoSubscriptionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListSubscriptionsApiV1AutoSubscriptionsGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
@@ -406,11 +398,7 @@ export const deleteSubscriptionApiV1AutoSubscriptionsSubscriptionIdDelete = (
   signal?: AbortSignal
 ) => {
   return apiMutator<void>(
-    {
-      url: `/api/v1/auto/subscriptions/${subscriptionId}`,
-      method: "DELETE",
-      signal,
-    },
+    { url: `/api/v1/auto/subscriptions/${subscriptionId}`, method: "DELETE", signal },
     options
   );
 };

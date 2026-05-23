@@ -43,11 +43,7 @@ export const getDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollab
   return apiMutator<
     GetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGet200Item[]
   >(
-    {
-      url: `/api/v1/collaboration/documents/${documentId}/collaborators`,
-      method: "GET",
-      signal,
-    },
+    { url: `/api/v1/collaboration/documents/${documentId}/collaborators`, method: "GET", signal },
     options
   );
 };
@@ -168,9 +164,7 @@ export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentId
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGet<
   TData = Awaited<
     ReturnType<typeof getDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGet>
@@ -209,9 +203,7 @@ export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentId
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGet<
   TData = Awaited<
     ReturnType<typeof getDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGet>
@@ -234,9 +226,7 @@ export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentId
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Get Document Collaborators
  */
@@ -263,9 +253,7 @@ export function useGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentId
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions =
     getGetDocumentCollaboratorsApiV1CollaborationDocumentsDocumentIdCollaboratorsGetQueryOptions(
       documentId,

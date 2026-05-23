@@ -118,9 +118,7 @@ export function useListQueuesApiV1QueuesGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListQueuesApiV1QueuesGet<
   TData = Awaited<ReturnType<typeof listQueuesApiV1QueuesGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -141,9 +139,7 @@ export function useListQueuesApiV1QueuesGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListQueuesApiV1QueuesGet<
   TData = Awaited<ReturnType<typeof listQueuesApiV1QueuesGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -156,9 +152,7 @@ export function useListQueuesApiV1QueuesGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List Queues
  */
@@ -175,9 +169,7 @@ export function useListQueuesApiV1QueuesGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListQueuesApiV1QueuesGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
@@ -354,9 +346,7 @@ export function useReadQueueApiV1QueuesQueueIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useReadQueueApiV1QueuesQueueIdGet<
   TData = Awaited<ReturnType<typeof readQueueApiV1QueuesQueueIdGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -377,9 +367,7 @@ export function useReadQueueApiV1QueuesQueueIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useReadQueueApiV1QueuesQueueIdGet<
   TData = Awaited<ReturnType<typeof readQueueApiV1QueuesQueueIdGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -392,9 +380,7 @@ export function useReadQueueApiV1QueuesQueueIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Read Queue
  */
@@ -411,9 +397,7 @@ export function useReadQueueApiV1QueuesQueueIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getReadQueueApiV1QueuesQueueIdGetQueryOptions(queueId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
@@ -790,11 +774,7 @@ export const deleteQueueItemApiV1QueuesQueueIdItemsItemIdDelete = (
   signal?: AbortSignal
 ) => {
   return apiMutator<void>(
-    {
-      url: `/api/v1/queues/${queueId}/items/${itemId}`,
-      method: "DELETE",
-      signal,
-    },
+    { url: `/api/v1/queues/${queueId}/items/${itemId}`, method: "DELETE", signal },
     options
   );
 };
@@ -1307,11 +1287,7 @@ export const setActiveItemApiV1QueuesQueueIdSetActiveItemIdPost = (
   signal?: AbortSignal
 ) => {
   return apiMutator<QueueRead>(
-    {
-      url: `/api/v1/queues/${queueId}/set-active/${itemId}`,
-      method: "POST",
-      signal,
-    },
+    { url: `/api/v1/queues/${queueId}/set-active/${itemId}`, method: "POST", signal },
     options
   );
 };
@@ -2060,9 +2036,7 @@ export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
   TData = Awaited<ReturnType<typeof listQueuePermissionsApiV1QueuesQueueIdPermissionsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -2087,9 +2061,7 @@ export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
   TData = Awaited<ReturnType<typeof listQueuePermissionsApiV1QueuesQueueIdPermissionsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -2106,9 +2078,7 @@ export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List Queue Permissions
  */
@@ -2129,9 +2099,7 @@ export function useListQueuePermissionsApiV1QueuesQueueIdPermissionsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListQueuePermissionsApiV1QueuesQueueIdPermissionsGetQueryOptions(
     queueId,
     options

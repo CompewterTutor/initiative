@@ -86,9 +86,7 @@ export function useGetAppConfigApiV1ConfigGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAppConfigApiV1ConfigGet<
   TData = Awaited<ReturnType<typeof getAppConfigApiV1ConfigGet>>,
   TError = ErrorType<unknown>,
@@ -108,9 +106,7 @@ export function useGetAppConfigApiV1ConfigGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetAppConfigApiV1ConfigGet<
   TData = Awaited<ReturnType<typeof getAppConfigApiV1ConfigGet>>,
   TError = ErrorType<unknown>,
@@ -122,9 +118,7 @@ export function useGetAppConfigApiV1ConfigGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Get App Config
  */
@@ -140,9 +134,7 @@ export function useGetAppConfigApiV1ConfigGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetAppConfigApiV1ConfigGetQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {

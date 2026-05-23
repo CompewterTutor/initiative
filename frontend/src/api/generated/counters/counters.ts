@@ -126,9 +126,7 @@ export function useListCounterGroupsApiV1CounterGroupsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListCounterGroupsApiV1CounterGroupsGet<
   TData = Awaited<ReturnType<typeof listCounterGroupsApiV1CounterGroupsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -153,9 +151,7 @@ export function useListCounterGroupsApiV1CounterGroupsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListCounterGroupsApiV1CounterGroupsGet<
   TData = Awaited<ReturnType<typeof listCounterGroupsApiV1CounterGroupsGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -172,9 +168,7 @@ export function useListCounterGroupsApiV1CounterGroupsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List Counter Groups
  */
@@ -195,9 +189,7 @@ export function useListCounterGroupsApiV1CounterGroupsGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListCounterGroupsApiV1CounterGroupsGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
@@ -381,9 +373,7 @@ export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
   TData = Awaited<ReturnType<typeof readCounterGroupApiV1CounterGroupsGroupIdGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -408,9 +398,7 @@ export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
   TData = Awaited<ReturnType<typeof readCounterGroupApiV1CounterGroupsGroupIdGet>>,
   TError = ErrorType<HTTPValidationError>,
@@ -427,9 +415,7 @@ export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary Read Counter Group
  */
@@ -450,9 +436,7 @@ export function useReadCounterGroupApiV1CounterGroupsGroupIdGet<
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getReadCounterGroupApiV1CounterGroupsGroupIdGetQueryOptions(
     groupId,
     options
@@ -942,11 +926,7 @@ export const deleteCounterApiV1CounterGroupsGroupIdCountersCounterIdDelete = (
   signal?: AbortSignal
 ) => {
   return apiMutator<void>(
-    {
-      url: `/api/v1/counter-groups/${groupId}/counters/${counterId}`,
-      method: "DELETE",
-      signal,
-    },
+    { url: `/api/v1/counter-groups/${groupId}/counters/${counterId}`, method: "DELETE", signal },
     options
   );
 };
@@ -1056,22 +1036,14 @@ export const getSetCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost>>,
     TError,
-    {
-      groupId: number;
-      counterId: number;
-      data: BodyType<CounterSetCountRequest>;
-    },
+    { groupId: number; counterId: number; data: BodyType<CounterSetCountRequest> },
     TContext
   >;
   request?: SecondParameter<typeof apiMutator>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost>>,
   TError,
-  {
-    groupId: number;
-    counterId: number;
-    data: BodyType<CounterSetCountRequest>;
-  },
+  { groupId: number; counterId: number; data: BodyType<CounterSetCountRequest> },
   TContext
 > => {
   const mutationKey = ["setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost"];
@@ -1083,11 +1055,7 @@ export const getSetCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost>>,
-    {
-      groupId: number;
-      counterId: number;
-      data: BodyType<CounterSetCountRequest>;
-    }
+    { groupId: number; counterId: number; data: BodyType<CounterSetCountRequest> }
   > = (props) => {
     const { groupId, counterId, data } = props ?? {};
 
@@ -1122,11 +1090,7 @@ export const useSetCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost>>,
       TError,
-      {
-        groupId: number;
-        counterId: number;
-        data: BodyType<CounterSetCountRequest>;
-      },
+      { groupId: number; counterId: number; data: BodyType<CounterSetCountRequest> },
       TContext
     >;
     request?: SecondParameter<typeof apiMutator>;
@@ -1135,11 +1099,7 @@ export const useSetCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost
 ): UseMutationResult<
   Awaited<ReturnType<typeof setCounterCountApiV1CounterGroupsGroupIdCountersCounterIdSetPost>>,
   TError,
-  {
-    groupId: number;
-    counterId: number;
-    data: BodyType<CounterSetCountRequest>;
-  },
+  { groupId: number; counterId: number; data: BodyType<CounterSetCountRequest> },
   TContext
 > => {
   return useMutation(
@@ -1465,11 +1425,7 @@ export const resetAllCountersApiV1CounterGroupsGroupIdResetAllPost = (
   signal?: AbortSignal
 ) => {
   return apiMutator<CounterGroupRead>(
-    {
-      url: `/api/v1/counter-groups/${groupId}/reset-all`,
-      method: "POST",
-      signal,
-    },
+    { url: `/api/v1/counter-groups/${groupId}/reset-all`, method: "POST", signal },
     options
   );
 };
@@ -1647,11 +1603,7 @@ export const listCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet 
   signal?: AbortSignal
 ) => {
   return apiMutator<ListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet200>(
-    {
-      url: `/api/v1/counter-groups/${groupId}/permissions`,
-      method: "GET",
-      signal,
-    },
+    { url: `/api/v1/counter-groups/${groupId}/permissions`, method: "GET", signal },
     options
   );
 };
@@ -1748,9 +1700,7 @@ export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissio
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet<
   TData = Awaited<
     ReturnType<typeof listCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet>
@@ -1783,9 +1733,7 @@ export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissio
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet<
   TData = Awaited<
     ReturnType<typeof listCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet>
@@ -1806,9 +1754,7 @@ export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissio
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
  * @summary List Counter Group Permissions
  */
@@ -1833,9 +1779,7 @@ export function useListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissio
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions =
     getListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGetQueryOptions(
       groupId,
