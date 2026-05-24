@@ -235,7 +235,7 @@ export const ProjectTasksSection = ({
   // any dangling IDs and write the cleaned blob back, so future loads
   // don't have to re-pay for the diff.
   const tagsLoaded = tags !== undefined;
-  const userOptionsLoaded = userOptions.length > 0 || userOptions !== undefined;
+  const userOptionsLoaded = userOptions.length > 0;
   useEffect(() => {
     if (!filtersLoaded || !tagsLoaded || !userOptionsLoaded) return;
     const tagIds = new Set(tags.map((tg) => tg.id));
