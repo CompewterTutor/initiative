@@ -243,13 +243,13 @@ export function CounterDetailPage() {
               aria-label={t("more")}
               className={cn("h-10 w-10", chromeButtonClass)}
               style={{ color: fg }}
-              disabled={!canWrite}
             >
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
+              disabled={!canWrite}
               onSelect={() => {
                 stepper.cancel(counter.id);
                 resetOne.mutate(counter.id);
@@ -258,7 +258,7 @@ export function CounterDetailPage() {
               <RotateCcw className="h-4 w-4" />
               {t("reset")}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setEditing(counter)}>
+            <DropdownMenuItem disabled={!canWrite} onSelect={() => setEditing(counter)}>
               <Pencil className="h-4 w-4" />
               {t("editCounter")}
             </DropdownMenuItem>
