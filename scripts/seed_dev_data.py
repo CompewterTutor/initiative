@@ -17,6 +17,7 @@ import asyncio
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -1038,8 +1039,6 @@ async def _create_counter_groups(
         counters: list of dicts with name, color, count, min, max, step,
             initial_count, view_mode, position.
     """
-    from decimal import Decimal
-
     groups: dict[str, CounterGroup] = {}
     for gd in group_defs:
         creator = all_users[gd["created_by"]]
@@ -2149,7 +2148,6 @@ async def seed() -> None:
             ])
 
             # Property values on a handful of known-titled tasks / docs.
-            from decimal import Decimal as _Dec
             t_defeat_id = g1_tasks["Defeat Strahd von Zarovich"].id
             t_death_id = g1_tasks["Survive the Death House"].id
             doc_setting_id = g1_docs["Campaign Setting: The Land of Barovia"].id
@@ -2160,8 +2158,8 @@ async def seed() -> None:
                 ("task", t_death_id, "hard"),
             ])
             await _attach_property_values(session, ids, g1_strahd_props["XP Reward"], [
-                ("task", t_defeat_id, _Dec("50000")),
-                ("task", t_death_id, _Dec("4500")),
+                ("task", t_defeat_id, Decimal("50000")),
+                ("task", t_death_id, Decimal("4500")),
             ])
             await _attach_property_values(session, ids, g1_strahd_props["Themes"], [
                 ("task", t_defeat_id, ["horror", "combat"]),
@@ -2791,8 +2789,8 @@ async def seed() -> None:
                 ("task", t_negotiate_id, "homebrew"),
             ])
             await _attach_property_values(session, ids, g2_main_props["Tech Level"], [
-                ("task", t_repair_id, _Dec("9")),
-                ("task", t_negotiate_id, _Dec("7")),
+                ("task", t_repair_id, Decimal("9")),
+                ("task", t_negotiate_id, Decimal("7")),
             ])
             await _attach_property_values(session, ids, g2_main_props["Faction Tags"], [
                 ("task", t_negotiate_id, ["exodus_fleet", "krellix"]),
@@ -2825,7 +2823,7 @@ async def seed() -> None:
                 ("task", t_crack_id, "scoping"),
             ])
             await _attach_property_values(session, ids, g2_side_props["Payout (credits)"], [
-                ("task", t_infiltrate_id, _Dec("75000")),
+                ("task", t_infiltrate_id, Decimal("75000")),
             ])
 
             # ==============================================================
@@ -3488,8 +3486,8 @@ async def seed() -> None:
                 ("task", t_collect_id, "tidestone_hunt"),
             ])
             await _attach_property_values(session, ids, g3_main_props["Crew Reward (gold)"], [
-                ("task", t_leviathan_id, _Dec("25000")),
-                ("task", t_collect_id, _Dec("9000")),
+                ("task", t_leviathan_id, Decimal("25000")),
+                ("task", t_collect_id, Decimal("9000")),
             ])
             await _attach_property_values(session, ids, g3_main_props["Quest Hooks"], [
                 ("task", t_leviathan_id, ["treasure", "revenge"]),
