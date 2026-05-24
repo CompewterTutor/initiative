@@ -35,7 +35,22 @@ from app.core.config import settings  # noqa: E402
 from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
 from app.db.session import AdminSessionLocal  # noqa: E402
+from app.models.calendar_event import (  # noqa: E402
+    CalendarEvent,
+    CalendarEventAttendee,
+    CalendarEventDocument,
+    CalendarEventTag,
+    RSVPStatus,
+)
 from app.models.comment import Comment  # noqa: E402
+from app.models.counter import (  # noqa: E402
+    Counter,
+    CounterGroup,
+    CounterGroupPermission,
+    CounterGroupRolePermission,
+    CounterPermissionLevel,
+    CounterViewMode,
+)
 from app.models.document import (  # noqa: E402
     Document,
     DocumentLink,
@@ -64,6 +79,13 @@ from app.models.project import (  # noqa: E402
     ProjectPermissionLevel,
 )
 from app.models.project_activity import ProjectFavorite  # noqa: E402
+from app.models.property import (  # noqa: E402
+    CalendarEventPropertyValue,
+    DocumentPropertyValue,
+    PropertyDefinition,
+    PropertyType,
+    TaskPropertyValue,
+)
 from app.models.recent_view import RecentView  # noqa: E402
 from app.models.tag import DocumentTag, ProjectTag, Tag, TaskTag  # noqa: E402
 from app.models.task import (  # noqa: E402
@@ -252,6 +274,18 @@ class IDTracker:
             "queue_items": [],
             "queue_item_tags": [],
             "queue_permissions": [],
+            "counter_groups": [],
+            "counters": [],
+            "counter_group_permissions": [],
+            "counter_group_role_permissions": [],
+            "calendar_events": [],
+            "calendar_event_attendees": [],
+            "calendar_event_tags": [],
+            "calendar_event_documents": [],
+            "property_definitions": [],
+            "task_property_values": [],
+            "document_property_values": [],
+            "calendar_event_property_values": [],
         }
 
     def add(self, key: str, value) -> None:
@@ -359,6 +393,8 @@ async def _create_initiative(
     pm_user: User,
     member_users: list[User] | None = None,
     queues_enabled: bool = False,
+    counters_enabled: bool = False,
+    events_enabled: bool = False,
 ) -> tuple[Initiative, InitiativeRoleModel, InitiativeRoleModel]:
     """Create an initiative with roles and members."""
     initiative = Initiative(
@@ -367,6 +403,8 @@ async def _create_initiative(
         description=description,
         color=color,
         queues_enabled=queues_enabled,
+        counters_enabled=counters_enabled,
+        events_enabled=events_enabled,
     )
     session.add(initiative)
     await session.flush()
@@ -955,6 +993,316 @@ async def _create_queues(
 
 
 # ---------------------------------------------------------------------------
+# Counter / calendar event / property seeder helpers
+# ---------------------------------------------------------------------------
+
+async def _enable_role_feature(
+    session: AsyncSession,
+    member_roles: list[InitiativeRoleModel],
+    permission_key: str,
+) -> None:
+    """Flip a feature-visibility permission ON for a set of member roles.
+
+    Parallel to :func:`_enable_queue_permissions` but generalized for the
+    counters / events keys. ``create_builtin_roles`` seeds member roles
+    with the view-feature keys disabled by default; flipping them on
+    lets non-PM members see the seeded content.
+    """
+    for role in member_roles:
+        result = await session.exec(
+            select(InitiativeRolePermission).where(
+                InitiativeRolePermission.initiative_role_id == role.id,
+                InitiativeRolePermission.permission_key == permission_key,
+            )
+        )
+        perm = result.one_or_none()
+        if perm:
+            perm.enabled = True
+            session.add(perm)
+    await session.flush()
+
+
+async def _create_counter_groups(
+    session: AsyncSession,
+    ids: IDTracker,
+    guild: Guild,
+    all_users: dict[str, User],
+    group_defs: list[dict],
+) -> dict[str, CounterGroup]:
+    """Create counter groups with their child counters and permissions.
+
+    Each ``group_def`` has:
+        initiative_id, name, description, created_by (user name),
+        role_grants: list of {role_id, level},
+        user_grants: list of {user (name), level},
+        counters: list of dicts with name, color, count, min, max, step,
+            initial_count, view_mode, position.
+    """
+    from decimal import Decimal
+
+    groups: dict[str, CounterGroup] = {}
+    for gd in group_defs:
+        creator = all_users[gd["created_by"]]
+        group = CounterGroup(
+            guild_id=guild.id,
+            initiative_id=gd["initiative_id"],
+            name=gd["name"],
+            description=gd.get("description"),
+            created_by_id=creator.id,
+        )
+        session.add(group)
+        await session.flush()
+        ids.add("counter_groups", group.id)
+
+        # Owner permission for creator
+        owner_perm = CounterGroupPermission(
+            counter_group_id=group.id,
+            user_id=creator.id,
+            guild_id=guild.id,
+            level=CounterPermissionLevel.owner,
+        )
+        session.add(owner_perm)
+        ids.add("counter_group_permissions", {
+            "counter_group_id": group.id, "user_id": creator.id,
+        })
+
+        # Extra user grants
+        for grant in gd.get("user_grants", []):
+            user = all_users.get(grant["user"])
+            if user and user.id != creator.id:
+                up = CounterGroupPermission(
+                    counter_group_id=group.id,
+                    user_id=user.id,
+                    guild_id=guild.id,
+                    level=grant.get("level", CounterPermissionLevel.write),
+                )
+                session.add(up)
+                ids.add("counter_group_permissions", {
+                    "counter_group_id": group.id, "user_id": user.id,
+                })
+
+        # Role grants
+        for grant in gd.get("role_grants", []):
+            rp = CounterGroupRolePermission(
+                counter_group_id=group.id,
+                initiative_role_id=grant["role_id"],
+                guild_id=guild.id,
+                level=grant.get("level", CounterPermissionLevel.read),
+            )
+            session.add(rp)
+            ids.add("counter_group_role_permissions", {
+                "counter_group_id": group.id,
+                "initiative_role_id": grant["role_id"],
+            })
+        await session.flush()
+
+        # Counters
+        for cd in gd.get("counters", []):
+            counter = Counter(
+                guild_id=guild.id,
+                counter_group_id=group.id,
+                name=cd["name"],
+                color=cd.get("color"),
+                count=Decimal(str(cd.get("count", 0))),
+                min=Decimal(str(cd["min"])) if cd.get("min") is not None else None,
+                max=Decimal(str(cd["max"])) if cd.get("max") is not None else None,
+                step=Decimal(str(cd.get("step", 1))),
+                initial_count=Decimal(str(cd.get("initial_count", 0))),
+                view_mode=cd.get("view_mode", CounterViewMode.number),
+                position=Decimal(str(cd.get("position", 0))),
+            )
+            session.add(counter)
+            await session.flush()
+            ids.add("counters", counter.id)
+
+        groups[gd["name"]] = group
+
+    return groups
+
+
+async def _create_calendar_events(
+    session: AsyncSession,
+    ids: IDTracker,
+    guild: Guild,
+    all_users: dict[str, User],
+    tags: dict[str, Tag],
+    documents: dict[str, Document],
+    event_defs: list[dict],
+) -> dict[str, CalendarEvent]:
+    """Create calendar events with attendees, tag links, and document links.
+
+    Each ``event_def`` has:
+        initiative_id, title, description, location, start_at, end_at,
+        all_day, color, recurrence (dict; JSON-encoded into the column),
+        created_by (user name),
+        attendees: list of {user (name), rsvp_status (optional)},
+        tags: list of tag names,
+        documents: list of document titles (must exist in ``documents``).
+    """
+    events: dict[str, CalendarEvent] = {}
+    for ed in event_defs:
+        creator = all_users[ed["created_by"]]
+        recurrence_raw = ed.get("recurrence")
+        event = CalendarEvent(
+            guild_id=guild.id,
+            initiative_id=ed["initiative_id"],
+            title=ed["title"],
+            description=ed.get("description"),
+            location=ed.get("location"),
+            start_at=ed["start_at"],
+            end_at=ed["end_at"],
+            all_day=ed.get("all_day", False),
+            color=ed.get("color"),
+            recurrence=json.dumps(recurrence_raw) if recurrence_raw else None,
+            created_by_id=creator.id,
+        )
+        session.add(event)
+        await session.flush()
+        ids.add("calendar_events", event.id)
+
+        # Attendees
+        for att in ed.get("attendees", []):
+            user = all_users.get(att["user"])
+            if user is None:
+                continue
+            attendee = CalendarEventAttendee(
+                calendar_event_id=event.id,
+                user_id=user.id,
+                guild_id=guild.id,
+                rsvp_status=att.get("rsvp_status", RSVPStatus.pending),
+            )
+            session.add(attendee)
+            ids.add("calendar_event_attendees", {
+                "calendar_event_id": event.id, "user_id": user.id,
+            })
+
+        # Tag links
+        for tag_name in ed.get("tags", []):
+            tag = tags.get(tag_name)
+            if tag is None:
+                continue
+            link = CalendarEventTag(
+                calendar_event_id=event.id,
+                tag_id=tag.id,
+            )
+            session.add(link)
+            ids.add("calendar_event_tags", {
+                "calendar_event_id": event.id, "tag_id": tag.id,
+            })
+
+        # Document links
+        for doc_title in ed.get("documents", []):
+            doc = documents.get(doc_title)
+            if doc is None:
+                continue
+            link = CalendarEventDocument(
+                calendar_event_id=event.id,
+                document_id=doc.id,
+                guild_id=guild.id,
+                attached_by_id=creator.id,
+            )
+            session.add(link)
+            ids.add("calendar_event_documents", {
+                "calendar_event_id": event.id, "document_id": doc.id,
+            })
+
+        await session.flush()
+        events[ed["title"]] = event
+
+    return events
+
+
+async def _create_property_definitions(
+    session: AsyncSession,
+    ids: IDTracker,
+    initiative: Initiative,
+    defn_defs: list[dict],
+) -> dict[str, PropertyDefinition]:
+    """Create property definitions on an initiative.
+
+    Each ``defn_def`` has: name, type (PropertyType), position, color,
+    options (list of {value, label, color}; required for select / multi_select).
+    """
+    defns: dict[str, PropertyDefinition] = {}
+    for dd in defn_defs:
+        defn = PropertyDefinition(
+            initiative_id=initiative.id,
+            name=dd["name"],
+            type=dd["type"],
+            position=float(dd.get("position", 0.0)),
+            color=dd.get("color"),
+            options=dd.get("options"),
+        )
+        session.add(defn)
+        await session.flush()
+        ids.add("property_definitions", defn.id)
+        defns[dd["name"]] = defn
+    return defns
+
+
+# Mapping from PropertyType to the Value-model column that stores it.
+# ``url`` / ``select`` reuse ``value_text`` because their wire format is a
+# string; ``multi_select`` is stored as a JSON array in ``value_json``.
+_PROPERTY_TYPE_TO_COLUMN = {
+    PropertyType.text: "value_text",
+    PropertyType.url: "value_text",
+    PropertyType.select: "value_text",
+    PropertyType.number: "value_number",
+    PropertyType.checkbox: "value_boolean",
+    PropertyType.date: "value_date",
+    PropertyType.datetime: "value_datetime",
+    PropertyType.user_reference: "value_user_id",
+    PropertyType.multi_select: "value_json",
+}
+
+
+async def _attach_property_values(
+    session: AsyncSession,
+    ids: IDTracker,
+    definition: PropertyDefinition,
+    attachments: list[tuple[str, int, object]],
+) -> None:
+    """Attach typed values for one property definition across entities.
+
+    ``attachments`` items are ``(entity_kind, entity_id, raw_value)`` where
+    ``entity_kind`` is one of ``"task"``, ``"document"``, ``"event"``.
+    The helper picks the right value model + typed column based on the
+    definition's type. ``raw_value`` should already be in its native
+    Python type (``str``, ``Decimal``, ``bool``, ``date``, ``datetime``,
+    ``int`` for user_reference, ``list[str]`` for multi_select).
+    """
+    column_name = _PROPERTY_TYPE_TO_COLUMN[definition.type]
+    for entity_kind, entity_id, raw_value in attachments:
+        if entity_kind == "task":
+            row = TaskPropertyValue(
+                task_id=entity_id,
+                property_id=definition.id,
+            )
+            id_bucket = "task_property_values"
+            id_key = {"task_id": entity_id, "property_id": definition.id}
+        elif entity_kind == "document":
+            row = DocumentPropertyValue(
+                document_id=entity_id,
+                property_id=definition.id,
+            )
+            id_bucket = "document_property_values"
+            id_key = {"document_id": entity_id, "property_id": definition.id}
+        elif entity_kind == "event":
+            row = CalendarEventPropertyValue(
+                event_id=entity_id,
+                property_id=definition.id,
+            )
+            id_bucket = "calendar_event_property_values"
+            id_key = {"event_id": entity_id, "property_id": definition.id}
+        else:
+            raise ValueError(f"Unknown entity_kind {entity_kind!r}")
+        setattr(row, column_name, raw_value)
+        session.add(row)
+        ids.add(id_bucket, id_key)
+    await session.flush()
+
+
+# ---------------------------------------------------------------------------
 # Seed
 # ---------------------------------------------------------------------------
 
@@ -1074,6 +1422,8 @@ async def seed() -> None:
                 pm_user=dm,
                 member_users=[thorn, elara, vex, sera],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             # --- Initiative: Lost Mine of Phandelver ---
@@ -1086,6 +1436,8 @@ async def seed() -> None:
                 pm_user=admin_user,
                 member_users=[dm, thorn, elara],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             # -- Projects --
@@ -1628,6 +1980,225 @@ async def seed() -> None:
                 session, [g1_strahd_mem, g1_lmop_mem],
             )
 
+            # -- Counters --
+            print("  Creating Guild 1 counter groups...")
+            await _create_counter_groups(session, ids, g1, all_users, [
+                {
+                    "initiative_id": g1_strahd.id,
+                    "name": "Party Vitals (Strahd)",
+                    "description": "Combat-relevant counters for the Curse of Strahd party.",
+                    "created_by": "Dungeon Master",
+                    "role_grants": [{"role_id": g1_strahd_mem.id, "level": CounterPermissionLevel.write}],
+                    "counters": [
+                        {"name": "Thorn HP", "color": "#DC2626", "count": 38, "min": 0, "max": 42,
+                         "step": 1, "initial_count": 42, "view_mode": CounterViewMode.progress_bar, "position": 1},
+                        {"name": "Elara HP", "color": "#3B82F6", "count": 24, "min": 0, "max": 28,
+                         "step": 1, "initial_count": 28, "view_mode": CounterViewMode.progress_bar, "position": 2},
+                        {"name": "Inspiration Pool", "color": "#F59E0B", "count": 2, "min": 0, "max": 5,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 3},
+                        {"name": "Long Rest Clock", "color": "#7C3AED", "count": 3, "min": 0, "max": 8,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.segmented_clock, "position": 4},
+                    ],
+                },
+                {
+                    "initiative_id": g1_strahd.id,
+                    "name": "Castle Ravenloft Doom Clock",
+                    "description": "Strahd's awareness of the party. At 8 he comes for them.",
+                    "created_by": "Dungeon Master",
+                    "counters": [
+                        {"name": "Strahd's Awareness", "color": "#991B1B", "count": 4, "min": 0, "max": 8,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.segmented_clock, "position": 1},
+                        {"name": "Holy Symbols Found", "color": "#FBBF24", "count": 2, "min": 0, "max": 3,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 2},
+                        {"name": "Tarokka Cards Drawn", "color": "#A855F7", "count": 3, "min": 0, "max": 5,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 3},
+                    ],
+                },
+                {
+                    "initiative_id": g1_lmop.id,
+                    "name": "Phandelver Reputation",
+                    "description": "Faction standing for the Lost Mine of Phandelver party.",
+                    "created_by": "Admin User",
+                    "counters": [
+                        {"name": "Phandalin Reputation", "color": "#10B981", "count": 3, "min": -5, "max": 10,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 1},
+                        {"name": "Redbrand Hideout Cleared", "color": "#DC2626", "count": 4, "min": 0, "max": 6,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.progress_bar, "position": 2},
+                    ],
+                },
+            ])
+            await _enable_role_feature(session, [g1_strahd_mem, g1_lmop_mem], "counters_enabled")
+
+            # -- Calendar events --
+            print("  Creating Guild 1 calendar events...")
+            g1_events = await _create_calendar_events(session, ids, g1, all_users, g1_tags, g1_docs, [
+                {
+                    "initiative_id": g1_strahd.id,
+                    "title": "Session 12: Into the Amber Temple",
+                    "description": "The party finally reaches the Amber Temple to bargain with the Dark Powers.",
+                    "location": "Tabletop @ DM's house",
+                    "start_at": NOW + timedelta(days=2, hours=2),
+                    "end_at": NOW + timedelta(days=2, hours=6),
+                    "color": "#7C3AED",
+                    "created_by": "Dungeon Master",
+                    "attendees": [
+                        {"user": "Dungeon Master", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Thorn Ironforge", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Elara Moonwhisper", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Vex Shadowstep", "rsvp_status": RSVPStatus.tentative},
+                        {"user": "Seraphina Dawnlight", "rsvp_status": RSVPStatus.pending},
+                    ],
+                    "tags": ["quest", "lore"],
+                    "documents": ["NPC Roster: Curse of Strahd"],
+                },
+                {
+                    "initiative_id": g1_strahd.id,
+                    "title": "Weekly Strahd Session",
+                    "description": "Standing campaign night.",
+                    "location": "Roll20",
+                    "start_at": NOW + timedelta(days=7, hours=1),
+                    "end_at": NOW + timedelta(days=7, hours=5),
+                    "color": "#7C3AED",
+                    "created_by": "Dungeon Master",
+                    "recurrence": {
+                        "frequency": "weekly", "interval": 1,
+                        "weekdays": ["fr"], "ends": "after_occurrences",
+                        "end_after_occurrences": 12,
+                    },
+                    "attendees": [
+                        {"user": "Dungeon Master", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Thorn Ironforge", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Elara Moonwhisper", "rsvp_status": RSVPStatus.accepted},
+                    ],
+                },
+                {
+                    "initiative_id": g1_strahd.id,
+                    "title": "Player Off-Site Retrospective",
+                    "description": "All-day session: replay session 8-11 with snacks.",
+                    "location": "Cabin in the woods",
+                    "start_at": NOW + timedelta(days=14),
+                    "end_at": NOW + timedelta(days=14),
+                    "all_day": True,
+                    "color": "#059669",
+                    "created_by": "Dungeon Master",
+                    "tags": ["roleplay"],
+                },
+                {
+                    "initiative_id": g1_strahd.id,
+                    "title": "Session 11: Vallaki Festival",
+                    "description": "Wrapped up: the Festival of the Blazing Sun.",
+                    "location": "Tabletop @ DM's house",
+                    "start_at": NOW - timedelta(days=5, hours=22),
+                    "end_at": NOW - timedelta(days=5, hours=18),
+                    "color": "#7C3AED",
+                    "created_by": "Dungeon Master",
+                    "attendees": [
+                        {"user": "Dungeon Master", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Thorn Ironforge", "rsvp_status": RSVPStatus.accepted},
+                    ],
+                },
+                {
+                    "initiative_id": g1_lmop.id,
+                    "title": "Session: Cragmaw Hideout",
+                    "description": "Rescue Gundren Rockseeker from the goblins.",
+                    "location": "Roll20",
+                    "start_at": NOW + timedelta(days=4, hours=3),
+                    "end_at": NOW + timedelta(days=4, hours=7),
+                    "color": "#059669",
+                    "created_by": "Admin User",
+                    "attendees": [
+                        {"user": "Admin User", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Dungeon Master", "rsvp_status": RSVPStatus.tentative},
+                    ],
+                    "tags": ["combat", "quest"],
+                },
+                {
+                    "initiative_id": g1_lmop.id,
+                    "title": "Prep: Wave Echo Cave maps",
+                    "description": "DM-only prep slot for the finale dungeon.",
+                    "start_at": NOW + timedelta(days=10, hours=20),
+                    "end_at": NOW + timedelta(days=10, hours=22),
+                    "color": "#6B7280",
+                    "created_by": "Admin User",
+                },
+            ])
+            await _enable_role_feature(session, [g1_strahd_mem, g1_lmop_mem], "events_enabled")
+
+            # -- Custom properties --
+            print("  Creating Guild 1 property definitions + values...")
+            g1_strahd_props = await _create_property_definitions(session, ids, g1_strahd, [
+                {"name": "Difficulty", "type": PropertyType.select, "position": 1.0, "color": "#DC2626",
+                 "options": [
+                     {"value": "trivial", "label": "Trivial", "color": "#10B981"},
+                     {"value": "moderate", "label": "Moderate", "color": "#F59E0B"},
+                     {"value": "hard", "label": "Hard", "color": "#DC2626"},
+                     {"value": "deadly", "label": "Deadly", "color": "#7F1D1D"},
+                 ]},
+                {"name": "XP Reward", "type": PropertyType.number, "position": 2.0, "color": "#F59E0B"},
+                {"name": "Prep Notes", "type": PropertyType.text, "position": 3.0},
+                {"name": "Themes", "type": PropertyType.multi_select, "position": 4.0,
+                 "options": [
+                     {"value": "horror", "label": "Horror", "color": "#7F1D1D"},
+                     {"value": "investigation", "label": "Investigation", "color": "#3B82F6"},
+                     {"value": "social", "label": "Social", "color": "#10B981"},
+                     {"value": "combat", "label": "Combat", "color": "#DC2626"},
+                 ]},
+                {"name": "Deadline", "type": PropertyType.date, "position": 5.0},
+                {"name": "Owner", "type": PropertyType.user_reference, "position": 6.0, "color": "#8B5CF6"},
+                {"name": "Public Knowledge", "type": PropertyType.checkbox, "position": 7.0},
+            ])
+
+            # Property values on a handful of known-titled tasks / docs.
+            from decimal import Decimal as _Dec
+            t_defeat_id = g1_tasks["Defeat Strahd von Zarovich"].id
+            t_death_id = g1_tasks["Survive the Death House"].id
+            doc_setting_id = g1_docs["Campaign Setting: The Land of Barovia"].id
+            doc_npcs_id = g1_docs["NPC Roster: Curse of Strahd"].id
+
+            await _attach_property_values(session, ids, g1_strahd_props["Difficulty"], [
+                ("task", t_defeat_id, "deadly"),
+                ("task", t_death_id, "hard"),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["XP Reward"], [
+                ("task", t_defeat_id, _Dec("50000")),
+                ("task", t_death_id, _Dec("4500")),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Themes"], [
+                ("task", t_defeat_id, ["horror", "combat"]),
+                ("task", t_death_id, ["horror", "investigation"]),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Public Knowledge"], [
+                ("document", doc_setting_id, True),
+                ("document", doc_npcs_id, False),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Owner"], [
+                ("task", t_defeat_id, dm.id),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Deadline"], [
+                ("task", t_defeat_id, (NOW + timedelta(days=30)).date()),
+            ])
+            # Calendar event values — exercise the third value table.
+            await _attach_property_values(session, ids, g1_strahd_props["Difficulty"], [
+                ("event", g1_events["Session 12: Into the Amber Temple"].id, "deadly"),
+                ("event", g1_events["Session 11: Vallaki Festival"].id, "moderate"),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Themes"], [
+                ("event", g1_events["Session 12: Into the Amber Temple"].id,
+                 ["horror", "investigation"]),
+            ])
+            await _attach_property_values(session, ids, g1_strahd_props["Owner"], [
+                ("event", g1_events["Weekly Strahd Session"].id, dm.id),
+            ])
+
+            g1_lmop_props = await _create_property_definitions(session, ids, g1_lmop, [
+                {"name": "Hook", "type": PropertyType.text, "position": 1.0},
+                {"name": "Quest Giver", "type": PropertyType.user_reference, "position": 2.0},
+                {"name": "Map Link", "type": PropertyType.url, "position": 3.0, "color": "#3B82F6"},
+            ])
+            await _attach_property_values(session, ids, g1_lmop_props["Map Link"], [
+                ("document", doc_setting_id, "https://example.com/maps/lmop-overview"),
+            ])
+
             # ==============================================================
             # GUILD 2: "Starforge Collective" — Sci-Fi Campaign
             # ==============================================================
@@ -1700,6 +2271,8 @@ async def seed() -> None:
                 pm_user=admin_user,
                 member_users=[finley, kael, aurelia, vex, elara],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             g2_side, g2_side_pm, g2_side_mem = await _create_initiative(
@@ -1711,6 +2284,8 @@ async def seed() -> None:
                 pm_user=finley,
                 member_users=[kael, aurelia, vex],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             # Projects
@@ -2060,6 +2635,198 @@ async def seed() -> None:
 
             await _enable_queue_permissions(session, [g2_main_mem])
 
+            # -- Counters --
+            print("  Creating Guild 2 counter groups...")
+            await _create_counter_groups(session, ids, g2, all_users, [
+                {
+                    "initiative_id": g2_main.id,
+                    "name": "Fleet Status",
+                    "description": "Ship integrity and resource levels for The Exodus Protocol.",
+                    "created_by": "Admin User",
+                    "role_grants": [{"role_id": g2_main_mem.id, "level": CounterPermissionLevel.write}],
+                    "counters": [
+                        {"name": "Hull Integrity", "color": "#3B82F6", "count": 78, "min": 0, "max": 100,
+                         "step": 5, "initial_count": 100, "view_mode": CounterViewMode.progress_bar, "position": 1},
+                        {"name": "Plasma Reserves", "color": "#F59E0B", "count": 42, "min": 0, "max": 80,
+                         "step": 1, "initial_count": 80, "view_mode": CounterViewMode.progress_bar, "position": 2},
+                        {"name": "Colonists in Cryo", "color": "#10B981", "count": 4870, "min": 0,
+                         "step": 1, "initial_count": 5000, "view_mode": CounterViewMode.number, "position": 3},
+                        {"name": "Days to Kepler-442b", "color": "#7C3AED", "count": 6, "min": 0, "max": 8,
+                         "step": 1, "initial_count": 8, "view_mode": CounterViewMode.segmented_clock, "position": 4},
+                    ],
+                },
+                {
+                    "initiative_id": g2_main.id,
+                    "name": "Krellix Diplomatic Tracker",
+                    "description": "Relations with the Krellix Dominion.",
+                    "created_by": "Admin User",
+                    "counters": [
+                        {"name": "Treaty Progress", "color": "#0EA5E9", "count": 2, "min": 0, "max": 5,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.segmented_clock, "position": 1},
+                        {"name": "Hostility Score", "color": "#DC2626", "count": 3, "min": 0, "max": 10,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 2},
+                    ],
+                },
+                {
+                    "initiative_id": g2_side.id,
+                    "name": "Heist Crew Funds",
+                    "description": "Loot stash and expenses for the Smuggler's Run crew.",
+                    "created_by": "Finley Goldtongue",
+                    "counters": [
+                        {"name": "Credits", "color": "#F59E0B", "count": 12500, "min": 0,
+                         "step": 100, "initial_count": 8000, "view_mode": CounterViewMode.number, "position": 1},
+                        {"name": "Bribes Spent", "color": "#7F1D1D", "count": 1800, "min": 0,
+                         "step": 50, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 2},
+                    ],
+                },
+            ])
+            await _enable_role_feature(session, [g2_main_mem, g2_side_mem], "counters_enabled")
+
+            # -- Calendar events --
+            print("  Creating Guild 2 calendar events...")
+            await _create_calendar_events(session, ids, g2, all_users, g2_tags, g2_docs, [
+                {
+                    "initiative_id": g2_main.id,
+                    "title": "Session 5: Colony Landfall",
+                    "description": "The fleet arrives at Kepler-442b.",
+                    "location": "Discord voice",
+                    "start_at": NOW + timedelta(days=3, hours=1),
+                    "end_at": NOW + timedelta(days=3, hours=4),
+                    "color": "#0EA5E9",
+                    "created_by": "Admin User",
+                    "attendees": [
+                        {"user": "Admin User", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Finley Goldtongue", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Kael Windrunner", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Aurelia Brightshield", "rsvp_status": RSVPStatus.tentative},
+                    ],
+                    "tags": ["combat"] if "combat" in g2_tags else [],
+                    "documents": ["Setting Bible: The Exodus Protocol"],
+                },
+                {
+                    "initiative_id": g2_main.id,
+                    "title": "Bi-weekly Starfall Session",
+                    "description": "Standing campaign night.",
+                    "start_at": NOW + timedelta(days=10, hours=2),
+                    "end_at": NOW + timedelta(days=10, hours=5),
+                    "color": "#0EA5E9",
+                    "created_by": "Admin User",
+                    "recurrence": {
+                        "frequency": "weekly", "interval": 2,
+                        "weekdays": ["sa"], "ends": "after_occurrences",
+                        "end_after_occurrences": 8,
+                    },
+                    "attendees": [
+                        {"user": "Admin User", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Kael Windrunner", "rsvp_status": RSVPStatus.accepted},
+                    ],
+                },
+                {
+                    "initiative_id": g2_main.id,
+                    "title": "Session 4: Distress Signal",
+                    "description": "Past session — investigated Sector 7G.",
+                    "start_at": NOW - timedelta(days=10, hours=23),
+                    "end_at": NOW - timedelta(days=10, hours=20),
+                    "color": "#0EA5E9",
+                    "created_by": "Admin User",
+                },
+                {
+                    "initiative_id": g2_main.id,
+                    "title": "Worldbuilding Day",
+                    "description": "All-day workshop with the players for the post-landfall arc.",
+                    "start_at": NOW + timedelta(days=21),
+                    "end_at": NOW + timedelta(days=21),
+                    "all_day": True,
+                    "color": "#10B981",
+                    "created_by": "Admin User",
+                    "tags": ["roleplay"] if "roleplay" in g2_tags else [],
+                },
+                {
+                    "initiative_id": g2_side.id,
+                    "title": "One-shot: Smuggler's Run",
+                    "description": "Heist night.",
+                    "location": "Discord voice",
+                    "start_at": NOW + timedelta(days=5, hours=3),
+                    "end_at": NOW + timedelta(days=5, hours=7),
+                    "color": "#F59E0B",
+                    "created_by": "Finley Goldtongue",
+                    "attendees": [
+                        {"user": "Finley Goldtongue", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Vex Shadowstep", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Kael Windrunner", "rsvp_status": RSVPStatus.pending},
+                    ],
+                    "documents": ["One-Shot: Smuggler's Run Briefing"],
+                },
+            ])
+            await _enable_role_feature(session, [g2_main_mem, g2_side_mem], "events_enabled")
+
+            # -- Custom properties --
+            print("  Creating Guild 2 property definitions + values...")
+            g2_main_props = await _create_property_definitions(session, ids, g2_main, [
+                {"name": "System", "type": PropertyType.select, "position": 1.0,
+                 "options": [
+                     {"value": "starfinder", "label": "Starfinder", "color": "#3B82F6"},
+                     {"value": "stars_without_number", "label": "Stars Without Number", "color": "#10B981"},
+                     {"value": "homebrew", "label": "Homebrew", "color": "#F59E0B"},
+                 ]},
+                {"name": "Tech Level", "type": PropertyType.number, "position": 2.0, "color": "#0EA5E9"},
+                {"name": "Faction Tags", "type": PropertyType.multi_select, "position": 3.0,
+                 "options": [
+                     {"value": "exodus_fleet", "label": "Exodus Fleet", "color": "#3B82F6"},
+                     {"value": "krellix", "label": "Krellix Dominion", "color": "#DC2626"},
+                     {"value": "merchant_guild", "label": "Merchant Guild", "color": "#F59E0B"},
+                 ]},
+                {"name": "Briefing Required", "type": PropertyType.checkbox, "position": 4.0},
+                {"name": "Owner", "type": PropertyType.user_reference, "position": 5.0},
+            ])
+            t_repair_id = g2_tasks["Repair the FTL drive core"].id
+            t_negotiate_id = g2_tasks["Negotiate passage through Krellix space"].id
+            t_mutiny_id = g2_tasks["Quell the mutiny on Deck 7"].id
+            doc_setting_g2_id = g2_docs["Setting Bible: The Exodus Protocol"].id
+            doc_krellix_id = g2_docs["Faction Guide: Krellix Dominion"].id
+
+            await _attach_property_values(session, ids, g2_main_props["System"], [
+                ("task", t_repair_id, "starfinder"),
+                ("task", t_negotiate_id, "homebrew"),
+            ])
+            await _attach_property_values(session, ids, g2_main_props["Tech Level"], [
+                ("task", t_repair_id, _Dec("9")),
+                ("task", t_negotiate_id, _Dec("7")),
+            ])
+            await _attach_property_values(session, ids, g2_main_props["Faction Tags"], [
+                ("task", t_negotiate_id, ["exodus_fleet", "krellix"]),
+                ("document", doc_krellix_id, ["krellix"]),
+            ])
+            await _attach_property_values(session, ids, g2_main_props["Briefing Required"], [
+                ("task", t_repair_id, True),
+                ("task", t_mutiny_id, False),
+            ])
+            await _attach_property_values(session, ids, g2_main_props["Owner"], [
+                ("task", t_repair_id, kael.id),
+                ("task", t_negotiate_id, finley.id),
+                ("document", doc_setting_g2_id, admin_user.id),
+            ])
+
+            g2_side_props = await _create_property_definitions(session, ids, g2_side, [
+                {"name": "Mission Status", "type": PropertyType.select, "position": 1.0,
+                 "options": [
+                     {"value": "scoping", "label": "Scoping"},
+                     {"value": "active", "label": "Active", "color": "#10B981"},
+                     {"value": "complete", "label": "Complete", "color": "#6B7280"},
+                 ]},
+                {"name": "Payout (credits)", "type": PropertyType.number, "position": 2.0},
+                {"name": "Map Link", "type": PropertyType.url, "position": 3.0},
+            ])
+            t_infiltrate_id = g2_tasks["Infiltrate Station Omega"].id
+            t_crack_id = g2_tasks["Crack the vault encryption"].id
+            await _attach_property_values(session, ids, g2_side_props["Mission Status"], [
+                ("task", t_infiltrate_id, "active"),
+                ("task", t_crack_id, "scoping"),
+            ])
+            await _attach_property_values(session, ids, g2_side_props["Payout (credits)"], [
+                ("task", t_infiltrate_id, _Dec("75000")),
+            ])
+
             # ==============================================================
             # GUILD 3: "Realm of Tides" — Pirate/Nautical Campaign
             # ==============================================================
@@ -2130,6 +2897,8 @@ async def seed() -> None:
                 pm_user=finley,
                 member_users=[admin_user, dm, thorn, kael, aurelia, sera],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             g3_navy, g3_navy_pm, g3_navy_mem = await _create_initiative(
@@ -2141,6 +2910,8 @@ async def seed() -> None:
                 pm_user=dm,
                 member_users=[finley, thorn, kael],
                 queues_enabled=True,
+                counters_enabled=True,
+                events_enabled=True,
             )
 
             # Projects
@@ -2559,6 +3330,198 @@ async def seed() -> None:
 
             await _enable_queue_permissions(session, [g3_main_mem])
 
+            # -- Counters --
+            print("  Creating Guild 3 counter groups...")
+            await _create_counter_groups(session, ids, g3, all_users, [
+                {
+                    "initiative_id": g3_main.id,
+                    "name": "The Crimson Maiden",
+                    "description": "Ship state for the pirate vessel.",
+                    "created_by": "Finley Goldtongue",
+                    "role_grants": [{"role_id": g3_main_mem.id, "level": CounterPermissionLevel.write}],
+                    "counters": [
+                        {"name": "Hull HP", "color": "#92400E", "count": 87, "min": 0, "max": 120,
+                         "step": 1, "initial_count": 120, "view_mode": CounterViewMode.progress_bar, "position": 1},
+                        {"name": "Sails", "color": "#FBBF24", "count": 4, "min": 0, "max": 4,
+                         "step": 1, "initial_count": 4, "view_mode": CounterViewMode.number, "position": 2},
+                        {"name": "Crew Morale", "color": "#10B981", "count": 6, "min": 0, "max": 10,
+                         "step": 1, "initial_count": 7, "view_mode": CounterViewMode.progress_bar, "position": 3},
+                        {"name": "Rations (days)", "color": "#65A30D", "count": 18, "min": 0,
+                         "step": 1, "initial_count": 30, "view_mode": CounterViewMode.number, "position": 4},
+                        {"name": "Storm Brewing", "color": "#1E40AF", "count": 2, "min": 0, "max": 6,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.segmented_clock, "position": 5},
+                    ],
+                },
+                {
+                    "initiative_id": g3_main.id,
+                    "name": "Plunder Vault",
+                    "description": "Treasure recovered toward the Leviathan's Heart.",
+                    "created_by": "Finley Goldtongue",
+                    "counters": [
+                        {"name": "Tidestones Recovered", "color": "#0EA5E9", "count": 1, "min": 0, "max": 3,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.progress_bar, "position": 1},
+                        {"name": "Gold (doubloons)", "color": "#F59E0B", "count": 4200, "min": 0,
+                         "step": 100, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 2},
+                    ],
+                },
+                {
+                    "initiative_id": g3_navy.id,
+                    "name": "Navy Threat Tracker",
+                    "description": "How close the Imperial Navy is to catching us.",
+                    "created_by": "Dungeon Master",
+                    "counters": [
+                        {"name": "Bounty Level", "color": "#DC2626", "count": 3, "min": 0, "max": 5,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.segmented_clock, "position": 1},
+                        {"name": "Ships of the Line Sunk", "color": "#1E40AF", "count": 2, "min": 0,
+                         "step": 1, "initial_count": 0, "view_mode": CounterViewMode.number, "position": 2},
+                    ],
+                },
+            ])
+            await _enable_role_feature(session, [g3_main_mem, g3_navy_mem], "counters_enabled")
+
+            # -- Calendar events --
+            print("  Creating Guild 3 calendar events...")
+            await _create_calendar_events(session, ids, g3, all_users, g3_tags, g3_docs, [
+                {
+                    "initiative_id": g3_main.id,
+                    "title": "Session 7: The Leviathan's Maw",
+                    "description": "Descent into the underwater grotto.",
+                    "location": "Captain's quarters (Roll20)",
+                    "start_at": NOW + timedelta(days=1, hours=2),
+                    "end_at": NOW + timedelta(days=1, hours=6),
+                    "color": "#DC2626",
+                    "created_by": "Finley Goldtongue",
+                    "attendees": [
+                        {"user": "Finley Goldtongue", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Thorn Ironforge", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Kael Windrunner", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Aurelia Brightshield", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Seraphina Dawnlight", "rsvp_status": RSVPStatus.tentative},
+                    ],
+                    "documents": ["The Shattered Seas: World Guide"],
+                },
+                {
+                    "initiative_id": g3_main.id,
+                    "title": "Sunday Pirate Night",
+                    "description": "Weekly campaign session.",
+                    "start_at": NOW + timedelta(days=6, hours=2),
+                    "end_at": NOW + timedelta(days=6, hours=5),
+                    "color": "#DC2626",
+                    "created_by": "Finley Goldtongue",
+                    "recurrence": {
+                        "frequency": "weekly", "interval": 1,
+                        "weekdays": ["su"], "ends": "never",
+                    },
+                    "attendees": [
+                        {"user": "Finley Goldtongue", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Kael Windrunner", "rsvp_status": RSVPStatus.accepted},
+                    ],
+                },
+                {
+                    "initiative_id": g3_main.id,
+                    "title": "Session 6: The Ironclad Falls",
+                    "description": "Past session — sank the HMS Ironclad.",
+                    "start_at": NOW - timedelta(days=7, hours=22),
+                    "end_at": NOW - timedelta(days=7, hours=19),
+                    "color": "#DC2626",
+                    "created_by": "Finley Goldtongue",
+                },
+                {
+                    "initiative_id": g3_navy.id,
+                    "title": "Naval Engagement: HMS Vengeance Pursuit",
+                    "description": "Cat-and-mouse with Admiral Blackwood's flagship.",
+                    "start_at": NOW + timedelta(days=4, hours=3),
+                    "end_at": NOW + timedelta(days=4, hours=6),
+                    "color": "#1E40AF",
+                    "created_by": "Dungeon Master",
+                    "attendees": [
+                        {"user": "Dungeon Master", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Finley Goldtongue", "rsvp_status": RSVPStatus.accepted},
+                        {"user": "Thorn Ironforge", "rsvp_status": RSVPStatus.pending},
+                    ],
+                    "documents": ["Intelligence Report: Admiral Blackwood"],
+                },
+                {
+                    "initiative_id": g3_navy.id,
+                    "title": "Shore Leave (all-day)",
+                    "description": "Crew gets a day in Port Havoc.",
+                    "start_at": NOW + timedelta(days=12),
+                    "end_at": NOW + timedelta(days=12),
+                    "all_day": True,
+                    "color": "#FBBF24",
+                    "created_by": "Dungeon Master",
+                },
+            ])
+            await _enable_role_feature(session, [g3_main_mem, g3_navy_mem], "events_enabled")
+
+            # -- Custom properties --
+            print("  Creating Guild 3 property definitions + values...")
+            g3_main_props = await _create_property_definitions(session, ids, g3_main, [
+                {"name": "Arc", "type": PropertyType.select, "position": 1.0, "color": "#DC2626",
+                 "options": [
+                     {"value": "shattered_seas", "label": "Shattered Seas"},
+                     {"value": "tidestone_hunt", "label": "Tidestone Hunt", "color": "#0EA5E9"},
+                     {"value": "leviathan_finale", "label": "Leviathan Finale", "color": "#7F1D1D"},
+                 ]},
+                {"name": "Crew Reward (gold)", "type": PropertyType.number, "position": 2.0, "color": "#F59E0B"},
+                {"name": "Quest Hooks", "type": PropertyType.multi_select, "position": 3.0,
+                 "options": [
+                     {"value": "treasure", "label": "Treasure", "color": "#F59E0B"},
+                     {"value": "rescue", "label": "Rescue", "color": "#10B981"},
+                     {"value": "revenge", "label": "Revenge", "color": "#DC2626"},
+                     {"value": "exploration", "label": "Exploration", "color": "#0EA5E9"},
+                 ]},
+                {"name": "Spoilers Allowed", "type": PropertyType.checkbox, "position": 4.0},
+                {"name": "Quest Giver", "type": PropertyType.user_reference, "position": 5.0},
+                {"name": "Map Link", "type": PropertyType.url, "position": 6.0},
+            ])
+            t_leviathan_id = g3_tasks["Defeat the Leviathan guardian"].id
+            t_decipher_id = g3_tasks["Decipher the Leviathan Map"].id
+            t_collect_id = g3_tasks["Collect the three Tidestones"].id
+            doc_world_g3_id = g3_docs["The Shattered Seas: World Guide"].id
+            doc_crew_g3_id = g3_docs["Crew Manifest: The Crimson Maiden"].id
+
+            await _attach_property_values(session, ids, g3_main_props["Arc"], [
+                ("task", t_leviathan_id, "leviathan_finale"),
+                ("task", t_decipher_id, "tidestone_hunt"),
+                ("task", t_collect_id, "tidestone_hunt"),
+            ])
+            await _attach_property_values(session, ids, g3_main_props["Crew Reward (gold)"], [
+                ("task", t_leviathan_id, _Dec("25000")),
+                ("task", t_collect_id, _Dec("9000")),
+            ])
+            await _attach_property_values(session, ids, g3_main_props["Quest Hooks"], [
+                ("task", t_leviathan_id, ["treasure", "revenge"]),
+                ("task", t_decipher_id, ["treasure", "exploration"]),
+            ])
+            await _attach_property_values(session, ids, g3_main_props["Spoilers Allowed"], [
+                ("document", doc_world_g3_id, True),
+                ("document", doc_crew_g3_id, False),
+            ])
+            await _attach_property_values(session, ids, g3_main_props["Quest Giver"], [
+                ("task", t_decipher_id, finley.id),
+            ])
+            await _attach_property_values(session, ids, g3_main_props["Map Link"], [
+                ("document", doc_world_g3_id, "https://example.com/maps/shattered-seas"),
+            ])
+
+            g3_navy_props = await _create_property_definitions(session, ids, g3_navy, [
+                {"name": "Threat Level", "type": PropertyType.select, "position": 1.0,
+                 "options": [
+                     {"value": "frigate", "label": "Frigate", "color": "#10B981"},
+                     {"value": "ship_of_the_line", "label": "Ship of the Line", "color": "#F59E0B"},
+                     {"value": "flagship", "label": "Flagship", "color": "#DC2626"},
+                 ]},
+                {"name": "Engagement Date", "type": PropertyType.date, "position": 2.0},
+            ])
+            t_evade_id = g3_tasks["Evade the HMS Vengeance"].id
+            await _attach_property_values(session, ids, g3_navy_props["Threat Level"], [
+                ("task", t_evade_id, "flagship"),
+            ])
+            await _attach_property_values(session, ids, g3_navy_props["Engagement Date"], [
+                ("task", t_evade_id, (NOW + timedelta(days=4)).date()),
+            ])
+
         # Transaction committed by context manager
 
     _save_state(ids.data)
@@ -2574,6 +3537,23 @@ async def seed() -> None:
     print(f"  {total_projects} projects, {total_tasks} tasks")
     print(f"  {total_docs} documents, {len(ids.data['tags'])} tags")
     print(f"  {len(ids.data['queues'])} queues, {len(ids.data['queue_items'])} queue items")
+    print(
+        f"  {len(ids.data['counter_groups'])} counter groups, "
+        f"{len(ids.data['counters'])} counters"
+    )
+    print(
+        f"  {len(ids.data['calendar_events'])} calendar events, "
+        f"{len(ids.data['calendar_event_attendees'])} attendees"
+    )
+    total_property_values = (
+        len(ids.data["task_property_values"])
+        + len(ids.data["document_property_values"])
+        + len(ids.data["calendar_event_property_values"])
+    )
+    print(
+        f"  {len(ids.data['property_definitions'])} property definitions, "
+        f"{total_property_values} property values"
+    )
     print(f"  {len(ids.data['comments'])} comments")
     print(f"  {len(ids.data['project_favorites'])} favorites, {len(ids.data['document_links'])} doc links")
     print(f"\n  Superuser login: {settings.FIRST_SUPERUSER_EMAIL} / {settings.FIRST_SUPERUSER_PASSWORD}")
@@ -2597,6 +3577,111 @@ async def clean() -> None:
             # Delete in reverse dependency order.
             # flush() between groups ensures SQL executes in the right order
             # so FK constraints are satisfied.
+
+            # Property values (composite keys, all FK to property_definitions
+            # plus to tasks / documents / calendar_events). Drop before any of
+            # those parents are touched.
+            for pv in state.get("task_property_values", []):
+                obj = await session.get(
+                    TaskPropertyValue, (pv["task_id"], pv["property_id"])
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            for pv in state.get("document_property_values", []):
+                obj = await session.get(
+                    DocumentPropertyValue, (pv["document_id"], pv["property_id"])
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            for pv in state.get("calendar_event_property_values", []):
+                obj = await session.get(
+                    CalendarEventPropertyValue, (pv["event_id"], pv["property_id"])
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed property values")
+
+            # Calendar event children (composite, FK to calendar_events + tag /
+            # document / user). Must precede tag, document, user deletes.
+            for ced in state.get("calendar_event_documents", []):
+                obj = await session.get(
+                    CalendarEventDocument,
+                    (ced["calendar_event_id"], ced["document_id"]),
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            for cet in state.get("calendar_event_tags", []):
+                obj = await session.get(
+                    CalendarEventTag, (cet["calendar_event_id"], cet["tag_id"])
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            for cea in state.get("calendar_event_attendees", []):
+                obj = await session.get(
+                    CalendarEventAttendee, (cea["calendar_event_id"], cea["user_id"])
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed calendar event children")
+
+            # Calendar events (FK to initiative, user)
+            for eid in state.get("calendar_events", []):
+                obj = await session.get(CalendarEvent, eid)
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed calendar events")
+
+            # Counter group children (composite, FK to counter_groups +
+            # initiative_roles / users). Must precede initiative_roles / users.
+            for cgrp in state.get("counter_group_role_permissions", []):
+                obj = await session.get(
+                    CounterGroupRolePermission,
+                    (cgrp["counter_group_id"], cgrp["initiative_role_id"]),
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            for cgp in state.get("counter_group_permissions", []):
+                obj = await session.get(
+                    CounterGroupPermission,
+                    (cgp["counter_group_id"], cgp["user_id"]),
+                )
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed counter group permissions")
+
+            # Counters (FK to counter_groups)
+            for cid in state.get("counters", []):
+                obj = await session.get(Counter, cid)
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed counters")
+
+            # Counter groups (FK to initiative, user)
+            for cgid in state.get("counter_groups", []):
+                obj = await session.get(CounterGroup, cgid)
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed counter groups")
+
+            # Property definitions (FK to initiative) — drop after all
+            # value rows are gone, before initiatives.
+            for pdid in state.get("property_definitions", []):
+                obj = await session.get(PropertyDefinition, pdid)
+                if obj:
+                    await session.delete(obj)
+            await session.flush()
+            print("  Removed property definitions")
 
             # Comments
             for cid in state.get("comments", []):
