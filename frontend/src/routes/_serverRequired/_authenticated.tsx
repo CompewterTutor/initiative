@@ -155,6 +155,8 @@ function AppLayout() {
   const activeProjectId =
     activeRecentKey?.entityType === "project" ? activeRecentKey.entityId : null;
 
+  // const isDark = document.documentElement.classList.contains("dark");
+
   return (
     <>
       <CommandCenter />
@@ -208,6 +210,15 @@ function AppLayout() {
                 </div>
               </div>
               <div className="flex justify-between">
+                {/*<div
+                  className="h-full w-full opacity-20 fixed"
+                  style={{
+                    backgroundImage: `url(${isDark ? "/images/hexWhite.svg" : "/images/hexBlack.svg"})`,
+                    backgroundPosition: "center",
+                    backgroundBlendMode: "screen",
+                    backgroundSize: "37px 64px",
+                  }}
+                />*/}
                 <main className="container mx-auto min-w-0 p-4 pb-20 md:p-8 md:pb-20">
                   <Suspense fallback={<PageLoader />}>
                     <Outlet />
