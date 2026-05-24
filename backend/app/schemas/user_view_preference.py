@@ -16,9 +16,10 @@ import json
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from app.models.user_view_preference import MAX_SCOPE_KEY_LENGTH, MAX_VALUE_JSON_BYTES
+from app.schemas.base import SanitizedBaseModel
 
 
 def _validate_value_size(value: Any) -> Any:
@@ -31,7 +32,7 @@ def _validate_value_size(value: Any) -> Any:
     return value
 
 
-class UserViewPreferenceRead(BaseModel):
+class UserViewPreferenceRead(SanitizedBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     scope_key: str
@@ -39,7 +40,7 @@ class UserViewPreferenceRead(BaseModel):
     updated_at: datetime
 
 
-class UserViewPreferenceWrite(BaseModel):
+class UserViewPreferenceWrite(SanitizedBaseModel):
     """Body for ``PUT /user-view-preferences/{scope_key}``."""
 
     value: Any
@@ -50,7 +51,7 @@ class UserViewPreferenceWrite(BaseModel):
         return _validate_value_size(v)
 
 
-class UserViewPreferencesMap(BaseModel):
+class UserViewPreferencesMap(SanitizedBaseModel):
     """Response for ``GET /user-view-preferences`` — keyed by scope."""
 
     items: dict[str, Any] = Field(default_factory=dict)
