@@ -2196,7 +2196,8 @@ async def seed() -> None:
                 {"name": "Map Link", "type": PropertyType.url, "position": 3.0, "color": "#3B82F6"},
             ])
             await _attach_property_values(session, ids, g1_lmop_props["Map Link"], [
-                ("document", doc_setting_id, "https://example.com/maps/lmop-overview"),
+                ("document", g1_docs["NPC Compendium: Phandelver"].id,
+                 "https://example.com/maps/lmop-overview"),
             ])
 
             # ==============================================================
