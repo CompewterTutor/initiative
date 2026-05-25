@@ -635,10 +635,10 @@ export const LandingCinematic = () => {
         <div className="aurora-bg absolute inset-0" aria-hidden="true" />
 
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute inset-0 opacity-[0.2]"
           style={{
-            backgroundImage: `url(${isDark ? "/images/gridWhite.svg" : "/images/gridBlack.svg"})`,
-            backgroundSize: "64px 64px",
+            backgroundImage: `url(${isDark ? "/images/hexWhite.svg" : "/images/hexBlack.svg"})`,
+            backgroundSize: "37px 64px",
             backgroundPosition: "center",
             transform: `translateY(${layerSlow}px)`,
           }}
@@ -906,8 +906,8 @@ export const LandingCinematic = () => {
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: `url(${isDark ? "/images/gridWhite.svg" : "/images/gridBlack.svg"})`,
-            backgroundSize: "48px 48px",
+            backgroundImage: `url(${isDark ? "/images/hexWhite.svg" : "/images/hexBlack.svg"})`,
+            backgroundSize: "28px 48px",
           }}
           aria-hidden="true"
         />
