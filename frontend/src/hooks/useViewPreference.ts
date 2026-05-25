@@ -95,6 +95,12 @@ export function useViewPreference<T>(
     },
   });
 
+  // TanStack Query stabilises `mutate` independently of the `useMutation`
+  // result object, which churns reference on every status transition. Depend
+  // on `mutate` only so `setValue` stays referentially stable across PUTs;
+  // otherwise every downstream useCallback/useEffect that lists `setValue`
+  // re-runs after each write.
+  const { mutate } = mutation;
   const setValue = useCallback(
     (next: T | ((prev: T) => T)) => {
       // Compute the resolved next value off the *current* cache, not the
@@ -115,11 +121,11 @@ export function useViewPreference<T>(
       pendingWrites.set(scopeKey, {
         value: resolved,
         timer: setTimeout(() => {
-          mutation.mutate(scopeKey);
+          mutate(scopeKey);
         }, WRITE_DEBOUNCE_MS),
       });
     },
-    [queryClient, scopeKey, fallback, mutation]
+    [queryClient, scopeKey, fallback, mutate]
   );
 
   // Flush any pending write on unmount so navigating away doesn't drop

@@ -83,10 +83,18 @@ async def test_delete_missing_is_idempotent(client: AsyncClient, session: AsyncS
 
 
 @pytest.mark.integration
-async def test_cross_user_isolation_via_rls(
+async def test_cross_user_isolation_via_application_filter(
     client: AsyncClient, session: AsyncSession
 ):
-    """User A's PUT must not surface in user B's GET (RLS self-scope)."""
+    """User A's PUT must not surface in user B's GET.
+
+    Note: the test `session` fixture connects as the database superuser,
+    which bypasses RLS entirely. What this test actually exercises is the
+    application-level ``WHERE user_id == current_user.id`` filter in the
+    endpoint. The DB-level ``user_view_preferences_self_scope`` policy is
+    not covered here — verifying it requires a fixture that connects as
+    ``app_user`` (the role RLS is forced against).
+    """
     user_a = await create_user(session, email="a@example.com")
     user_b = await create_user(session, email="b@example.com")
 

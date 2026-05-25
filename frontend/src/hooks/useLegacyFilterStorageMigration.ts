@@ -30,6 +30,7 @@ const FLAT_KEYS: readonly string[] = [
   "initiative-my-documents-filters",
   "initiative-my-projects-filters",
   "initiative-my-calendar-prefs",
+  "initiative-my-calendar-tasks-filters",
   "documents:view-mode",
   "documents:tag-filters",
   "project:list:sort",
