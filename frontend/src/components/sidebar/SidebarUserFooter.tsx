@@ -24,7 +24,6 @@ import { guildPath } from "@/lib/guildUrl";
 export interface SidebarUserFooterProps {
   userId: number | null;
   userDisplayName: string;
-  userEmail: string;
   userInitials: string;
   avatarSrc: string | null;
   isGuildAdmin: boolean;
@@ -41,7 +40,6 @@ export interface SidebarUserFooterProps {
 export const SidebarUserFooter = ({
   userId,
   userDisplayName,
-  userEmail,
   userInitials,
   avatarSrc,
   isGuildAdmin,
@@ -75,7 +73,6 @@ export const SidebarUserFooter = ({
                 </Avatar>
                 <div className="flex min-w-0 flex-1 flex-col items-start overflow-hidden text-left">
                   <span className="w-full truncate font-medium text-sm">{userDisplayName}</span>
-                  <span className="w-full truncate text-muted-foreground text-xs">{userEmail}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>

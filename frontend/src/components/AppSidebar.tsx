@@ -48,6 +48,7 @@ import { useQueuesList } from "@/hooks/useQueues";
 import { useTags } from "@/hooks/useTags";
 import { guildPath } from "@/lib/guildUrl";
 import { getInitials } from "@/lib/initials";
+import { obfuscateEmail } from "@/lib/obfuscateEmail";
 import { getItem, setItem } from "@/lib/storage";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 
@@ -245,8 +246,7 @@ export const AppSidebar = () => {
     [user, isGuildAdmin]
   );
 
-  const userDisplayName = user?.full_name ?? user?.email ?? "User";
-  const userEmail = user?.email ?? "";
+  const userDisplayName = user?.full_name ?? (obfuscateEmail(user?.email) || "User");
   const userInitials = useMemo(
     () => getInitials(user?.full_name, user?.email),
     [user?.full_name, user?.email]
@@ -594,7 +594,6 @@ export const AppSidebar = () => {
         <SidebarUserFooter
           userId={user?.id ?? null}
           userDisplayName={userDisplayName}
-          userEmail={userEmail}
           userInitials={userInitials}
           avatarSrc={avatarSrc}
           isGuildAdmin={isGuildAdmin}
