@@ -246,7 +246,7 @@ export const AppSidebar = () => {
     [user, isGuildAdmin]
   );
 
-  const userDisplayName = user?.full_name ?? obfuscateEmail(user?.email) ?? "User";
+  const userDisplayName = (user?.full_name ?? obfuscateEmail(user?.email)) || "User";
   const userInitials = useMemo(
     () => getInitials(user?.full_name, user?.email),
     [user?.full_name, user?.email]
