@@ -21,7 +21,7 @@ const playTickSound = (direction: "up" | "down"): void => {
   if (direction === "up") {
     if (!tickUpAudio) {
       tickUpAudio = new Audio(tickUrl);
-      tickUpAudio.volume = 0.6;
+      tickUpAudio.volume = 1;
     }
     tickUpAudio.currentTime = 0;
     void tickUpAudio.play().catch(() => {
@@ -30,7 +30,7 @@ const playTickSound = (direction: "up" | "down"): void => {
   } else {
     if (!tickDownAudio) {
       tickDownAudio = new Audio(tickReverseUrl);
-      tickDownAudio.volume = 0.6;
+      tickDownAudio.volume = 1;
     }
     tickDownAudio.currentTime = 0;
     void tickDownAudio.play().catch(() => {});
