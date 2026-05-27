@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Counter `+`/`−` buttons disable at their bounds.** When a counter is at its configured `max`, the `+` button is disabled; at `min`, the `−` button is disabled. Applies to both the row/grid cards and the focus view. Counters without a configured bound (`null` min/max) are unaffected.
 - **Counter `+`/`−` buttons tap more reliably on mobile.** Added `touch-action: manipulation` to the step buttons so a slight finger wobble during a press no longer cancels the click as a swipe, and the synthetic-click delay is gone.
+- Removed email from the app sidebar to protect user privacy.
 
 ## [0.46.1] - 2026-05-24
 
