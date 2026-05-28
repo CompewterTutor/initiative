@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Password complexity requirements.** New passwords must be at least 12 characters and are checked against the HaveIBeenPwned breach corpus via the k-anonymity API (only a 5-char SHA-1 prefix leaves the server). Enforced on registration, password reset, self password change, and admin user creation/update; no character-class rules per NIST SP 800-63B guidance. Existing accounts are grandfathered — short or breached passwords keep working at login until the next change. Disable the breach check by setting `HIBP_CHECK_ENABLED=false` in the backend env (e.g. for air-gapped deployments).
+- **Task edit page shows who created the task and when.** A small avatar + "Created by {name} · {relative time}" chip sits inline with the task title (right-aligned, out of the way of the edit form). Hovering reveals the absolute creation timestamp. Follows the existing avatar conventions (deterministic colour fallback, anonymized-user handling, `User #<id>` fallback when the creator is no longer in the guild).
 
 ## [0.46.2] - 2026-05-27
 
