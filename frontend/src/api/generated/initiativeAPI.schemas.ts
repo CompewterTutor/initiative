@@ -1602,10 +1602,7 @@ export interface PasswordResetRequest {
 export interface PasswordResetSubmit {
   /** @minLength 10 */
   token: string;
-  /**
-   * @minLength 8
-   * @maxLength 256
-   */
+  /** @maxLength 256 */
   password: string;
 }
 
@@ -2976,6 +2973,7 @@ export interface UserCreate {
   email: string;
   full_name?: string | null;
   role?: UserRole;
+  /** @maxLength 256 */
   password: string;
   timezone?: string | null;
   captcha_token?: string | null;

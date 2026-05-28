@@ -5,6 +5,8 @@
   "CAPTCHA_INVALID": "La vérification du captcha a échoué. Veuillez réessayer.",
   "UNABLE_TO_CREATE_USER": "Impossible de créer l'utilisateur",
   "INCORRECT_CREDENTIALS": "Adresse e-mail ou mot de passe incorrect",
+  "PASSWORD_TOO_SHORT": "Le mot de passe doit comporter au moins 12 caractères.",
+  "PASSWORD_BREACHED": "Ce mot de passe figure dans une fuite de données connue. Choisissez-en un autre.",
   "INACTIVE_USER": "Utilisateur inactif",
   "EMAIL_NOT_VERIFIED": "Adresse e-mail non vérifiée",
   "TOKEN_NOT_FOUND": "Jeton introuvable",
