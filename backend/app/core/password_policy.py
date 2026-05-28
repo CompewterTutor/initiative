@@ -2,7 +2,9 @@
 
 Aligned with NIST SP 800-63B (rev. 3, 2017):
 
-  - Minimum length 12, maximum 256.
+  - Minimum length 12. The schema layer enforces ``max_length=256``
+    so an over-long payload is rejected before it ever reaches argon2
+    or HIBP.
   - No character-class requirements (mandated complexity rules push
     users toward predictable patterns and reduce real entropy).
   - Reject passwords present in known breach corpora.
@@ -22,12 +24,13 @@ from app.services import hibp
 
 
 # Mirrored by ``frontend/src/lib/passwordPolicy.ts`` — keep both in sync
-# when you change the floor. The schema-level Pydantic ``min_length``
-# constraint serves as a cheap first gate so the endpoint never even
-# enters the policy for an obviously-short value, but ``MIN_LENGTH``
-# below remains the source of truth surfaced via the error code.
+# when you change the floor. The schemas hold no ``min_length`` of their
+# own; short passwords reach the policy here and surface a flat
+# ``PASSWORD_TOO_SHORT`` code rather than Pydantic's structured detail.
+# The schema-level ``max_length=256`` does fire first for over-long
+# input, by design — see ``hibp.is_password_breached`` and the
+# argon2 cost of hashing huge payloads.
 PASSWORD_MIN_LENGTH = 12
-PASSWORD_MAX_LENGTH = 256
 
 
 class PasswordPolicyError(Exception):
@@ -46,13 +49,11 @@ class PasswordPolicyError(Exception):
 async def validate_new_password(password: str) -> None:
     """Validate a candidate password or raise ``PasswordPolicyError``.
 
-    Order matters: cheap local checks first, network check last, so
+    Order matters: cheap local check first, network check last, so
     obviously-short inputs never reach HIBP.
     """
     if len(password) < PASSWORD_MIN_LENGTH:
         raise PasswordPolicyError(PasswordMessages.TOO_SHORT)
-    if len(password) > PASSWORD_MAX_LENGTH:
-        raise PasswordPolicyError(PasswordMessages.TOO_LONG)
     if await hibp.is_password_breached(password):
         raise PasswordPolicyError(PasswordMessages.BREACHED)
 

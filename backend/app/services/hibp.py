@@ -47,7 +47,14 @@ async def is_password_breached(password: str) -> bool:
     if not password:
         return False
 
-    sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+    # ``usedforsecurity=False`` is required so this call doesn't raise
+    # ValueError on FIPS-enforcing OpenSSL builds (SHA-1 is disallowed
+    # there for security uses, but the HIBP k-anonymity scheme uses it
+    # purely as a content fingerprint for an external lookup). Without
+    # this flag, the exception escapes the ``httpx.HTTPError`` handler
+    # below and turns every password change into a 500 instead of
+    # failing open.
+    sha1 = hashlib.sha1(password.encode("utf-8"), usedforsecurity=False).hexdigest().upper()
     prefix, suffix = sha1[:5], sha1[5:]
 
     try:

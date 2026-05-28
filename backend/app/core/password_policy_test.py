@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from app.core import password_policy
 from app.core.messages import PasswordMessages
 from app.core.password_policy import (
     PASSWORD_MIN_LENGTH,
@@ -36,11 +35,6 @@ class TestValidateNewPassword:
         with pytest.raises(PasswordPolicyError) as excinfo:
             await validate_new_password("")
         assert excinfo.value.code == PasswordMessages.TOO_SHORT
-
-    async def test_rejects_password_over_maximum_length(self):
-        with pytest.raises(PasswordPolicyError) as excinfo:
-            await validate_new_password("a" * (password_policy.PASSWORD_MAX_LENGTH + 1))
-        assert excinfo.value.code == PasswordMessages.TOO_LONG
 
     async def test_rejects_breached_password(self, monkeypatch):
         calls: list[str] = []

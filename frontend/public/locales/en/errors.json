@@ -6,7 +6,6 @@
   "UNABLE_TO_CREATE_USER": "Unable to create user",
   "INCORRECT_CREDENTIALS": "Incorrect email or password",
   "PASSWORD_TOO_SHORT": "Password must be at least 12 characters.",
-  "PASSWORD_TOO_LONG": "Password is too long.",
   "PASSWORD_BREACHED": "This password has appeared in a known data breach. Please choose a different one.",
   "INACTIVE_USER": "Inactive user",
   "EMAIL_NOT_VERIFIED": "Email not verified",

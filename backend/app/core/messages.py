@@ -240,7 +240,6 @@ class AdminMessages:
 
 class PasswordMessages:
     TOO_SHORT = "PASSWORD_TOO_SHORT"
-    TOO_LONG = "PASSWORD_TOO_LONG"
     BREACHED = "PASSWORD_BREACHED"
 
 
