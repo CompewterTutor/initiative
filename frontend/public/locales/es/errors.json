@@ -141,6 +141,8 @@
   "DOCUMENT_VERSION_NOT_FOUND": "Versión no encontrada",
   "DOCUMENT_CANNOT_DELETE_LAST_VERSION": "No se puede eliminar la única versión; elimina el documento en su lugar",
   "DOCUMENT_VERSION_TYPE_MISMATCH": "Una nueva versión debe ser del mismo tipo de archivo que el original",
+  "DOCUMENT_VERSION_CONFLICT": "Alguien subió una versión al mismo tiempo. Inténtalo de nuevo.",
+  "DOCUMENT_INVALID_FILE": "Archivo no compatible o no válido. Compatibles: PDF, Word, Excel, PowerPoint, TXT, HTML, imágenes, Markdown (máx. 50 MB).",
   "COMMENT_NOT_FOUND": "Comentario no encontrado",
   "COMMENT_PERMISSION_DENIED": "No autorizado para comentar",
   "COMMENT_PARENT_NOT_FOUND": "Comentario padre no encontrado",

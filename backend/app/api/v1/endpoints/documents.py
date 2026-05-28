@@ -6,6 +6,7 @@ from typing import Annotated, List, Literal, Optional
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import delete as sa_delete, exists, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -858,8 +859,8 @@ async def upload_document_file(
             filename=file.filename,
             content_type=file.content_type,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.INVALID_FILE)
 
     # Save file to uploads directory
     file_url = attachments_service.save_document_file(contents, extension)
@@ -960,8 +961,8 @@ async def upload_document_version(
             filename=file.filename,
             content_type=file.content_type,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.INVALID_FILE)
 
     # A new version must keep the document's original file type.
     if _normalize_mime(mime_type) != _normalize_mime(document.file_content_type):
@@ -1008,7 +1009,20 @@ async def upload_document_version(
     if mime_type and mime_type.startswith("image/"):
         document.featured_image_url = file_url
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # The (document_id, version_number) unique constraint rejected this row:
+        # a concurrent upload claimed the same next version number between our
+        # MAX() read and this commit. Roll back, drop the orphaned blob, and ask
+        # the caller to retry rather than surfacing a 500.
+        await session.rollback()
+        await reapply_rls_context(session)
+        attachments_service.delete_upload_by_url(file_url)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=DocumentMessages.VERSION_CONFLICT,
+        )
     await reapply_rls_context(session)
     await session.refresh(version)
     return serialize_document_file_version(version, is_current=True)
@@ -1023,6 +1037,8 @@ async def list_document_versions(
 ) -> List[DocumentFileVersionRead]:
     """List all stored versions of a file document, newest first. Read access."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
+    if document.document_type != DocumentType.file:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.NOT_A_FILE_DOCUMENT)
     _require_document_access(document, current_user, access="read")
 
     result = await session.exec(

@@ -235,6 +235,36 @@ async def test_upload_version_non_file_document_rejected(
     assert resp.status_code == 400
     assert resp.json()["detail"] == "DOCUMENT_NOT_A_FILE_DOCUMENT"
 
+    # Listing versions on a non-file document is rejected too.
+    list_resp = await client.get(f"/api/v1/documents/{native_id}/versions", headers=headers)
+    assert list_resp.status_code == 400
+    assert list_resp.json()["detail"] == "DOCUMENT_NOT_A_FILE_DOCUMENT"
+
+
+@pytest.mark.integration
+async def test_upload_version_unsupported_file_rejected(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """An unsupported/invalid file is rejected with a coded error."""
+    owner, guild, initiative = await _setup_guild_with_owner(session)
+    doc = await _upload_initial_file_doc(client, guild=guild, user=owner, initiative=initiative)
+
+    headers = get_guild_headers(guild, owner)
+    resp = await client.post(
+        f"/api/v1/documents/{doc['id']}/versions",
+        headers=headers,
+        files={"file": ("evil.exe", b"MZ\x90\x00\x03 not allowed", "application/x-msdownload")},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "DOCUMENT_INVALID_FILE"
+
+    for v in (
+        await session.exec(
+            select(DocumentFileVersion).where(DocumentFileVersion.document_id == doc["id"])
+        )
+    ).all():
+        (_uploads_dir() / v.file_url.split("/")[-1]).unlink(missing_ok=True)
+
 
 @pytest.mark.integration
 async def test_list_versions_read_user_allowed_and_ordered(

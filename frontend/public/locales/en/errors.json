@@ -141,6 +141,8 @@
   "DOCUMENT_VERSION_NOT_FOUND": "Version not found",
   "DOCUMENT_CANNOT_DELETE_LAST_VERSION": "Can't delete the only version — delete the document instead",
   "DOCUMENT_VERSION_TYPE_MISMATCH": "A new version must be the same file type as the original",
+  "DOCUMENT_VERSION_CONFLICT": "Someone uploaded a version at the same time. Please try again.",
+  "DOCUMENT_INVALID_FILE": "Unsupported or invalid file. Supported: PDF, Word, Excel, PowerPoint, TXT, HTML, images, Markdown (max 50 MB).",
   "COMMENT_NOT_FOUND": "Comment not found",
   "COMMENT_PERMISSION_DENIED": "Not authorized to comment",
   "COMMENT_PARENT_NOT_FOUND": "Parent comment not found",
