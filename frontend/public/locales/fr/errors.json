@@ -247,5 +247,7 @@
   "COUNTER_VIEW_MODE_REQUIRES_BOUNDS": "La barre de progression et l’horloge segmentée nécessitent un min et un max",
   "COUNTER_MIN_GREATER_THAN_MAX": "Le minimum ne peut pas être supérieur au maximum",
   "COUNTER_STEP_MUST_BE_POSITIVE": "Le pas doit être un nombre positif",
-  "COUNTER_OUT_OF_RANGE": "La valeur est en dehors de la plage autorisée"
+  "COUNTER_OUT_OF_RANGE": "La valeur est en dehors de la plage autorisée",
+  "GUILD_INVALID_PASSWORD": "Mot de passe incorrect",
+  "GUILD_CONFIRMATION_MISMATCH": "Le texte de confirmation ne correspond pas"
 }
