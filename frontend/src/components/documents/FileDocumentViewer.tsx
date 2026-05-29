@@ -364,7 +364,7 @@ export const FileDocumentViewer = ({
       </div>
       {!isViewingCurrent && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 text-sm dark:text-amber-400">
-          {t("versions.viewingOld")}
+          {t(canEdit ? "versions.viewingOldCanEdit" : "versions.viewingOld")}
         </div>
       )}
       <input
