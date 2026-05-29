@@ -1074,6 +1074,17 @@ async def delete_document_version(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.NOT_A_FILE_DOCUMENT)
     _require_document_access(document, current_user, require_owner=True)
 
+    # Serialize concurrent deletes against the same document by taking a
+    # row-level lock on the document row. Without it, two owner DELETEs that
+    # both observe ``len(versions) >= 2`` can both pass the "last version"
+    # guard and race to delete different rows — leaving zero versions, and
+    # (in the worst case) ``document.file_url`` pointing at a blob that the
+    # second request also deleted. Holding the lock until commit means the
+    # second request re-reads the version list after the first one finishes.
+    await session.exec(
+        select(Document).where(Document.id == document_id).with_for_update()
+    )
+
     result = await session.exec(
         select(DocumentFileVersion)
         .where(DocumentFileVersion.document_id == document_id)
