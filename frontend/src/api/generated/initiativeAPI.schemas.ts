@@ -1143,6 +1143,24 @@ export interface GuildCreate {
   icon_base64?: string | null;
 }
 
+/**
+ * Body for ``DELETE /guilds/{id}``.
+ *
+ * Deleting a guild cascades through every initiative, project, task,
+ * document, membership, invite, and settings row it owns, so the
+ * endpoint gates on two confirmations:
+ *
+ * - ``confirmation_text`` must equal ``DELETE GUILD <NAME>`` (the whole
+ *   phrase uppercased) so the action can't be triggered by a stray click.
+ * - ``password`` is the current user's password. It is ignored for
+ *   OIDC-only users (who have no usable password), mirroring the
+ *   account-deletion endpoint, which is why it defaults to empty.
+ */
+export interface GuildDeletionRequest {
+  password?: string;
+  confirmation_text: string;
+}
+
 export interface GuildInviteAcceptRequest {
   code: string;
 }

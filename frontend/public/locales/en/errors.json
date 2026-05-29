@@ -23,6 +23,8 @@
   "GUILD_CREATION_DISABLED": "Guild creation is disabled",
   "GUILD_NAME_REQUIRED": "Guild name is required",
   "GUILD_NOT_FOUND": "Guild not found",
+  "GUILD_INVALID_PASSWORD": "Incorrect password",
+  "GUILD_CONFIRMATION_MISMATCH": "Confirmation text does not match",
   "GUILD_MEMBERSHIP_CREATE_FAILED": "Failed to create guild membership",
   "GUILD_MEMBERSHIP_MISSING": "Guild membership missing",
   "CANNOT_CHANGE_OWN_ROLE": "Cannot change your own guild role",

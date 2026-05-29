@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Guild deletion is harder to trigger by accident.** The delete control moved off the first guild-settings tab into its own dedicated "Danger zone" tab, which now spells out exactly what deletion removes (initiatives, projects, tasks, documents, members, invites, and settings). Confirming requires typing `DELETE GUILD <NAME>` (the whole phrase uppercased) and re-entering your password; OIDC-only accounts, which have no password, are asked only for the phrase.
 - **Active Guild highlight.** The active guild is now highlighted by a more subtle bottom pill when on a home page (My Tasks, My Documents, etc), to reduce confusion on where you are in the app.
 
 ## [0.46.2] - 2026-05-27
