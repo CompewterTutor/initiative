@@ -964,8 +964,14 @@ async def upload_document_version(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.INVALID_FILE)
 
-    # A new version must keep the document's original file type.
-    if _normalize_mime(mime_type) != _normalize_mime(document.file_content_type):
+    # A new version must keep the document's original file type. Skip the
+    # check when the stored type is NULL so legacy documents without a
+    # recorded content type aren't permanently locked out of new versions
+    # (``_normalize_mime(None)`` returns ``""`` and would always mismatch).
+    if (
+        document.file_content_type is not None
+        and _normalize_mime(mime_type) != _normalize_mime(document.file_content_type)
+    ):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.VERSION_TYPE_MISMATCH)
 
     file_url = attachments_service.save_document_file(contents, extension)
@@ -1064,6 +1070,8 @@ async def delete_document_version(
     """Delete a version of a file document. Owner only. Deleting the current
     version promotes the previous one; deleting the last version is blocked."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
+    if document.document_type != DocumentType.file:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.NOT_A_FILE_DOCUMENT)
     _require_document_access(document, current_user, require_owner=True)
 
     result = await session.exec(

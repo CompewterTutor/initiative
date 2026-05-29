@@ -560,3 +560,63 @@ async def test_delete_version_non_owner_forbidden(
         )
     ).all():
         (_uploads_dir() / v.file_url.split("/")[-1]).unlink(missing_ok=True)
+
+
+@pytest.mark.integration
+async def test_upload_version_allowed_when_stored_content_type_is_null(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """Legacy documents with NULL ``file_content_type`` still accept new versions.
+
+    Without the NULL guard, ``_normalize_mime(None) == ""`` would always
+    mismatch the uploaded MIME type and permanently reject new versions
+    with ``VERSION_TYPE_MISMATCH``.
+    """
+    owner, guild, initiative = await _setup_guild_with_owner(session)
+    doc = await _upload_initial_file_doc(client, guild=guild, user=owner, initiative=initiative)
+
+    # Simulate a legacy / backfilled row where the content type was never recorded.
+    db_doc = await session.get(Document, doc["id"])
+    assert db_doc is not None
+    db_doc.file_content_type = None
+    await session.commit()
+
+    guild_headers = get_guild_headers(guild, owner)
+    resp = await client.post(
+        f"/api/v1/documents/{doc['id']}/versions",
+        headers=guild_headers,
+        files={"file": ("v2.pdf", PDF_BYTES_V2, "application/pdf")},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["version_number"] == 2
+
+    for v in (
+        await session.exec(
+            select(DocumentFileVersion).where(DocumentFileVersion.document_id == doc["id"])
+        )
+    ).all():
+        (_uploads_dir() / v.file_url.split("/")[-1]).unlink(missing_ok=True)
+
+
+@pytest.mark.integration
+async def test_delete_version_non_file_document_rejected(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """Delete is rejected on non-file documents with the same code as upload/list."""
+    owner, guild, initiative = await _setup_guild_with_owner(session)
+    headers = get_guild_headers(guild, owner)
+    create = await client.post(
+        "/api/v1/documents/",
+        headers=headers,
+        json={"title": "Native doc", "initiative_id": initiative.id},
+    )
+    assert create.status_code == 201
+    native_id = create.json()["id"]
+
+    # Any version_id will do — the type check fires before the version lookup.
+    resp = await client.delete(
+        f"/api/v1/documents/{native_id}/versions/9999",
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "DOCUMENT_NOT_A_FILE_DOCUMENT"
