@@ -58,14 +58,22 @@ export const SettingsGuildDangerZonePage = () => {
         password,
         confirmation_text: deleteConfirmText,
       });
-      await refreshGuilds();
-      window.location.replace("/");
     } catch (error) {
       console.error(error);
       setDeleteError(getErrorMessage(error, "guilds:settings.unableToDelete"));
-    } finally {
       setDeleting(false);
+      return;
     }
+    // Deletion is confirmed (204) and irreversible at this point. Refreshing
+    // the guild list is best-effort — if it throws (e.g. a transient network
+    // hiccup) we must still navigate away rather than show a misleading
+    // "unable to delete" error for a guild that is already gone.
+    try {
+      await refreshGuilds();
+    } catch (error) {
+      console.error(error);
+    }
+    window.location.replace("/");
   };
 
   if (!activeGuild) {
