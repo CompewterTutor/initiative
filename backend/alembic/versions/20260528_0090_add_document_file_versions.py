@@ -37,7 +37,10 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["guild_id"], ["guilds.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["uploaded_by_id"], ["users.id"], ondelete="CASCADE"),
+        # uploaded_by_id uses the default RESTRICT (like documents.created_by_id /
+        # updated_by_id): version history must outlive the uploader. hard_delete_user
+        # reassigns these rows to the system user via reassign_user_content() first.
+        sa.ForeignKeyConstraint(["uploaded_by_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("document_id", "version_number", name="uq_dfv_document_version"),
     )
