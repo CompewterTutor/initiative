@@ -44,6 +44,15 @@ async def test_pam_read_grant_sees_only_granted_guild(session: AsyncSession):
             session, user_id=support.id, pam_guild_id=guild_a.id, pam_read=True, pam_write=False
         )
 
+        # Initiatives of the granted guild are visible (the sidebar list) — this
+        # is the exact RLS path the empty-guild bug would break.
+        visible_inits = (
+            await session.execute(
+                text("SELECT id FROM initiatives WHERE id = :i"), {"i": init_a.id}
+            )
+        ).all()
+        assert len(visible_inits) == 1, "read grant should see the granted guild's initiatives"
+
         visible_a = (
             await session.execute(text("SELECT id FROM projects WHERE id = :p"), {"p": proj_a.id})
         ).all()
