@@ -126,13 +126,31 @@ def user_has_capability(user: "User", capability: Capability) -> bool:
     return capability in capabilities_for(user.role)
 
 
+# Privilege ladder, least → most. Assignment is bounded by rank rather than
+# capability-subset: the presets aren't strictly nested (owner intentionally
+# drops ``access.request``, which the lower tiers carry), so a subset check
+# would wrongly forbid an owner from assigning ``admin``. Mirrors the
+# frontend's PLATFORM_ROLE_ORDER.
+_ROLE_RANK: dict[UserRole, int] = {
+    UserRole.member: 0,
+    UserRole.support: 1,
+    UserRole.moderator: 2,
+    UserRole.admin: 3,
+    UserRole.owner: 4,
+}
+
+
+def role_rank(role: UserRole) -> int:
+    return _ROLE_RANK.get(role, 0)
+
+
 def can_assign_role(actor: "User", target_role: UserRole) -> bool:
     """Whether ``actor`` may assign ``target_role`` to someone.
 
-    Bounded delegation: you can only grant a role whose capability set is a
-    subset of your own (an admin can't mint an owner). Requires the actor to
-    hold ``ROLES_ASSIGN`` in the first place.
+    Bounded delegation: you can only grant a role at or below your own rung of
+    the ladder (an admin can't mint an owner). Requires the actor to hold
+    ``ROLES_ASSIGN`` in the first place.
     """
     if not user_has_capability(actor, Capability.ROLES_ASSIGN):
         return False
-    return capabilities_for(target_role) <= capabilities_for(actor.role)
+    return role_rank(target_role) <= role_rank(actor.role)
