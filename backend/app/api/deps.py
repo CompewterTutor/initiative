@@ -18,9 +18,11 @@ from app.core.security import (
     verify_auto_delegation_token,
 )
 from app.db.session import get_session, set_rls_context
+from app.models.access_grant import AccessGrant, AccessLevel
 from app.models.guild import Guild, GuildMembership, GuildRole
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.token import TokenPayload
+from app.services import access_grants as access_grants_service
 from app.services import api_keys as api_keys_service
 from app.services import auto_delegation_blocklist
 from app.services import guilds as guilds_service
@@ -264,6 +266,11 @@ def require_capability(capability: Capability) -> Callable:
 class GuildContext:
     guild: Guild
     membership: GuildMembership
+    # Set when access is via a time-bound PAM grant rather than real
+    # membership. The ``membership`` is then a synthesized member-role stand-in
+    # so ``.role`` stays valid for endpoint guards, while RLS context is driven
+    # off the grant (scoped pam_read/pam_write, not the all-guild bypass).
+    grant: Optional[AccessGrant] = None
 
     @property
     def guild_id(self) -> int:
@@ -272,6 +279,10 @@ class GuildContext:
     @property
     def role(self) -> GuildRole:
         return self.membership.role
+
+    @property
+    def is_pam(self) -> bool:
+        return self.grant is not None
 
 
 async def get_guild_membership(
@@ -303,7 +314,22 @@ async def get_guild_membership(
         user_id=current_user.id,
     )
     if membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_ACCESS_DENIED)
+        # No standing membership — fall back to a live PAM grant for this
+        # guild. The grantee can read (and write, if read_write) within the
+        # grant's window; RLS scopes it to this one guild via the pam flags
+        # set in get_guild_session. A synthesized member-role membership keeps
+        # ``GuildContext.role`` valid for endpoint guards without conferring
+        # any guild privilege on its own.
+        grant = await access_grants_service.get_live_grant(
+            session, user_id=current_user.id, guild_id=guild_id
+        )
+        if grant is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_ACCESS_DENIED)
+        guild = await guilds_service.get_guild(session, guild_id=guild_id)
+        synthetic = GuildMembership(
+            guild_id=guild_id, user_id=current_user.id, role=GuildRole.member
+        )
+        return GuildContext(guild=guild, membership=synthetic, grant=grant)
     guild = await guilds_service.get_guild(session, guild_id=guild_id)
     return GuildContext(guild=guild, membership=membership)
 
@@ -333,6 +359,23 @@ async def get_guild_session(
     may be returned to the pool, so call reapply_rls_context(session)
     before any post-commit queries.
     """
+    if guild_context.is_pam:
+        # Scoped, time-bound access via a PAM grant — NOT the all-guild bypass.
+        # Read grants get SELECT into this guild only; read_write also gets
+        # writes. guild_role is left unset so guild-role-gated paths don't treat
+        # the grantee as a member.
+        grant = guild_context.grant
+        await set_rls_context(
+            session,
+            user_id=current_user.id,
+            guild_id=guild_context.guild_id,
+            guild_role=None,
+            is_superadmin=False,
+            pam_read=True,
+            pam_write=(grant is not None and grant.access_level == AccessLevel.read_write.value),
+        )
+        return session
+
     await set_rls_context(
         session,
         user_id=current_user.id,

@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     DISABLE_GUILD_CREATION: bool = False
     ENABLE_PUBLIC_REGISTRATION: bool = True  # When False, requires invite code to register
 
+    # Privileged Access Management (PAM): time-bound, per-guild access grants.
+    PAM_DEFAULT_DURATION_MINUTES: int = 240  # 4 hours
+    PAM_MAX_DURATION_MINUTES: int = 1440  # 24 hours (hard cap on any grant)
+
     # Optional advanced tool plug-in: when ADVANCED_TOOL_URL is set, the SPA
     # surfaces a per-initiative toggle that, when enabled, embeds the URL as
     # an iframe sub-page under the initiative. Both unset on the default OSS
