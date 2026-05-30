@@ -66,5 +66,35 @@
     "footer": "Visitez Initiative pour vous remettre sur la bonne voie.",
     "textBody_one": "Vous avez {{count}} tâche en retard :",
     "textBody_other": "Vous avez {{count}} tâches en retard :"
+  },
+  "accessGrant": {
+    "buttonLabel": "Ouvrir le tableau de bord des accès",
+    "greeting": "Bonjour {{name}},",
+    "levelRead": "en lecture seule",
+    "levelReadWrite": "en lecture-écriture",
+    "requested": {
+      "subject": "Demande d'accès pour {{guildName}}",
+      "title": "Nouvelle demande d'accès",
+      "body": "<strong>{{requester}}</strong> a demandé un accès {{level}} à <strong>{{guildName}}</strong>.",
+      "textBody": "{{requester}} a demandé un accès {{level}} à {{guildName}}. Examinez-la sur {{link}}."
+    },
+    "approved": {
+      "subject": "Accès à {{guildName}} approuvé",
+      "title": "Accès approuvé",
+      "body": "Votre accès {{level}} à <strong>{{guildName}}</strong> a été approuvé.",
+      "textBody": "Votre accès {{level}} à {{guildName}} a été approuvé. {{link}}"
+    },
+    "denied": {
+      "subject": "Demande d'accès à {{guildName}} refusée",
+      "title": "Demande d'accès refusée",
+      "body": "Votre demande d'accès à <strong>{{guildName}}</strong> a été refusée.",
+      "textBody": "Votre demande d'accès à {{guildName}} a été refusée. {{link}}"
+    },
+    "revoked": {
+      "subject": "Accès à {{guildName}} révoqué",
+      "title": "Accès révoqué",
+      "body": "Votre accès à <strong>{{guildName}}</strong> a été révoqué.",
+      "textBody": "Votre accès à {{guildName}} a été révoqué. {{link}}"
+    }
   }
 }

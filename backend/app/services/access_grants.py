@@ -11,6 +11,7 @@ ownership checks happen at the endpoint/service layer instead of via RLS.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -23,8 +24,12 @@ from app.models.access_grant import AccessGrant, AccessGrantStatus, AccessLevel
 from app.models.notification import NotificationType
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.access_grant import AccessGrantCreate, AccessGrantRead
+from app.services import email as email_service
 from app.services import guilds as guilds_service
+from app.services import push_notifications
 from app.services import user_notifications
+
+logger = logging.getLogger(__name__)
 
 
 class AccessGrantError(Exception):
@@ -81,14 +86,65 @@ async def _event_notification_data(session: AsyncSession, grant: AccessGrant) ->
     }
 
 
-async def _approver_ids(session: AsyncSession) -> list[int]:
+async def _approvers(session: AsyncSession) -> list[User]:
+    """Active users who can approve access requests (for notification fan-out)."""
     roles = list(roles_with_capability(Capability.ACCESS_APPROVE))
     if not roles:
         return []
     result = await session.exec(
-        select(User.id).where(User.role.in_(roles), User.status == UserStatus.active)
+        select(User).where(User.role.in_(roles), User.status == UserStatus.active)
     )
     return list(result.all())
+
+
+def _level_word(access_level: Optional[str]) -> str:
+    """Plain-English access level for push bodies (push isn't localized, matching
+    the existing task/project push convention)."""
+    return "read-write" if access_level == "read_write" else "read-only"
+
+
+async def _push_and_email(
+    session: AsyncSession,
+    *,
+    recipient: User,
+    notification_type: NotificationType,
+    push_title: str,
+    push_body: str,
+    email_event: str,
+    guild_name: Optional[str],
+    access_level: Optional[str] = None,
+    requester: Optional[str] = None,
+) -> None:
+    """Best-effort push + email fan-out for a PAM event.
+
+    Always attempted (these are operational/security notices with no per-user
+    opt-out); silently no-ops when FCM / SMTP aren't configured, and never lets
+    a delivery failure break the request.
+    """
+    try:
+        await push_notifications.send_push_to_user(
+            session=session,
+            user_id=recipient.id,
+            notification_type=notification_type,
+            title=push_title,
+            body=push_body,
+            data={"type": notification_type.value, "target_path": "/settings/admin/access"},
+        )
+    except Exception as exc:  # best effort
+        logger.error("PAM push notification failed: %s", exc, exc_info=True)
+    try:
+        await email_service.send_access_grant_email(
+            session,
+            recipient,
+            event=email_event,
+            guild_name=guild_name or "a guild",
+            access_level=access_level,
+            requester=requester,
+        )
+    except email_service.EmailNotConfiguredError:
+        pass
+    except Exception as exc:  # best effort
+        logger.error("PAM email notification failed: %s", exc, exc_info=True)
 
 
 async def request_grant(
@@ -135,19 +191,32 @@ async def request_grant(
     session.add(grant)
     await session.flush()
 
-    for approver_id in await _approver_ids(session):
+    requester_name = requester.full_name or requester.email
+    level_word = _level_word(grant.access_level)
+    for approver in await _approvers(session):
         await user_notifications.create_notification(
             session,
-            user_id=approver_id,
+            user_id=approver.id,
             notification_type=NotificationType.access_grant_requested,
             data={
                 "grant_id": str(grant.id),
                 "guild_id": str(grant.guild_id),
                 "guild_name": guild.name,
                 "requester_id": str(requester.id),
-                "requester_name": requester.full_name or requester.email,
+                "requester_name": requester_name,
                 "access_level": grant.access_level,
             },
+        )
+        await _push_and_email(
+            session,
+            recipient=approver,
+            notification_type=NotificationType.access_grant_requested,
+            push_title="New access request",
+            push_body=f"{requester_name} requested {level_word} access to {guild.name}",
+            email_event="requested",
+            guild_name=guild.name,
+            access_level=grant.access_level,
+            requester=requester_name,
         )
     return grant
 
@@ -182,12 +251,25 @@ async def approve(
     session.add(grant)
     await session.flush()
 
+    data = await _event_notification_data(session, grant)
+    guild_name = data["guild_name"] or "a guild"
     await user_notifications.create_notification(
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_approved,
-        data=await _event_notification_data(session, grant),
+        data=data,
     )
+    if grantee is not None:
+        await _push_and_email(
+            session,
+            recipient=grantee,
+            notification_type=NotificationType.access_grant_approved,
+            push_title="Access approved",
+            push_body=f"Your {_level_word(grant.access_level)} access to {guild_name} was approved",
+            email_event="approved",
+            guild_name=data["guild_name"],
+            access_level=grant.access_level,
+        )
     return grant
 
 
@@ -202,12 +284,25 @@ async def deny(session: AsyncSession, *, grant: AccessGrant, approver: User) -> 
     session.add(grant)
     await session.flush()
 
+    grantee = await session.get(User, grant.user_id)
+    data = await _event_notification_data(session, grant)
+    guild_name = data["guild_name"] or "a guild"
     await user_notifications.create_notification(
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_denied,
-        data=await _event_notification_data(session, grant),
+        data=data,
     )
+    if grantee is not None:
+        await _push_and_email(
+            session,
+            recipient=grantee,
+            notification_type=NotificationType.access_grant_denied,
+            push_title="Access request denied",
+            push_body=f"Your access request for {guild_name} was denied",
+            email_event="denied",
+            guild_name=data["guild_name"],
+        )
     return grant
 
 
@@ -224,12 +319,25 @@ async def revoke(session: AsyncSession, *, grant: AccessGrant, revoker: User) ->
     session.add(grant)
     await session.flush()
 
+    grantee = await session.get(User, grant.user_id)
+    data = await _event_notification_data(session, grant)
+    guild_name = data["guild_name"] or "a guild"
     await user_notifications.create_notification(
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_revoked,
-        data=await _event_notification_data(session, grant),
+        data=data,
     )
+    if grantee is not None:
+        await _push_and_email(
+            session,
+            recipient=grantee,
+            notification_type=NotificationType.access_grant_revoked,
+            push_title="Access revoked",
+            push_body=f"Your access to {guild_name} was revoked",
+            email_event="revoked",
+            guild_name=data["guild_name"],
+        )
     return grant
 
 
