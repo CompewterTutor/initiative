@@ -90,10 +90,25 @@ const notificationLink = (notification: NotificationRead): string | null => {
         return `/documents/${data.document_id}`;
       }
       return null;
+    case "access_grant_requested":
+    case "access_grant_approved":
+    case "access_grant_denied":
+    case "access_grant_revoked":
+      // The Access tab serves both requesters (their requests) and approvers
+      // (the queue). It's a platform route, not guild-scoped.
+      return "/settings/admin/access";
     default:
       return null;
   }
 };
+
+const accessLevelLabel = (
+  level: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string =>
+  level === "read_write"
+    ? t("notifications.accessLevelReadWrite")
+    : t("notifications.accessLevelRead");
 
 const notificationText = (
   notification: NotificationRead,
@@ -147,6 +162,21 @@ const notificationText = (
         replierName: data.replier_name ?? "Someone",
         contextTitle: data.context_title ?? "an item",
       });
+    case "access_grant_requested":
+      return t("notifications.accessGrantRequested", {
+        requester: data.requester_name ?? "Someone",
+        level: accessLevelLabel(data.access_level, t),
+        guild: data.guild_name ?? "a guild",
+      });
+    case "access_grant_approved":
+      return t("notifications.accessGrantApproved", {
+        level: accessLevelLabel(data.access_level, t),
+        guild: data.guild_name ?? "a guild",
+      });
+    case "access_grant_denied":
+      return t("notifications.accessGrantDenied", { guild: data.guild_name ?? "a guild" });
+    case "access_grant_revoked":
+      return t("notifications.accessGrantRevoked", { guild: data.guild_name ?? "a guild" });
     default:
       return t("notifications.defaultNotification");
   }

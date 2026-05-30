@@ -69,6 +69,18 @@ def _capped_duration(requested: Optional[int], role: UserRole) -> int:
     return minutes
 
 
+async def _event_notification_data(session: AsyncSession, grant: AccessGrant) -> dict:
+    """Common notification payload for grant lifecycle events — enough for the
+    frontend to render an informative message and link to the Access page."""
+    guild = await guilds_service.get_guild(session, guild_id=grant.guild_id)
+    return {
+        "grant_id": str(grant.id),
+        "guild_id": str(grant.guild_id),
+        "guild_name": guild.name if guild else None,
+        "access_level": grant.access_level,
+    }
+
+
 async def _approver_ids(session: AsyncSession) -> list[int]:
     roles = list(roles_with_capability(Capability.ACCESS_APPROVE))
     if not roles:
@@ -131,7 +143,10 @@ async def request_grant(
             data={
                 "grant_id": str(grant.id),
                 "guild_id": str(grant.guild_id),
+                "guild_name": guild.name,
                 "requester_id": str(requester.id),
+                "requester_name": requester.full_name or requester.email,
+                "access_level": grant.access_level,
             },
         )
     return grant
@@ -171,7 +186,7 @@ async def approve(
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_approved,
-        data={"grant_id": str(grant.id), "guild_id": str(grant.guild_id)},
+        data=await _event_notification_data(session, grant),
     )
     return grant
 
@@ -191,7 +206,7 @@ async def deny(session: AsyncSession, *, grant: AccessGrant, approver: User) -> 
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_denied,
-        data={"grant_id": str(grant.id), "guild_id": str(grant.guild_id)},
+        data=await _event_notification_data(session, grant),
     )
     return grant
 
@@ -213,7 +228,7 @@ async def revoke(session: AsyncSession, *, grant: AccessGrant, revoker: User) ->
         session,
         user_id=grant.user_id,
         notification_type=NotificationType.access_grant_revoked,
-        data={"grant_id": str(grant.id), "guild_id": str(grant.guild_id)},
+        data=await _event_notification_data(session, grant),
     )
     return grant
 
