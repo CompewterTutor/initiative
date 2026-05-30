@@ -15,6 +15,7 @@ import type { RecentItemRead } from "@/api/generated/initiativeAPI.schemas";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CommandCenter, getOpenCommandCenter } from "@/components/CommandCenter";
 import { CreateDocumentWizard } from "@/components/documents/CreateDocumentWizard";
+import { GuildAccessBanner } from "@/components/guilds/GuildAccessBanner";
 import { PushPermissionPrompt } from "@/components/notifications/PushPermissionPrompt";
 import { ProjectActivitySidebar } from "@/components/projects/ProjectActivitySidebar";
 import { RecentTabsBar } from "@/components/recents/RecentTabsBar";
@@ -211,6 +212,7 @@ function AppLayout() {
                     />
                   </div>
                 </div>
+                <GuildAccessBanner />
               </div>
               <div className="flex justify-between">
                 {/*<div

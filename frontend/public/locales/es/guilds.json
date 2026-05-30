@@ -232,5 +232,11 @@
     "later": "Más tarde",
     "reloadNow": "Recargar ahora",
     "version": "Versión {{version}}"
+  },
+  "temporaryAccess": "Acceso temporal",
+  "expiresInMinutes": "caduca en {{minutes}} min",
+  "grantBanner": {
+    "readOnly": "Tienes acceso temporal de solo lectura a {{guild}}.",
+    "readWrite": "Tienes acceso temporal a {{guild}}."
   }
 }

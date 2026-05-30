@@ -11,16 +11,31 @@ import {
 } from "react";
 
 import { apiClient, setCurrentGuildId } from "@/api/client";
-import type { GuildRead } from "@/api/generated/initiativeAPI.schemas";
+import type { AccessGrantRead, GuildRead } from "@/api/generated/initiativeAPI.schemas";
 import { resetGuildScopedQueries } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/chesterToast";
 import { getItem, removeItem, setItem } from "@/lib/storage";
 
+/**
+ * A guild entry in the switcher. Member guilds come from `/guilds/`; entries
+ * the user can only reach via a live, time-bound PAM access grant are
+ * synthesized from `/access-grants/` and flagged with `accessType: "grant"`
+ * so the UI can mark them temporary and enforce read-only.
+ */
+export type GuildEntry = GuildRead & {
+  accessType?: "member" | "grant";
+  grantExpiresAt?: string | null;
+  grantAccessLevel?: "read" | "read_write" | null;
+};
+
 interface GuildContextValue {
-  guilds: GuildRead[];
+  guilds: GuildEntry[];
   activeGuildId: number | null;
-  activeGuild: GuildRead | null;
+  activeGuild: GuildEntry | null;
+  /** True when the active guild is reached via a read-only grant — writes are
+   * blocked server-side, so the UI should hide write affordances. */
+  activeGuildReadOnly: boolean;
   loading: boolean;
   error: string | null;
   refreshGuilds: () => Promise<void>;
@@ -53,8 +68,14 @@ const persistGuildId = (guildId: number | null) => {
   }
 };
 
-const sortGuilds = (guildList: GuildRead[]): GuildRead[] => {
+const sortGuilds = (guildList: GuildEntry[]): GuildEntry[] => {
   return [...guildList].sort((a, b) => {
+    // Grant (temporary) guilds always sort after member guilds.
+    const aGrant = a.accessType === "grant" ? 1 : 0;
+    const bGrant = b.accessType === "grant" ? 1 : 0;
+    if (aGrant !== bGrant) {
+      return aGrant - bGrant;
+    }
     const positionDelta = (a.position ?? 0) - (b.position ?? 0);
     if (positionDelta !== 0) {
       return positionDelta;
@@ -63,9 +84,25 @@ const sortGuilds = (guildList: GuildRead[]): GuildRead[] => {
   });
 };
 
+/** Build a synthetic switcher entry for a guild reachable only via a live grant. */
+const grantEntry = (grant: AccessGrantRead): GuildEntry => ({
+  id: grant.guild_id,
+  name: grant.guild_name ?? `Guild #${grant.guild_id}`,
+  description: null,
+  icon_base64: null,
+  role: "member",
+  position: Number.MAX_SAFE_INTEGER,
+  retention_days: null,
+  created_at: grant.requested_at,
+  updated_at: grant.requested_at,
+  accessType: "grant",
+  grantExpiresAt: grant.expires_at,
+  grantAccessLevel: grant.access_level,
+});
+
 export const GuildProvider = ({ children }: { children: ReactNode }) => {
   const { user, refreshUser } = useAuth();
-  const [guilds, setGuilds] = useState<GuildRead[]>([]);
+  const [guilds, setGuilds] = useState<GuildEntry[]>([]);
   const [activeGuildId, setActiveGuildId] = useState<number | null>(readStoredGuildId);
   // Start as true - we're loading until first fetch completes (or until we know we shouldn't fetch)
   const [loading, setLoading] = useState(true);
@@ -84,7 +121,7 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     persistGuildId(activeGuildId);
   }, [activeGuildId]);
 
-  const applyGuildState = useCallback((guildList: GuildRead[]) => {
+  const applyGuildState = useCallback((guildList: GuildEntry[]) => {
     const sortedGuilds = sortGuilds(guildList);
     setGuilds(sortedGuilds);
 
@@ -122,7 +159,32 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await apiClient.get<GuildRead[]>("/guilds/");
       hasFetchedRef.current = true;
-      applyGuildState(response.data);
+
+      // Also surface guilds the user can only reach via a live PAM grant, so
+      // they appear in the switcher (flagged temporary) and can actually be
+      // entered. Best-effort: a failure here must not break the guild list.
+      const memberIds = new Set(response.data.map((g) => g.id));
+      let grantGuilds: GuildEntry[] = [];
+      try {
+        const grants = await apiClient.get<AccessGrantRead[]>("/access-grants/", {
+          params: { mine: true },
+        });
+        const liveByGuild = new Map<number, AccessGrantRead>();
+        for (const grant of grants.data) {
+          if (grant.is_live && !memberIds.has(grant.guild_id)) {
+            // Keep the latest-expiring live grant per guild.
+            const existing = liveByGuild.get(grant.guild_id);
+            if (!existing || (grant.expires_at ?? "") > (existing.expires_at ?? "")) {
+              liveByGuild.set(grant.guild_id, grant);
+            }
+          }
+        }
+        grantGuilds = Array.from(liveByGuild.values()).map(grantEntry);
+      } catch (grantErr) {
+        console.error("Failed to load access grants for guild switcher", grantErr);
+      }
+
+      applyGuildState([...response.data, ...grantGuilds]);
     } catch (err) {
       console.error("Failed to load guilds", err);
       const axiosError = err as AxiosError<{ detail?: string }>;
@@ -317,10 +379,15 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     [guilds, activeGuildId]
   );
 
+  // Read-only when the active guild is a grant that isn't read-write.
+  const activeGuildReadOnly =
+    activeGuild?.accessType === "grant" && activeGuild?.grantAccessLevel !== "read_write";
+
   const value: GuildContextValue = {
     guilds,
     activeGuildId,
     activeGuild,
+    activeGuildReadOnly,
     loading,
     error,
     refreshGuilds,

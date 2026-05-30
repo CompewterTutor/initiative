@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Clock, Plus } from "lucide-react";
 import type { CSSProperties, FormEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useGuilds } from "@/hooks/useGuilds";
+import { type GuildEntry, useGuilds } from "@/hooks/useGuilds";
 import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { guildPath } from "@/lib/guildUrl";
@@ -225,6 +225,56 @@ const SortableGuildButton = ({
   );
 };
 
+const grantMinutesLeft = (expiresAt?: string | null): number | null => {
+  if (!expiresAt) return null;
+  return Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000));
+};
+
+// A non-draggable switcher button for a guild reached via a temporary PAM
+// grant. Visually distinct (dashed border + clock badge) and shows the
+// remaining time on hover.
+const GrantGuildButton = ({
+  guild,
+  isActive,
+  onSelect,
+}: {
+  guild: GuildEntry;
+  isActive: boolean;
+  onSelect: (guildId: number) => void;
+}) => {
+  const { t } = useTranslation("guilds");
+  const left = grantMinutesLeft(guild.grantExpiresAt);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => onSelect(guild.id)}
+          className={cn(
+            "relative flex h-12 w-12 items-center justify-center rounded-2xl border-3 border-dashed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            isActive
+              ? "border-primary/60 bg-primary/10 text-primary"
+              : "border-muted-foreground/40 bg-muted text-muted-foreground hover:bg-muted/80"
+          )}
+          aria-label={t("switchTo", { name: guild.name })}
+        >
+          <GuildAvatar name={guild.name} icon={guild.icon_base64} active={isActive} />
+          <span className="absolute -top-1 -right-1 rounded-full bg-background p-0.5">
+            <Clock className="h-3 w-3 text-amber-500" aria-hidden="true" />
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={12}>
+        <p>{guild.name}</p>
+        <p className="text-muted-foreground text-xs">
+          {t("temporaryAccess")}
+          {left !== null ? ` · ${t("expiresInMinutes", { minutes: left })}` : ""}
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) => {
   const { guilds, activeGuildId, switchGuild, reorderGuilds, canCreateGuilds } = useGuilds();
   const { t } = useTranslation(["guilds", "nav"]);
@@ -243,6 +293,16 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
   const draggedGuild = useMemo(
     () => guilds.find((guild) => guild.id === activeDragId) ?? null,
     [guilds, activeDragId]
+  );
+  // Member guilds are reorderable; grant (temporary) guilds are rendered
+  // separately below and are not sortable.
+  const memberGuilds = useMemo(
+    () => guilds.filter((guild) => guild.accessType !== "grant"),
+    [guilds]
+  );
+  const grantGuilds = useMemo(
+    () => guilds.filter((guild) => guild.accessType === "grant"),
+    [guilds]
   );
 
   const handleGuildSwitch = (guildId: number) => {
@@ -272,15 +332,15 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
       if (!Number.isFinite(activeId) || !Number.isFinite(overId)) {
         return;
       }
-      const oldIndex = guilds.findIndex((guild) => guild.id === activeId);
-      const newIndex = guilds.findIndex((guild) => guild.id === overId);
+      const oldIndex = memberGuilds.findIndex((guild) => guild.id === activeId);
+      const newIndex = memberGuilds.findIndex((guild) => guild.id === overId);
       if (oldIndex === -1 || newIndex === -1) {
         return;
       }
-      const orderedIds = arrayMove(guilds, oldIndex, newIndex).map((guild) => guild.id);
+      const orderedIds = arrayMove(memberGuilds, oldIndex, newIndex).map((guild) => guild.id);
       reorderGuilds(orderedIds);
     },
-    [guilds, reorderGuilds]
+    [memberGuilds, reorderGuilds]
   );
 
   const handleDragCancel = useCallback(() => {
@@ -319,10 +379,10 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
             onDragCancel={handleDragCancel}
           >
             <SortableContext
-              items={guilds.map((guild) => guild.id)}
+              items={memberGuilds.map((guild) => guild.id)}
               strategy={verticalListSortingStrategy}
             >
-              {guilds.map((guild) => (
+              {memberGuilds.map((guild) => (
                 <SortableGuildButton
                   key={guild.id}
                   guild={guild}
@@ -344,6 +404,18 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
               ) : null}
             </DragOverlay>
           </DndContext>
+          {grantGuilds.length > 0 ? (
+            <div className="flex flex-col items-center gap-3 border-t pt-3">
+              {grantGuilds.map((guild) => (
+                <GrantGuildButton
+                  key={guild.id}
+                  guild={guild}
+                  isActive={guild.id === activeGuildId}
+                  onSelect={handleGuildSwitch}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
         {canCreateGuilds ? (
           <div className="flex flex-col items-center gap-2 border-t pt-3">
