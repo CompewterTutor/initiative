@@ -39,13 +39,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentsList } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useInitiativeAccess } from "@/hooks/useInitiativeAccess";
 import { useCreateInitiative, useInitiatives } from "@/hooks/useInitiatives";
 import { useProjects } from "@/hooks/useProjects";
 import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot } from "@/lib/initiativeColors";
-import { Capability, hasCapability } from "@/lib/permissions";
 
 const DEFAULT_INITIATIVE_COLOR = "#6366F1";
 
@@ -65,9 +65,7 @@ export const InitiativesPage = () => {
   const projectManagerLabel = getRoleLabel("project_manager", roleLabels);
   const memberLabel = getRoleLabel("member", roleLabels);
 
-  const isGuildAdmin = activeGuild?.role === "admin" || hasCapability(user, Capability.dataBypass);
-  // PAM grantees see every initiative in the guild (but can't create them).
-  const isGrantGuild = activeGuild?.accessType === "grant";
+  const { isGuildAdmin, filterVisible } = useInitiativeAccess();
   const canCreateInitiatives = Boolean(activeGuild && isGuildAdmin);
 
   const initiativesQuery = useInitiatives({ enabled: Boolean(activeGuild) });
@@ -79,19 +77,10 @@ export const InitiativesPage = () => {
 
   const documentsListQuery = useDocumentsList({ page_size: 0 });
 
-  const visibleInitiatives = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-    const source = initiativesQuery.data ?? [];
-    if (isGuildAdmin || isGrantGuild) {
-      return source.slice().sort((a, b) => a.name.localeCompare(b.name));
-    }
-    const membershipFiltered = source.filter((initiative) =>
-      initiative.members.some((member) => member.user.id === user.id)
-    );
-    return membershipFiltered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [initiativesQuery.data, user, isGuildAdmin, isGrantGuild]);
+  const visibleInitiatives = useMemo(
+    () => filterVisible(initiativesQuery.data),
+    [initiativesQuery.data, filterVisible]
+  );
 
   const projectCounts = useMemo(() => {
     const counts = new Map<number, number>();
