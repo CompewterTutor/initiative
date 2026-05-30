@@ -21,7 +21,8 @@ from app.models.project import Project, ProjectPermission, ProjectPermissionLeve
 from app.models.initiative import Initiative, InitiativeMember, InitiativeRoleModel, PermissionKey
 from app.models.guild import GuildRole
 from app.models.task import Task, TaskAssignee
-from app.models.user import User, UserRole
+from app.core.capabilities import Capability, user_has_capability
+from app.models.user import User
 from app.schemas.initiative import (
     AdvancedToolHandoffResponse,
     InitiativeCreate,
@@ -653,7 +654,7 @@ async def get_initiative_members(
         initiative_id=initiative_id,
         user_id=current_user.id,
     )
-    if not membership and current_user.role != UserRole.admin:
+    if not membership and not user_has_capability(current_user, Capability.DATA_BYPASS):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=InitiativeMessages.NOT_A_MEMBER)
 
     # Get all initiative members

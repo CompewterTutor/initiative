@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useOidcSettings, useUpdateOidcSettings } from "@/hooks/useSettings";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 interface OidcSettings {
   enabled: boolean;
@@ -31,7 +32,7 @@ interface OidcSettings {
 export const SettingsAuthPage = () => {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = hasCapability(user, Capability.configManage);
   const [clientSecret, setClientSecret] = useState("");
   const [formState, setFormState] = useState({
     enabled: false,

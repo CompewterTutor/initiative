@@ -29,6 +29,7 @@ import { useRecordRecentView } from "@/hooks/useRecents";
 import { useUsers } from "@/hooks/useUsers";
 import { getHttpStatus } from "@/lib/errorMessage";
 import { useGuildPath } from "@/lib/guildUrl";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 export const ProjectDetailPage = () => {
   const { t } = useTranslation("projects");
@@ -204,7 +205,7 @@ export const ProjectDetailPage = () => {
   const canManageSettings = hasWritePermission;
   const canWriteProject = hasWritePermission;
   // Creating documents requires initiative PM role (backend requirement)
-  const canCreateDocuments = user?.role === "admin" || isInitiativePm;
+  const canCreateDocuments = hasCapability(user, Capability.dataBypass) || isInitiativePm;
   const canAttachDocuments = canWriteProject;
   // Pure DAC: any permission grants view access
   const canViewTaskDetails = Boolean(project && myLevel);

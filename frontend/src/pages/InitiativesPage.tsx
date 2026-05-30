@@ -45,6 +45,7 @@ import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 const DEFAULT_INITIATIVE_COLOR = "#6366F1";
 
@@ -64,7 +65,7 @@ export const InitiativesPage = () => {
   const projectManagerLabel = getRoleLabel("project_manager", roleLabels);
   const memberLabel = getRoleLabel("member", roleLabels);
 
-  const isGuildAdmin = activeGuild?.role === "admin" || user?.role === "admin";
+  const isGuildAdmin = activeGuild?.role === "admin" || hasCapability(user, Capability.dataBypass);
   const canCreateInitiatives = Boolean(activeGuild && isGuildAdmin);
 
   const initiativesQuery = useInitiatives({ enabled: Boolean(activeGuild) });

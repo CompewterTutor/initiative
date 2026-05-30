@@ -26,7 +26,8 @@ from app.models.property import (
     TaskPropertyValue,
 )
 from app.models.task import Task
-from app.models.user import User, UserRole
+from app.core.capabilities import Capability, user_has_capability
+from app.models.user import User
 from app.schemas.property import (
     PropertyDefinitionCreate,
     PropertyDefinitionRead,
@@ -114,7 +115,7 @@ async def _ensure_initiative_member(
     is gone" (the original misleading ``DEFINITION_NOT_FOUND`` code).
     """
     # Superadmin bypass.
-    if user.role == UserRole.admin:
+    if user_has_capability(user, Capability.DATA_BYPASS):
         return
 
     # Direct initiative membership.

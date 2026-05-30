@@ -45,7 +45,7 @@ async def init_superuser() -> None:
                 email_encrypted=encrypt_field(settings.FIRST_SUPERUSER_EMAIL, SALT_EMAIL),
                 full_name=settings.FIRST_SUPERUSER_FULL_NAME,
                 hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
-                role=UserRole.admin,
+                role=UserRole.owner,
                 email_verified=True,
             )
             session.add(superuser)

@@ -1671,11 +1671,22 @@ export interface PlatformAdminCountResponse {
   count: number;
 }
 
+/**
+ * Platform-level (app-wide) user role.
+ *
+ * Ordered from least to most privileged. Authorization checks should
+ * generally go through the capability model (``app.core.capabilities``)
+ * rather than comparing roles directly, so that the privilege ladder can
+ * evolve without touching every call site.
+ */
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const UserRole = {
-  admin: "admin",
   member: "member",
+  support: "support",
+  moderator: "moderator",
+  admin: "admin",
+  owner: "owner",
 } as const;
 
 /**
@@ -3075,6 +3086,11 @@ export interface UserRead {
   oidc_sub: string | null;
   initiative_roles: UserInitiativeRole[];
   readonly can_create_guilds: boolean;
+  /** Platform capabilities granted by this user's standing role.
+   *
+   * The frontend gates UI on these strings (single source of truth);
+   * see ``app.core.capabilities``. */
+  readonly capabilities: readonly string[];
 }
 
 export interface UserSelfUpdate {

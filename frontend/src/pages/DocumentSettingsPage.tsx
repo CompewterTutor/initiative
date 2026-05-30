@@ -34,6 +34,7 @@ import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot } from "@/lib/initiativeColors";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 export const DocumentSettingsPage = () => {
   const { t } = useTranslation(["documents", "common"]);
@@ -93,7 +94,7 @@ export const DocumentSettingsPage = () => {
     if (!user) {
       return [];
     }
-    if (user.role === "admin") {
+    if (hasCapability(user, Capability.dataBypass)) {
       return initiatives;
     }
     return initiatives.filter((initiative) =>

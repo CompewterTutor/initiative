@@ -5,12 +5,13 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 
 from app.api.deps import SessionDep, UserSessionDep, get_current_active_user
+from app.core.capabilities import Capability, user_has_capability
 from app.core.config import settings
 from app.core.messages import AdvancedToolMessages, GuildMessages
 from app.core.security import create_advanced_tool_handoff_token, verify_password
 from app.db.session import get_admin_session, reapply_rls_context, set_rls_context
 from app.models.guild import GuildRole, GuildMembership, Guild
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.guild import (
     GuildCreate,
     GuildDeletionRequest,
@@ -85,7 +86,7 @@ async def _set_guild_admin_rls(
         user_id=user.id,
         guild_id=guild_id,
         guild_role="admin",
-        is_superadmin=(user.role == UserRole.admin),
+        is_superadmin=user_has_capability(user, Capability.DATA_BYPASS),
     )
 
 
@@ -139,7 +140,7 @@ async def create_guild(
 ) -> GuildRead:
     """Create a new guild. Uses admin session because the guild doesn't exist
     yet — no guild context or membership exists for RLS to match against."""
-    if settings.DISABLE_GUILD_CREATION and current_user.role != UserRole.admin:
+    if settings.DISABLE_GUILD_CREATION and not user_has_capability(current_user, Capability.GUILDS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_CREATION_DISABLED)
     name = guild_in.name.strip()
     if not name:
@@ -167,7 +168,7 @@ async def list_guild_invites(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> List[GuildInviteRead]:
-    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
     invites = await guilds_service.list_guild_invites(session, guild_id=guild_id)
     return [GuildInviteRead.model_validate(invite) for invite in invites]
@@ -180,7 +181,7 @@ async def update_guild(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> GuildRead:
-    membership = await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    membership = await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
     icon_provided = "icon_base64" in updates.model_fields_set
     retention_days_provided = "retention_days" in updates.model_fields_set
@@ -228,7 +229,7 @@ async def create_guild_advanced_tool_handoff(
     if not settings.ADVANCED_TOOL_URL:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=AdvancedToolMessages.NOT_CONFIGURED)
 
-    is_superadmin = current_user.role == UserRole.admin
+    is_superadmin = user_has_capability(current_user, Capability.DATA_BYPASS)
     await _ensure_guild_admin(
         session,
         guild_id=guild_id,
@@ -263,7 +264,7 @@ async def delete_guild(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Response:
-    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
     guild = await guilds_service.get_guild(session, guild_id=guild_id)
 
@@ -300,7 +301,7 @@ async def create_guild_invite(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> GuildInviteRead:
-    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
     invite = await guilds_service.create_guild_invite(
         session,
@@ -325,7 +326,7 @@ async def delete_guild_invite(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Response:
-    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
     await guilds_service.delete_guild_invite(session, guild_id=guild_id, invite_id=invite_id)
     await session.commit()
@@ -366,7 +367,7 @@ async def update_guild_membership(
     - Cannot change your own role
     - Cannot demote the last guild admin
     """
-    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=(current_user.role == UserRole.admin))
+    await _ensure_guild_admin(session, guild_id=guild_id, user_id=current_user.id, is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS))
     await _set_guild_admin_rls(session, guild_id=guild_id, user=current_user)
 
     if user_id == current_user.id:
@@ -496,7 +497,7 @@ async def leave_guild(
         user_id=current_user.id,
         guild_id=guild_id,
         guild_role=membership.role.value,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
 
     from app.services.users import (

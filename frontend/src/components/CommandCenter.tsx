@@ -38,6 +38,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
 import { commandFilter } from "@/lib/fuzzyMatch";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
+import { canAccessPlatformAdmin } from "@/lib/permissions";
 import { renderRecentIcon } from "@/lib/recentIcon";
 import { recentRoute } from "@/lib/recentRoute";
 
@@ -158,7 +159,7 @@ export function CommandCenter() {
   const tasks = tasksQuery.data?.items ?? [];
 
   const isGuildAdmin = activeGuild?.role === "admin";
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = canAccessPlatformAdmin(user);
 
   // Static pages
   const pages = useMemo(() => {

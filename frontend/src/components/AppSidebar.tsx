@@ -49,6 +49,7 @@ import { useTags } from "@/hooks/useTags";
 import { guildPath } from "@/lib/guildUrl";
 import { getInitials } from "@/lib/initials";
 import { obfuscateEmail } from "@/lib/obfuscateEmail";
+import { canAccessPlatformAdmin } from "@/lib/permissions";
 import { getItem, setItem } from "@/lib/storage";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 
@@ -65,7 +66,7 @@ export const AppSidebar = () => {
   // Guild admin check is based on guild membership role only (independent from platform role)
   const isGuildAdmin = activeGuild?.role === "admin";
   // Platform admins can access platform settings (separate from guild admin role)
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = canAccessPlatformAdmin(user);
 
   // Determine sidebar mode from route
   const isGuildRoute = location.pathname.startsWith("/g/");

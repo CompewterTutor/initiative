@@ -600,7 +600,17 @@
     "reactivateError": "Unable to reactivate user",
     "cannotDemoteLastAdmin": "Cannot demote the last platform admin",
     "cannotChangeOwnRole": "Cannot change your own role",
-    "permissionRequired": "You need {{adminLabel}} permissions to view this page."
+    "permissionRequired": "You don't have permission to view platform users.",
+    "roles": {
+      "member": "Member",
+      "support": "Support",
+      "moderator": "Moderator",
+      "admin": "Admin",
+      "owner": "Owner"
+    },
+    "changeRoleTitle": "Change platform role",
+    "changeRoleDescription": "This will change {{email}}'s platform role to {{role}}.",
+    "roleChangeSuccess": "Platform role changed to {{role}}"
   },
   "adminDeleteUser": {
     "title": "Delete User",

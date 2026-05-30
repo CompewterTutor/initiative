@@ -34,6 +34,7 @@ import { useClearRecentView, useRecents } from "@/hooks/useRecents";
 import { useServer } from "@/hooks/useServer";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { chooseNoGuildLayout } from "@/lib/noGuildLayout";
+import { canAccessPlatformAdmin } from "@/lib/permissions";
 import { getActiveRecentKey } from "@/lib/recentRoute";
 
 /**
@@ -126,7 +127,7 @@ function AppLayout() {
   // path-based decision lives in ``chooseNoGuildLayout`` so it can be
   // unit-tested without a router; see ``noGuildLayout.test.ts``.
   if (user) {
-    const isPlatformAdmin = user.role === "admin";
+    const isPlatformAdmin = canAccessPlatformAdmin(user);
     const layout = chooseNoGuildLayout({
       hasGuilds: guilds.length > 0,
       pathname: location.pathname,

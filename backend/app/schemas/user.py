@@ -5,6 +5,7 @@ from pydantic import ConfigDict, EmailStr, Field, computed_field
 
 from app.schemas.base import SanitizedBaseModel
 
+from app.core.capabilities import Capability, capabilities_for
 from app.models.initiative import InitiativeRole
 from app.models.user import UserRole, UserStatus
 from app.core.config import settings
@@ -132,8 +133,18 @@ class UserRead(UserBase):
     def can_create_guilds(self) -> bool:
         if not settings.DISABLE_GUILD_CREATION:
             return True
-        # When disabled, only platform admins can create guilds
-        return self.role == UserRole.admin
+        # When disabled, only platform roles that manage guilds can create them.
+        return Capability.GUILDS_MANAGE in capabilities_for(self.role)
+
+    @computed_field(return_type=List[str])  # type: ignore[misc]
+    @property
+    def capabilities(self) -> List[str]:
+        """Platform capabilities granted by this user's standing role.
+
+        The frontend gates UI on these strings (single source of truth);
+        see ``app.core.capabilities``.
+        """
+        return sorted(c.value for c in capabilities_for(self.role))
 
 
 class UserInDB(UserRead):

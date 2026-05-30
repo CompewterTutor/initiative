@@ -4,30 +4,53 @@ import { useTranslation } from "react-i18next";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { Capability, canAccessPlatformAdmin, hasCapability } from "@/lib/permissions";
 
 export const AdminSettingsLayout = () => {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
   const location = useLocation();
   const router = useRouter();
-  const isPlatformAdmin = user?.role === "admin";
+  const canAccessAdmin = canAccessPlatformAdmin(user);
 
   const adminTabs = useMemo(
-    () => [
-      { value: "auth", label: t("adminLayout.tabs.auth"), path: "/settings/admin/auth" },
-      {
-        value: "branding",
-        label: t("adminLayout.tabs.branding"),
-        path: "/settings/admin/branding",
-      },
-      { value: "email", label: t("adminLayout.tabs.email"), path: "/settings/admin/email" },
-      { value: "ai", label: t("adminLayout.tabs.ai"), path: "/settings/admin/ai" },
-      { value: "users", label: t("adminLayout.tabs.users"), path: "/settings/admin/users" },
-    ],
-    [t]
+    () =>
+      [
+        {
+          value: "auth",
+          label: t("adminLayout.tabs.auth"),
+          path: "/settings/admin/auth",
+          capability: Capability.configManage,
+        },
+        {
+          value: "branding",
+          label: t("adminLayout.tabs.branding"),
+          path: "/settings/admin/branding",
+          capability: Capability.configManage,
+        },
+        {
+          value: "email",
+          label: t("adminLayout.tabs.email"),
+          path: "/settings/admin/email",
+          capability: Capability.configManage,
+        },
+        {
+          value: "ai",
+          label: t("adminLayout.tabs.ai"),
+          path: "/settings/admin/ai",
+          capability: Capability.configManage,
+        },
+        {
+          value: "users",
+          label: t("adminLayout.tabs.users"),
+          path: "/settings/admin/users",
+          capability: Capability.usersRead,
+        },
+      ].filter((tab) => hasCapability(user, tab.capability)),
+    [t, user]
   );
 
-  if (!isPlatformAdmin) {
+  if (!canAccessAdmin) {
     return <Navigate to="/settings/guild" replace />;
   }
 

@@ -9,6 +9,7 @@ import jwt
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.capabilities import Capability, user_has_capability
 from app.core.config import settings
 from app.core.messages import AuthMessages, GuildMessages
 from app.core.security import (
@@ -243,6 +244,22 @@ def require_roles(*roles: UserRole) -> Callable:
     return dependency
 
 
+def require_capability(capability: Capability) -> Callable:
+    """Dependency factory gating an endpoint on a platform capability.
+
+    Prefer this over ``require_roles`` for platform-level authorization so
+    access is expressed against the capability model rather than a hardcoded
+    role name (see ``app.core.capabilities``).
+    """
+
+    async def dependency(current_user: Annotated[User, Depends(get_current_active_user)]) -> User:
+        if not user_has_capability(current_user, capability):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=AuthMessages.INSUFFICIENT_PRIVILEGES)
+        return current_user
+
+    return dependency
+
+
 @dataclass
 class GuildContext:
     guild: Guild
@@ -267,7 +284,7 @@ async def get_guild_membership(
     await set_rls_context(
         session,
         user_id=current_user.id,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
 
     guild_id = await guilds_service.resolve_user_guild_id(
@@ -321,7 +338,7 @@ async def get_guild_session(
         user_id=current_user.id,
         guild_id=guild_context.guild_id,
         guild_role=guild_context.role.value,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
     return session
 
@@ -342,7 +359,7 @@ async def get_user_session(
     await set_rls_context(
         session,
         user_id=current_user.id,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
     return session
 

@@ -598,7 +598,17 @@
     "reactivateError": "No se pudo reactivar al usuario",
     "cannotDemoteLastAdmin": "No se puede degradar al último administrador de la plataforma",
     "cannotChangeOwnRole": "No puedes cambiar tu propio rol",
-    "permissionRequired": "Necesitas permisos de {{adminLabel}} para ver esta página.",
+    "permissionRequired": "No tienes permiso para ver los usuarios de la plataforma.",
+    "roles": {
+      "member": "Miembro",
+      "support": "Soporte",
+      "moderator": "Moderador",
+      "admin": "Administrador",
+      "owner": "Propietario"
+    },
+    "changeRoleTitle": "Cambiar rol de plataforma",
+    "changeRoleDescription": "Esto cambiará el rol de plataforma de {{email}} a {{role}}.",
+    "roleChangeSuccess": "Rol de plataforma cambiado a {{role}}",
     "deactivated": "Desactivada",
     "anonymized": "Anonimizada"
   },

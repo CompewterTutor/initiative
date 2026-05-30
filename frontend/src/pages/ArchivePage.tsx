@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGuilds } from "@/hooks/useGuilds";
 import { useArchivedProjects, useUnarchiveProject } from "@/hooks/useProjects";
 import { guildPath } from "@/lib/guildUrl";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 export const ArchivePage = () => {
   const { t } = useTranslation("projects");
@@ -29,7 +30,8 @@ export const ArchivePage = () => {
       user?.initiative_roles?.filter((assignment) => assignment.role === "project_manager") ?? [],
     [user]
   );
-  const canManageProjects = user?.role === "admin" || managedInitiatives.length > 0;
+  const canManageProjects =
+    hasCapability(user, Capability.dataBypass) || managedInitiatives.length > 0;
 
   const archivedProjectsQuery = useArchivedProjects();
 
