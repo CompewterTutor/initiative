@@ -94,8 +94,36 @@ async def test_duration_over_cap_rejected(client: AsyncClient, session: AsyncSes
         json={
             "guild_id": guild.id,
             "reason": "too long",
-            "requested_duration_minutes": 10_000,  # over the 24h cap
+            "requested_duration_minutes": 10_000,  # over the 24h ceiling
         },
+        headers=get_auth_headers(support),
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "ACCESS_GRANT_DURATION_TOO_LONG"
+
+
+@pytest.mark.integration
+async def test_duration_cap_is_per_role(client: AsyncClient, session: AsyncSession):
+    """Lower-trust roles get shorter windows: support is capped at 4h, but a
+    moderator may go to 8h."""
+    owner = await create_user(session, email="owner6@example.com", role=UserRole.owner)
+    support = await create_user(session, email="support6@example.com", role=UserRole.support)
+    moderator = await create_user(session, email="mod6@example.com", role=UserRole.moderator)
+    guild = await create_guild(session, creator=owner)
+
+    # 8h is within the moderator cap...
+    resp = await client.post(
+        "/api/v1/access-grants/",
+        json={"guild_id": guild.id, "reason": "8h", "requested_duration_minutes": 480},
+        headers=get_auth_headers(moderator),
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["requested_duration_minutes"] == 480
+
+    # ...but exceeds support's 4h cap.
+    resp = await client.post(
+        "/api/v1/access-grants/",
+        json={"guild_id": guild.id, "reason": "8h", "requested_duration_minutes": 480},
         headers=get_auth_headers(support),
     )
     assert resp.status_code == 400

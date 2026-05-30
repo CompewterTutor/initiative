@@ -683,6 +683,8 @@
     "levelRead": "Lecture seule",
     "levelReadWrite": "Lecture et écriture",
     "durationLabel": "Durée (minutes)",
+    "durationHours_one": "{{count}} heure",
+    "durationHours_other": "{{count}} heures",
     "durationPlaceholder": "Par défaut 240, max 1440",
     "reasonLabel": "Raison",
     "reasonPlaceholder": "Pourquoi vous avez besoin d'accès (ex. ticket #123)",

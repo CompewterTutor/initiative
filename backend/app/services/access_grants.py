@@ -21,7 +21,7 @@ from app.core.capabilities import Capability, roles_with_capability
 from app.core.config import settings
 from app.models.access_grant import AccessGrant, AccessGrantStatus, AccessLevel
 from app.models.notification import NotificationType
-from app.models.user import User, UserStatus
+from app.models.user import User, UserRole, UserStatus
 from app.schemas.access_grant import AccessGrantCreate, AccessGrantRead
 from app.services import guilds as guilds_service
 from app.services import user_notifications
@@ -40,11 +40,31 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _capped_duration(requested: Optional[int]) -> int:
-    """Resolve a requested duration to the effective one, or raise if it
-    exceeds the configured maximum."""
-    minutes = requested if requested is not None else settings.PAM_DEFAULT_DURATION_MINUTES
-    if minutes > settings.PAM_MAX_DURATION_MINUTES:
+# Per-role maximum grant duration (least privilege). Each is clamped to the
+# absolute ceiling. Keep in sync with the frontend mirror in
+# SettingsAccessGrantsPage.
+_ROLE_MAX_MINUTES: dict[UserRole, int] = {
+    UserRole.support: settings.PAM_SUPPORT_MAX_MINUTES,
+    UserRole.moderator: settings.PAM_MODERATOR_MAX_MINUTES,
+    UserRole.admin: settings.PAM_ADMIN_MAX_MINUTES,
+    # Owners hold the standing all-guild bypass and don't self-request, but
+    # define a cap for completeness / defensive use.
+    UserRole.owner: settings.PAM_ADMIN_MAX_MINUTES,
+}
+
+
+def max_minutes_for_role(role: UserRole) -> int:
+    """The longest grant the given role may hold (clamped to the ceiling)."""
+    role_cap = _ROLE_MAX_MINUTES.get(role, settings.PAM_DEFAULT_DURATION_MINUTES)
+    return min(role_cap, settings.PAM_MAX_DURATION_MINUTES)
+
+
+def _capped_duration(requested: Optional[int], role: UserRole) -> int:
+    """Resolve a requested duration for a grantee of ``role`` to the effective
+    one, or raise if it exceeds that role's maximum."""
+    cap = max_minutes_for_role(role)
+    minutes = requested if requested is not None else min(settings.PAM_DEFAULT_DURATION_MINUTES, cap)
+    if minutes > cap:
         raise AccessGrantError("DURATION_TOO_LONG")
     return minutes
 
@@ -74,7 +94,7 @@ async def request_grant(
     if membership is not None:
         raise AccessGrantError("ALREADY_MEMBER")
 
-    duration = _capped_duration(payload.requested_duration_minutes)
+    duration = _capped_duration(payload.requested_duration_minutes, requester.role)
 
     # Reject a second open request for the same guild while one is still
     # pending or live.
@@ -133,7 +153,11 @@ async def approve(
     if approver.id == grant.requested_by_id or approver.id == grant.user_id:
         raise AccessGrantError("CANNOT_APPROVE_OWN")
 
-    duration = _capped_duration(duration_minutes or grant.requested_duration_minutes)
+    # Cap by the GRANTEE's role (an approver shortening/extending can't exceed
+    # the recipient's tier).
+    grantee = await session.get(User, grant.user_id)
+    grantee_role = grantee.role if grantee else UserRole.support
+    duration = _capped_duration(duration_minutes or grant.requested_duration_minutes, grantee_role)
     now = _now()
     grant.status = AccessGrantStatus.approved.value
     grant.approved_by_id = approver.id

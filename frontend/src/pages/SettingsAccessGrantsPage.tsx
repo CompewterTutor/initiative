@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { AccessGrantRead, AccessGrantStatus } from "@/api/generated/initiativeAPI.schemas";
+import type {
+  AccessGrantRead,
+  AccessGrantStatus,
+  UserRole,
+} from "@/api/generated/initiativeAPI.schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +49,24 @@ const minutesLeft = (expiresAt?: string | null): number | null => {
   return Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000));
 };
 
+// Least-privilege grant-duration caps per requester role. MUST match the
+// backend PAM_*_MAX_MINUTES defaults — the backend enforces; this only
+// decides which presets to offer. (member can't request.)
+const ROLE_MAX_MINUTES: Partial<Record<UserRole, number>> = {
+  support: 240, // 4h
+  moderator: 480, // 8h
+  admin: 1440, // 24h
+  owner: 1440,
+};
+
+// All whole-hour presets, ascending.
+const DURATION_PRESETS_MINUTES = [60, 240, 480, 1440];
+
+const allowedDurations = (role: UserRole | undefined): number[] => {
+  const max = (role && ROLE_MAX_MINUTES[role]) ?? 240;
+  return DURATION_PRESETS_MINUTES.filter((m) => m <= max);
+};
+
 export const SettingsAccessGrantsPage = () => {
   const { t } = useTranslation(["settings", "common"]);
   const { user } = useAuth();
@@ -72,10 +94,13 @@ const StatusBadge = ({ grant }: { grant: AccessGrantRead }) => {
 
 const RequestSection = () => {
   const { t } = useTranslation(["settings", "common"]);
+  const { user } = useAuth();
   const myGrants = useMyAccessGrants();
+  const durationOptions = allowedDurations(user?.role);
+  const defaultDuration = String(durationOptions.includes(240) ? 240 : (durationOptions[0] ?? 240));
   const [guildId, setGuildId] = useState("");
   const [level, setLevel] = useState("read");
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration] = useState(defaultDuration);
   const [reason, setReason] = useState("");
 
   const createRequest = useCreateAccessRequest({
@@ -83,7 +108,7 @@ const RequestSection = () => {
       toast.success(t("accessGrants.requestSubmitted"));
       setGuildId("");
       setReason("");
-      setDuration("");
+      setDuration(defaultDuration);
     },
     onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.requestError")),
   });
@@ -99,7 +124,7 @@ const RequestSection = () => {
       guild_id: gid,
       access_level: level as "read" | "read_write",
       reason: reason.trim(),
-      requested_duration_minutes: duration ? Number.parseInt(duration, 10) : null,
+      requested_duration_minutes: Number.parseInt(duration, 10),
     });
   };
 
@@ -136,13 +161,18 @@ const RequestSection = () => {
           </div>
           <div className="space-y-1">
             <Label htmlFor="ag-duration">{t("accessGrants.durationLabel")}</Label>
-            <Input
-              id="ag-duration"
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder={t("accessGrants.durationPlaceholder")}
-            />
+            <Select value={duration} onValueChange={setDuration}>
+              <SelectTrigger id="ag-duration">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {durationOptions.map((minutes) => (
+                  <SelectItem key={minutes} value={String(minutes)}>
+                    {t("accessGrants.durationHours", { count: minutes / 60 })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor="ag-reason">{t("accessGrants.reasonLabel")}</Label>
