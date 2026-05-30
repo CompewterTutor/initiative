@@ -10,6 +10,7 @@ import {
   Plus,
   ScrollText,
   Settings,
+  ShieldCheck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -38,7 +39,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
 import { commandFilter } from "@/lib/fuzzyMatch";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
-import { canAccessPlatformAdmin } from "@/lib/permissions";
+import { canAccessAdminDashboard, canManagePlatformConfig } from "@/lib/permissions";
 import { renderRecentIcon } from "@/lib/recentIcon";
 import { recentRoute } from "@/lib/recentRoute";
 
@@ -159,7 +160,8 @@ export function CommandCenter() {
   const tasks = tasksQuery.data?.items ?? [];
 
   const isGuildAdmin = activeGuild?.role === "admin";
-  const isPlatformAdmin = canAccessPlatformAdmin(user);
+  const showPlatformSettings = canManagePlatformConfig(user);
+  const showAdminDashboard = canAccessAdminDashboard(user);
 
   // Static pages
   const pages = useMemo(() => {
@@ -195,16 +197,24 @@ export function CommandCenter() {
       });
     }
 
-    if (isPlatformAdmin) {
+    if (showAdminDashboard) {
+      items.push({
+        label: t("pages.adminDashboard"),
+        path: "/settings/admin",
+        icon: ShieldCheck,
+      });
+    }
+
+    if (showPlatformSettings) {
       items.push({
         label: t("pages.platformSettings"),
-        path: "/settings/admin",
+        path: "/settings/platform",
         icon: Settings,
       });
     }
 
     return items;
-  }, [t, getGuildPath, isGuildAdmin, isPlatformAdmin]);
+  }, [t, getGuildPath, isGuildAdmin, showAdminDashboard, showPlatformSettings]);
 
   const handleSelect = (path: string) => {
     setOpen(false);

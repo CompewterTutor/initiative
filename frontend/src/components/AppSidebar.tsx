@@ -49,7 +49,7 @@ import { useTags } from "@/hooks/useTags";
 import { guildPath } from "@/lib/guildUrl";
 import { getInitials } from "@/lib/initials";
 import { obfuscateEmail } from "@/lib/obfuscateEmail";
-import { canAccessPlatformAdmin } from "@/lib/permissions";
+import { canAccessAdminDashboard, canManagePlatformConfig } from "@/lib/permissions";
 import { getItem, setItem } from "@/lib/storage";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 
@@ -65,8 +65,10 @@ export const AppSidebar = () => {
 
   // Guild admin check is based on guild membership role only (independent from platform role)
   const isGuildAdmin = activeGuild?.role === "admin";
-  // Platform admins can access platform settings (separate from guild admin role)
-  const isPlatformAdmin = canAccessPlatformAdmin(user);
+  // Two separate platform areas: config (Platform settings) vs operational
+  // (Admin dashboard). Each surfaced independently per capability.
+  const showPlatformSettings = canManagePlatformConfig(user);
+  const showAdminDashboard = canAccessAdminDashboard(user);
 
   // Determine sidebar mode from route
   const isGuildRoute = location.pathname.startsWith("/g/");
@@ -598,7 +600,8 @@ export const AppSidebar = () => {
           userInitials={userInitials}
           avatarSrc={avatarSrc}
           isGuildAdmin={isGuildAdmin}
-          isPlatformAdmin={isPlatformAdmin}
+          canManagePlatformConfig={showPlatformSettings}
+          canAccessAdminDashboard={showAdminDashboard}
           activeGuildId={activeGuildId}
           hasUser={Boolean(user)}
           currentVersion={currentVersion}

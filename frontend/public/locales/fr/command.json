@@ -26,7 +26,8 @@
     "allProjects": "Tous les projets",
     "allDocuments": "Tous les documents",
     "allInitiatives": "Toutes les initiatives",
-    "platformSettings": "Paramètres de la plateforme"
+    "platformSettings": "Paramètres de la plateforme",
+    "adminDashboard": "Tableau de bord admin"
   },
   "shortcutHint": "Rechercher",
   "shortcutTooltip": "Recherche rapide ({{shortcut}})",

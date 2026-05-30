@@ -56,8 +56,9 @@
     "invalidGuildId": "Invalid guild id in link.",
     "noAccess": "You don't have access to this guild.",
     "switchError": "Unable to switch guild for this link.",
-    "redirecting": "Redirecting you to the right guild\u2026",
-    "finalizing": "Finalizing redirect\u2026",
+    "redirecting": "Redirecting you to the right guild…",
+    "finalizing": "Finalizing redirect…",
     "goHome": "Go back home"
-  }
+  },
+  "adminDashboard": "Admin dashboard"
 }

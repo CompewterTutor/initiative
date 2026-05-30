@@ -27,18 +27,6 @@
       "dangerZone": "Zone de danger"
     }
   },
-  "adminLayout": {
-    "title": "Paramètres de la plateforme",
-    "subtitle": "Gérez l'authentification, l'image de marque, le SMTP et les utilisateurs pour toute la plateforme.",
-    "tabs": {
-      "auth": "Auth",
-      "branding": "Image de marque",
-      "email": "E-mail",
-      "ai": "IA",
-      "users": "Utilisateurs",
-      "access": "Accès"
-    }
-  },
   "profile": {
     "subtitle": "Gardez les détails de votre compte à jour.",
     "cardTitle": "Informations personnelles",
@@ -716,6 +704,24 @@
       "denied": "Refusé",
       "revoked": "Révoqué",
       "expired": "Expiré"
+    }
+  },
+  "platformLayout": {
+    "title": "Paramètres de la plateforme",
+    "subtitle": "Configurez l'authentification, la personnalisation, l'email et l'IA pour toute la plateforme.",
+    "tabs": {
+      "auth": "Auth",
+      "branding": "Image de marque",
+      "email": "E-mail",
+      "ai": "IA"
+    }
+  },
+  "adminDashboard": {
+    "title": "Tableau de bord admin",
+    "subtitle": "Gérez les utilisateurs de la plateforme et les accès temporaires.",
+    "tabs": {
+      "users": "Utilisateurs",
+      "access": "Accès"
     }
   }
 }

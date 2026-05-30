@@ -89,7 +89,15 @@ describe("chooseNoGuildLayout", () => {
       expect(
         chooseNoGuildLayout({
           hasGuilds: false,
-          pathname: "/settings/admin/auth",
+          pathname: "/settings/admin/users",
+          isPlatformAdmin: true,
+        })
+      ).toBe("shell");
+      // Platform settings (config) lives under /settings/platform now.
+      expect(
+        chooseNoGuildLayout({
+          hasGuilds: false,
+          pathname: "/settings/platform/branding",
           isPlatformAdmin: true,
         })
       ).toBe("shell");
@@ -97,8 +105,8 @@ describe("chooseNoGuildLayout", () => {
 
     it("falls through to NoGuildState for non-admins", () => {
       // Non-admins shouldn't get the shell chrome for a route they
-      // can't see content on — ``AdminSettingsLayout`` would redirect
-      // them to /settings/guild anyway.
+      // can't see content on — the layout would redirect them to
+      // /settings/guild anyway.
       expect(
         chooseNoGuildLayout({
           hasGuilds: false,
@@ -109,7 +117,7 @@ describe("chooseNoGuildLayout", () => {
       expect(
         chooseNoGuildLayout({
           hasGuilds: false,
-          pathname: "/settings/admin/branding",
+          pathname: "/settings/platform/branding",
           isPlatformAdmin: false,
         })
       ).toBe("empty");

@@ -27,18 +27,6 @@
       "dangerZone": "Danger zone"
     }
   },
-  "adminLayout": {
-    "title": "Platform settings",
-    "subtitle": "Manage authentication, branding, SMTP, and users for the entire platform.",
-    "tabs": {
-      "auth": "Auth",
-      "branding": "Branding",
-      "email": "Email",
-      "ai": "AI",
-      "users": "Users",
-      "access": "Access"
-    }
-  },
   "profile": {
     "subtitle": "Keep your account details up to date.",
     "cardTitle": "Personal info",
@@ -716,6 +704,24 @@
       "denied": "Denied",
       "revoked": "Revoked",
       "expired": "Expired"
+    }
+  },
+  "platformLayout": {
+    "title": "Platform settings",
+    "subtitle": "Configure authentication, branding, email, and AI for the entire platform.",
+    "tabs": {
+      "auth": "Auth",
+      "branding": "Branding",
+      "email": "Email",
+      "ai": "AI"
+    }
+  },
+  "adminDashboard": {
+    "title": "Admin dashboard",
+    "subtitle": "Manage platform users and time-bound access grants.",
+    "tabs": {
+      "users": "Users",
+      "access": "Access"
     }
   }
 }

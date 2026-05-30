@@ -1,6 +1,6 @@
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { Link } from "@tanstack/react-router";
-import { ChartColumn, Settings, SquareCheckBig, UserCog } from "lucide-react";
+import { ChartColumn, Settings, ShieldCheck, SquareCheckBig, UserCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { ModeToggle } from "@/components/ModeToggle";
@@ -27,7 +27,8 @@ export interface SidebarUserFooterProps {
   userInitials: string;
   avatarSrc: string | null;
   isGuildAdmin: boolean;
-  isPlatformAdmin: boolean;
+  canManagePlatformConfig: boolean;
+  canAccessAdminDashboard: boolean;
   activeGuildId: number | null;
   hasUser: boolean;
   currentVersion: string;
@@ -43,7 +44,8 @@ export const SidebarUserFooter = ({
   userInitials,
   avatarSrc,
   isGuildAdmin,
-  isPlatformAdmin,
+  canManagePlatformConfig,
+  canAccessAdminDashboard,
   activeGuildId,
   hasUser,
   currentVersion,
@@ -101,9 +103,16 @@ export const SidebarUserFooter = ({
                   </Link>
                 </DropdownMenuItem>
               )}
-              {isPlatformAdmin && (
+              {canAccessAdminDashboard && (
                 <DropdownMenuItem asChild>
                   <Link to="/settings/admin">
+                    <ShieldCheck className="h-4 w-4" /> {t("adminDashboard")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {canManagePlatformConfig && (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings/platform">
                     <Settings className="h-4 w-4" /> {t("platformSettings")}
                   </Link>
                 </DropdownMenuItem>

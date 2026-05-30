@@ -42,21 +42,35 @@ export function hasAnyCapability(user: WithCapabilities, capabilities: Capabilit
   return capabilities.some((c) => hasCapability(user, c));
 }
 
-/** Capabilities that grant entry to *some* part of the platform admin area.
- * Used to decide whether to surface the admin section at all; individual
- * pages still gate on their own specific capability. */
-const PLATFORM_ADMIN_CAPABILITIES: Capability[] = [
+/** Capabilities behind the **Platform settings** area (app-wide config:
+ * auth, branding, email, AI). Owner-only in practice (`config.manage`). */
+const PLATFORM_SETTINGS_CAPABILITIES: Capability[] = [Capability.configManage];
+
+/** Capabilities behind the **Admin dashboard** area (operational: platform
+ * users + time-bound access grants). */
+const ADMIN_DASHBOARD_CAPABILITIES: Capability[] = [
   Capability.usersRead,
   Capability.usersManage,
   Capability.guildsManage,
   Capability.contentModerate,
   Capability.auditRead,
+  Capability.accessRequest,
   Capability.accessApprove,
   Capability.accessRead,
-  Capability.configManage,
 ];
 
-/** True iff the user can access at least one platform admin page. */
+/** True iff the user can configure the platform (Platform settings area). */
+export function canManagePlatformConfig(user: WithCapabilities): boolean {
+  return hasAnyCapability(user, PLATFORM_SETTINGS_CAPABILITIES);
+}
+
+/** True iff the user can reach the operational Admin dashboard area. */
+export function canAccessAdminDashboard(user: WithCapabilities): boolean {
+  return hasAnyCapability(user, ADMIN_DASHBOARD_CAPABILITIES);
+}
+
+/** True iff the user can access *either* platform area — used for coarse
+ * gating (no-guild layout choice, route guards). */
 export function canAccessPlatformAdmin(user: WithCapabilities): boolean {
-  return hasAnyCapability(user, PLATFORM_ADMIN_CAPABILITIES);
+  return canManagePlatformConfig(user) || canAccessAdminDashboard(user);
 }

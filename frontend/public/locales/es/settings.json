@@ -27,18 +27,6 @@
       "dangerZone": "Zona de peligro"
     }
   },
-  "adminLayout": {
-    "title": "Configuración de la plataforma",
-    "subtitle": "Administra la autenticación, personalización, SMTP y usuarios de toda la plataforma.",
-    "tabs": {
-      "auth": "Autenticación",
-      "branding": "Personalización",
-      "email": "Email",
-      "ai": "IA",
-      "users": "Usuarios",
-      "access": "Acceso"
-    }
-  },
   "profile": {
     "subtitle": "Mantén los datos de tu cuenta actualizados.",
     "cardTitle": "Información personal",
@@ -716,6 +704,24 @@
       "denied": "Denegado",
       "revoked": "Revocado",
       "expired": "Caducado"
+    }
+  },
+  "platformLayout": {
+    "title": "Configuración de la plataforma",
+    "subtitle": "Configura la autenticación, la personalización, el email y la IA de toda la plataforma.",
+    "tabs": {
+      "auth": "Autenticación",
+      "branding": "Personalización",
+      "email": "Email",
+      "ai": "IA"
+    }
+  },
+  "adminDashboard": {
+    "title": "Panel de administración",
+    "subtitle": "Administra los usuarios de la plataforma y los accesos temporales.",
+    "tabs": {
+      "users": "Usuarios",
+      "access": "Acceso"
     }
   }
 }
