@@ -152,7 +152,9 @@ async def list_initiatives(
             .selectinload(InitiativeRoleModel.permissions),
         )
     )
-    if not rls_service.is_guild_admin(guild_context.role):
+    # Guild admins and PAM grantees see every initiative in the guild; regular
+    # members are narrowed to initiatives they belong to.
+    if not rls_service.is_guild_admin(guild_context.role) and not guild_context.is_pam:
         statement = (
             statement.join(InitiativeMember, InitiativeMember.initiative_id == Initiative.id)
             .where(InitiativeMember.user_id == current_user.id)

@@ -35,6 +35,7 @@ from app.services import rls as rls_service
 from app.services import task_statuses as task_statuses_service
 from app.core.messages import ProjectExportMessages, ProjectMessages
 from app.core.config import settings as app_settings
+from app.core.pam_context import has_active_grant
 from app.services.realtime import broadcast_event
 from app.schemas.project import (
     ProjectCreate,
@@ -447,15 +448,19 @@ async def _visible_projects(
 
     DAC: Projects with explicit ProjectPermission OR role-based permission.
     """
-    has_permission_subq = permissions_service.visible_project_ids_subquery(current_user.id)
+    # A live PAM grant sees all of the guild's projects (like a member of every
+    # initiative); otherwise narrow to projects the user has explicit/role
+    # permission for. The guild scope + RLS apply either way.
+    conditions = [Initiative.guild_id == guild_id]
+    if not has_active_grant(guild_id):
+        conditions.append(
+            Project.id.in_(permissions_service.visible_project_ids_subquery(current_user.id))
+        )
 
     base_statement = (
         select(Project)
         .join(Project.initiative)
-        .where(
-            Initiative.guild_id == guild_id,
-            Project.id.in_(has_permission_subq),
-        )
+        .where(*conditions)
         .options(
             selectinload(Project.permissions).selectinload(ProjectPermission.user),
             selectinload(Project.role_permissions).selectinload(ProjectRolePermission.role),

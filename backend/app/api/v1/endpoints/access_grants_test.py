@@ -4,8 +4,37 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from datetime import datetime, timedelta, timezone
+
+from app.models.access_grant import AccessGrant
 from app.models.user import UserRole
-from app.testing import create_guild, create_user, get_auth_headers
+from app.testing import (
+    create_guild,
+    create_initiative,
+    create_project,
+    create_user,
+    get_auth_headers,
+    get_guild_headers,
+)
+
+
+async def _approved_read_grant(session, *, user, guild, owner, level="read"):
+    now = datetime.now(timezone.utc)
+    grant = AccessGrant(
+        user_id=user.id,
+        guild_id=guild.id,
+        access_level=level,
+        status="approved",
+        reason="ticket",
+        requested_duration_minutes=60,
+        requested_by_id=user.id,
+        approved_by_id=owner.id,
+        decided_at=now,
+        expires_at=now + timedelta(hours=1),
+    )
+    session.add(grant)
+    await session.commit()
+    return grant
 
 
 @pytest.mark.integration
@@ -164,3 +193,28 @@ async def test_revoke_and_cancel(client: AsyncClient, session: AsyncSession):
     assert resp.status_code == 200
     assert resp.json()["status"] == "revoked"
     assert resp.json()["is_live"] is False
+
+
+@pytest.mark.integration
+async def test_grantee_sees_guild_content(client: AsyncClient, session: AsyncSession):
+    """A read grant exposes the guild's initiatives/projects in the list
+    endpoints — not just RLS, but the app-layer membership filters too (the
+    'empty guild' bug)."""
+    owner = await create_user(session, email="owner-content@example.com", role=UserRole.owner)
+    support = await create_user(session, email="support-content@example.com", role=UserRole.support)
+    guild = await create_guild(session, creator=owner)
+    init = await create_initiative(session, guild, owner, name="Recon Wing")
+    await create_project(session, init, owner, name="Alpha Site")
+    await _approved_read_grant(session, user=support, guild=guild, owner=owner)
+
+    headers = get_guild_headers(guild, support)
+
+    resp = await client.get("/api/v1/initiatives/", headers=headers)
+    assert resp.status_code == 200, resp.text
+    assert any(i["name"] == "Recon Wing" for i in resp.json()), "grantee should see the initiative"
+
+    resp = await client.get("/api/v1/projects/", headers=headers)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    items = body["items"] if isinstance(body, dict) and "items" in body else body
+    assert any(p["name"] == "Alpha Site" for p in items), "grantee should see the project"

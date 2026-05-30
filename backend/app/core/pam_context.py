@@ -41,6 +41,16 @@ def active_grant_level(guild_id: int) -> Optional[str]:
     return level if granted_guild == guild_id else None
 
 
+def has_active_grant(guild_id: int) -> bool:
+    """Whether this request is served via a live grant covering ``guild_id``.
+
+    Used by list/visibility queries to skip per-membership/permission narrowing
+    (a grantee sees all of the guild's content, like a member of every
+    initiative) while keeping the explicit guild scope + RLS.
+    """
+    return active_grant_level(guild_id) is not None
+
+
 def grant_satisfies(guild_id: int, *, access: str = "read", require_owner: bool = False) -> bool:
     """Whether a live grant covers ``guild_id`` at the requested access level.
 

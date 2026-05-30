@@ -21,6 +21,7 @@ from app.api.deps import (
 )
 from app.core.config import settings
 from app.core.messages import DocumentMessages, InitiativeMessages, QueryMessages
+from app.core.pam_context import has_active_grant
 from app.core.rate_limit import limiter
 from app.db.session import get_admin_session, reapply_rls_context
 from app.models.document import Document, DocumentFileVersion, DocumentPermission, DocumentPermissionLevel, DocumentRolePermission, DocumentType, ProjectDocument
@@ -270,12 +271,14 @@ def _build_visible_docs_filters(
     untagged: Optional[bool] = None,
 ):
     """Build common WHERE conditions for visible-document queries."""
-    has_permission_subq = permissions_service.visible_document_ids_subquery(user_id)
-
-    conditions = [
-        Initiative.guild_id == guild_id,
-        Document.id.in_(has_permission_subq),
-    ]
+    # A live PAM grant sees all of the guild's documents; otherwise narrow to
+    # documents the user has explicit/role permission for. Guild scope + RLS
+    # apply either way.
+    conditions = [Initiative.guild_id == guild_id]
+    if not has_active_grant(guild_id):
+        conditions.append(
+            Document.id.in_(permissions_service.visible_document_ids_subquery(user_id))
+        )
 
     if initiative_id is not None:
         conditions.append(Document.initiative_id == initiative_id)
