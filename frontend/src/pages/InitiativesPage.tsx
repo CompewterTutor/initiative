@@ -66,6 +66,8 @@ export const InitiativesPage = () => {
   const memberLabel = getRoleLabel("member", roleLabels);
 
   const isGuildAdmin = activeGuild?.role === "admin" || hasCapability(user, Capability.dataBypass);
+  // PAM grantees see every initiative in the guild (but can't create them).
+  const isGrantGuild = activeGuild?.accessType === "grant";
   const canCreateInitiatives = Boolean(activeGuild && isGuildAdmin);
 
   const initiativesQuery = useInitiatives({ enabled: Boolean(activeGuild) });
@@ -82,14 +84,14 @@ export const InitiativesPage = () => {
       return [];
     }
     const source = initiativesQuery.data ?? [];
-    if (isGuildAdmin) {
+    if (isGuildAdmin || isGrantGuild) {
       return source.slice().sort((a, b) => a.name.localeCompare(b.name));
     }
     const membershipFiltered = source.filter((initiative) =>
       initiative.members.some((member) => member.user.id === user.id)
     );
     return membershipFiltered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [initiativesQuery.data, user, isGuildAdmin]);
+  }, [initiativesQuery.data, user, isGuildAdmin, isGrantGuild]);
 
   const projectCounts = useMemo(() => {
     const counts = new Map<number, number>();

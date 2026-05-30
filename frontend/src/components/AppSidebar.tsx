@@ -65,6 +65,10 @@ export const AppSidebar = () => {
 
   // Guild admin check is based on guild membership role only (independent from platform role)
   const isGuildAdmin = activeGuild?.role === "admin";
+  // Reached via a time-bound PAM grant: see all initiatives (like a member of
+  // every one), read-only unless the grant is read_write.
+  const isGrantGuild = activeGuild?.accessType === "grant";
+  const grantReadWrite = isGrantGuild && activeGuild?.grantAccessLevel === "read_write";
   // Two separate platform areas: config (Platform settings) vs operational
   // (Admin dashboard). Each surfaced independently per capability.
   const showPlatformSettings = canManagePlatformConfig(user);
@@ -156,14 +160,15 @@ export const AppSidebar = () => {
       return [];
     }
     const source = Array.isArray(initiativesQuery.data) ? initiativesQuery.data : [];
-    if (isGuildAdmin) {
+    // Guild admins and PAM grantees see every initiative in the guild.
+    if (isGuildAdmin || isGrantGuild) {
       return source.slice().sort((a, b) => a.name.localeCompare(b.name));
     }
     const membershipFiltered = source.filter((initiative) =>
       initiative.members.some((member) => member.user.id === user.id)
     );
     return membershipFiltered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [initiativesQuery.data, user, isGuildAdmin]);
+  }, [initiativesQuery.data, user, isGuildAdmin, isGrantGuild]);
 
   // Check if user can manage a specific initiative
   const canManageInitiative = useCallback(
@@ -216,6 +221,23 @@ export const AppSidebar = () => {
           canCreateCounters: initiative.counters_enabled ?? false,
         };
       }
+      // PAM grant: view every section (gated by the initiative's feature
+      // flags); create only when the grant is read_write.
+      if (isGrantGuild) {
+        return {
+          canViewDocs: true,
+          canViewProjects: true,
+          canViewQueues: initiative.queues_enabled ?? false,
+          canViewEvents: initiative.events_enabled ?? false,
+          canViewAdvancedTool: initiative.advanced_tool_enabled ?? false,
+          canViewCounters: initiative.counters_enabled ?? false,
+          canCreateDocs: grantReadWrite,
+          canCreateProjects: grantReadWrite,
+          canCreateQueues: grantReadWrite && (initiative.queues_enabled ?? false),
+          canCreateEvents: grantReadWrite && (initiative.events_enabled ?? false),
+          canCreateCounters: grantReadWrite && (initiative.counters_enabled ?? false),
+        };
+      }
       const membership = initiative.members.find((m) => m.user.id === user.id);
       if (!membership) {
         return {
@@ -246,7 +268,7 @@ export const AppSidebar = () => {
         canCreateCounters: membership.can_create_counters ?? false,
       };
     },
-    [user, isGuildAdmin]
+    [user, isGuildAdmin, isGrantGuild, grantReadWrite]
   );
 
   const userDisplayName = user?.full_name ?? (obfuscateEmail(user?.email) || "User");
