@@ -365,12 +365,16 @@ async def get_guild_session(
         # writes. guild_role is left unset so guild-role-gated paths don't treat
         # the grantee as a member.
         grant = guild_context.grant
+        # Leave current_guild_id unset — the existing write policies treat a
+        # matching current_guild_id as proof of membership. Scope the grant via
+        # pam_guild_id instead.
         await set_rls_context(
             session,
             user_id=current_user.id,
-            guild_id=guild_context.guild_id,
+            guild_id=None,
             guild_role=None,
             is_superadmin=False,
+            pam_guild_id=guild_context.guild_id,
             pam_read=True,
             pam_write=(grant is not None and grant.access_level == AccessLevel.read_write.value),
         )
