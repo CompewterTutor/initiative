@@ -326,6 +326,16 @@ async def get_guild_membership(
         )
         if grant is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_ACCESS_DENIED)
+        # Apply the pam context now so the grantee can actually read the guild
+        # row (and below, get_guild_session re-applies the full context). The
+        # guilds table has an additive pam_read policy keyed on pam_guild_id.
+        await set_rls_context(
+            session,
+            user_id=current_user.id,
+            pam_guild_id=guild_id,
+            pam_read=True,
+            pam_write=(grant.access_level == AccessLevel.read_write.value),
+        )
         guild = await guilds_service.get_guild(session, guild_id=guild_id)
         synthetic = GuildMembership(
             guild_id=guild_id, user_id=current_user.id, role=GuildRole.member

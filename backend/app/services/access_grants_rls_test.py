@@ -44,6 +44,14 @@ async def test_pam_read_grant_sees_only_granted_guild(session: AsyncSession):
             session, user_id=support.id, pam_guild_id=guild_a.id, pam_read=True, pam_write=False
         )
 
+        # The guild row itself must be readable — get_guild_membership fetches
+        # it to build the request context, so without this every guild-scoped
+        # endpoint 500s for a grantee.
+        visible_guild = (
+            await session.execute(text("SELECT id FROM guilds WHERE id = :g"), {"g": guild_a.id})
+        ).all()
+        assert len(visible_guild) == 1, "grantee must be able to read the granted guild row"
+
         # Initiatives of the granted guild are visible (the sidebar list) — this
         # is the exact RLS path the empty-guild bug would break.
         visible_inits = (
