@@ -60,6 +60,7 @@ import { Route as ServerRequiredAuthenticatedSettingsAdminEmailRouteImport } fro
 import { Route as ServerRequiredAuthenticatedSettingsAdminBrandingRouteImport } from './routes/_serverRequired/_authenticated/settings/admin/branding'
 import { Route as ServerRequiredAuthenticatedSettingsAdminAuthRouteImport } from './routes/_serverRequired/_authenticated/settings/admin/auth'
 import { Route as ServerRequiredAuthenticatedSettingsAdminAiRouteImport } from './routes/_serverRequired/_authenticated/settings/admin/ai'
+import { Route as ServerRequiredAuthenticatedSettingsAdminAccessRouteImport } from './routes/_serverRequired/_authenticated/settings/admin/access'
 import { Route as ServerRequiredAuthenticatedProjectsProjectIdSettingsRouteImport } from './routes/_serverRequired/_authenticated/projects_.$projectId_.settings'
 import { Route as ServerRequiredAuthenticatedInitiativesInitiativeIdSettingsRouteImport } from './routes/_serverRequired/_authenticated/initiatives_.$initiativeId_.settings'
 import { Route as ServerRequiredAuthenticatedGGuildIdSettingsRouteImport } from './routes/_serverRequired/_authenticated/g/$guildId/settings'
@@ -392,6 +393,12 @@ const ServerRequiredAuthenticatedSettingsAdminAiRoute =
     path: '/ai',
     getParentRoute: () => ServerRequiredAuthenticatedSettingsAdminRoute,
   } as any)
+const ServerRequiredAuthenticatedSettingsAdminAccessRoute =
+  ServerRequiredAuthenticatedSettingsAdminAccessRouteImport.update({
+    id: '/access',
+    path: '/access',
+    getParentRoute: () => ServerRequiredAuthenticatedSettingsAdminRoute,
+  } as any)
 const ServerRequiredAuthenticatedProjectsProjectIdSettingsRoute =
   ServerRequiredAuthenticatedProjectsProjectIdSettingsRouteImport.update({
     id: '/projects_/$projectId_/settings',
@@ -646,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/g/$guildId/settings': typeof ServerRequiredAuthenticatedGGuildIdSettingsRouteWithChildren
   '/initiatives/$initiativeId/settings': typeof ServerRequiredAuthenticatedInitiativesInitiativeIdSettingsRoute
   '/projects/$projectId/settings': typeof ServerRequiredAuthenticatedProjectsProjectIdSettingsRoute
+  '/settings/admin/access': typeof ServerRequiredAuthenticatedSettingsAdminAccessRoute
   '/settings/admin/ai': typeof ServerRequiredAuthenticatedSettingsAdminAiRoute
   '/settings/admin/auth': typeof ServerRequiredAuthenticatedSettingsAdminAuthRoute
   '/settings/admin/branding': typeof ServerRequiredAuthenticatedSettingsAdminBrandingRoute
@@ -724,6 +732,7 @@ export interface FileRoutesByTo {
   '/g/$guildId/queues': typeof ServerRequiredAuthenticatedGGuildIdQueuesRoute
   '/initiatives/$initiativeId/settings': typeof ServerRequiredAuthenticatedInitiativesInitiativeIdSettingsRoute
   '/projects/$projectId/settings': typeof ServerRequiredAuthenticatedProjectsProjectIdSettingsRoute
+  '/settings/admin/access': typeof ServerRequiredAuthenticatedSettingsAdminAccessRoute
   '/settings/admin/ai': typeof ServerRequiredAuthenticatedSettingsAdminAiRoute
   '/settings/admin/auth': typeof ServerRequiredAuthenticatedSettingsAdminAuthRoute
   '/settings/admin/branding': typeof ServerRequiredAuthenticatedSettingsAdminBrandingRoute
@@ -810,6 +819,7 @@ export interface FileRoutesById {
   '/_serverRequired/_authenticated/g/$guildId/settings': typeof ServerRequiredAuthenticatedGGuildIdSettingsRouteWithChildren
   '/_serverRequired/_authenticated/initiatives_/$initiativeId_/settings': typeof ServerRequiredAuthenticatedInitiativesInitiativeIdSettingsRoute
   '/_serverRequired/_authenticated/projects_/$projectId_/settings': typeof ServerRequiredAuthenticatedProjectsProjectIdSettingsRoute
+  '/_serverRequired/_authenticated/settings/admin/access': typeof ServerRequiredAuthenticatedSettingsAdminAccessRoute
   '/_serverRequired/_authenticated/settings/admin/ai': typeof ServerRequiredAuthenticatedSettingsAdminAiRoute
   '/_serverRequired/_authenticated/settings/admin/auth': typeof ServerRequiredAuthenticatedSettingsAdminAuthRoute
   '/_serverRequired/_authenticated/settings/admin/branding': typeof ServerRequiredAuthenticatedSettingsAdminBrandingRoute
@@ -895,6 +905,7 @@ export interface FileRouteTypes {
     | '/g/$guildId/settings'
     | '/initiatives/$initiativeId/settings'
     | '/projects/$projectId/settings'
+    | '/settings/admin/access'
     | '/settings/admin/ai'
     | '/settings/admin/auth'
     | '/settings/admin/branding'
@@ -973,6 +984,7 @@ export interface FileRouteTypes {
     | '/g/$guildId/queues'
     | '/initiatives/$initiativeId/settings'
     | '/projects/$projectId/settings'
+    | '/settings/admin/access'
     | '/settings/admin/ai'
     | '/settings/admin/auth'
     | '/settings/admin/branding'
@@ -1058,6 +1070,7 @@ export interface FileRouteTypes {
     | '/_serverRequired/_authenticated/g/$guildId/settings'
     | '/_serverRequired/_authenticated/initiatives_/$initiativeId_/settings'
     | '/_serverRequired/_authenticated/projects_/$projectId_/settings'
+    | '/_serverRequired/_authenticated/settings/admin/access'
     | '/_serverRequired/_authenticated/settings/admin/ai'
     | '/_serverRequired/_authenticated/settings/admin/auth'
     | '/_serverRequired/_authenticated/settings/admin/branding'
@@ -1457,6 +1470,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServerRequiredAuthenticatedSettingsAdminAiRouteImport
       parentRoute: typeof ServerRequiredAuthenticatedSettingsAdminRoute
     }
+    '/_serverRequired/_authenticated/settings/admin/access': {
+      id: '/_serverRequired/_authenticated/settings/admin/access'
+      path: '/access'
+      fullPath: '/settings/admin/access'
+      preLoaderRoute: typeof ServerRequiredAuthenticatedSettingsAdminAccessRouteImport
+      parentRoute: typeof ServerRequiredAuthenticatedSettingsAdminRoute
+    }
     '/_serverRequired/_authenticated/projects_/$projectId_/settings': {
       id: '/_serverRequired/_authenticated/projects_/$projectId_/settings'
       path: '/projects/$projectId/settings'
@@ -1721,6 +1741,7 @@ const ServerRequiredAuthenticatedProfileRouteWithChildren =
   )
 
 interface ServerRequiredAuthenticatedSettingsAdminRouteChildren {
+  ServerRequiredAuthenticatedSettingsAdminAccessRoute: typeof ServerRequiredAuthenticatedSettingsAdminAccessRoute
   ServerRequiredAuthenticatedSettingsAdminAiRoute: typeof ServerRequiredAuthenticatedSettingsAdminAiRoute
   ServerRequiredAuthenticatedSettingsAdminAuthRoute: typeof ServerRequiredAuthenticatedSettingsAdminAuthRoute
   ServerRequiredAuthenticatedSettingsAdminBrandingRoute: typeof ServerRequiredAuthenticatedSettingsAdminBrandingRoute
@@ -1731,6 +1752,8 @@ interface ServerRequiredAuthenticatedSettingsAdminRouteChildren {
 
 const ServerRequiredAuthenticatedSettingsAdminRouteChildren: ServerRequiredAuthenticatedSettingsAdminRouteChildren =
   {
+    ServerRequiredAuthenticatedSettingsAdminAccessRoute:
+      ServerRequiredAuthenticatedSettingsAdminAccessRoute,
     ServerRequiredAuthenticatedSettingsAdminAiRoute:
       ServerRequiredAuthenticatedSettingsAdminAiRoute,
     ServerRequiredAuthenticatedSettingsAdminAuthRoute:

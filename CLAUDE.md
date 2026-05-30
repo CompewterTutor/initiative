@@ -391,9 +391,16 @@ Every guild-scoped table **must** have RLS policies. When creating a new table o
    CURRENT_USER_ID  = "NULLIF(current_setting('app.current_user_id', true), '')::int"
    CURRENT_GUILD_ROLE = "current_setting('app.current_guild_role', true)"
    IS_SUPERADMIN = "current_setting('app.is_superadmin', true) = 'true'"
+   # Privileged Access Management (time-bound, per-guild grants):
+   PAM_GUILD_ID = "NULLIF(current_setting('app.pam_guild_id', true), '')::int"
+   PAM_READ = "current_setting('app.pam_read', true) = 'true'"
+   PAM_WRITE = "current_setting('app.pam_write', true) = 'true'"
    ```
+   `pam_guild_id` is deliberately **separate** from `current_guild_id`: the existing guild write policies treat a matching `current_guild_id` as proof of membership, so a PAM grantee leaves `current_guild_id` unset and is scoped via `pam_guild_id`. New guild-scoped *content* tables should add additive PERMISSIVE PAM policies mirroring `20260530_0093_pam_rls_policies.py` (`<t>_pam_read` FOR SELECT gated on `PAM_READ`; `<t>_pam_write` for INSERT/UPDATE/DELETE gated on `PAM_WRITE`). Do **not** add PAM policies to identity/config tables (memberships, settings, invites, oidc) — grants must never reach them. Initiative-scoped tables are handled centrally: `is_initiative_member()` already returns true for a `pam_read` grant covering the row's guild.
 
 7. **Downgrade function** — always include `DROP POLICY IF EXISTS` and `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` so rollbacks are clean.
+
+8. **`access_grants` table** is platform-scoped (managed cross-guild by `owner`/`admin` via the admin session) like `users` — endpoints use `AdminSessionDep` with explicit capability + ownership checks, not `RLSSessionDep`.
 
 8. **Verify after migration** — connect as `app_user` (not the superuser) and confirm that queries only return rows for the active guild. A missing policy silently returns zero rows; a wrong policy leaks cross-guild data.
 
@@ -407,7 +414,8 @@ Every guild-scoped table **must** have RLS policies. When creating a new table o
 
 - Guilds are the primary tenancy boundary. Every user can join multiple guilds, and most API endpoints infer the active guild from the `X-Guild-ID` header (set by the SPA) or fall back to `users.active_guild_id`. Always include the guild header in new client calls when the route depends on guild context.
 - Guild membership has two roles (`admin`, `member`). Guild admins own memberships, invites, initiative/project configuration, and can delete their guild; they cannot delete users from the entire app. Keep server-side checks scoped to guild roles, not legacy global roles.
-- The bootstrap super user (ID `1`) is the only account allowed to change app-wide configuration (OIDC, SMTP email, branding accents, role labels). Those routes live under `/settings/admin` in the SPA and corresponding `/api/v1/settings/*` endpoints check for that ID explicitly.
+- **Platform roles are a 5-rung ladder** (`member` → `support` → `moderator` → `admin` → `owner`) resolved to a capability set in `backend/app/core/capabilities.py`. Gate platform endpoints on a capability via `require_capability(...)`, not a role name; the frontend reads the backend-computed `UserRead.capabilities` (mirror constants in `frontend/src/lib/permissions.ts`). App-wide configuration (OIDC, SMTP email, branding accents, role labels, platform AI) requires `config.manage` (owner-only) — these routes live under `/settings/admin`. The standing all-guild RLS bypass (`data.bypass`) is `admin`+`owner` only; the first/bootstrap user becomes `owner`. Never leave the platform without a `config.manage` holder (see `is_last_capability_holder`).
+- **Privileged Access Management (PAM):** lower roles get cross-guild access via time-bound, per-guild grants (`access_grants` table, `/api/v1/access-grants`), not a standing bypass — request → approve/deny → auto-expire, scoped read-only-by-default at the DB level. See the RLS section for the `pam_*` session vars.
 - `.env` supports `DISABLE_GUILD_CREATION`. When set to `true`, POST `/guilds/` must return 403 and the frontend should hide “Create guild” affordances, forcing new users to redeem invites issued by guild admins.
 - Every new guild automatically seeds a "Default Initiative" and makes the creator a guild admin. Be mindful when writing migrations or services so this invariant remains intact, especially when cascading deletes (guild deletion must clean up initiatives, projects, tasks, memberships, and settings).
 

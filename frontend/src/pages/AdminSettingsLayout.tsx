@@ -13,42 +13,48 @@ export const AdminSettingsLayout = () => {
   const router = useRouter();
   const canAccessAdmin = canAccessPlatformAdmin(user);
 
-  const adminTabs = useMemo(
-    () =>
-      [
-        {
-          value: "auth",
-          label: t("adminLayout.tabs.auth"),
-          path: "/settings/admin/auth",
-          capability: Capability.configManage,
-        },
-        {
-          value: "branding",
-          label: t("adminLayout.tabs.branding"),
-          path: "/settings/admin/branding",
-          capability: Capability.configManage,
-        },
-        {
-          value: "email",
-          label: t("adminLayout.tabs.email"),
-          path: "/settings/admin/email",
-          capability: Capability.configManage,
-        },
-        {
-          value: "ai",
-          label: t("adminLayout.tabs.ai"),
-          path: "/settings/admin/ai",
-          capability: Capability.configManage,
-        },
-        {
-          value: "users",
-          label: t("adminLayout.tabs.users"),
-          path: "/settings/admin/users",
-          capability: Capability.usersRead,
-        },
-      ].filter((tab) => hasCapability(user, tab.capability)),
-    [t, user]
-  );
+  const adminTabs = useMemo(() => {
+    // Each tab is visible if the user holds ANY of its capabilities.
+    const tabs: { value: string; label: string; path: string; capabilities: Capability[] }[] = [
+      {
+        value: "auth",
+        label: t("adminLayout.tabs.auth"),
+        path: "/settings/admin/auth",
+        capabilities: [Capability.configManage],
+      },
+      {
+        value: "branding",
+        label: t("adminLayout.tabs.branding"),
+        path: "/settings/admin/branding",
+        capabilities: [Capability.configManage],
+      },
+      {
+        value: "email",
+        label: t("adminLayout.tabs.email"),
+        path: "/settings/admin/email",
+        capabilities: [Capability.configManage],
+      },
+      {
+        value: "ai",
+        label: t("adminLayout.tabs.ai"),
+        path: "/settings/admin/ai",
+        capabilities: [Capability.configManage],
+      },
+      {
+        value: "users",
+        label: t("adminLayout.tabs.users"),
+        path: "/settings/admin/users",
+        capabilities: [Capability.usersRead],
+      },
+      {
+        value: "access",
+        label: t("adminLayout.tabs.access"),
+        path: "/settings/admin/access",
+        capabilities: [Capability.accessRequest, Capability.accessApprove],
+      },
+    ];
+    return tabs.filter((tab) => tab.capabilities.some((c) => hasCapability(user, c)));
+  }, [t, user]);
 
   if (!canAccessAdmin) {
     return <Navigate to="/settings/guild" replace />;

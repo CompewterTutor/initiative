@@ -1,0 +1,318 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import type { AccessGrantRead, AccessGrantStatus } from "@/api/generated/initiativeAPI.schemas";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  useAccessGrantQueue,
+  useApproveAccessGrant,
+  useCancelAccessRequest,
+  useCreateAccessRequest,
+  useDenyAccessGrant,
+  useMyAccessGrants,
+  useRevokeAccessGrant,
+} from "@/hooks/useAccessGrants";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/lib/chesterToast";
+import { getErrorMessage } from "@/lib/errorMessage";
+import { Capability, hasCapability } from "@/lib/permissions";
+
+const STATUS_VARIANT: Record<
+  AccessGrantStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  pending: "secondary",
+  approved: "default",
+  denied: "destructive",
+  revoked: "destructive",
+  expired: "outline",
+};
+
+const minutesLeft = (expiresAt?: string | null): number | null => {
+  if (!expiresAt) return null;
+  return Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000));
+};
+
+export const SettingsAccessGrantsPage = () => {
+  const { t } = useTranslation(["settings", "common"]);
+  const { user } = useAuth();
+  const canRequest = hasCapability(user, Capability.accessRequest);
+  const canApprove = hasCapability(user, Capability.accessApprove);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-semibold text-2xl tracking-tight">{t("accessGrants.title")}</h2>
+        <p className="text-muted-foreground">{t("accessGrants.description")}</p>
+      </div>
+      {canApprove && <ApprovalQueue />}
+      {canRequest && <RequestSection />}
+    </div>
+  );
+};
+
+const StatusBadge = ({ grant }: { grant: AccessGrantRead }) => {
+  const { t } = useTranslation("settings");
+  return (
+    <Badge variant={STATUS_VARIANT[grant.status]}>{t(`accessGrants.status.${grant.status}`)}</Badge>
+  );
+};
+
+const RequestSection = () => {
+  const { t } = useTranslation(["settings", "common"]);
+  const myGrants = useMyAccessGrants();
+  const [guildId, setGuildId] = useState("");
+  const [level, setLevel] = useState("read");
+  const [duration, setDuration] = useState("");
+  const [reason, setReason] = useState("");
+
+  const createRequest = useCreateAccessRequest({
+    onSuccess: () => {
+      toast.success(t("accessGrants.requestSubmitted"));
+      setGuildId("");
+      setReason("");
+      setDuration("");
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.requestError")),
+  });
+  const cancelRequest = useCancelAccessRequest({
+    onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.cancelError")),
+  });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const gid = Number.parseInt(guildId, 10);
+    if (!gid || !reason.trim()) return;
+    createRequest.mutate({
+      guild_id: gid,
+      access_level: level as "read" | "read_write",
+      reason: reason.trim(),
+      requested_duration_minutes: duration ? Number.parseInt(duration, 10) : null,
+    });
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <CardTitle>{t("accessGrants.requestTitle")}</CardTitle>
+        <CardDescription>{t("accessGrants.requestDescription")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
+          <div className="space-y-1">
+            <Label htmlFor="ag-guild">{t("accessGrants.guildIdLabel")}</Label>
+            <Input
+              id="ag-guild"
+              type="number"
+              value={guildId}
+              onChange={(e) => setGuildId(e.target.value)}
+              placeholder={t("accessGrants.guildIdPlaceholder")}
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ag-level">{t("accessGrants.levelLabel")}</Label>
+            <Select value={level} onValueChange={setLevel}>
+              <SelectTrigger id="ag-level">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="read">{t("accessGrants.levelRead")}</SelectItem>
+                <SelectItem value="read_write">{t("accessGrants.levelReadWrite")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ag-duration">{t("accessGrants.durationLabel")}</Label>
+            <Input
+              id="ag-duration"
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder={t("accessGrants.durationPlaceholder")}
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="ag-reason">{t("accessGrants.reasonLabel")}</Label>
+            <Textarea
+              id="ag-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={t("accessGrants.reasonPlaceholder")}
+              required
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={createRequest.isPending}>
+              {createRequest.isPending ? t("common:submitting") : t("accessGrants.submitRequest")}
+            </Button>
+          </div>
+        </form>
+
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm">{t("accessGrants.myRequests")}</h3>
+          {!myGrants.data?.length ? (
+            <p className="text-muted-foreground text-sm">{t("accessGrants.noRequests")}</p>
+          ) : (
+            <ul className="divide-y rounded-md border">
+              {myGrants.data.map((grant) => {
+                const left = minutesLeft(grant.expires_at);
+                return (
+                  <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level}
+                      </p>
+                      <p className="truncate text-muted-foreground text-xs">{grant.reason}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {grant.is_live && left !== null && (
+                        <span className="text-muted-foreground text-xs">
+                          {t("accessGrants.expiresIn", { minutes: left })}
+                        </span>
+                      )}
+                      <StatusBadge grant={grant} />
+                      {grant.status === "pending" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => cancelRequest.mutate(grant.id)}
+                          disabled={cancelRequest.isPending}
+                        >
+                          {t("common:cancel")}
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ApprovalQueue = () => {
+  const { t } = useTranslation(["settings", "common"]);
+  const pending = useAccessGrantQueue("pending");
+  const active = useAccessGrantQueue("approved");
+
+  const approve = useApproveAccessGrant({
+    onSuccess: () => toast.success(t("accessGrants.approved")),
+    onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.actionError")),
+  });
+  const deny = useDenyAccessGrant({
+    onSuccess: () => toast.success(t("accessGrants.denied")),
+    onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.actionError")),
+  });
+  const revoke = useRevokeAccessGrant({
+    onSuccess: () => toast.success(t("accessGrants.revoked")),
+    onError: (err) => toast.error(getErrorMessage(err, "settings:accessGrants.actionError")),
+  });
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <CardTitle>{t("accessGrants.queueTitle")}</CardTitle>
+        <CardDescription>{t("accessGrants.queueDescription")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm">{t("accessGrants.pendingHeading")}</h3>
+          {!pending.data?.length ? (
+            <p className="text-muted-foreground text-sm">{t("accessGrants.noPending")}</p>
+          ) : (
+            <ul className="divide-y rounded-md border">
+              {pending.data.map((grant) => (
+                <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm">
+                      {grant.user_email ?? `user #${grant.user_id}`} →{" "}
+                      {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level} ·{" "}
+                      {t("accessGrants.minutes", { minutes: grant.requested_duration_minutes })}
+                    </p>
+                    <p className="truncate text-muted-foreground text-xs">{grant.reason}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => approve.mutate({ grantId: grant.id })}
+                      disabled={approve.isPending}
+                    >
+                      {t("accessGrants.approve")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deny.mutate(grant.id)}
+                      disabled={deny.isPending}
+                    >
+                      {t("accessGrants.deny")}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm">{t("accessGrants.activeHeading")}</h3>
+          {!active.data?.filter((g) => g.is_live).length ? (
+            <p className="text-muted-foreground text-sm">{t("accessGrants.noActive")}</p>
+          ) : (
+            <ul className="divide-y rounded-md border">
+              {active.data
+                .filter((g) => g.is_live)
+                .map((grant) => {
+                  const left = minutesLeft(grant.expires_at);
+                  return (
+                    <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm">
+                          {grant.user_email ?? `user #${grant.user_id}`} →{" "}
+                          {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level}
+                        </p>
+                        {left !== null && (
+                          <p className="text-muted-foreground text-xs">
+                            {t("accessGrants.expiresIn", { minutes: left })}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => revoke.mutate(grant.id)}
+                        disabled={revoke.isPending}
+                      >
+                        {t("accessGrants.revoke")}
+                      </Button>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

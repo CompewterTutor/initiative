@@ -249,5 +249,14 @@
   "COUNTER_STEP_MUST_BE_POSITIVE": "Le pas doit être un nombre positif",
   "COUNTER_OUT_OF_RANGE": "La valeur est en dehors de la plage autorisée",
   "GUILD_INVALID_PASSWORD": "Mot de passe incorrect",
-  "GUILD_CONFIRMATION_MISMATCH": "Le texte de confirmation ne correspond pas"
+  "GUILD_CONFIRMATION_MISMATCH": "Le texte de confirmation ne correspond pas",
+  "ACCESS_GRANT_NOT_FOUND": "Demande d'accès introuvable.",
+  "ACCESS_GRANT_GUILD_NOT_FOUND": "Cette guilde n'existe pas.",
+  "ACCESS_GRANT_DURATION_TOO_LONG": "La durée demandée dépasse le maximum autorisé.",
+  "ACCESS_GRANT_ALREADY_MEMBER": "Vous êtes déjà membre de cette guilde.",
+  "ACCESS_GRANT_OVERLAPPING": "Vous avez déjà une demande ouverte ou active pour cette guilde.",
+  "ACCESS_GRANT_NOT_PENDING": "Cette demande n'est plus en attente.",
+  "ACCESS_GRANT_NOT_ACTIVE": "Cet accès n'est pas actif.",
+  "ACCESS_GRANT_CANNOT_APPROVE_OWN": "Vous ne pouvez pas approuver votre propre demande.",
+  "ACCESS_GRANT_CANNOT_CANCEL_OTHERS": "Vous ne pouvez annuler que votre propre demande."
 }

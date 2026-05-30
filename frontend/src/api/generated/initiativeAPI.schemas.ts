@@ -37,6 +37,78 @@ export interface AITestConnectionResponse {
   available_models: string[] | null;
 }
 
+/**
+ * Approval payload. The approver may shorten/extend the window, still
+ * subject to the server-side cap.
+ */
+export interface AccessGrantApprove {
+  duration_minutes?: number | null;
+}
+
+/**
+ * How much access a PAM grant confers within its target guild.
+ */
+export type AccessLevel = (typeof AccessLevel)[keyof typeof AccessLevel];
+
+export const AccessLevel = {
+  read: "read",
+  read_write: "read_write",
+} as const;
+
+/**
+ * A request for time-bound access to one guild.
+ */
+export interface AccessGrantCreate {
+  guild_id: number;
+  access_level?: AccessLevel;
+  requested_duration_minutes?: number | null;
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
+  reason: string;
+}
+
+/**
+ * Lifecycle of a privileged-access grant.
+ *
+ * ``pending`` → (``approved`` | ``denied``); ``approved`` → (``revoked`` |
+ * ``expired``). A grant is *live* only while ``approved`` and before
+ * ``expires_at`` — liveness is computed, not stored (see the service).
+ */
+export type AccessGrantStatus = (typeof AccessGrantStatus)[keyof typeof AccessGrantStatus];
+
+export const AccessGrantStatus = {
+  pending: "pending",
+  approved: "approved",
+  denied: "denied",
+  revoked: "revoked",
+  expired: "expired",
+} as const;
+
+export interface AccessGrantRead {
+  id: number;
+  user_id: number;
+  guild_id: number;
+  access_level: AccessLevel;
+  status: AccessGrantStatus;
+  reason: string;
+  requested_duration_minutes: number;
+  requested_by_id: number;
+  approved_by_id: number | null;
+  revoked_by_id: number | null;
+  requested_at: string;
+  decided_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  user_email: string | null;
+  user_full_name: string | null;
+  guild_name: string | null;
+  approved_by_email: string | null;
+  /** Whether this grant currently confers access (approved, unexpired). */
+  readonly is_live: boolean;
+}
+
 export type AccountDeletionRequestAction =
   (typeof AccountDeletionRequestAction)[keyof typeof AccountDeletionRequestAction];
 
@@ -1550,6 +1622,10 @@ export const NotificationType = {
   comment_on_task: "comment_on_task",
   comment_on_document: "comment_on_document",
   comment_reply: "comment_reply",
+  access_grant_requested: "access_grant_requested",
+  access_grant_approved: "access_grant_approved",
+  access_grant_denied: "access_grant_denied",
+  access_grant_revoked: "access_grant_revoked",
 } as const;
 
 export type NotificationReadData = { [key: string]: unknown };
@@ -3460,6 +3536,14 @@ export type OidcCallbackApiV1AuthOidcCallbackGetParams = {
 
 export type ExportPlatformUsersCsvApiV1AdminUsersExportCsvGetParams = {
   user_id?: number[] | null;
+};
+
+export type ListAccessGrantsApiV1AccessGrantsGetParams = {
+  /**
+   * List only your own requests.
+   */
+  mine?: boolean;
+  status?: string | null;
 };
 
 export type GetUserStatsApiV1UsersMeStatsGetParams = {
