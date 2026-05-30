@@ -224,8 +224,11 @@ async def list_queues(
             )
         )
 
-    # DAC filtering: non-admins only see queues they have permission for
-    if not rls_service.is_guild_admin(guild_context.role):
+    # DAC filtering: non-admins only see queues they have permission for.
+    # A PAM grantee has no permission rows; the grant scopes them to this guild
+    # at the RLS layer, so skip the app-layer narrowing (whose permission-table
+    # joins would also fault on the unset guild var).
+    if not rls_service.is_guild_admin(guild_context.role) and not guild_context.is_pam:
         visible_subq = queues_service.visible_queue_ids_subquery(current_user.id)
         conditions.append(Queue.id.in_(visible_subq))
 

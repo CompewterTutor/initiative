@@ -205,7 +205,10 @@ async def list_counter_groups(
             )
         )
 
-    if not rls_service.is_guild_admin(guild_context.role):
+    # A PAM grantee has no membership/permission rows; the grant already scopes
+    # them to this guild at the RLS layer, so skip the app-layer narrowing
+    # (whose permission-table joins would also fault on the unset guild var).
+    if not rls_service.is_guild_admin(guild_context.role) and not guild_context.is_pam:
         visible_subq = counters_service.visible_counter_group_ids_subquery(current_user.id)
         conditions.append(CounterGroup.id.in_(visible_subq))
 

@@ -11,9 +11,16 @@ from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import set_rls_context
+from app.models.counter import CounterGroup
 from app.models.document import Document
 from app.models.user import UserRole
-from app.testing import create_guild, create_initiative, create_project, create_user
+from app.testing import (
+    create_guild,
+    create_initiative,
+    create_project,
+    create_queue,
+    create_user,
+)
 
 
 async def _set_app_user(session: AsyncSession) -> None:
@@ -98,6 +105,50 @@ async def test_pam_read_grant_sees_only_granted_guild(session: AsyncSession):
             text("UPDATE projects SET name = 'hacked' WHERE id = :p"), {"p": proj_a.id}
         )
         assert result.rowcount == 0, "read grant must not be able to write"
+    finally:
+        await _reset_role(session)
+
+
+@pytest.mark.integration
+async def test_pam_read_grant_does_not_fault_legacy_isolation_tables(session: AsyncSession):
+    """Tables with the legacy guild_isolation policy must not 500 for a grantee.
+
+    A grantee leaves ``current_guild_id`` unset, so a policy that casts it to
+    int without a NULLIF guard raises ``invalid input syntax for type integer``
+    and faults the whole query (queues, counters, …). This guards migration
+    ``20260530_0095``.
+    """
+    owner = await create_user(session, email="owner4@example.com", role=UserRole.owner)
+    support = await create_user(session, email="support4@example.com", role=UserRole.support)
+    guild = await create_guild(session, creator=owner)
+    init = await create_initiative(session, guild, owner)
+    queue = await create_queue(session, init, owner, name="Ops Queue")
+    cg = CounterGroup(
+        guild_id=guild.id,
+        initiative_id=init.id,
+        name="Stats",
+        created_by_id=owner.id,
+    )
+    session.add(cg)
+    await session.commit()
+    await session.refresh(cg)
+
+    try:
+        await _set_app_user(session)
+        await set_rls_context(
+            session, user_id=support.id, pam_guild_id=guild.id, pam_read=True, pam_write=False
+        )
+        # Each of these would raise InvalidTextRepresentationError pre-0095.
+        visible_q = (
+            await session.execute(text("SELECT id FROM queues WHERE id = :q"), {"q": queue.id})
+        ).all()
+        assert len(visible_q) == 1, "read grant should see the granted guild's queues"
+        visible_cg = (
+            await session.execute(
+                text("SELECT id FROM counter_groups WHERE id = :c"), {"c": cg.id}
+            )
+        ).all()
+        assert len(visible_cg) == 1, "read grant should see the granted guild's counter groups"
     finally:
         await _reset_role(session)
 

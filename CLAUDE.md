@@ -387,7 +387,11 @@ Every guild-scoped table **must** have RLS policies. When creating a new table o
 
 6. **Session variable constants** — use these in migration SQL:
    ```python
-   CURRENT_GUILD_ID = "current_setting('app.current_guild_id', true)::int"
+   # Always NULLIF-guard the cast: a PAM grantee (and any unset context) leaves
+   # current_guild_id empty, and a bare ''::int raises and faults the WHOLE query
+   # for every PERMISSIVE policy on the table (not just this one). See migration
+   # 20260530_0095, which retrofitted 13 legacy guild_isolation policies.
+   CURRENT_GUILD_ID = "NULLIF(current_setting('app.current_guild_id', true), '')::int"
    CURRENT_USER_ID  = "NULLIF(current_setting('app.current_user_id', true), '')::int"
    CURRENT_GUILD_ROLE = "current_setting('app.current_guild_role', true)"
    IS_SUPERADMIN = "current_setting('app.is_superadmin', true) = 'true'"
