@@ -49,6 +49,12 @@ const minutesLeft = (expiresAt?: string | null): number | null => {
   return Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000));
 };
 
+// Always surface the guild id alongside the name so approvers can
+// disambiguate similarly-named guilds (and fall back cleanly when the name
+// isn't populated).
+const guildLabel = (grant: { guild_name?: string | null; guild_id: number }): string =>
+  grant.guild_name ? `${grant.guild_name} (#${grant.guild_id})` : `#${grant.guild_id}`;
+
 // Least-privilege grant-duration caps per requester role. MUST match the
 // backend PAM_*_MAX_MINUTES defaults — the backend enforces; this only
 // decides which presets to offer. (member can't request.)
@@ -203,7 +209,7 @@ const RequestSection = () => {
                   <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm">
-                        {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level}
+                        {guildLabel(grant)} · {grant.access_level}
                       </p>
                       <p className="truncate text-muted-foreground text-xs">{grant.reason}</p>
                     </div>
@@ -272,8 +278,8 @@ const ApprovalQueue = () => {
                 <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm">
-                      {grant.user_email ?? `user #${grant.user_id}`} →{" "}
-                      {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level} ·{" "}
+                      {grant.user_email ?? `user #${grant.user_id}`} → {guildLabel(grant)} ·{" "}
+                      {grant.access_level} ·{" "}
                       {t("accessGrants.minutes", { minutes: grant.requested_duration_minutes })}
                     </p>
                     <p className="truncate text-muted-foreground text-xs">{grant.reason}</p>
@@ -317,8 +323,8 @@ const ApprovalQueue = () => {
                     <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm">
-                          {grant.user_email ?? `user #${grant.user_id}`} →{" "}
-                          {grant.guild_name ?? `#${grant.guild_id}`} · {grant.access_level}
+                          {grant.user_email ?? `user #${grant.user_id}`} → {guildLabel(grant)} ·{" "}
+                          {grant.access_level}
                         </p>
                         {left !== null && (
                           <p className="text-muted-foreground text-xs">
