@@ -985,6 +985,7 @@ async def record_counter_group_view(
         user_id=current_user.id,
         entity_type="counter_group",
         entity_id=group.id,
+        persist=not guild_context.is_pam,
     )
     return RecentViewWrite(
         entity_type="counter_group",

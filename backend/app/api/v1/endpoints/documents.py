@@ -2047,6 +2047,7 @@ async def record_document_view(
         user_id=current_user.id,
         entity_type="document",
         entity_id=document.id,
+        persist=not guild_context.is_pam,
     )
     return RecentViewWrite(
         entity_type="document",

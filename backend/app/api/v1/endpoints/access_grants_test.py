@@ -204,7 +204,7 @@ async def test_grantee_sees_guild_content(client: AsyncClient, session: AsyncSes
     support = await create_user(session, email="support-content@example.com", role=UserRole.support)
     guild = await create_guild(session, creator=owner)
     init = await create_initiative(session, guild, owner, name="Recon Wing")
-    await create_project(session, init, owner, name="Alpha Site")
+    project = await create_project(session, init, owner, name="Alpha Site")
     await _approved_read_grant(session, user=support, guild=guild, owner=owner)
 
     headers = get_guild_headers(guild, support)
@@ -218,3 +218,22 @@ async def test_grantee_sees_guild_content(client: AsyncClient, session: AsyncSes
     body = resp.json()
     items = body["items"] if isinstance(body, dict) and "items" in body else body
     assert any(p["name"] == "Alpha Site" for p in items), "grantee should see the project"
+
+    # Initiative tool views: a grantee has no membership row, so these used to
+    # 403. They should now succeed (read-only, never manager).
+    resp = await client.get(f"/api/v1/initiatives/{init.id}/my-permissions", headers=headers)
+    assert resp.status_code == 200, resp.text
+    perms = resp.json()
+    assert perms["is_manager"] is False, "a grant never confers initiative management"
+    assert perms["permissions"]["create_projects"] is False, "read grant must not create"
+
+    resp = await client.get(f"/api/v1/initiatives/{init.id}/members", headers=headers)
+    assert resp.status_code == 200, resp.text
+
+    resp = await client.get("/api/v1/calendar-events/", headers=headers)
+    assert resp.status_code == 200, resp.text
+
+    # Recording a recent view must not 500 (the recent_views guild policy would
+    # reject a grantee's INSERT; we skip persistence instead).
+    resp = await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
+    assert resp.status_code == 200, resp.text

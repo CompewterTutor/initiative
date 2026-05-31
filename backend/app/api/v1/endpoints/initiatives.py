@@ -17,6 +17,7 @@ from app.core.messages import AdvancedToolMessages, AuthMessages, InitiativeMess
 from app.core.security import create_advanced_tool_handoff_token
 from app.core.config import settings
 from app.db.session import reapply_rls_context
+from app.models.access_grant import AccessLevel
 from app.models.project import Project, ProjectPermission, ProjectPermissionLevel
 from app.models.initiative import Initiative, InitiativeMember, InitiativeRoleModel, PermissionKey
 from app.models.guild import GuildRole
@@ -492,6 +493,34 @@ async def get_my_initiative_permissions(
             advanced_tool_enabled=initiative.advanced_tool_enabled,
         )
 
+    # PAM grantee: time-bound, guild-wide access with no membership row. They
+    # can view every section (gated by the initiative's feature switches);
+    # create affordances follow the grant's access level. A grant never confers
+    # management.
+    if guild_context.is_pam:
+        can_write = (
+            guild_context.grant is not None
+            and guild_context.grant.access_level == AccessLevel.read_write.value
+        )
+        return MyInitiativePermissions(
+            is_manager=False,
+            permissions={
+                "docs_enabled": True,
+                "projects_enabled": True,
+                "create_docs": can_write,
+                "create_projects": can_write,
+                "queues_enabled": initiative.queues_enabled,
+                "create_queues": initiative.queues_enabled and can_write,
+                "events_enabled": initiative.events_enabled,
+                "create_events": initiative.events_enabled and can_write,
+                "advanced_tool_enabled": initiative.advanced_tool_enabled,
+                "create_advanced_tool": initiative.advanced_tool_enabled and can_write,
+                "counters_enabled": initiative.counters_enabled,
+                "create_counters": initiative.counters_enabled and can_write,
+            },
+            advanced_tool_enabled=initiative.advanced_tool_enabled,
+        )
+
     membership = await initiatives_service.get_initiative_membership_with_role(
         session,
         initiative_id=initiative_id,
@@ -656,7 +685,13 @@ async def get_initiative_members(
         initiative_id=initiative_id,
         user_id=current_user.id,
     )
-    if not membership and not user_has_capability(current_user, Capability.DATA_BYPASS):
+    # A PAM grantee has guild-wide read access but no membership row; let them
+    # load the member roster (used for assignee pickers and avatars).
+    if (
+        not membership
+        and not guild_context.is_pam
+        and not user_has_capability(current_user, Capability.DATA_BYPASS)
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=InitiativeMessages.NOT_A_MEMBER)
 
     # Get all initiative members

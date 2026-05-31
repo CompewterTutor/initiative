@@ -1212,6 +1212,7 @@ async def record_queue_view(
         user_id=current_user.id,
         entity_type="queue",
         entity_id=queue.id,
+        persist=not guild_context.is_pam,
     )
     return RecentViewWrite(
         entity_type="queue",
