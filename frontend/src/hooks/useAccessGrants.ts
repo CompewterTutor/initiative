@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   approveAccessGrantApiV1AccessGrantsGrantIdApprovePost,
@@ -14,46 +14,65 @@ import type {
   AccessGrantRead,
 } from "@/api/generated/initiativeAPI.schemas";
 import type { MutationOpts } from "@/types/mutation";
-import type { QueryOpts } from "@/types/query";
 
 // Shared key prefix so any grant mutation refreshes every grant list.
 const ACCESS_GRANTS_KEY = ["access-grants"] as const;
 
-// Cap the "my requests" history so a churny PAM user's list (and its payload)
-// can't grow unbounded. Grants are returned newest-first, and the page floats
-// pending/live ones to the top, so the actionable items are always shown.
-export const MY_GRANTS_LIMIT = 25;
+// Page size for the grant lists. The lists grow with users and usage, so they
+// load a page at a time (newest-first) with a "Load more" affordance rather
+// than fetching the whole history at once.
+export const ACCESS_GRANTS_PAGE_SIZE = 25;
+
+// A full page back means there may be more; a short page is the end.
+const nextOffset = (
+  lastPage: AccessGrantRead[],
+  allPages: AccessGrantRead[][]
+): number | undefined =>
+  lastPage.length === ACCESS_GRANTS_PAGE_SIZE
+    ? allPages.length * ACCESS_GRANTS_PAGE_SIZE
+    : undefined;
+
+/** Flatten the loaded pages of an access-grants infinite query into one array. */
+export const flattenGrants = (pages: AccessGrantRead[][] | undefined): AccessGrantRead[] =>
+  pages?.flat() ?? [];
 
 function useInvalidateAccessGrants() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: ACCESS_GRANTS_KEY });
 }
 
-/** The current user's own access requests. */
-export const useMyAccessGrants = (options?: QueryOpts<AccessGrantRead[]>) =>
-  useQuery<AccessGrantRead[]>({
+/** The current user's own access requests, paged newest-first. */
+export const useMyAccessGrants = () =>
+  useInfiniteQuery({
     queryKey: [...ACCESS_GRANTS_KEY, "mine"],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       listAccessGrantsApiV1AccessGrantsGet({
         mine: true,
-        limit: MY_GRANTS_LIMIT,
+        limit: ACCESS_GRANTS_PAGE_SIZE,
+        offset: pageParam,
       }) as unknown as Promise<AccessGrantRead[]>,
-    ...options,
+    initialPageParam: 0,
+    getNextPageParam: nextOffset,
   });
 
-/** The full queue filtered by status — requires access.read (approvers). */
-export const useAccessGrantQueue = (
-  status: string | undefined,
-  options?: QueryOpts<AccessGrantRead[]>
-) =>
-  useQuery<AccessGrantRead[]>({
-    queryKey: [...ACCESS_GRANTS_KEY, "queue", status ?? "all"],
-    queryFn: () =>
+/**
+ * The full queue filtered by status — requires access.read (approvers). Pass
+ * ``live: true`` to keep only grants still within their window (so server-side
+ * paging of the active list is accurate).
+ */
+export const useAccessGrantQueue = (status: string | undefined, opts?: { live?: boolean }) =>
+  useInfiniteQuery({
+    queryKey: [...ACCESS_GRANTS_KEY, "queue", status ?? "all", opts?.live ? "live" : "all"],
+    queryFn: ({ pageParam }) =>
       listAccessGrantsApiV1AccessGrantsGet({
         mine: false,
         status,
+        live: opts?.live,
+        limit: ACCESS_GRANTS_PAGE_SIZE,
+        offset: pageParam,
       }) as unknown as Promise<AccessGrantRead[]>,
-    ...options,
+    initialPageParam: 0,
+    getNextPageParam: nextOffset,
   });
 
 export const useCreateAccessRequest = (

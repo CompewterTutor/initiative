@@ -3545,9 +3545,18 @@ export type ListAccessGrantsApiV1AccessGrantsGetParams = {
   mine?: boolean;
   status?: string | null;
   /**
-   * Cap the number of most-recent grants returned.
+   * Keep only grants that haven't expired yet.
+   */
+  live?: boolean;
+  /**
+   * Page size — the number of most-recent grants returned.
    */
   limit?: number | null;
+  /**
+   * Number of grants to skip (for paging).
+   * @minimum 0
+   */
+  offset?: number;
 };
 
 export type GetUserStatsApiV1UsersMeStatsGetParams = {

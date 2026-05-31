@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  flattenGrants,
   useAccessGrantQueue,
   useApproveAccessGrant,
   useCancelAccessRequest,
@@ -100,6 +101,32 @@ export const SettingsAccessGrantsPage = () => {
   );
 };
 
+const LoadMore = ({
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
+}: {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
+}) => {
+  const { t } = useTranslation(["settings", "common"]);
+  if (!hasNextPage) return null;
+  return (
+    <div className="flex justify-center pt-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onLoadMore}
+        disabled={isFetchingNextPage}
+      >
+        {isFetchingNextPage ? t("common:loading") : t("accessGrants.loadMore")}
+      </Button>
+    </div>
+  );
+};
+
 const StatusBadge = ({ grant }: { grant: AccessGrantRead }) => {
   const { t } = useTranslation("settings");
   return (
@@ -112,7 +139,7 @@ const RequestSection = () => {
   const { user } = useAuth();
   const myGrants = useMyAccessGrants();
   const sortedGrants = useMemo(
-    () => [...(myGrants.data ?? [])].sort((a, b) => activityRank(a) - activityRank(b)),
+    () => flattenGrants(myGrants.data?.pages).sort((a, b) => activityRank(a) - activityRank(b)),
     [myGrants.data]
   );
   const durationOptions = allowedDurations(user?.role);
@@ -215,7 +242,7 @@ const RequestSection = () => {
           {!sortedGrants.length ? (
             <p className="text-muted-foreground text-sm">{t("accessGrants.noRequests")}</p>
           ) : (
-            <ul className="max-h-96 divide-y overflow-y-auto rounded-md border">
+            <ul className="divide-y rounded-md border">
               {sortedGrants.map((grant) => {
                 const left = minutesLeft(grant.expires_at);
                 return (
@@ -250,6 +277,11 @@ const RequestSection = () => {
               })}
             </ul>
           )}
+          <LoadMore
+            hasNextPage={myGrants.hasNextPage}
+            isFetchingNextPage={myGrants.isFetchingNextPage}
+            onLoadMore={() => myGrants.fetchNextPage()}
+          />
         </div>
       </CardContent>
     </Card>
@@ -259,7 +291,11 @@ const RequestSection = () => {
 const ApprovalQueue = () => {
   const { t } = useTranslation(["settings", "common"]);
   const pending = useAccessGrantQueue("pending");
-  const active = useAccessGrantQueue("approved");
+  // Server-side ``live`` filter so paging the active list is accurate (no
+  // client-side is_live filtering that would leave pages partially empty).
+  const active = useAccessGrantQueue("approved", { live: true });
+  const pendingItems = flattenGrants(pending.data?.pages);
+  const activeItems = flattenGrants(active.data?.pages);
 
   const approve = useApproveAccessGrant({
     onSuccess: () => toast.success(t("accessGrants.approved")),
@@ -283,11 +319,11 @@ const ApprovalQueue = () => {
       <CardContent className="space-y-5">
         <div className="space-y-2">
           <h3 className="font-medium text-sm">{t("accessGrants.pendingHeading")}</h3>
-          {!pending.data?.length ? (
+          {!pendingItems.length ? (
             <p className="text-muted-foreground text-sm">{t("accessGrants.noPending")}</p>
           ) : (
             <ul className="divide-y rounded-md border">
-              {pending.data.map((grant) => (
+              {pendingItems.map((grant) => (
                 <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm">
@@ -320,46 +356,54 @@ const ApprovalQueue = () => {
               ))}
             </ul>
           )}
+          <LoadMore
+            hasNextPage={pending.hasNextPage}
+            isFetchingNextPage={pending.isFetchingNextPage}
+            onLoadMore={() => pending.fetchNextPage()}
+          />
         </div>
 
         <div className="space-y-2">
           <h3 className="font-medium text-sm">{t("accessGrants.activeHeading")}</h3>
-          {!active.data?.filter((g) => g.is_live).length ? (
+          {!activeItems.length ? (
             <p className="text-muted-foreground text-sm">{t("accessGrants.noActive")}</p>
           ) : (
             <ul className="divide-y rounded-md border">
-              {active.data
-                .filter((g) => g.is_live)
-                .map((grant) => {
-                  const left = minutesLeft(grant.expires_at);
-                  return (
-                    <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm">
-                          {grant.user_email ?? `user #${grant.user_id}`} → {guildLabel(grant)} ·{" "}
-                          {grant.access_level}
+              {activeItems.map((grant) => {
+                const left = minutesLeft(grant.expires_at);
+                return (
+                  <li key={grant.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">
+                        {grant.user_email ?? `user #${grant.user_id}`} → {guildLabel(grant)} ·{" "}
+                        {grant.access_level}
+                      </p>
+                      {left !== null && (
+                        <p className="text-muted-foreground text-xs">
+                          {t("accessGrants.expiresIn", { minutes: left })}
                         </p>
-                        {left !== null && (
-                          <p className="text-muted-foreground text-xs">
-                            {t("accessGrants.expiresIn", { minutes: left })}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => revoke.mutate(grant.id)}
-                        disabled={revoke.isPending}
-                      >
-                        {t("accessGrants.revoke")}
-                      </Button>
-                    </li>
-                  );
-                })}
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => revoke.mutate(grant.id)}
+                      disabled={revoke.isPending}
+                    >
+                      {t("accessGrants.revoke")}
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           )}
+          <LoadMore
+            hasNextPage={active.hasNextPage}
+            isFetchingNextPage={active.isFetchingNextPage}
+            onLoadMore={() => active.fetchNextPage()}
+          />
         </div>
       </CardContent>
     </Card>

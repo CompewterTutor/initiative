@@ -382,20 +382,28 @@ async def list_grants(
     *,
     user_id: Optional[int] = None,
     statuses: Optional[list[str]] = None,
+    live_only: bool = False,
     limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ) -> list[AccessGrant]:
     """List grants, optionally filtered to one grantee and/or a set of statuses.
 
     Approvers pass ``user_id=None`` for the full queue; requesters pass their
-    own id for "my requests". ``limit`` caps the result to the most recent N
-    (ordered newest-first) so an ever-growing history stays bounded.
+    own id for "my requests". ``live_only`` keeps only grants that haven't yet
+    expired (pair with ``statuses=["approved"]`` for the currently-usable set).
+    ``limit``/``offset`` page the result (ordered newest-first) so a list that
+    grows with users/usage stays bounded.
     """
     stmt = select(AccessGrant)
     if user_id is not None:
         stmt = stmt.where(AccessGrant.user_id == user_id)
     if statuses:
         stmt = stmt.where(AccessGrant.status.in_(statuses))
+    if live_only:
+        stmt = stmt.where(AccessGrant.expires_at > _now())
     stmt = stmt.order_by(AccessGrant.requested_at.desc())
+    if offset:
+        stmt = stmt.offset(offset)
     if limit is not None:
         stmt = stmt.limit(limit)
     result = await session.exec(stmt)

@@ -108,6 +108,49 @@ async def test_my_requests_respects_limit_and_order(client: AsyncClient, session
     # Newest-first: the three most-recently-requested ("old 4/3/2").
     assert [g["reason"] for g in body] == ["old 4", "old 3", "old 2"]
 
+    # Second page via offset continues where the first left off.
+    resp = await client.get(
+        "/api/v1/access-grants/?mine=true&limit=3&offset=3", headers=get_auth_headers(support)
+    )
+    assert resp.status_code == 200, resp.text
+    assert [g["reason"] for g in resp.json()] == ["old 1", "old 0"]
+
+
+@pytest.mark.integration
+async def test_queue_live_filter_excludes_expired(client: AsyncClient, session: AsyncSession):
+    """``live=true`` on the approver queue drops approved-but-expired grants so
+    the active list pages accurately."""
+    owner = await create_user(session, email="owner-live@example.com", role=UserRole.owner)
+    support = await create_user(session, email="support-live@example.com", role=UserRole.support)
+    guild = await create_guild(session, creator=owner)
+    now = datetime.now(timezone.utc)
+
+    # One live grant, one approved-but-expired.
+    session.add(
+        AccessGrant(
+            user_id=support.id, guild_id=guild.id, access_level="read", status="approved",
+            reason="live one", requested_duration_minutes=60, requested_by_id=support.id,
+            approved_by_id=owner.id, decided_at=now, expires_at=now + timedelta(hours=1),
+        )
+    )
+    session.add(
+        AccessGrant(
+            user_id=support.id, guild_id=guild.id, access_level="read", status="approved",
+            reason="stale one", requested_duration_minutes=60, requested_by_id=support.id,
+            approved_by_id=owner.id, decided_at=now - timedelta(hours=2),
+            expires_at=now - timedelta(hours=1),
+        )
+    )
+    await session.commit()
+
+    resp = await client.get(
+        "/api/v1/access-grants/?mine=false&status=approved&live=true",
+        headers=get_auth_headers(owner),
+    )
+    assert resp.status_code == 200, resp.text
+    reasons = [g["reason"] for g in resp.json()]
+    assert reasons == ["live one"], "live filter must exclude the expired grant"
+
 
 @pytest.mark.integration
 async def test_member_cannot_request_access(client: AsyncClient, session: AsyncSession):

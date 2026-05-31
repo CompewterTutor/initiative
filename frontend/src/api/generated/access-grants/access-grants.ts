@@ -128,9 +128,9 @@ export const useCreateAccessRequestApiV1AccessGrantsPost = <
  * List access grants.
  *
  * Defaults to your own requests. ``mine=false`` returns the full queue and
- * requires ``access.read`` (approvers). ``limit`` caps the result to the most
- * recent N (grants are ordered newest-first) so the history can't grow
- * unbounded.
+ * requires ``access.read`` (approvers). Grants are ordered newest-first;
+ * ``limit``/``offset`` page the result so it can't grow unbounded, and
+ * ``live=true`` narrows to grants that are still within their window.
  * @summary List Access Grants
  */
 export const listAccessGrantsApiV1AccessGrantsGet = (

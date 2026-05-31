@@ -90,32 +90,40 @@ async def list_access_grants(
     current_user: Annotated[User, Depends(get_current_active_user)],
     mine: bool = Query(True, description="List only your own requests."),
     grant_status: Optional[str] = Query(None, alias="status"),
+    live: bool = Query(False, description="Keep only grants that haven't expired yet."),
     limit: Optional[int] = Query(
         None,
         ge=1,
         le=200,
-        description="Cap the number of most-recent grants returned.",
+        description="Page size — the number of most-recent grants returned.",
     ),
+    offset: int = Query(0, ge=0, description="Number of grants to skip (for paging)."),
 ) -> List[AccessGrantRead]:
     """List access grants.
 
     Defaults to your own requests. ``mine=false`` returns the full queue and
-    requires ``access.read`` (approvers). ``limit`` caps the result to the most
-    recent N (grants are ordered newest-first) so the history can't grow
-    unbounded.
+    requires ``access.read`` (approvers). Grants are ordered newest-first;
+    ``limit``/``offset`` page the result so it can't grow unbounded, and
+    ``live=true`` narrows to grants that are still within their window.
     """
     if mine:
         grants = await service.list_grants(
             session,
             user_id=current_user.id,
             statuses=[grant_status] if grant_status else None,
+            live_only=live,
             limit=limit,
+            offset=offset,
         )
     else:
         if not user_has_capability(current_user, Capability.ACCESS_READ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="INSUFFICIENT_PRIVILEGES")
         grants = await service.list_grants(
-            session, statuses=[grant_status] if grant_status else None, limit=limit
+            session,
+            statuses=[grant_status] if grant_status else None,
+            live_only=live,
+            limit=limit,
+            offset=offset,
         )
     return await service.to_read(session, grants)
 
