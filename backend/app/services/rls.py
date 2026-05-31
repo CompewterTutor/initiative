@@ -33,7 +33,8 @@ from app.models.initiative import (
     PermissionKey,
     DEFAULT_PERMISSION_VALUES,
 )
-from app.models.user import User, UserRole
+from app.core.capabilities import Capability, user_has_capability
+from app.models.user import User
 
 # Re-export RLS context helpers so callers can import from a single place.
 from app.db.session import set_rls_context, reapply_rls_context  # noqa: F401
@@ -133,7 +134,7 @@ async def is_initiative_manager(
     user: User,
 ) -> bool:
     """Check if user has manager-level role in the initiative."""
-    if user.role == UserRole.admin:
+    if user_has_capability(user, Capability.DATA_BYPASS):
         return True
     membership = await _get_membership_with_role(
         session, initiative_id=initiative_id, user_id=user.id
@@ -178,7 +179,7 @@ async def check_initiative_permission(
         True if user has the permission, False otherwise
     """
     # App admins bypass permission checks
-    if user.role == UserRole.admin:
+    if user_has_capability(user, Capability.DATA_BYPASS):
         return True
 
     membership = await _get_membership_with_role(

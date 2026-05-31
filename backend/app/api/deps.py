@@ -9,7 +9,9 @@ import jwt
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.capabilities import Capability, user_has_capability
 from app.core.config import settings
+from app.core.pam_context import set_active_grant
 from app.core.messages import AuthMessages, GuildMessages
 from app.core.security import (
     AutoDelegationClaims,
@@ -17,9 +19,11 @@ from app.core.security import (
     verify_auto_delegation_token,
 )
 from app.db.session import get_session, set_rls_context
+from app.models.access_grant import AccessGrant, AccessLevel
 from app.models.guild import Guild, GuildMembership, GuildRole
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.token import TokenPayload
+from app.services import access_grants as access_grants_service
 from app.services import api_keys as api_keys_service
 from app.services import auto_delegation_blocklist
 from app.services import guilds as guilds_service
@@ -243,10 +247,31 @@ def require_roles(*roles: UserRole) -> Callable:
     return dependency
 
 
+def require_capability(capability: Capability) -> Callable:
+    """Dependency factory gating an endpoint on a platform capability.
+
+    Prefer this over ``require_roles`` for platform-level authorization so
+    access is expressed against the capability model rather than a hardcoded
+    role name (see ``app.core.capabilities``).
+    """
+
+    async def dependency(current_user: Annotated[User, Depends(get_current_active_user)]) -> User:
+        if not user_has_capability(current_user, capability):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=AuthMessages.INSUFFICIENT_PRIVILEGES)
+        return current_user
+
+    return dependency
+
+
 @dataclass
 class GuildContext:
     guild: Guild
     membership: GuildMembership
+    # Set when access is via a time-bound PAM grant rather than real
+    # membership. The ``membership`` is then a synthesized member-role stand-in
+    # so ``.role`` stays valid for endpoint guards, while RLS context is driven
+    # off the grant (scoped pam_read/pam_write, not the all-guild bypass).
+    grant: Optional[AccessGrant] = None
 
     @property
     def guild_id(self) -> int:
@@ -255,6 +280,10 @@ class GuildContext:
     @property
     def role(self) -> GuildRole:
         return self.membership.role
+
+    @property
+    def is_pam(self) -> bool:
+        return self.grant is not None
 
 
 async def get_guild_membership(
@@ -267,7 +296,7 @@ async def get_guild_membership(
     await set_rls_context(
         session,
         user_id=current_user.id,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
 
     guild_id = await guilds_service.resolve_user_guild_id(
@@ -286,7 +315,32 @@ async def get_guild_membership(
         user_id=current_user.id,
     )
     if membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_ACCESS_DENIED)
+        # No standing membership — fall back to a live PAM grant for this
+        # guild. The grantee can read (and write, if read_write) within the
+        # grant's window; RLS scopes it to this one guild via the pam flags
+        # set in get_guild_session. A synthesized member-role membership keeps
+        # ``GuildContext.role`` valid for endpoint guards without conferring
+        # any guild privilege on its own.
+        grant = await access_grants_service.get_live_grant(
+            session, user_id=current_user.id, guild_id=guild_id
+        )
+        if grant is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=GuildMessages.GUILD_ACCESS_DENIED)
+        # Apply the pam context now so the grantee can actually read the guild
+        # row (and below, get_guild_session re-applies the full context). The
+        # guilds table has an additive pam_read policy keyed on pam_guild_id.
+        await set_rls_context(
+            session,
+            user_id=current_user.id,
+            pam_guild_id=guild_id,
+            pam_read=True,
+            pam_write=(grant.access_level == AccessLevel.read_write.value),
+        )
+        guild = await guilds_service.get_guild(session, guild_id=guild_id)
+        synthetic = GuildMembership(
+            guild_id=guild_id, user_id=current_user.id, role=GuildRole.member
+        )
+        return GuildContext(guild=guild, membership=synthetic, grant=grant)
     guild = await guilds_service.get_guild(session, guild_id=guild_id)
     return GuildContext(guild=guild, membership=membership)
 
@@ -316,12 +370,39 @@ async def get_guild_session(
     may be returned to the pool, so call reapply_rls_context(session)
     before any post-commit queries.
     """
+    if guild_context.is_pam:
+        # Scoped, time-bound access via a PAM grant — NOT the all-guild bypass.
+        # Read grants get SELECT into this guild only; read_write also gets
+        # writes. guild_role is left unset so guild-role-gated paths don't treat
+        # the grantee as a member.
+        grant = guild_context.grant
+        access_level = grant.access_level if grant is not None else AccessLevel.read.value
+        # Mirror the grant into the request-scoped PAM context so the app-layer
+        # resource access checks (require_*_access) honor it consistently with
+        # RLS — what the grantee can list, they can also open/edit per level.
+        set_active_grant(guild_context.guild_id, access_level)
+        # Leave current_guild_id unset — the existing write policies treat a
+        # matching current_guild_id as proof of membership. Scope the grant via
+        # pam_guild_id instead.
+        await set_rls_context(
+            session,
+            user_id=current_user.id,
+            guild_id=None,
+            guild_role=None,
+            is_superadmin=False,
+            pam_guild_id=guild_context.guild_id,
+            pam_read=True,
+            pam_write=(access_level == AccessLevel.read_write.value),
+        )
+        return session
+
+    set_active_grant(None, None)
     await set_rls_context(
         session,
         user_id=current_user.id,
         guild_id=guild_context.guild_id,
         guild_role=guild_context.role.value,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
     return session
 
@@ -342,7 +423,7 @@ async def get_user_session(
     await set_rls_context(
         session,
         user_id=current_user.id,
-        is_superadmin=(current_user.role == UserRole.admin),
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
     )
     return session
 

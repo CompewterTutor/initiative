@@ -19,13 +19,10 @@
  *                 ``NoGuildState`` (the create / join / logout
  *                 landing page).
  *
- * The ``isPlatformAdmin`` flag matches whatever predicate the
- * actual ``AdminSettingsLayout`` uses (today: ``user.role === "admin"``).
- * Keeping the two checks aligned guarantees that the no-guild
- * shell never admits anyone who couldn't already reach the page in
- * the normal sidebar layout — if `AdminSettingsLayout` later
- * tightens to "user.id === 1" or similar, this helper inherits the
- * change automatically.
+ * The ``isPlatformAdmin`` flag matches the coarse ``canAccessPlatformAdmin``
+ * predicate (can reach *either* the Admin dashboard or Platform settings).
+ * Keeping the checks aligned guarantees the no-guild shell never admits
+ * anyone who couldn't already reach the page in the normal sidebar layout.
  */
 export type NoGuildLayoutChoice = "main" | "shell" | "empty";
 
@@ -38,8 +35,14 @@ export interface NoGuildLayoutInputs {
 const isUserSettingsPath = (path: string): boolean =>
   path === "/profile" || path.startsWith("/profile/");
 
+// Both platform areas: the Admin dashboard (/settings/admin) and Platform
+// settings (/settings/platform). A guild-less platform user must still reach
+// either via the chromeless shell.
 const isAdminSettingsPath = (path: string): boolean =>
-  path === "/settings/admin" || path.startsWith("/settings/admin/");
+  path === "/settings/admin" ||
+  path.startsWith("/settings/admin/") ||
+  path === "/settings/platform" ||
+  path.startsWith("/settings/platform/");
 
 export function chooseNoGuildLayout({
   hasGuilds,

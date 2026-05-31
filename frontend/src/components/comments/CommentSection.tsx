@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreateComment, useDeleteComment, useUpdateComment } from "@/hooks/useComments";
+import { useGuilds } from "@/hooks/useGuilds";
 
 import { CommentInput } from "./CommentInput";
 import { CommentThread } from "./CommentThread";
@@ -74,6 +75,7 @@ export const CommentSection = ({
   initiativeId,
 }: CommentSectionProps) => {
   const { t } = useTranslation("documents");
+  const { activeGuildReadOnly } = useGuilds();
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -233,15 +235,19 @@ export const CommentSection = ({
       </CardHeader>
 
       <CardContent>
-        <CommentInput
-          value={content}
-          onChange={setContent}
-          onSubmit={handleSubmit}
-          isSubmitting={createComment.isPending}
-          initiativeId={initiativeId}
-          error={error}
-          onClearError={() => setError(null)}
-        />
+        {activeGuildReadOnly ? (
+          <p className="text-muted-foreground text-sm">{t("comments.readOnlyNote")}</p>
+        ) : (
+          <CommentInput
+            value={content}
+            onChange={setContent}
+            onSubmit={handleSubmit}
+            isSubmitting={createComment.isPending}
+            initiativeId={initiativeId}
+            error={error}
+            onClearError={() => setError(null)}
+          />
+        )}
 
         <div className="mt-4 space-y-3">
           {isLoading ? (

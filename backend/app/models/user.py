@@ -14,8 +14,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class UserRole(str, Enum):
-    admin = "admin"
+    """Platform-level (app-wide) user role.
+
+    Ordered from least to most privileged. Authorization checks should
+    generally go through the capability model (``app.core.capabilities``)
+    rather than comparing roles directly, so that the privilege ladder can
+    evolve without touching every call site.
+    """
+
     member = "member"
+    support = "support"
+    moderator = "moderator"
+    admin = "admin"
+    owner = "owner"
 
 
 class UserStatus(str, Enum):

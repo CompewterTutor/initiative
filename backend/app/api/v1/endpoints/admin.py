@@ -4,13 +4,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from sqlmodel import select
 
-from app.api.deps import require_roles
+from app.api.deps import require_capability
+from app.core.capabilities import Capability, capabilities_for, can_assign_role
 from app.db.session import get_admin_session
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.guild import Guild, GuildRole
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.project import Project
-from app.models.user import User, UserRole, UserStatus
+from app.models.user import User, UserStatus
 from app.models.user_token import UserTokenPurpose
 from app.schemas.user import UserRead, AccountDeletionResponse, ProjectBasic, UserPublic
 from app.schemas.auth import VerificationSendResponse
@@ -35,14 +36,25 @@ from app.services import guilds as guilds_service
 
 router = APIRouter()
 
-AdminUserDep = Annotated[User, Depends(require_roles(UserRole.admin))]
+# Per-capability guards. Each admin endpoint is gated on the specific
+# capability it needs rather than a blanket "admin" role, so the privilege
+# ladder (member → support → moderator → admin → owner) maps cleanly onto
+# what each operation actually requires.
+UsersReadDep = Annotated[User, Depends(require_capability(Capability.USERS_READ))]
+UsersManageDep = Annotated[User, Depends(require_capability(Capability.USERS_MANAGE))]
+UsersDeleteDep = Annotated[User, Depends(require_capability(Capability.USERS_DELETE))]
+GuildsManageDep = Annotated[User, Depends(require_capability(Capability.GUILDS_MANAGE))]
+RolesAssignDep = Annotated[User, Depends(require_capability(Capability.ROLES_ASSIGN))]
+# App-wide configuration (OIDC, SMTP, branding, role labels, platform AI).
+# Owner-only — imported by settings.py / ai_settings.py.
+ConfigManageDep = Annotated[User, Depends(require_capability(Capability.CONFIG_MANAGE))]
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 
 
 @router.get("/users", response_model=List[UserRead])
 async def list_all_users(
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: UsersReadDep,
 ) -> List[User]:
     """List all users in the platform (admin only)."""
     from app.services.users import SYSTEM_USER_EMAIL
@@ -72,7 +84,7 @@ _PLATFORM_CSV_HEADERS = [
 @router.get("/users/export.csv")
 async def export_platform_users_csv(
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: UsersReadDep,
     user_id: Annotated[list[int] | None, Query()] = None,
 ) -> Response:
     """Export platform users as a CSV file. Pass `user_id` one or more times to
@@ -131,7 +143,7 @@ async def export_platform_users_csv(
 async def trigger_password_reset(
     user_id: int,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: UsersManageDep,
 ) -> VerificationSendResponse:
     """Trigger a password reset email for a user (admin only)."""
     stmt = select(User).where(User.id == user_id)
@@ -168,7 +180,7 @@ async def trigger_password_reset(
 async def reactivate_user(
     user_id: int,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: UsersManageDep,
 ) -> User:
     """Reactivate a deactivated user account (admin only)."""
     stmt = select(User).where(User.id == user_id)
@@ -198,7 +210,7 @@ async def reactivate_user(
 @router.get("/platform-admin-count", response_model=PlatformAdminCountResponse)
 async def get_platform_admin_count(
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: UsersReadDep,
 ) -> PlatformAdminCountResponse:
     """Get the count of platform admins (admin only)."""
     count = await users_service.count_platform_admins(session)
@@ -210,7 +222,7 @@ async def update_platform_role(
     user_id: int,
     payload: PlatformRoleUpdate,
     session: AdminSessionDep,
-    current_user: AdminUserDep,
+    current_user: RolesAssignDep,
 ) -> User:
     """Update a user's platform role (admin only).
 
@@ -242,12 +254,28 @@ async def update_platform_role(
             detail=AdminMessages.CANNOT_CHANGE_ROLE_INACTIVE,
         )
 
-    # Check if demoting the last admin (FOR UPDATE already acquired above)
-    if user.role == UserRole.admin and payload.role != UserRole.admin:
-        if await users_service.is_last_platform_admin(session, user_id, for_update=True):
+    # Bounded delegation: you may only assign a role whose capabilities are a
+    # subset of your own, and you may not modify a user who already outranks
+    # you (an admin can't touch an owner, in either direction).
+    if not can_assign_role(current_user, payload.role) or not can_assign_role(current_user, user.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=AdminMessages.CANNOT_ASSIGN_HIGHER_ROLE,
+        )
+
+    # Don't strip config-management from the last user who has it — that would
+    # lock the platform out of its own configuration. (FOR UPDATE acquired above.)
+    losing_config = (
+        Capability.CONFIG_MANAGE in capabilities_for(user.role)
+        and Capability.CONFIG_MANAGE not in capabilities_for(payload.role)
+    )
+    if losing_config:
+        if await users_service.is_last_capability_holder(
+            session, user_id, Capability.CONFIG_MANAGE, for_update=True
+        ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=AdminMessages.CANNOT_DEMOTE_LAST_ADMIN,
+                detail=AdminMessages.CANNOT_DEMOTE_LAST_OWNER,
             )
 
     user.role = payload.role
@@ -263,7 +291,7 @@ async def update_platform_role(
 async def check_user_deletion_eligibility(
     user_id: int,
     session: AdminSessionDep,
-    current_user: AdminUserDep,
+    current_user: UsersDeleteDep,
 ) -> AdminDeletionEligibilityResponse:
     """Check if a user can be deleted (admin only).
 
@@ -286,10 +314,10 @@ async def check_user_deletion_eligibility(
         session, user_id, admin_context=True
     )
 
-    # Check if target is the last platform admin
-    if user.role == UserRole.admin:
-        if await users_service.is_last_platform_admin(session, user_id):
-            blockers.append("User is the last platform admin. Promote another user first.")
+    # Check if target is the last platform owner (last config manager)
+    if Capability.CONFIG_MANAGE in capabilities_for(user.role):
+        if await users_service.is_last_capability_holder(session, user_id, Capability.CONFIG_MANAGE):
+            blockers.append("User is the last platform owner. Promote another user first.")
             can_delete = False
 
     # Get detailed blocker info for guild and initiative blockers
@@ -347,7 +375,7 @@ async def delete_user(
     user_id: int,
     payload: AdminUserDeleteRequest,
     session: AdminSessionDep,
-    current_user: AdminUserDep,
+    current_user: UsersDeleteDep,
 ) -> AccountDeletionResponse:
     """Delete, anonymize, or deactivate a user account (admin only).
 
@@ -376,12 +404,14 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=AdminMessages.USER_NOT_FOUND)
 
-    # Check if target is the last platform admin
-    if user.role == UserRole.admin:
-        if await users_service.is_last_platform_admin(session, user_id, for_update=True):
+    # Check if target is the last platform owner (last config manager)
+    if Capability.CONFIG_MANAGE in capabilities_for(user.role):
+        if await users_service.is_last_capability_holder(
+            session, user_id, Capability.CONFIG_MANAGE, for_update=True
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=AdminMessages.CANNOT_DELETE_LAST_ADMIN,
+                detail=AdminMessages.CANNOT_DELETE_LAST_OWNER,
             )
 
     # Check deletion eligibility
@@ -490,7 +520,7 @@ async def delete_user(
 async def admin_delete_guild(
     guild_id: int,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: GuildsManageDep,
 ) -> Response:
     """Delete a guild (platform admin only).
 
@@ -512,7 +542,7 @@ async def admin_delete_guild(
 async def admin_delete_initiative(
     initiative_id: int,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: GuildsManageDep,
 ) -> Response:
     """Delete an initiative (platform admin only).
 
@@ -557,7 +587,7 @@ async def admin_update_guild_member_role(
     user_id: int,
     payload: AdminGuildRoleUpdate,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: GuildsManageDep,
 ) -> Response:
     """Update a guild member's role (platform admin only).
 
@@ -599,7 +629,7 @@ async def admin_update_guild_member_role(
 async def admin_get_initiative_members(
     initiative_id: int,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: GuildsManageDep,
 ) -> List[User]:
     """List members of any initiative (platform admin only).
 
@@ -639,7 +669,7 @@ async def admin_update_initiative_member_role(
     user_id: int,
     payload: AdminInitiativeRoleUpdate,
     session: AdminSessionDep,
-    _current_user: AdminUserDep,
+    _current_user: GuildsManageDep,
 ) -> Response:
     """Update an initiative member's role (platform admin only).
 

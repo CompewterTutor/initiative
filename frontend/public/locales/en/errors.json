@@ -67,6 +67,7 @@
   "PROJECT_OWNER_REQUIRED": "Project owner permission required",
   "PROJECT_NO_ACCESS": "You don't have access to this project",
   "PROJECT_WRITE_ACCESS_REQUIRED": "Write access required",
+  "PROJECT_GRANT_CANNOT_MANAGE_MEMBERS": "Temporary access can't manage project members",
   "PROJECT_INVALID_TEMPLATE": "Selected template is invalid",
   "PROJECT_INITIATIVE_REQUIRED": "Initiative is required",
   "PROJECT_CREATE_PERMISSION_REQUIRED": "Permission required to create projects",
@@ -249,5 +250,19 @@
   "ADVANCED_TOOL_NOT_ENABLED": "The advanced tool is not enabled for this initiative.",
   "AI_INVALID_BASE_URL": "Base URL is not allowed. Use a public hostname.",
   "AI_PROVIDER_NOT_ALLOWED": "Ollama can only be configured at the platform level.",
-  "fallback": "Something went wrong. Please try again."
+  "fallback": "Something went wrong. Please try again.",
+  "ACCESS_GRANT_NOT_FOUND": "Access request not found.",
+  "ACCESS_GRANT_GUILD_NOT_FOUND": "That guild doesn't exist.",
+  "ACCESS_GRANT_DURATION_TOO_LONG": "Requested duration exceeds the maximum allowed.",
+  "ACCESS_GRANT_ALREADY_MEMBER": "You're already a member of that guild.",
+  "ACCESS_GRANT_OVERLAPPING": "You already have an open or active request for that guild.",
+  "ACCESS_GRANT_NOT_PENDING": "This request is no longer pending.",
+  "ACCESS_GRANT_NOT_ACTIVE": "This grant isn't active.",
+  "ACCESS_GRANT_CANNOT_APPROVE_OWN": "You can't approve your own request.",
+  "ACCESS_GRANT_CANNOT_CANCEL_OTHERS": "You can only cancel your own request.",
+  "ADMIN_CANNOT_ASSIGN_HIGHER_ROLE": "You can't assign a role higher than your own.",
+  "ADMIN_CANNOT_DEMOTE_LAST_OWNER": "Cannot demote the last platform owner.",
+  "ADMIN_CANNOT_DELETE_LAST_OWNER": "Cannot delete the last platform owner.",
+  "DOCUMENT_GRANT_CANNOT_MANAGE_MEMBERS": "Temporary access can't manage document members",
+  "COUNTER_GRANT_CANNOT_MANAGE": "Temporary access can't manage counter group access"
 }

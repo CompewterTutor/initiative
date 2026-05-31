@@ -15,6 +15,8 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.core.messages import CounterMessages
+from app.core.pam_context import grant_satisfies
+from app.services.permissions import lift_level_for_grant
 from app.models.counter import (
     Counter,
     CounterGroup,
@@ -94,7 +96,9 @@ def compute_counter_group_permission(
 
     role_level = counter_group_role_permission_level(group, user_id)
     effective = effective_counter_group_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(
+        effective.value if effective else None, getattr(group, "guild_id", None)
+    )
 
 
 def _effective_level(group: CounterGroup, user: User) -> CounterPermissionLevel | None:
@@ -115,6 +119,9 @@ def require_counter_group_access(
     access: str = "read",
     require_owner: bool = False,
 ) -> None:
+    # A live PAM grant covering the group's guild satisfies read/write.
+    if grant_satisfies(group.guild_id, access=access, require_owner=require_owner):
+        return
     effective = _effective_level(group, user)
 
     if require_owner:

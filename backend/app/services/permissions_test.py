@@ -44,12 +44,14 @@ def _make_project(
     user_level: ProjectPermissionLevel | None = None,
     role_permissions: list | None = None,
     memberships: list | None = None,
+    guild_id: int = 1,
 ) -> SimpleNamespace:
     """Build a mock project with eagerly-loaded relationships."""
     permissions = []
     if user_id is not None and user_level is not None:
         permissions.append(SimpleNamespace(user_id=user_id, level=user_level))
     return SimpleNamespace(
+        guild_id=guild_id,
         permissions=permissions,
         role_permissions=role_permissions or [],
         initiative=SimpleNamespace(memberships=memberships or []),
@@ -62,12 +64,14 @@ def _make_document(
     user_level: DocumentPermissionLevel | None = None,
     role_permissions: list | None = None,
     memberships: list | None = None,
+    guild_id: int = 1,
 ) -> SimpleNamespace:
     """Build a mock document with eagerly-loaded relationships."""
     permissions = []
     if user_id is not None and user_level is not None:
         permissions.append(SimpleNamespace(user_id=user_id, level=user_level))
     return SimpleNamespace(
+        guild_id=guild_id,
         permissions=permissions,
         role_permissions=role_permissions or [],
         initiative=SimpleNamespace(memberships=memberships or []),
@@ -329,3 +333,62 @@ def test_require_document_access_owner_passes():
     user = _make_user(user_id=1)
     with patch(_PATCH_TARGET, return_value=doc.permissions):
         require_document_access(doc, user, require_owner=True)  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# my_permission_level reflects an active PAM grant (drives edit affordances)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_compute_project_permission_lifts_to_grant():
+    """A grantee has no permission row; ``my_permission_level`` must reflect the
+    grant so the UI shows edit affordances for a read_write grant."""
+    from app.core.pam_context import set_active_grant
+
+    project = _make_project()  # no DAC permission rows
+    project.guild_id = 7
+    try:
+        set_active_grant(None, None)
+        assert compute_project_permission(project, 99) is None
+
+        set_active_grant(7, "read")
+        assert compute_project_permission(project, 99) == "read"
+
+        set_active_grant(7, "read_write")
+        assert compute_project_permission(project, 99) == "write"
+
+        # A grant never confers owner, and never bleeds across guilds.
+        set_active_grant(8, "read_write")
+        assert compute_project_permission(project, 99) is None
+    finally:
+        set_active_grant(None, None)
+
+
+@pytest.mark.unit
+def test_compute_document_permission_lifts_to_grant():
+    from app.core.pam_context import set_active_grant
+
+    doc = _make_document()
+    doc.guild_id = 7
+    try:
+        set_active_grant(7, "read_write")
+        assert compute_document_permission(doc, 99) == "write"
+        set_active_grant(7, "read")
+        assert compute_document_permission(doc, 99) == "read"
+    finally:
+        set_active_grant(None, None)
+
+
+@pytest.mark.unit
+def test_compute_project_permission_grant_does_not_downgrade_dac():
+    """An explicit owner permission outranks the grant (no downgrade to write)."""
+    from app.core.pam_context import set_active_grant
+
+    project = _make_project(user_id=99, user_level=ProjectPermissionLevel.owner)
+    project.guild_id = 7
+    try:
+        set_active_grant(7, "read_write")
+        assert compute_project_permission(project, 99) == "owner"
+    finally:
+        set_active_grant(None, None)

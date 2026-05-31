@@ -50,7 +50,7 @@ async def test_bootstrap_status_with_users(client: AsyncClient, session: AsyncSe
 @pytest.mark.integration
 @pytest.mark.auth
 async def test_register_first_user(client: AsyncClient):
-    """Test that first registered user becomes admin and gets a guild."""
+    """Test that first registered user becomes owner and gets a guild."""
     user_data = {
         "email": "first@example.com",
         "full_name": "First User",
@@ -64,7 +64,7 @@ async def test_register_first_user(client: AsyncClient):
     assert data["email"] == "first@example.com"
     assert data["full_name"] == "First User"
     assert data["status"] == "active"
-    assert data["role"] == "admin"  # First user should be admin
+    assert data["role"] == "owner"  # First user bootstraps as owner
 
 
 @pytest.mark.integration

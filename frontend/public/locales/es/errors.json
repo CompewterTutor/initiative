@@ -65,6 +65,7 @@
   "PROJECT_OWNER_REQUIRED": "Se requiere permiso de propietario del proyecto",
   "PROJECT_NO_ACCESS": "No tienes acceso a este proyecto",
   "PROJECT_WRITE_ACCESS_REQUIRED": "Se requiere acceso de escritura",
+  "PROJECT_GRANT_CANNOT_MANAGE_MEMBERS": "El acceso temporal no puede gestionar miembros del proyecto",
   "PROJECT_INVALID_TEMPLATE": "La plantilla seleccionada no es válida",
   "PROJECT_INITIATIVE_REQUIRED": "La iniciativa es obligatoria",
   "PROJECT_CREATE_PERMISSION_REQUIRED": "Se requiere permiso para crear proyectos",
@@ -249,5 +250,19 @@
   "COUNTER_STEP_MUST_BE_POSITIVE": "El incremento debe ser un número positivo",
   "COUNTER_OUT_OF_RANGE": "El valor está fuera del rango permitido",
   "GUILD_INVALID_PASSWORD": "Contraseña incorrecta",
-  "GUILD_CONFIRMATION_MISMATCH": "El texto de confirmación no coincide"
+  "GUILD_CONFIRMATION_MISMATCH": "El texto de confirmación no coincide",
+  "ACCESS_GRANT_NOT_FOUND": "Solicitud de acceso no encontrada.",
+  "ACCESS_GRANT_GUILD_NOT_FOUND": "Ese gremio no existe.",
+  "ACCESS_GRANT_DURATION_TOO_LONG": "La duración solicitada supera el máximo permitido.",
+  "ACCESS_GRANT_ALREADY_MEMBER": "Ya eres miembro de ese gremio.",
+  "ACCESS_GRANT_OVERLAPPING": "Ya tienes una solicitud abierta o activa para ese gremio.",
+  "ACCESS_GRANT_NOT_PENDING": "Esta solicitud ya no está pendiente.",
+  "ACCESS_GRANT_NOT_ACTIVE": "Esta concesión no está activa.",
+  "ACCESS_GRANT_CANNOT_APPROVE_OWN": "No puedes aprobar tu propia solicitud.",
+  "ACCESS_GRANT_CANNOT_CANCEL_OTHERS": "Solo puedes cancelar tu propia solicitud.",
+  "ADMIN_CANNOT_ASSIGN_HIGHER_ROLE": "No puedes asignar un rol superior al tuyo.",
+  "ADMIN_CANNOT_DEMOTE_LAST_OWNER": "No se puede degradar al último propietario de la plataforma.",
+  "ADMIN_CANNOT_DELETE_LAST_OWNER": "No se puede eliminar al último propietario de la plataforma.",
+  "DOCUMENT_GRANT_CANNOT_MANAGE_MEMBERS": "El acceso temporal no puede gestionar miembros del documento",
+  "COUNTER_GRANT_CANNOT_MANAGE": "El acceso temporal no puede gestionar el acceso al grupo de contadores"
 }

@@ -18,9 +18,10 @@ from app.api.deps import (
     get_guild_membership,
     require_guild_roles,
 )
-from app.api.v1.endpoints.admin import AdminUserDep
+from app.api.v1.endpoints.admin import ConfigManageDep
 from app.models.guild import GuildRole
-from app.models.user import User, UserRole
+from app.core.capabilities import Capability, user_has_capability
+from app.models.user import User
 from app.schemas.ai_settings import (
     AIModelsRequest,
     AIModelsResponse,
@@ -46,7 +47,7 @@ GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
 @router.get("/ai/platform", response_model=PlatformAISettingsResponse)
 async def get_platform_ai_settings(
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> PlatformAISettingsResponse:
     """Get platform-level AI settings. Platform admin only."""
     return await ai_settings_service.get_platform_ai_settings(session)
@@ -56,7 +57,7 @@ async def get_platform_ai_settings(
 async def update_platform_ai_settings(
     payload: PlatformAISettingsUpdate,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> PlatformAISettingsResponse:
     """Update platform-level AI settings. Platform admin only."""
     data = payload.model_dump(exclude_unset=True)
@@ -154,7 +155,7 @@ async def test_ai_connection(
         resolved = await ai_settings_service.resolve_ai_settings(session, current_user, guild_context.guild_id)
         api_key = resolved.api_key
 
-    bypass_ssrf = current_user.role == UserRole.admin
+    bypass_ssrf = user_has_capability(current_user, Capability.CONFIG_MANAGE)
     return await ai_settings_service.test_ai_connection(
         payload, existing_api_key=api_key, bypass_ssrf=bypass_ssrf
     )
@@ -178,7 +179,7 @@ async def fetch_ai_models(
         resolved = await ai_settings_service.resolve_ai_settings(session, current_user, guild_context.guild_id)
         api_key = resolved.api_key
 
-    bypass_ssrf = current_user.role == UserRole.admin
+    bypass_ssrf = user_has_capability(current_user, Capability.CONFIG_MANAGE)
     models, error = await ai_settings_service.fetch_models(
         payload.provider,
         api_key,

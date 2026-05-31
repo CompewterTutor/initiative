@@ -15,6 +15,7 @@ import type { RecentItemRead } from "@/api/generated/initiativeAPI.schemas";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CommandCenter, getOpenCommandCenter } from "@/components/CommandCenter";
 import { CreateDocumentWizard } from "@/components/documents/CreateDocumentWizard";
+import { GuildAccessBanner } from "@/components/guilds/GuildAccessBanner";
 import { PushPermissionPrompt } from "@/components/notifications/PushPermissionPrompt";
 import { ProjectActivitySidebar } from "@/components/projects/ProjectActivitySidebar";
 import { RecentTabsBar } from "@/components/recents/RecentTabsBar";
@@ -34,6 +35,7 @@ import { useClearRecentView, useRecents } from "@/hooks/useRecents";
 import { useServer } from "@/hooks/useServer";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { chooseNoGuildLayout } from "@/lib/noGuildLayout";
+import { canAccessPlatformAdmin } from "@/lib/permissions";
 import { getActiveRecentKey } from "@/lib/recentRoute";
 
 /**
@@ -126,7 +128,7 @@ function AppLayout() {
   // path-based decision lives in ``chooseNoGuildLayout`` so it can be
   // unit-tested without a router; see ``noGuildLayout.test.ts``.
   if (user) {
-    const isPlatformAdmin = user.role === "admin";
+    const isPlatformAdmin = canAccessPlatformAdmin(user);
     const layout = chooseNoGuildLayout({
       hasGuilds: guilds.length > 0,
       pathname: location.pathname,
@@ -210,6 +212,7 @@ function AppLayout() {
                     />
                   </div>
                 </div>
+                <GuildAccessBanner />
               </div>
               <div className="flex justify-between">
                 {/*<div

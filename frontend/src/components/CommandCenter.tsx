@@ -10,6 +10,7 @@ import {
   Plus,
   ScrollText,
   Settings,
+  ShieldCheck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { getDocumentIcon, getDocumentIconColor } from "@/lib/fileUtils";
 import { commandFilter } from "@/lib/fuzzyMatch";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
+import { canAccessAdminDashboard, canManagePlatformConfig } from "@/lib/permissions";
 import { renderRecentIcon } from "@/lib/recentIcon";
 import { recentRoute } from "@/lib/recentRoute";
 
@@ -123,7 +125,7 @@ export function CommandCenter() {
   // Two modes for the tasks query:
   //  - Idle: surface tasks the user is actively working on (assigned to them,
   //    not done, most recently updated). The default backend sort
-  //    (``sort_order`` asc) returns the top of every project's kanban which
+  //    (``position`` asc) returns the top of every project's kanban which
   //    is rarely what's relevant "in the moment".
   //  - Searching: drop the "my tasks" / "not done" lenses and let the user
   //    find any task in the active guild whose title matches. The ``ilike``
@@ -158,7 +160,8 @@ export function CommandCenter() {
   const tasks = tasksQuery.data?.items ?? [];
 
   const isGuildAdmin = activeGuild?.role === "admin";
-  const isPlatformAdmin = user?.role === "admin";
+  const showPlatformSettings = canManagePlatformConfig(user);
+  const showAdminDashboard = canAccessAdminDashboard(user);
 
   // Static pages
   const pages = useMemo(() => {
@@ -194,16 +197,24 @@ export function CommandCenter() {
       });
     }
 
-    if (isPlatformAdmin) {
+    if (showAdminDashboard) {
+      items.push({
+        label: t("pages.adminDashboard"),
+        path: "/settings/admin",
+        icon: ShieldCheck,
+      });
+    }
+
+    if (showPlatformSettings) {
       items.push({
         label: t("pages.platformSettings"),
-        path: "/settings/admin",
+        path: "/settings/platform",
         icon: Settings,
       });
     }
 
     return items;
-  }, [t, getGuildPath, isGuildAdmin, isPlatformAdmin]);
+  }, [t, getGuildPath, isGuildAdmin, showAdminDashboard, showPlatformSettings]);
 
   const handleSelect = (path: string) => {
     setOpen(false);

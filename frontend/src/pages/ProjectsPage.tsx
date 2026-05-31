@@ -55,6 +55,7 @@ import {
 import { useTags } from "@/hooks/useTags";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { useGuildPath } from "@/lib/guildUrl";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 const INITIATIVE_FILTER_ALL = "all";
 const PROJECT_SORT_KEY = "project:list:sort";
@@ -236,7 +237,7 @@ export const ProjectsView = ({ fixedInitiativeId, fixedTagIds, canCreate }: Proj
   const projectsQuery = useProjects();
 
   const initiativesQuery = useInitiatives({
-    enabled: user?.role === "admin" || hasClaimedManagerRole,
+    enabled: hasCapability(user, Capability.dataBypass) || hasClaimedManagerRole,
   });
   // Filter initiatives where user can create projects
   const creatableInitiatives = useMemo(() => {

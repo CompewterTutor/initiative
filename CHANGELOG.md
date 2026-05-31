@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-05-31
+
+### Added
+
+- **Graduated platform roles.** The two platform-level roles (`admin`/`member`) are replaced by a five-rung ladder — `member` → `support` → `moderator` → `admin` → `owner` — backed by a capability model so each platform operation is gated on the specific privilege it needs instead of a single all-or-nothing "admin" flag. App-wide configuration (OIDC, SMTP, branding, role labels, platform AI) now requires the `owner` role; user management, guild management, and role assignment are split across `moderator`/`admin`. Role assignment is bounded (you can't grant a role above your own), and the platform can never be left without an `owner`. Existing platform admins are automatically promoted to `owner` so no one loses access. The old single admin page is now split into two capability-gated areas: **Platform settings** (`/settings/platform` — auth, branding, email, AI; owner-only) and an **Admin dashboard** (`/settings/admin` — users and access; for support/moderator/admin), surfaced as separate entries in the sidebar menu and command palette.
+- **Privileged Access Management (time-bound guild access).** Lower-privilege platform users (e.g. `support`) can now request temporary, per-guild access instead of relying on a standing all-guild bypass. A request specifies the guild, a read-only or read-write level, a duration, and a reason; an `owner`/`admin` approves, denies, or revokes it, and it auto-expires. Maximum duration is tiered by role for least privilege — `support` ≤ 4h, `moderator` ≤ 8h, `admin` ≤ 24h — enforced server-side and reflected as the preset options offered in the request form. Within the granted guild a grant acts like a time-boxed, read-only-or-read-write member: it reaches every initiative, project, document, queue, and counter group (consistently at both the RLS layer and the app-layer permission checks, so what a grantee can list they can also open). Grants are scoped at the database level (PostgreSQL RLS) to the one granted guild — read grants cannot write, owner-only operations stay blocked, and no grant can touch guild memberships, settings, or other identity/config tables, so a grant can never be used to escalate to guild admin. Requesters and approvers are notified in-app, by email, and via mobile push (when SMTP / FCM are configured) — each linking to the **Admin dashboard → Access** tab, which houses the request form and approval queue. Once a grant is live, the granted guild appears in the sidebar switcher marked as temporary (with a remaining-time tooltip); entering it shows a read-only banner and hides write affordances, and it disappears when the grant expires.
+
+### Changed
+
+- **Task reordering is now incremental and precise.** Dragging a task to reorder it sends only the moved task with a fractional "midpoint" position instead of renumbering and re-sending the entire list, so reorders are faster and no longer bump the `updated_at` of tasks that didn't move. Task order is stored at higher precision (NUMERIC) to allow many in-between insertions, with an automatic server-side rebalance when a gap is exhausted — matching how counters and queue items already order.
+
+### Fixed
+
+- Fixed two kanban drag-and-drop bugs in the project task board: you couldn't drag a card below the one directly beneath it (it snapped back), and you couldn't drop a card into the first slot of another column (it landed in the second). Drop placement now follows where the card is actually released — which half of the target card it overlaps — instead of inferring direction from list position, so every slot is reachable. List/table reordering was unaffected.
+
 ## [0.47.0] - 2026-05-29
 
 ### Added

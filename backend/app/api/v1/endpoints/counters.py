@@ -124,6 +124,7 @@ async def _get_counter_group_with_access(
     guild_context: GuildContext,
     *,
     access: str = "read",
+    manage_access: bool = False,
 ) -> CounterGroup:
     group = await counters_service.get_counter_group(session, group_id)
     if not group:
@@ -135,6 +136,14 @@ async def _get_counter_group_with_access(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=CounterMessages.FEATURE_DISABLED,
+        )
+    # A PAM grant gives content read/write only — never access-control
+    # management. Those writes target counter_group_permissions which RLS won't
+    # let a grant write, so reject grantees with a clean 403 (not a 500).
+    if manage_access and guild_context.is_pam:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=CounterMessages.GRANT_CANNOT_MANAGE,
         )
     if not rls_service.is_guild_admin(guild_context.role):
         counters_service.require_counter_group_access(group, user, access=access)
@@ -205,7 +214,10 @@ async def list_counter_groups(
             )
         )
 
-    if not rls_service.is_guild_admin(guild_context.role):
+    # A PAM grantee has no membership/permission rows; the grant already scopes
+    # them to this guild at the RLS layer, so skip the app-layer narrowing
+    # (whose permission-table joins would also fault on the unset guild var).
+    if not rls_service.is_guild_admin(guild_context.role) and not guild_context.is_pam:
         visible_subq = counters_service.visible_counter_group_ids_subquery(current_user.id)
         conditions.append(CounterGroup.id.in_(visible_subq))
 
@@ -749,7 +761,9 @@ async def set_counter_group_permissions(
 ) -> List[CounterGroupPermissionRead]:
     # Write access is sufficient to manage permissions; only deleting the group
     # is reserved for owners. The owner row itself is preserved below regardless.
-    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="write")
+    group = await _get_counter_group_with_access(
+        session, group_id, current_user, guild_context, access="write", manage_access=True
+    )
 
     owner_user_id: int | None = None
     for p in (group.permissions or []):
@@ -809,7 +823,9 @@ async def set_counter_group_role_permissions(
     guild_context: GuildContextDep,
 ) -> List[CounterGroupRolePermissionRead]:
     # Write access is sufficient to manage role permissions (delete is owner-only).
-    group = await _get_counter_group_with_access(session, group_id, current_user, guild_context, access="write")
+    group = await _get_counter_group_with_access(
+        session, group_id, current_user, guild_context, access="write", manage_access=True
+    )
 
     delete_stmt = sa_delete(CounterGroupRolePermission).where(
         CounterGroupRolePermission.counter_group_id == group.id,
@@ -982,6 +998,7 @@ async def record_counter_group_view(
         user_id=current_user.id,
         entity_type="counter_group",
         entity_id=group.id,
+        persist=not guild_context.is_pam,
     )
     return RecentViewWrite(
         entity_type="counter_group",

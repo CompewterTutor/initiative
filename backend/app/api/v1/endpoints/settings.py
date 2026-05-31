@@ -6,7 +6,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import SessionDep, get_current_active_user, GuildContext, require_guild_roles
-from app.api.v1.endpoints.admin import AdminUserDep
+from app.api.v1.endpoints.admin import ConfigManageDep
 from app.core.config import settings as app_config
 from app.core.rate_limit import limiter
 from app.db.session import get_admin_session
@@ -71,7 +71,7 @@ def _email_settings_payload(settings_obj: AppSetting) -> EmailSettingsResponse:
 @router.get("/auth", response_model=OIDCSettingsResponse)
 async def get_oidc_settings(
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> OIDCSettingsResponse:
     settings_obj = await app_settings_service.get_app_settings(session)
     return OIDCSettingsResponse(
@@ -90,7 +90,7 @@ async def get_oidc_settings(
 async def update_oidc_settings(
     payload: OIDCSettingsUpdate,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> OIDCSettingsResponse:
     updated = await app_settings_service.update_oidc_settings(
         session,
@@ -137,7 +137,7 @@ async def get_role_labels(
 async def update_interface_settings(
     payload: InterfaceSettingsUpdate,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> InterfaceSettingsResponse:
     settings_obj = await app_settings_service.update_interface_colors(
         session,
@@ -154,7 +154,7 @@ async def update_interface_settings(
 async def update_role_labels(
     payload: RoleLabelsUpdate,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> RoleLabelsResponse:
     updated = await app_settings_service.update_role_labels(
         session,
@@ -166,7 +166,7 @@ async def update_role_labels(
 @router.get("/email", response_model=EmailSettingsResponse)
 async def get_email_settings(
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> EmailSettingsResponse:
     settings_obj = await app_settings_service.get_app_settings(session)
     return _email_settings_payload(settings_obj)
@@ -176,7 +176,7 @@ async def get_email_settings(
 async def update_email_settings(
     payload: EmailSettingsUpdate,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> EmailSettingsResponse:
     data = payload.model_dump(exclude_unset=True)
     password_provided = "password" in data
@@ -199,7 +199,7 @@ async def update_email_settings(
 async def send_test_email(
     payload: EmailTestRequest,
     session: SessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> dict:
     settings_obj = await app_settings_service.get_app_settings(session)
     recipient = payload.recipient or settings_obj.smtp_test_recipient
@@ -278,7 +278,7 @@ async def _enrich_mapping(session: AsyncSession, mapping: OIDCClaimMapping) -> O
 @router.get("/oidc-mappings", response_model=OIDCMappingsResponse)
 async def get_oidc_mappings(
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> OIDCMappingsResponse:
     settings_obj = await app_settings_service.get_app_settings(session)
     stmt = select(OIDCClaimMapping).order_by(OIDCClaimMapping.id)
@@ -294,7 +294,7 @@ async def get_oidc_mappings(
 async def update_oidc_claim_path(
     payload: OIDCClaimPathUpdate,
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> dict:
     settings_obj = await app_settings_service.get_app_settings(session)
     cleaned = payload.claim_path.strip() if payload.claim_path else None
@@ -308,7 +308,7 @@ async def update_oidc_claim_path(
 async def create_oidc_mapping(
     payload: OIDCClaimMappingCreate,
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> OIDCClaimMappingRead:
     # Validate target_type
     try:
@@ -363,7 +363,7 @@ async def update_oidc_mapping(
     mapping_id: int,
     payload: OIDCClaimMappingUpdate,
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> OIDCClaimMappingRead:
     mapping = (await session.exec(
         select(OIDCClaimMapping).where(OIDCClaimMapping.id == mapping_id)
@@ -428,7 +428,7 @@ async def update_oidc_mapping(
 async def delete_oidc_mapping(
     mapping_id: int,
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> None:
     mapping = (await session.exec(
         select(OIDCClaimMapping).where(OIDCClaimMapping.id == mapping_id)
@@ -442,7 +442,7 @@ async def delete_oidc_mapping(
 @router.get("/oidc-mappings/options")
 async def get_oidc_mapping_options(
     session: AdminSessionDep,
-    _admin: AdminUserDep,
+    _admin: ConfigManageDep,
 ) -> dict:
     """Return all guilds, initiatives, and initiative roles for the mapping form."""
     guilds = (await session.exec(select(Guild).order_by(Guild.name))).all()

@@ -66,5 +66,35 @@
     "footer": "Visit Initiative to get back on track.",
     "textBody_one": "You have {{count}} overdue task:",
     "textBody_other": "You have {{count}} overdue tasks:"
+  },
+  "accessGrant": {
+    "buttonLabel": "Open Access dashboard",
+    "greeting": "Hi {{name}},",
+    "levelRead": "read-only",
+    "levelReadWrite": "read-write",
+    "requested": {
+      "subject": "Access request for {{guildName}}",
+      "title": "New access request",
+      "body": "<strong>{{requester}}</strong> requested {{level}} access to <strong>{{guildName}}</strong>.",
+      "textBody": "{{requester}} requested {{level}} access to {{guildName}}. Review it at {{link}}."
+    },
+    "approved": {
+      "subject": "Access to {{guildName}} approved",
+      "title": "Access approved",
+      "body": "Your {{level}} access to <strong>{{guildName}}</strong> was approved.",
+      "textBody": "Your {{level}} access to {{guildName}} was approved. {{link}}"
+    },
+    "denied": {
+      "subject": "Access request for {{guildName}} denied",
+      "title": "Access request denied",
+      "body": "Your access request for <strong>{{guildName}}</strong> was denied.",
+      "textBody": "Your access request for {{guildName}} was denied. {{link}}"
+    },
+    "revoked": {
+      "subject": "Access to {{guildName}} revoked",
+      "title": "Access revoked",
+      "body": "Your access to <strong>{{guildName}}</strong> was revoked.",
+      "textBody": "Your access to {{guildName}} was revoked. {{link}}"
+    }
   }
 }

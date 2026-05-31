@@ -115,7 +115,9 @@ async def register_user(
         if normalized_invite:
             user_role = UserRole.member
         else:
-            user_role = UserRole.admin if is_first_user else UserRole.member
+            # The very first user bootstraps the platform as owner — the only
+            # role that can manage app-wide configuration (OIDC, SMTP, …).
+            user_role = UserRole.owner if is_first_user else UserRole.member
 
         # Validate the optional browser-supplied IANA timezone via the
         # same helper used by self-update / admin-update. Returns

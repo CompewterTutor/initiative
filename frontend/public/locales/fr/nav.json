@@ -59,5 +59,6 @@
   },
   "counters": "Compteurs",
   "allCounters": "Tous les compteurs",
-  "createCounterGroup": "Nouveau groupe de compteurs"
+  "createCounterGroup": "Nouveau groupe de compteurs",
+  "adminDashboard": "Tableau de bord admin"
 }

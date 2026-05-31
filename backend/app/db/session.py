@@ -44,7 +44,10 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             "SELECT set_config('app.current_user_id', '', false), "
             "set_config('app.current_guild_id', '', false), "
             "set_config('app.current_guild_role', '', false), "
-            "set_config('app.is_superadmin', 'false', false)"
+            "set_config('app.is_superadmin', 'false', false), "
+            "set_config('app.pam_guild_id', '', false), "
+            "set_config('app.pam_read', 'false', false), "
+            "set_config('app.pam_write', 'false', false)"
         ))
         yield session
 
@@ -61,6 +64,9 @@ async def set_rls_context(
     guild_id: Optional[int] = None,
     guild_role: Optional[str] = None,
     is_superadmin: bool = False,
+    pam_guild_id: Optional[int] = None,
+    pam_read: bool = False,
+    pam_write: bool = False,
 ) -> None:
     """Set PostgreSQL session variables for RLS policy evaluation.
 
@@ -69,9 +75,19 @@ async def set_rls_context(
     so the settings persist across transaction boundaries and are
     guaranteed to execute on the same connection as subsequent queries.
 
-    All four variables are always written (defaulting to empty/false)
+    All variables are always written (defaulting to empty/false)
     so that stale values from a previous request on the same pooled
     connection can never leak into the current request.
+
+    ``pam_read`` / ``pam_write`` flag a time-bound Privileged Access
+    Management grant for the guild named by ``pam_guild_id``: additive RLS
+    policies grant SELECT (read) / write into that one guild's rows while
+    the flag is set. ``pam_guild_id`` is deliberately separate from
+    ``current_guild_id`` — the existing write policies treat a matching
+    ``current_guild_id`` as proof of membership, so a grantee must leave it
+    unset and be scoped via ``pam_guild_id`` instead. PAM access is distinct
+    from ``is_superadmin`` (all-guild bypass): a grantee gets scoped access,
+    not god-mode.
     """
     _VALID_ROLES = {"admin", "member"}
     if guild_role is not None and guild_role not in _VALID_ROLES:
@@ -84,6 +100,9 @@ async def set_rls_context(
         "guild_id": guild_id,
         "guild_role": guild_role,
         "is_superadmin": is_superadmin,
+        "pam_guild_id": pam_guild_id,
+        "pam_read": pam_read,
+        "pam_write": pam_write,
     }
 
     # Use set_config() (a regular SQL function) instead of SET commands.
@@ -95,13 +114,19 @@ async def set_rls_context(
     gid = str(int(guild_id)) if guild_id is not None else ""
     grole = guild_role if guild_role is not None else ""
     sa = "true" if is_superadmin else "false"
+    pgid = str(int(pam_guild_id)) if pam_guild_id is not None else ""
+    pr = "true" if pam_read else "false"
+    pw = "true" if pam_write else "false"
 
     await session.execute(text(
         "SELECT set_config('app.current_user_id', :uid, false), "
         "set_config('app.current_guild_id', :gid, false), "
         "set_config('app.current_guild_role', :grole, false), "
-        "set_config('app.is_superadmin', :sa, false)"
-    ), {"uid": uid, "gid": gid, "grole": grole, "sa": sa})
+        "set_config('app.is_superadmin', :sa, false), "
+        "set_config('app.pam_guild_id', :pgid, false), "
+        "set_config('app.pam_read', :pr, false), "
+        "set_config('app.pam_write', :pw, false)"
+    ), {"uid": uid, "gid": gid, "grole": grole, "sa": sa, "pgid": pgid, "pr": pr, "pw": pw})
 
 
 async def reapply_rls_context(session: AsyncSession) -> None:

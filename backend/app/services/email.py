@@ -351,6 +351,53 @@ async def send_project_added_to_initiative_email(
     )
 
 
+async def send_access_grant_email(
+    session: AsyncSession,
+    user: User,
+    *,
+    event: str,
+    guild_name: str,
+    access_level: str | None = None,
+    requester: str | None = None,
+) -> None:
+    """Email a PAM access-grant lifecycle event.
+
+    ``event`` is one of ``requested`` | ``approved`` | ``denied`` | ``revoked``.
+    ``requester`` is only used for the ``requested`` event (sent to approvers).
+    All link to the platform Access dashboard.
+    """
+    settings_obj, accent = await _email_context(session)
+    locale = _user_locale(user)
+    name = _display_name(user)
+    link = _frontend_url("/settings/admin/access")
+    button = _cta_button(email_t("accessGrant.buttonLabel", locale=locale), link, accent)
+    level_label = ""
+    if access_level:
+        level_key = (
+            "accessGrant.levelReadWrite" if access_level == "read_write" else "accessGrant.levelRead"
+        )
+        level_label = email_t(level_key, locale=locale)
+    base = f"accessGrant.{event}"
+    vars_ = {"guildName": guild_name, "level": level_label, "requester": requester or ""}
+    body = f"""
+    <p>{email_t("accessGrant.greeting", locale=locale, name=name)}</p>
+    <p>{email_t(f"{base}.body", locale=locale, **vars_)}</p>
+    <p style="margin:24px 0;">{button}</p>
+    """
+    html_body = _build_html_layout(
+        email_t(f"{base}.title", locale=locale), body, accent, locale=locale
+    )
+    text_body = email_t(f"{base}.textBody", locale=locale, link=link, **vars_)
+    await send_email(
+        session,
+        recipients=[user.email],
+        subject=email_t(f"{base}.subject", locale=locale, guildName=guild_name),
+        html_body=html_body,
+        text_body=text_body,
+        settings_obj=settings_obj,
+    )
+
+
 async def send_task_assignment_digest_email(
     session: AsyncSession,
     user: User,

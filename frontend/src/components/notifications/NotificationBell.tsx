@@ -90,9 +90,28 @@ const notificationLink = (notification: NotificationRead): string | null => {
         return `/documents/${data.document_id}`;
       }
       return null;
+    case "access_grant_requested":
+    case "access_grant_approved":
+    case "access_grant_denied":
+    case "access_grant_revoked":
+      // The Access tab serves both requesters (their requests) and approvers
+      // (the queue). It's a platform route, not guild-scoped.
+      return "/settings/admin/access";
     default:
       return null;
   }
+};
+
+// Returns the localized level word, or null when the level is unknown (e.g.
+// older notifications written before access_level was included) — callers then
+// fall back to a generic, level-less message rather than mislabeling it.
+const accessLevelLabel = (
+  level: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string | null => {
+  if (level === "read_write") return t("notifications.accessLevelReadWrite");
+  if (level === "read") return t("notifications.accessLevelRead");
+  return null;
 };
 
 const notificationText = (
@@ -147,6 +166,25 @@ const notificationText = (
         replierName: data.replier_name ?? "Someone",
         contextTitle: data.context_title ?? "an item",
       });
+    case "access_grant_requested": {
+      const level = accessLevelLabel(data.access_level, t);
+      const requester = data.requester_name ?? "Someone";
+      const guild = data.guild_name ?? "a guild";
+      return level
+        ? t("notifications.accessGrantRequested", { requester, level, guild })
+        : t("notifications.accessGrantRequestedGeneric", { requester, guild });
+    }
+    case "access_grant_approved": {
+      const level = accessLevelLabel(data.access_level, t);
+      const guild = data.guild_name ?? "a guild";
+      return level
+        ? t("notifications.accessGrantApproved", { level, guild })
+        : t("notifications.accessGrantApprovedGeneric", { guild });
+    }
+    case "access_grant_denied":
+      return t("notifications.accessGrantDenied", { guild: data.guild_name ?? "a guild" });
+    case "access_grant_revoked":
+      return t("notifications.accessGrantRevoked", { guild: data.guild_name ?? "a guild" });
     default:
       return t("notifications.defaultNotification");
   }

@@ -25,9 +25,11 @@ from app.models.calendar_event import CalendarEvent, CalendarEventAttendee, Cale
 from app.models.counter import Counter, CounterGroup, CounterGroupPermission, CounterGroupRolePermission
 from app.models.upload import Upload
 from app.models.user_view_preference import UserViewPreference
+from app.models.access_grant import AccessGrant
 
 __all__ = [
     "User",
+    "AccessGrant",
     "Project",
     "Task",
     "TaskAssignee",

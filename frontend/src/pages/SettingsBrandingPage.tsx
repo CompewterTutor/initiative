@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DEFAULT_ROLE_LABELS, useRoleLabels, useUpdateRoleLabels } from "@/hooks/useRoleLabels";
 import { useInterfaceSettings, useUpdateInterfaceSettings } from "@/hooks/useSettings";
 import { toast } from "@/lib/chesterToast";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 const ROLE_FIELDS: { key: keyof RoleLabelsResponse; labelKey: string; helperKey: string }[] = [
   { key: "admin", labelKey: "branding.adminLabel", helperKey: "branding.adminHelper" },
@@ -32,7 +33,7 @@ const ROLE_FIELDS: { key: keyof RoleLabelsResponse; labelKey: string; helperKey:
 export const SettingsBrandingPage = () => {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = hasCapability(user, Capability.configManage);
   const [lightColor, setLightColor] = useState("#2563eb");
   const [darkColor, setDarkColor] = useState("#60a5fa");
   const [roleFormState, setRoleFormState] = useState<RoleLabelsResponse>(DEFAULT_ROLE_LABELS);

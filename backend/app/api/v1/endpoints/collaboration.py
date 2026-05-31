@@ -21,6 +21,7 @@ from sqlmodel import select
 
 from app.api.deps import RLSSessionDep, SessionDep, get_current_active_user, get_guild_membership, GuildContext
 from app.core.config import settings
+from app.core.pam_context import grant_satisfies, set_active_grant
 from app.db.session import AsyncSessionLocal, set_rls_context
 from app.models.document import Document, DocumentRolePermission
 from app.models.guild import GuildMembership
@@ -31,7 +32,9 @@ from app.services.collaboration import (
     CollaboratorInfo,
     collaboration_manager,
 )
+from app.services import access_grants as access_grants_service
 from app.services import documents as documents_service
+from app.services import guilds as guilds_service
 from app.services import permissions as permissions_service
 from app.services import user_tokens
 
@@ -113,9 +116,14 @@ async def _check_document_access(
 ) -> tuple[bool, bool]:
     """Check document access level. Returns (can_read, can_write).
 
-    Pure DAC — access granted through explicit DocumentPermission or
-    role-based permission only.
+    DAC via explicit DocumentPermission/role, OR a live PAM grant covering the
+    guild (read, plus write for read_write grants). The grant context is set by
+    the WebSocket handler before this is called.
     """
+    # A live PAM grant covers the whole guild — no membership row required.
+    if grant_satisfies(document.guild_id, access="read"):
+        return True, grant_satisfies(document.guild_id, access="write")
+
     # Check guild membership
     stmt = select(GuildMembership).where(
         GuildMembership.guild_id == guild_id,
@@ -200,8 +208,35 @@ async def websocket_collaborate(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        # Set RLS context so queries against guild-scoped tables work
-        await set_rls_context(session, user_id=user.id, guild_id=guild_id)
+        # Resolve access: real membership, or a live PAM grant. Set the RLS
+        # context accordingly so the document (and its checks) are visible.
+        # Query under a minimal user-only context first.
+        await set_rls_context(session, user_id=user.id)
+        membership = await guilds_service.get_membership(
+            session, guild_id=guild_id, user_id=user.id
+        )
+        if membership is not None:
+            await set_rls_context(session, user_id=user.id, guild_id=guild_id)
+            set_active_grant(None, None)
+        else:
+            grant = await access_grants_service.get_live_grant(
+                session, user_id=user.id, guild_id=guild_id
+            )
+            if grant is None:
+                logger.warning(
+                    f"Collaboration: {user.email} has no access to guild {guild_id}"
+                )
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+            read_write = grant.access_level == "read_write"
+            await set_rls_context(
+                session,
+                user_id=user.id,
+                pam_guild_id=guild_id,
+                pam_read=True,
+                pam_write=read_write,
+            )
+            set_active_grant(guild_id, grant.access_level)
 
         # Get document and check permissions
         document = await _get_document_with_permissions(session, document_id, guild_id)
