@@ -16,6 +16,7 @@ from sqlmodel import select
 
 from app.core.messages import CounterMessages
 from app.core.pam_context import grant_satisfies
+from app.services.permissions import lift_level_for_grant
 from app.models.counter import (
     Counter,
     CounterGroup,
@@ -95,7 +96,9 @@ def compute_counter_group_permission(
 
     role_level = counter_group_role_permission_level(group, user_id)
     effective = effective_counter_group_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(
+        effective.value if effective else None, getattr(group, "guild_id", None)
+    )
 
 
 def _effective_level(group: CounterGroup, user: User) -> CounterPermissionLevel | None:

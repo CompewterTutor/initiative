@@ -22,7 +22,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlmodel import select
 
-from app.core.pam_context import grant_satisfies
+from app.core.pam_context import active_grant_level, grant_satisfies
 
 from app.models.project import (
     Project,
@@ -132,6 +132,33 @@ DOCUMENT_LEVEL_ORDER: dict[DocumentPermissionLevel, int] = {
     DocumentPermissionLevel.owner: 2,
 }
 
+# Where a level string sits on the shared read < write < owner ladder.
+_LEVEL_RANK = {"read": 0, "write": 1, "owner": 2}
+
+
+def lift_level_for_grant(dac_level: str | None, guild_id: int | None) -> str | None:
+    """Raise an effective permission string to the active PAM grant's level.
+
+    The ``my_permission_level`` surfaced to the client drives whether edit
+    affordances render. A PAM grantee has no permission rows, so DAC alone
+    reports read-only and the UI hides editing even when a ``read_write`` grant
+    would let the write through (RLS + ``require_*_access`` already honor it).
+    A read grant implies ``read``; a read_write grant implies ``write``; a grant
+    never confers ``owner``. Returns the higher of the DAC and grant levels.
+
+    Shared by projects, documents, queues, and counter groups so the level the
+    UI sees is consistent across every resource a grant covers.
+    """
+    if guild_id is None:
+        return dac_level
+    grant = active_grant_level(guild_id)  # "read" | "read_write" | None
+    if grant is None:
+        return dac_level
+    grant_level = "write" if grant == "read_write" else "read"
+    if dac_level is None:
+        return grant_level
+    return dac_level if _LEVEL_RANK[dac_level] >= _LEVEL_RANK[grant_level] else grant_level
+
 
 # ── Visibility subqueries ────────────────────────────────────────
 # Reusable subqueries that return IDs of entities a user can see.
@@ -232,7 +259,7 @@ def compute_project_permission(
     user_level = user_perm.level if user_perm else None
     role_level = project_role_permission_level(project, user_id)
     effective = effective_project_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(effective.value if effective else None, getattr(project, "guild_id", None))
 
 
 def _effective_project_level(
@@ -351,7 +378,9 @@ def compute_document_permission(
 
     role_level = document_role_permission_level(document, user_id)
     effective = effective_document_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(
+        effective.value if effective else None, getattr(document, "guild_id", None)
+    )
 
 
 def _effective_document_level(

@@ -19,6 +19,7 @@ from sqlmodel import select
 
 from app.core.messages import QueueMessages
 from app.core.pam_context import grant_satisfies
+from app.services.permissions import lift_level_for_grant
 from app.models.document import Document
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.queue import (
@@ -120,7 +121,9 @@ def compute_queue_permission(
 
     role_level = queue_role_permission_level(queue, user_id)
     effective = effective_queue_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(
+        effective.value if effective else None, getattr(queue, "guild_id", None)
+    )
 
 
 def _effective_queue_level(
