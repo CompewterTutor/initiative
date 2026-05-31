@@ -270,7 +270,9 @@ async def _next_position(session: SessionDep, project_id: int) -> float:
 _MIN_POSITION_GAP = 1e-9
 
 
-async def _rebalance_if_needed(session: SessionDep, project_id: int) -> dict[int, float]:
+async def _rebalance_if_needed(
+    session: SessionDep, project_id: int, moved_positions: dict[int, float]
+) -> dict[int, float]:
     """Renumber a project's tasks to evenly spaced integers when two positions have
     collided to within ``_MIN_POSITION_GAP`` (precision exhaustion from repeated
     drag-reorder midpoint inserts).
@@ -279,11 +281,38 @@ async def _rebalance_if_needed(session: SessionDep, project_id: int) -> dict[int
     kanban columns are filtered slices of that order), so the rebalance spans the
     whole project rather than a single status group.
 
+    A collision can only be introduced next to a task we just moved, so the common
+    case (no exhaustion) is settled with a cheap existence query per moved task
+    instead of loading the whole project. Only on a near-collision do we scan and
+    renumber.
+
     Sets only ``position`` on the touched tasks — never ``updated_at`` — so tasks
     that were merely renumbered (not explicitly moved) don't churn. Returns a map
     of task id -> new position for every task it changed (empty when no rebalance
     was necessary).
     """
+    # The session runs with autoflush off, so push the just-applied positions to
+    # the DB before the neighbor check evaluates them in SQL (otherwise it reads
+    # stale values and reports phantom collisions).
+    await session.flush()
+
+    collision = False
+    for moved_id, position in moved_positions.items():
+        neighbor = await session.exec(
+            select(Task.id)
+            .where(
+                Task.project_id == project_id,
+                Task.id != moved_id,
+                func.abs(Task.position - position) < _MIN_POSITION_GAP,
+            )
+            .limit(1)
+        )
+        if neighbor.first() is not None:
+            collision = True
+            break
+    if not collision:
+        return {}
+
     stmt = (
         select(Task)
         .where(Task.project_id == project_id)
@@ -291,15 +320,6 @@ async def _rebalance_if_needed(session: SessionDep, project_id: int) -> dict[int
     )
     result = await session.exec(stmt)
     ordered = result.all()
-    if len(ordered) < 2:
-        return {}
-
-    needs_rebalance = any(
-        abs(ordered[i].position - ordered[i - 1].position) < _MIN_POSITION_GAP
-        for i in range(1, len(ordered))
-    )
-    if not needs_rebalance:
-        return {}
 
     changed: dict[int, float] = {}
     for index, task in enumerate(ordered, start=1):
@@ -1695,10 +1715,13 @@ async def reorder_tasks(
             user_timezone=current_user.timezone,
         )
 
-    # Renumber the project's tasks if any positions collided; collects ids the
-    # rebalance touched so they're returned to the client alongside the
-    # explicitly-moved tasks (rebalanced tasks keep their original updated_at).
-    rebalanced_ids = set(await _rebalance_if_needed(session, reorder_in.project_id))
+    # Renumber the project's tasks if any moved task collided with a neighbor;
+    # collects ids the rebalance touched so they're returned to the client
+    # alongside the explicitly-moved tasks (rebalanced tasks keep updated_at).
+    moved_positions = {item.id: item.position for item in reorder_in.items}
+    rebalanced_ids = set(
+        await _rebalance_if_needed(session, reorder_in.project_id, moved_positions)
+    )
 
     await _touch_project(session, reorder_in.project_id, timestamp=now)
     await session.commit()

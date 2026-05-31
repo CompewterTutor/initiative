@@ -513,6 +513,25 @@ async def test_reorder_tasks(client: AsyncClient, session: AsyncSession):
     assert ordered_ids == [task3.id, task1.id, task2.id]
 
 
+@pytest.mark.unit
+def test_reorder_item_rejects_non_finite_position():
+    """NaN/±inf would silently defeat the rebalance gap check, so the schema
+    rejects them at the boundary."""
+    import math
+
+    from pydantic import ValidationError
+
+    from app.schemas.task import TaskReorderItem
+
+    for bad in (math.nan, math.inf, -math.inf):
+        with pytest.raises(ValidationError):
+            TaskReorderItem(id=1, task_status_id=1, position=bad)
+
+    # A normal (and a negative) finite position is accepted.
+    assert TaskReorderItem(id=1, task_status_id=1, position=1.5).position == 1.5
+    assert TaskReorderItem(id=1, task_status_id=1, position=-0.5).position == -0.5
+
+
 @pytest.mark.integration
 async def test_reorder_single_task_returns_only_affected(
     client: AsyncClient, session: AsyncSession
@@ -570,7 +589,8 @@ async def test_reorder_rebalances_on_precision_exhaustion(
     task2 = await _create_task(session, project, "Task 2")
     task3 = await _create_task(session, project, "Task 3")
 
-    # task1/task2 sit within _MIN_POSITION_GAP (1e-9) of each other: exhausted.
+    # task1/task2 sit one representable step apart, so a midpoint between them
+    # rounds onto a neighbor — precision is exhausted at the drop point.
     task1.position = 1.0
     task2.position = 1.0000000001
     task3.position = 5.0
@@ -581,9 +601,14 @@ async def test_reorder_rebalances_on_precision_exhaustion(
     headers = get_guild_headers(guild, user)
     payload = {
         "project_id": project.id,
-        # Move task3 (any move re-runs the exhaustion check on the project).
+        # Drop task3 into the exhausted gap (its position collides with task2),
+        # which is what triggers the project-wide renumber.
         "items": [
-            {"id": task3.id, "task_status_id": task3.task_status_id, "position": 2.0},
+            {
+                "id": task3.id,
+                "task_status_id": task3.task_status_id,
+                "position": 1.0000000001,
+            },
         ],
     }
 

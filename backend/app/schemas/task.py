@@ -225,7 +225,11 @@ class TaskListResponse(SanitizedBaseModel):
 class TaskReorderItem(SanitizedBaseModel):
     id: int
     task_status_id: int
-    position: float
+    # Bounded to reject NaN/±inf (which would silently defeat the rebalance
+    # gap check, where `abs(a - b) < gap` is always False for NaN). Negative
+    # values are valid — dropping above a card with a fractional position can
+    # legitimately produce one.
+    position: float = Field(ge=-1e18, le=1e18)
 
 
 class TaskReorderRequest(SanitizedBaseModel):
