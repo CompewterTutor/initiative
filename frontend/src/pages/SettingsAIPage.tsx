@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getModelsForProvider, getProvidersForScope, PROVIDER_CONFIGS } from "@/lib/ai-providers";
 import { toast } from "@/lib/chesterToast";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 interface FormState {
   enabled: boolean;
@@ -48,7 +49,7 @@ const DEFAULT_STATE: FormState = {
 export const SettingsAIPage = () => {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = hasCapability(user, Capability.configManage);
   const [formState, setFormState] = useState<FormState>(DEFAULT_STATE);
   const [hasExistingKey, setHasExistingKey] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);

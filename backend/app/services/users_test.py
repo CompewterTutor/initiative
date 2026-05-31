@@ -322,43 +322,55 @@ async def test_users_table_has_rls_delete_deny_policy(session: AsyncSession):
 @pytest.mark.unit
 @pytest.mark.service
 async def test_is_last_platform_admin_ignores_inactive_targets(session: AsyncSession):
-    """An admin whose status isn't ``active`` doesn't contribute to the
-    active-admin count, so they can never be "the last admin". Without
-    this fix, deleting a deactivated admin while another active admin
-    existed would trip the wrong-blocker path: ``count_platform_admins``
-    saw 1 (just the other admin), the helper returned True for the
-    deactivated target, and the eligibility endpoint blocked the
-    delete with "User is the last platform admin".
+    """An owner whose status isn't ``active`` doesn't contribute to the
+    active config-manager count, so they can never be "the last owner".
+
+    ``is_last_platform_admin`` now tracks holders of ``config.manage``
+    (owners) — the invariant that keeps the platform able to manage its own
+    configuration.
     """
     from app.models.user import UserRole
 
-    active_admin = await create_user(
-        session, email="active-admin@example.com", role=UserRole.admin
+    active_owner = await create_user(
+        session, email="active-owner@example.com", role=UserRole.owner
     )
-    deact_admin = await create_user(
-        session, email="deact-admin@example.com", role=UserRole.admin
+    deact_owner = await create_user(
+        session, email="deact-owner@example.com", role=UserRole.owner
     )
-    await user_service.deactivate_user(session, deact_admin.id)
+    await user_service.deactivate_user(session, deact_owner.id)
 
-    # The active admin really is the last *active* admin.
-    assert await user_service.is_last_platform_admin(session, active_admin.id) is True
+    # The active owner really is the last *active* config manager.
+    assert await user_service.is_last_platform_admin(session, active_owner.id) is True
 
-    # The deactivated admin is never "the last admin" — they're not in
+    # The deactivated owner is never "the last owner" — they're not in
     # the count to begin with, so removing them changes nothing.
-    assert await user_service.is_last_platform_admin(session, deact_admin.id) is False
+    assert await user_service.is_last_platform_admin(session, deact_owner.id) is False
 
 
 @pytest.mark.unit
 @pytest.mark.service
-async def test_is_last_platform_admin_with_other_active_admin(session: AsyncSession):
-    """When a second active admin exists, neither is the last admin."""
+async def test_is_last_platform_admin_with_other_active_owner(session: AsyncSession):
+    """When a second active owner exists, neither is the last owner."""
     from app.models.user import UserRole
 
-    a = await create_user(session, email="a@example.com", role=UserRole.admin)
-    b = await create_user(session, email="b@example.com", role=UserRole.admin)
+    a = await create_user(session, email="a@example.com", role=UserRole.owner)
+    b = await create_user(session, email="b@example.com", role=UserRole.owner)
 
     assert await user_service.is_last_platform_admin(session, a.id) is False
     assert await user_service.is_last_platform_admin(session, b.id) is False
+
+
+@pytest.mark.unit
+@pytest.mark.service
+async def test_is_last_platform_admin_excludes_plain_admin(session: AsyncSession):
+    """A plain ``admin`` no longer holds ``config.manage``, so they're not
+    counted as a config manager and are never "the last owner"."""
+    from app.models.user import UserRole
+
+    await create_user(session, email="owner@example.com", role=UserRole.owner)
+    plain_admin = await create_user(session, email="admin@example.com", role=UserRole.admin)
+
+    assert await user_service.is_last_platform_admin(session, plain_admin.id) is False
 
 
 @pytest.mark.unit

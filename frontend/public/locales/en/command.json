@@ -26,7 +26,8 @@
     "allProjects": "All Projects",
     "allDocuments": "All Documents",
     "allInitiatives": "All Initiatives",
-    "platformSettings": "Platform Settings"
+    "platformSettings": "Platform Settings",
+    "adminDashboard": "Admin dashboard"
   },
   "shortcutHint": "Search",
   "shortcutTooltip": "Quick search ({{shortcut}})",

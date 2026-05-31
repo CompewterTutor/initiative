@@ -13,7 +13,7 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { InitiativeRead, ProjectRead } from "@/api/generated/initiativeAPI.schemas";
+import type { ProjectRead } from "@/api/generated/initiativeAPI.schemas";
 import { GuildSidebar } from "@/components/guilds/GuildSidebar";
 import { HomeSidebarContent } from "@/components/sidebar/HomeSidebarContent";
 import { InitiativeSection } from "@/components/sidebar/InitiativeSection";
@@ -42,6 +42,7 @@ import { useCounterGroupsList } from "@/hooks/useCounters";
 import { compareVersions, useDockerHubVersion } from "@/hooks/useDockerHubVersion";
 import { useAllDocumentIds } from "@/hooks/useDocuments";
 import { useGuilds } from "@/hooks/useGuilds";
+import { useInitiativeAccess } from "@/hooks/useInitiativeAccess";
 import { useInitiatives } from "@/hooks/useInitiatives";
 import { useFavoriteProjects, useProjects } from "@/hooks/useProjects";
 import { useQueuesList } from "@/hooks/useQueues";
@@ -49,6 +50,7 @@ import { useTags } from "@/hooks/useTags";
 import { guildPath } from "@/lib/guildUrl";
 import { getInitials } from "@/lib/initials";
 import { obfuscateEmail } from "@/lib/obfuscateEmail";
+import { canAccessAdminDashboard, canManagePlatformConfig } from "@/lib/permissions";
 import { getItem, setItem } from "@/lib/storage";
 import { resolveUploadUrl } from "@/lib/uploadUrl";
 
@@ -62,10 +64,15 @@ export const AppSidebar = () => {
   // Auto-close sidebar on mobile after navigation
   useAutoCloseSidebar();
 
-  // Guild admin check is based on guild membership role only (independent from platform role)
+  // Guild admin check is based on guild membership role only (independent from platform role).
+  // Used for guild-settings affordances. Initiative visibility/permissions
+  // (incl. PAM grants + platform data.bypass) come from useInitiativeAccess.
   const isGuildAdmin = activeGuild?.role === "admin";
-  // Platform admins can access platform settings (separate from guild admin role)
-  const isPlatformAdmin = user?.role === "admin";
+  const { filterVisible, permissionsFor, canManage } = useInitiativeAccess();
+  // Two separate platform areas: config (Platform settings) vs operational
+  // (Admin dashboard). Each surfaced independently per capability.
+  const showPlatformSettings = canManagePlatformConfig(user);
+  const showAdminDashboard = canAccessAdminDashboard(user);
 
   // Determine sidebar mode from route
   const isGuildRoute = location.pathname.startsWith("/g/");
@@ -148,103 +155,15 @@ export const AppSidebar = () => {
     return map;
   }, [counterGroupsQuery.data]);
 
-  const visibleInitiatives = useMemo(() => {
-    if (!user) {
-      return [];
-    }
-    const source = Array.isArray(initiativesQuery.data) ? initiativesQuery.data : [];
-    if (isGuildAdmin) {
-      return source.slice().sort((a, b) => a.name.localeCompare(b.name));
-    }
-    const membershipFiltered = source.filter((initiative) =>
-      initiative.members.some((member) => member.user.id === user.id)
-    );
-    return membershipFiltered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [initiativesQuery.data, user, isGuildAdmin]);
-
-  // Check if user can manage a specific initiative
-  const canManageInitiative = useCallback(
-    (initiative: InitiativeRead): boolean => {
-      if (isGuildAdmin) {
-        return true;
-      }
-      if (!user) {
-        return false;
-      }
-      return initiative.members.some(
-        (member) => member.user.id === user.id && member.role === "project_manager"
-      );
-    },
-    [user, isGuildAdmin]
+  const visibleInitiatives = useMemo(
+    () => filterVisible(Array.isArray(initiativesQuery.data) ? initiativesQuery.data : []),
+    [initiativesQuery.data, filterVisible]
   );
 
-  // Get user's permissions for an initiative
-  const getUserPermissions = useCallback(
-    (initiative: InitiativeRead) => {
-      if (!user) {
-        return {
-          canViewDocs: true,
-          canViewProjects: true,
-          canViewQueues: false,
-          canViewEvents: false,
-          canViewAdvancedTool: false,
-          canViewCounters: false,
-          canCreateDocs: false,
-          canCreateProjects: false,
-          canCreateQueues: false,
-          canCreateEvents: false,
-          canCreateCounters: false,
-        };
-      }
-      // Guild admins have all permissions (queues/events/advanced-tool gated
-      // by initiative flag — they pass the role check by definition).
-      if (isGuildAdmin) {
-        return {
-          canViewDocs: true,
-          canViewProjects: true,
-          canViewQueues: initiative.queues_enabled ?? false,
-          canViewEvents: initiative.events_enabled ?? false,
-          canViewAdvancedTool: initiative.advanced_tool_enabled ?? false,
-          canViewCounters: initiative.counters_enabled ?? false,
-          canCreateDocs: true,
-          canCreateProjects: true,
-          canCreateQueues: initiative.queues_enabled ?? false,
-          canCreateEvents: initiative.events_enabled ?? false,
-          canCreateCounters: initiative.counters_enabled ?? false,
-        };
-      }
-      const membership = initiative.members.find((m) => m.user.id === user.id);
-      if (!membership) {
-        return {
-          canViewDocs: true,
-          canViewProjects: true,
-          canViewQueues: false,
-          canViewEvents: false,
-          canViewAdvancedTool: false,
-          canViewCounters: false,
-          canCreateDocs: false,
-          canCreateProjects: false,
-          canCreateQueues: false,
-          canCreateEvents: false,
-          canCreateCounters: false,
-        };
-      }
-      return {
-        canViewDocs: membership.can_view_docs ?? true,
-        canViewProjects: membership.can_view_projects ?? true,
-        canViewQueues: membership.can_view_queues ?? false,
-        canViewEvents: membership.can_view_events ?? false,
-        canViewAdvancedTool: membership.can_view_advanced_tool ?? false,
-        canViewCounters: membership.can_view_counters ?? false,
-        canCreateDocs: membership.can_create_docs ?? false,
-        canCreateProjects: membership.can_create_projects ?? false,
-        canCreateQueues: membership.can_create_queues ?? false,
-        canCreateEvents: membership.can_create_events ?? false,
-        canCreateCounters: membership.can_create_counters ?? false,
-      };
-    },
-    [user, isGuildAdmin]
-  );
+  // Initiative visibility + per-section permissions (membership, PAM grants,
+  // platform data.bypass) are centralized in useInitiativeAccess.
+  const canManageInitiative = canManage;
+  const getUserPermissions = permissionsFor;
 
   const userDisplayName = user?.full_name ?? (obfuscateEmail(user?.email) || "User");
   const userInitials = useMemo(
@@ -597,7 +516,8 @@ export const AppSidebar = () => {
           userInitials={userInitials}
           avatarSrc={avatarSrc}
           isGuildAdmin={isGuildAdmin}
-          isPlatformAdmin={isPlatformAdmin}
+          canManagePlatformConfig={showPlatformSettings}
+          canAccessAdminDashboard={showAdminDashboard}
           activeGuildId={activeGuildId}
           hasUser={Boolean(user)}
           currentVersion={currentVersion}

@@ -58,6 +58,7 @@ from app.services import task_statuses as task_statuses_service
 from app.services import ai_generation as ai_generation_service
 from app.services import properties as properties_service
 from app.core.messages import ProjectMessages, QueryMessages, TaskMessages, SubtaskMessages
+from app.core.pam_context import has_active_grant
 
 router = APIRouter()
 
@@ -740,6 +741,17 @@ async def _allowed_project_ids(
 
     Returns set of project IDs where user has any permission level.
     """
+    # A live PAM grant sees tasks in every project of the guild (like a member
+    # of every initiative). Return all of the guild's project ids so the task
+    # query stays explicitly guild-scoped; RLS also scopes to the grant guild.
+    if has_active_grant(guild_id):
+        grant_conditions = [Initiative.guild_id == guild_id, Project.is_archived == False]  # noqa: E712
+        if not include_templates:
+            grant_conditions.append(Project.is_template == False)  # noqa: E712
+        grant_stmt = select(Project.id).join(Project.initiative).where(*grant_conditions)
+        grant_result = await session.execute(grant_stmt)
+        return {row[0] for row in grant_result.all() if row[0] is not None}
+
     # User-specific permissions
     user_conditions = [
         ProjectPermission.user_id == user.id,

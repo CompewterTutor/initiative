@@ -59,5 +59,6 @@
   },
   "counters": "Contadores",
   "allCounters": "Todos los contadores",
-  "createCounterGroup": "Nuevo grupo de contadores"
+  "createCounterGroup": "Nuevo grupo de contadores",
+  "adminDashboard": "Panel de administración"
 }

@@ -18,6 +18,8 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.core.messages import QueueMessages
+from app.core.pam_context import grant_satisfies
+from app.services.permissions import lift_level_for_grant
 from app.models.document import Document
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.queue import (
@@ -119,7 +121,9 @@ def compute_queue_permission(
 
     role_level = queue_role_permission_level(queue, user_id)
     effective = effective_queue_permission(user_level, role_level)
-    return effective.value if effective else None
+    return lift_level_for_grant(
+        effective.value if effective else None, getattr(queue, "guild_id", None)
+    )
 
 
 def _effective_queue_level(
@@ -149,7 +153,10 @@ def require_queue_access(
 
     DAC: Access granted through explicit QueuePermission or role-based
     permission.  Effective level = MAX(user-specific, role-based).
+    A live PAM grant covering the queue's guild also satisfies read/write.
     """
+    if grant_satisfies(queue.guild_id, access=access, require_owner=require_owner):
+        return
     effective = _effective_queue_level(queue, user)
 
     if require_owner:

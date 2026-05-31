@@ -7,6 +7,7 @@ from sqlalchemy import func, update
 from sqlmodel import select, delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.capabilities import Capability, roles_with_capability
 from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL
 from app.core.security import get_password_hash
 from app.models.user import User, UserRole, UserStatus
@@ -714,80 +715,93 @@ async def reassign_user_content(
     await session.flush()
 
 
-async def count_platform_admins(session: AsyncSession, *, for_update: bool = False) -> int:
-    """Count active platform admin users.
+async def count_capability_holders(
+    session: AsyncSession, capability: Capability, *, for_update: bool = False
+) -> int:
+    """Count active users whose standing role grants ``capability``.
 
     Args:
         session: Database session
-        for_update: If True, lock the admin user rows to prevent race conditions
+        capability: The platform capability to count holders of
+        for_update: If True, lock the matching user rows to prevent race conditions
     """
+    roles = list(roles_with_capability(capability))
+    if not roles:
+        return 0
     if for_update:
-        # Lock all admin users to prevent race condition when demoting
+        # Lock the matching users to prevent a race when demoting/deleting.
         stmt = select(User).where(
-            User.role == UserRole.admin,
+            User.role.in_(roles),
             User.status == UserStatus.active,
         ).with_for_update()
         result = await session.exec(stmt)
-        admins = result.all()
-        return len(admins)
-    else:
-        stmt = select(func.count(User.id)).where(
-            User.role == UserRole.admin,
-            User.status == UserStatus.active,
-        )
-        result = await session.exec(stmt)
-        return result.one()
+        return len(result.all())
+    stmt = select(func.count(User.id)).where(
+        User.role.in_(roles),
+        User.status == UserStatus.active,
+    )
+    result = await session.exec(stmt)
+    return result.one()
 
 
-async def is_last_platform_admin(
-    session: AsyncSession, user_id: int, *, for_update: bool = False
+async def is_last_capability_holder(
+    session: AsyncSession, user_id: int, capability: Capability, *, for_update: bool = False
 ) -> bool:
-    """True iff removing this user would leave zero active platform admins.
+    """True iff removing this user would leave zero active holders of ``capability``.
 
-    A non-admin target, or an admin target whose ``status`` isn't
-    ``active``, doesn't contribute to the active-admin count
-    (``count_platform_admins`` filters by status), so removing them
-    can't drop the count to zero — return False in those cases.
-    Otherwise count OTHER active admins and return True iff none exist.
-
-    Args:
-        session: Database session
-        user_id: User ID to check
-        for_update: If True, lock rows to prevent race conditions during demotion
+    A target whose role doesn't grant the capability, or whose ``status`` isn't
+    ``active``, doesn't contribute to the count, so removing them can't drop it
+    to zero — return False in those cases. Otherwise count OTHER active holders
+    and return True iff none exist.
     """
+    roles = list(roles_with_capability(capability))
     if for_update:
         stmt = select(User).where(User.id == user_id).with_for_update()
     else:
         stmt = select(User).where(User.id == user_id)
     result = await session.exec(stmt)
     user = result.one_or_none()
-    if not user or user.role != UserRole.admin or user.status != UserStatus.active:
+    if not user or user.role not in roles or user.status != UserStatus.active:
         return False
 
     # PostgreSQL rejects ``SELECT COUNT(...) FOR UPDATE`` (aggregates
     # can't take row locks), so the for_update path locks the candidate
-    # rows themselves and counts them in Python — same trick
-    # ``count_platform_admins`` uses for the same reason.
+    # rows themselves and counts them in Python.
     if for_update:
-        other_admins_stmt = (
+        others_stmt = (
             select(User)
             .where(
-                User.role == UserRole.admin,
+                User.role.in_(roles),
                 User.status == UserStatus.active,
                 User.id != user_id,
             )
             .with_for_update()
         )
-        others = (await session.exec(other_admins_stmt)).all()
+        others = (await session.exec(others_stmt)).all()
         return len(others) == 0
-    else:
-        other_admins_stmt = select(func.count(User.id)).where(
-            User.role == UserRole.admin,
-            User.status == UserStatus.active,
-            User.id != user_id,
-        )
-        other_count = (await session.exec(other_admins_stmt)).one()
-        return other_count == 0
+    others_stmt = select(func.count(User.id)).where(
+        User.role.in_(roles),
+        User.status == UserStatus.active,
+        User.id != user_id,
+    )
+    return (await session.exec(others_stmt)).one() == 0
+
+
+# Backwards-compatible wrappers. The invariant we protect is "can the platform
+# still manage its own configuration", i.e. at least one ``owner`` remains
+# (``config.manage`` is owner-only).
+async def count_platform_admins(session: AsyncSession, *, for_update: bool = False) -> int:
+    """Count active users who can manage platform configuration (owners)."""
+    return await count_capability_holders(session, Capability.CONFIG_MANAGE, for_update=for_update)
+
+
+async def is_last_platform_admin(
+    session: AsyncSession, user_id: int, *, for_update: bool = False
+) -> bool:
+    """True iff removing this user would leave the platform with no config managers."""
+    return await is_last_capability_holder(
+        session, user_id, Capability.CONFIG_MANAGE, for_update=for_update
+    )
 
 
 async def hard_delete_user(

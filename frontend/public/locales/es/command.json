@@ -26,7 +26,8 @@
     "allProjects": "Todos los Proyectos",
     "allDocuments": "Todos los Documentos",
     "allInitiatives": "Todas las Iniciativas",
-    "platformSettings": "Configuración de la plataforma"
+    "platformSettings": "Configuración de la plataforma",
+    "adminDashboard": "Panel de administración"
   },
   "shortcutHint": "Buscar",
   "shortcutTooltip": "Búsqueda rápida ({{shortcut}})",

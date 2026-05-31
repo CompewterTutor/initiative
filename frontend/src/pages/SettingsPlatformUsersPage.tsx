@@ -1,5 +1,15 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Mail, Shield, ShieldOff, Trash2, UserCheck } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Crown,
+  Download,
+  LifeBuoy,
+  Mail,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useAdminReactivateUser,
   useAdminTriggerPasswordReset,
@@ -21,15 +33,62 @@ import {
   usePlatformUsers,
 } from "@/hooks/useAdmin";
 import { useAuth } from "@/hooks/useAuth";
-import { getRoleLabel, useRoleLabels } from "@/hooks/useRoleLabels";
 import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
+import { Capability, hasCapability } from "@/lib/permissions";
+import type { TranslateFn } from "@/types/i18n";
+
+// Platform roles ordered least → most privileged. A user can only assign a
+// role at or below their own rank (mirrors the backend ``can_assign_role``
+// subset rule), so rank-by-index is a faithful client-side gate.
+const PLATFORM_ROLE_ORDER: UserRole[] = ["member", "support", "moderator", "admin", "owner"];
+
+const platformRoleRank = (role: UserRole): number => PLATFORM_ROLE_ORDER.indexOf(role);
+
+const platformRoleLabel = (role: UserRole, t: TranslateFn): string =>
+  t(`platformUsers.roles.${role}`);
+
+const platformRoleDescription = (role: UserRole, t: TranslateFn): string =>
+  t(`platformUsers.roleDescriptions.${role}`);
+
+const ROLE_BADGE: Record<
+  UserRole,
+  { icon: LucideIcon | null; variant: "default" | "secondary" | "outline" }
+> = {
+  owner: { icon: Crown, variant: "default" },
+  admin: { icon: Shield, variant: "default" },
+  moderator: { icon: ShieldCheck, variant: "secondary" },
+  support: { icon: LifeBuoy, variant: "secondary" },
+  member: { icon: null, variant: "outline" },
+};
+
+// A role badge with a hover tooltip describing the role. Used wherever the
+// role isn't editable (read-only viewers, the actor's own row, higher-ranked
+// targets) so the meaning of each role is still discoverable.
+const PlatformRoleBadge = ({ role, t }: { role: UserRole; t: TranslateFn }) => {
+  const { icon: Icon, variant } = ROLE_BADGE[role];
+  return (
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <span className="inline-flex cursor-help">
+            <Badge variant={variant} className="inline-flex items-center gap-1">
+              {Icon && <Icon className="h-3 w-3" />}
+              {platformRoleLabel(role, t)}
+            </Badge>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          {platformRoleDescription(role, t)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 export const SettingsPlatformUsersPage = () => {
   const { t } = useTranslation(["settings", "common"]);
   const { user } = useAuth();
-  const { data: roleLabels } = useRoleLabels();
-  const adminLabel = getRoleLabel("admin", roleLabels);
   const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState<{
     userId: number;
@@ -43,11 +102,18 @@ export const SettingsPlatformUsersPage = () => {
   } | null>(null);
   const [deleteUserTarget, setDeleteUserTarget] = useState<UserRead | null>(null);
 
-  const isAdmin = user?.role === "admin";
+  // Viewing the roster needs ``users.read`` (support+); changing roles needs
+  // ``roles.assign`` (admin+). The actor can only assign roles at or below
+  // their own rank.
+  const canView = hasCapability(user, Capability.usersRead);
+  const canManageRoles = hasCapability(user, Capability.rolesAssign);
+  const canManageUsers = hasCapability(user, Capability.usersManage);
+  const canDeleteUsers = hasCapability(user, Capability.usersDelete);
+  const actorRank = platformRoleRank(user?.role ?? "member");
 
-  const usersQuery = usePlatformUsers({ enabled: isAdmin });
+  const usersQuery = usePlatformUsers({ enabled: canView });
 
-  const adminCountQuery = usePlatformAdminCount({ enabled: isAdmin });
+  const adminCountQuery = usePlatformAdminCount({ enabled: canView });
 
   const resetPassword = useAdminTriggerPasswordReset({
     onSuccess: (_data, userId) => {
@@ -86,14 +152,12 @@ export const SettingsPlatformUsersPage = () => {
   const updatePlatformRole = useAdminUpdatePlatformRole({
     onSuccess: (_data, variables) => {
       // Read the new role off the mutation variables, not off
-      // ``roleChangeConfirm``. The confirm dialog may have already
-      // closed (which calls setRoleChangeConfirm(null)) by the time
-      // this callback fires, so the closure could see ``null`` and
-      // pick the wrong toast.
+      // ``roleChangeConfirm`` — the confirm dialog may have already closed
+      // by the time this fires.
       toast.success(
-        variables.role === "admin"
-          ? t("platformUsers.promoteSuccess")
-          : t("platformUsers.demoteSuccess")
+        t("platformUsers.roleChangeSuccess", {
+          role: platformRoleLabel(variables.role, t as TranslateFn),
+        })
       );
       setRoleChangeConfirm(null);
     },
@@ -101,14 +165,6 @@ export const SettingsPlatformUsersPage = () => {
       toast.error(getErrorMessage(error, "settings:platformUsers.roleChangeError"));
     },
   });
-
-  const handlePromote = (userId: number, email: string) => {
-    setRoleChangeConfirm({ userId, email, currentRole: "member", newRole: "admin" });
-  };
-
-  const handleDemote = (userId: number, email: string) => {
-    setRoleChangeConfirm({ userId, email, currentRole: "admin", newRole: "member" });
-  };
 
   const confirmRoleChange = () => {
     if (roleChangeConfirm) {
@@ -141,12 +197,8 @@ export const SettingsPlatformUsersPage = () => {
     });
   };
 
-  if (!isAdmin) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        {t("platformUsers.permissionRequired", { adminLabel })}
-      </p>
-    );
+  if (!canView) {
+    return <p className="text-muted-foreground text-sm">{t("platformUsers.permissionRequired")}</p>;
   }
 
   if (usersQuery.isLoading) {
@@ -202,19 +254,64 @@ export const SettingsPlatformUsersPage = () => {
       header: t("platformUsers.columnRole"),
       cell: ({ row }) => {
         const platformUser = row.original;
-        const isPlatformAdmin = platformUser.role === "admin";
+        const isSelf = platformUser.id === user?.id;
+        const targetRank = platformRoleRank(platformUser.role);
+        // You can't edit your own role, a non-active account, or a user who
+        // outranks you. The backend enforces the same; this just hides
+        // controls that would 403.
+        const editable =
+          canManageRoles && platformUser.status === "active" && !isSelf && actorRank >= targetRank;
+        // Don't let the last platform owner be demoted out of ownership.
+        const isLastOwner =
+          platformUser.role === "owner" && (adminCountQuery.data?.count ?? 0) <= 1;
+
+        if (!editable) {
+          return (
+            <div className="flex">
+              <PlatformRoleBadge role={platformUser.role} t={t as TranslateFn} />
+            </div>
+          );
+        }
 
         return (
-          <div className="flex">
-            {isPlatformAdmin ? (
-              <Badge variant="default" className="inline-flex items-center gap-1">
-                <Shield className="h-3 w-3" />
-                {getRoleLabel("admin", roleLabels)}
-              </Badge>
-            ) : (
-              <Badge variant="secondary">{getRoleLabel("member", roleLabels)}</Badge>
-            )}
-          </div>
+          <Select
+            value={platformUser.role}
+            onValueChange={(value) =>
+              setRoleChangeConfirm({
+                userId: platformUser.id,
+                email: platformUser.email,
+                currentRole: platformUser.role,
+                newRole: value as UserRole,
+              })
+            }
+            disabled={updatePlatformRole.isPending}
+          >
+            <SelectTrigger className="h-8 w-[160px]">
+              {/* Render the label directly rather than <SelectValue> so the
+                  per-item descriptions below don't leak into the trigger. */}
+              {platformRoleLabel(platformUser.role, t as TranslateFn)}
+            </SelectTrigger>
+            <SelectContent className="max-w-xs">
+              {PLATFORM_ROLE_ORDER.map((role) => {
+                // Can't assign above your own rank; the last owner can only
+                // stay an owner.
+                const disabled =
+                  platformRoleRank(role) > actorRank || (isLastOwner && role !== "owner");
+                return (
+                  <SelectItem key={role} value={role} disabled={disabled}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">
+                        {platformRoleLabel(role, t as TranslateFn)}
+                      </span>
+                      <span className="text-muted-foreground text-xs leading-snug">
+                        {platformRoleDescription(role, t as TranslateFn)}
+                      </span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         );
       },
     },
@@ -242,45 +339,13 @@ export const SettingsPlatformUsersPage = () => {
       cell: ({ row }) => {
         const platformUser = row.original;
         const isResetting = resettingUserId === platformUser.id;
-        const isPlatformAdmin = platformUser.role === "admin";
         const isSelf = platformUser.id === user?.id;
-        const isLastAdmin = isPlatformAdmin && (adminCountQuery.data?.count ?? 0) <= 1;
-        // Promote / Demote / Reset password are no-ops on non-active
-        // accounts (the backend rejects role changes with
-        // ADMIN_CANNOT_CHANGE_ROLE_INACTIVE and password reset with
-        // ADMIN_CANNOT_RESET_INACTIVE), so hide them here too. The
-        // Reactivate button is gated on status === "deactivated"
-        // separately below.
-        const isActive = platformUser.status === "active";
+        // Reset password is a no-op on non-active accounts (the backend
+        // rejects it with ADMIN_CANNOT_RESET_INACTIVE), so hide it here too.
 
         return (
           <div className="flex flex-wrap gap-2">
-            {isActive && isPlatformAdmin && !isSelf && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemote(platformUser.id, platformUser.email)}
-                disabled={isLastAdmin || updatePlatformRole.isPending}
-                title={isLastAdmin ? t("platformUsers.cannotDemoteLastAdmin") : undefined}
-              >
-                <ShieldOff className="h-4 w-4" />
-                {t("platformUsers.demoteToUser")}
-              </Button>
-            )}
-            {isActive && !isPlatformAdmin && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handlePromote(platformUser.id, platformUser.email)}
-                disabled={updatePlatformRole.isPending}
-              >
-                <Shield className="h-4 w-4" />
-                {t("platformUsers.promoteToAdmin")}
-              </Button>
-            )}
-            {platformUser.status === "deactivated" && (
+            {canManageUsers && platformUser.status === "deactivated" && (
               <Button
                 type="button"
                 variant="outline"
@@ -292,7 +357,7 @@ export const SettingsPlatformUsersPage = () => {
                 {t("platformUsers.reactivate")}
               </Button>
             )}
-            {platformUser.status === "active" && (
+            {canManageUsers && platformUser.status === "active" && (
               <Button
                 type="button"
                 variant="outline"
@@ -314,7 +379,7 @@ export const SettingsPlatformUsersPage = () => {
               <Download className="h-4 w-4" />
               {t("platformUsers.exportUser")}
             </Button>
-            {!isSelf && (
+            {canDeleteUsers && !isSelf && (
               <Button
                 type="button"
                 variant="outline"
@@ -379,25 +444,14 @@ export const SettingsPlatformUsersPage = () => {
       <ConfirmDialog
         open={roleChangeConfirm !== null}
         onOpenChange={(open) => !open && setRoleChangeConfirm(null)}
-        title={
-          roleChangeConfirm?.newRole === "admin"
-            ? t("platformUsers.promoteToAdmin")
-            : t("platformUsers.demoteToUser")
-        }
-        description={
-          roleChangeConfirm?.newRole === "admin"
-            ? t("platformUsers.promoteDescription", {
-                email: roleChangeConfirm?.email ?? "this user",
-              })
-            : t("platformUsers.demoteDescription", {
-                email: roleChangeConfirm?.email ?? "this user",
-              })
-        }
-        confirmLabel={
-          roleChangeConfirm?.newRole === "admin"
-            ? t("platformUsers.promoteToAdmin")
-            : t("platformUsers.demoteToUser")
-        }
+        title={t("platformUsers.changeRoleTitle")}
+        description={t("platformUsers.changeRoleDescription", {
+          email: roleChangeConfirm?.email ?? "this user",
+          role: roleChangeConfirm
+            ? platformRoleLabel(roleChangeConfirm.newRole, t as TranslateFn)
+            : "",
+        })}
+        confirmLabel={t("common:confirm")}
         onConfirm={confirmRoleChange}
         isLoading={updatePlatformRole.isPending}
       />

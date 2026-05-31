@@ -66,5 +66,35 @@
     "footer": "Visita Initiative para ponerte al día.",
     "textBody_one": "Tienes {{count}} tarea vencida:",
     "textBody_other": "Tienes {{count}} tareas vencidas:"
+  },
+  "accessGrant": {
+    "buttonLabel": "Abrir panel de accesos",
+    "greeting": "Hola {{name}}:",
+    "levelRead": "de solo lectura",
+    "levelReadWrite": "de lectura y escritura",
+    "requested": {
+      "subject": "Solicitud de acceso para {{guildName}}",
+      "title": "Nueva solicitud de acceso",
+      "body": "<strong>{{requester}}</strong> solicitó acceso {{level}} a <strong>{{guildName}}</strong>.",
+      "textBody": "{{requester}} solicitó acceso {{level}} a {{guildName}}. Revísalo en {{link}}."
+    },
+    "approved": {
+      "subject": "Acceso a {{guildName}} aprobado",
+      "title": "Acceso aprobado",
+      "body": "Tu acceso {{level}} a <strong>{{guildName}}</strong> fue aprobado.",
+      "textBody": "Tu acceso {{level}} a {{guildName}} fue aprobado. {{link}}"
+    },
+    "denied": {
+      "subject": "Solicitud de acceso a {{guildName}} denegada",
+      "title": "Solicitud de acceso denegada",
+      "body": "Tu solicitud de acceso a <strong>{{guildName}}</strong> fue denegada.",
+      "textBody": "Tu solicitud de acceso a {{guildName}} fue denegada. {{link}}"
+    },
+    "revoked": {
+      "subject": "Acceso a {{guildName}} revocado",
+      "title": "Acceso revocado",
+      "body": "Tu acceso a <strong>{{guildName}}</strong> fue revocado.",
+      "textBody": "Tu acceso a {{guildName}} fue revocado. {{link}}"
+    }
   }
 }

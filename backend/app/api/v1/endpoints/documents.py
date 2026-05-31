@@ -21,6 +21,7 @@ from app.api.deps import (
 )
 from app.core.config import settings
 from app.core.messages import DocumentMessages, InitiativeMessages, QueryMessages
+from app.core.pam_context import has_active_grant
 from app.core.rate_limit import limiter
 from app.db.session import get_admin_session, reapply_rls_context
 from app.models.document import Document, DocumentFileVersion, DocumentPermission, DocumentPermissionLevel, DocumentRolePermission, DocumentType, ProjectDocument
@@ -204,8 +205,21 @@ def _require_document_access(
     *,
     access: str = "read",
     require_owner: bool = False,
+    manage_access: bool = False,
 ) -> None:
-    """Check if user has required access to a document."""
+    """Check if user has required access to a document.
+
+    ``manage_access=True`` marks an access-control operation (adding/removing
+    members or changing permission levels). A PAM grant confers content
+    read/write only — never access-control management — and those writes target
+    ``document_permissions`` which RLS won't let a grant write, so reject
+    grantees here with a clean 403 instead of letting the write fault (500).
+    """
+    if manage_access and has_active_grant(document.guild_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=DocumentMessages.GRANT_CANNOT_MANAGE_MEMBERS,
+        )
     permissions_service.require_document_access(
         document, user, access=access, require_owner=require_owner,
     )
@@ -270,12 +284,14 @@ def _build_visible_docs_filters(
     untagged: Optional[bool] = None,
 ):
     """Build common WHERE conditions for visible-document queries."""
-    has_permission_subq = permissions_service.visible_document_ids_subquery(user_id)
-
-    conditions = [
-        Initiative.guild_id == guild_id,
-        Document.id.in_(has_permission_subq),
-    ]
+    # A live PAM grant sees all of the guild's documents; otherwise narrow to
+    # documents the user has explicit/role permission for. Guild scope + RLS
+    # apply either way.
+    conditions = [Initiative.guild_id == guild_id]
+    if not has_active_grant(guild_id):
+        conditions.append(
+            Document.id.in_(permissions_service.visible_document_ids_subquery(user_id))
+        )
 
     if initiative_id is not None:
         conditions.append(Document.initiative_id == initiative_id)
@@ -1374,7 +1390,7 @@ async def add_document_member(
 ) -> DocumentPermission:
     """Add a member to a document with specified permission level."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
     if member_in.level == DocumentPermissionLevel.owner:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.CANNOT_ASSIGN_OWNER)
 
@@ -1422,7 +1438,7 @@ async def add_document_members_bulk(
 ) -> List[DocumentPermission]:
     """Add multiple members to a document with the same permission level."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
     if bulk_in.level == DocumentPermissionLevel.owner:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.CANNOT_ASSIGN_OWNER)
 
@@ -1485,7 +1501,7 @@ async def remove_document_members_bulk(
 ) -> None:
     """Remove multiple members from a document."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
 
     if not bulk_in.user_ids:
         return
@@ -1515,7 +1531,7 @@ async def update_document_member(
 ) -> DocumentPermission:
     """Update a document member's permission level."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
     if update_in.level == DocumentPermissionLevel.owner:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.CANNOT_ASSIGN_OWNER)
 
@@ -1543,7 +1559,7 @@ async def remove_document_member(
 ) -> None:
     """Remove a member's permission from a document."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
     permission = _get_document_permission(document, user_id)
     if not permission:
         return
@@ -1795,7 +1811,7 @@ async def add_document_role_permission(
 ) -> DocumentRolePermissionRead:
     """Add a role-based permission to a document."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
 
     if role_perm_in.level == DocumentPermissionLevel.owner:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.CANNOT_ASSIGN_OWNER_TO_ROLE)
@@ -1858,7 +1874,7 @@ async def update_document_role_permission(
 ) -> DocumentRolePermissionRead:
     """Update a role-based permission level on a document."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
 
     if update_in.level == DocumentPermissionLevel.owner:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=DocumentMessages.CANNOT_ASSIGN_OWNER_TO_ROLE)
@@ -1901,7 +1917,7 @@ async def remove_document_role_permission(
 ) -> None:
     """Remove a role-based permission from a document."""
     document = await _get_document_or_404(session, document_id=document_id, guild_id=guild_context.guild_id)
-    _require_document_access(document, current_user, access="write")
+    _require_document_access(document, current_user, access="write", manage_access=True)
 
     stmt = select(DocumentRolePermission).where(
         DocumentRolePermission.document_id == document_id,
@@ -2044,6 +2060,7 @@ async def record_document_view(
         user_id=current_user.id,
         entity_type="document",
         entity_id=document.id,
+        persist=not guild_context.is_pam,
     )
     return RecentViewWrite(
         entity_type="document",

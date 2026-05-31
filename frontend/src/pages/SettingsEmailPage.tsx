@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useEmailSettings, useSendTestEmail, useUpdateEmailSettings } from "@/hooks/useSettings";
 import { toast } from "@/lib/chesterToast";
+import { Capability, hasCapability } from "@/lib/permissions";
 
 interface EmailPayload {
   host?: string | null;
@@ -33,7 +34,7 @@ const DEFAULT_STATE = {
 export const SettingsEmailPage = () => {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "admin";
+  const isPlatformAdmin = hasCapability(user, Capability.configManage);
   const [formState, setFormState] = useState(DEFAULT_STATE);
   const [password, setPassword] = useState("");
   const [testRecipient, setTestRecipient] = useState("");

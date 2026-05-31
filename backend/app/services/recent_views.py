@@ -31,13 +31,26 @@ async def record_view(
     user_id: int,
     entity_type: RecentEntityType,
     entity_id: int,
+    persist: bool = True,
 ) -> RecentView:
     """Upsert a recent-view row, then prune per-user to ``MAX_RECENT_VIEWS``.
 
     The DB trigger ``fn_recent_views_set_guild_id`` populates ``guild_id``
     from the underlying entity, so callers don't pass it.
+
+    ``persist=False`` returns a transient (unsaved) row instead of writing.
+    PAM grantees have no ``current_guild_id``, so the recent_views guild
+    policies would reject their INSERT; their browsing is also transient by
+    design, so we simply don't record it.
     """
     now = datetime.now(timezone.utc)
+    if not persist:
+        return RecentView(
+            user_id=user_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            last_viewed_at=now,
+        )
     stmt = (
         pg_insert(RecentView)
         .values(

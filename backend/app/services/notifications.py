@@ -14,7 +14,8 @@ from app.models.initiative import Initiative
 from app.models.project import Project
 from app.models.task import Task, TaskAssignee, TaskStatus, TaskStatusCategory
 from app.models.task_assignment_digest import TaskAssignmentDigestItem
-from app.models.user import User, UserRole, UserStatus
+from app.core.capabilities import Capability, roles_with_capability
+from app.models.user import User, UserStatus
 from app.models.notification import NotificationType
 from app.services import email as email_service
 from app.services import user_notifications
@@ -247,7 +248,8 @@ async def notify_project_added(
 
 
 async def notify_admins_pending_user(session: AsyncSession, pending_user: User) -> None:
-    stmt = select(User).where(User.role == UserRole.admin, User.status == UserStatus.active)
+    manager_roles = list(roles_with_capability(Capability.USERS_MANAGE))
+    stmt = select(User).where(User.role.in_(manager_roles), User.status == UserStatus.active)
     result = await session.exec(stmt)
     admins = result.scalars().all()
     if not admins:
