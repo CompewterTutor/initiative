@@ -19,6 +19,11 @@ import type { QueryOpts } from "@/types/query";
 // Shared key prefix so any grant mutation refreshes every grant list.
 const ACCESS_GRANTS_KEY = ["access-grants"] as const;
 
+// Cap the "my requests" history so a churny PAM user's list (and its payload)
+// can't grow unbounded. Grants are returned newest-first, and the page floats
+// pending/live ones to the top, so the actionable items are always shown.
+export const MY_GRANTS_LIMIT = 25;
+
 function useInvalidateAccessGrants() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: ACCESS_GRANTS_KEY });
@@ -29,7 +34,10 @@ export const useMyAccessGrants = (options?: QueryOpts<AccessGrantRead[]>) =>
   useQuery<AccessGrantRead[]>({
     queryKey: [...ACCESS_GRANTS_KEY, "mine"],
     queryFn: () =>
-      listAccessGrantsApiV1AccessGrantsGet({ mine: true }) as unknown as Promise<AccessGrantRead[]>,
+      listAccessGrantsApiV1AccessGrantsGet({
+        mine: true,
+        limit: MY_GRANTS_LIMIT,
+      }) as unknown as Promise<AccessGrantRead[]>,
     ...options,
   });
 

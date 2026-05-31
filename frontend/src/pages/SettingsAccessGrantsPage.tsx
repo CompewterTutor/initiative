@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -55,6 +55,15 @@ const minutesLeft = (expiresAt?: string | null): number | null => {
 const guildLabel = (grant: { guild_name?: string | null; guild_id: number }): string =>
   grant.guild_name ? `${grant.guild_name} (#${grant.guild_id})` : `#${grant.guild_id}`;
 
+// Float the actionable grants to the top so they're never buried under dead
+// history: pending (you can cancel) first, then live (currently usable), then
+// everything else. Stable over the backend's newest-first ordering.
+const activityRank = (grant: AccessGrantRead): number => {
+  if (grant.status === "pending") return 0;
+  if (grant.is_live) return 1;
+  return 2;
+};
+
 // Least-privilege grant-duration caps per requester role. MUST match the
 // backend PAM_*_MAX_MINUTES defaults — the backend enforces; this only
 // decides which presets to offer. (member can't request.)
@@ -102,6 +111,10 @@ const RequestSection = () => {
   const { t } = useTranslation(["settings", "common"]);
   const { user } = useAuth();
   const myGrants = useMyAccessGrants();
+  const sortedGrants = useMemo(
+    () => [...(myGrants.data ?? [])].sort((a, b) => activityRank(a) - activityRank(b)),
+    [myGrants.data]
+  );
   const durationOptions = allowedDurations(user?.role);
   const defaultDuration = String(durationOptions.includes(240) ? 240 : (durationOptions[0] ?? 240));
   const [guildId, setGuildId] = useState("");
@@ -199,11 +212,11 @@ const RequestSection = () => {
 
         <div className="space-y-2">
           <h3 className="font-medium text-sm">{t("accessGrants.myRequests")}</h3>
-          {!myGrants.data?.length ? (
+          {!sortedGrants.length ? (
             <p className="text-muted-foreground text-sm">{t("accessGrants.noRequests")}</p>
           ) : (
-            <ul className="divide-y rounded-md border">
-              {myGrants.data.map((grant) => {
+            <ul className="max-h-96 divide-y overflow-y-auto rounded-md border">
+              {sortedGrants.map((grant) => {
                 const left = minutesLeft(grant.expires_at);
                 return (
                   <li key={grant.id} className="flex items-center justify-between gap-3 p-3">

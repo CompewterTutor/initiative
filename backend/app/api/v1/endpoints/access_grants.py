@@ -90,23 +90,32 @@ async def list_access_grants(
     current_user: Annotated[User, Depends(get_current_active_user)],
     mine: bool = Query(True, description="List only your own requests."),
     grant_status: Optional[str] = Query(None, alias="status"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=200,
+        description="Cap the number of most-recent grants returned.",
+    ),
 ) -> List[AccessGrantRead]:
     """List access grants.
 
     Defaults to your own requests. ``mine=false`` returns the full queue and
-    requires ``access.read`` (approvers).
+    requires ``access.read`` (approvers). ``limit`` caps the result to the most
+    recent N (grants are ordered newest-first) so the history can't grow
+    unbounded.
     """
     if mine:
         grants = await service.list_grants(
             session,
             user_id=current_user.id,
             statuses=[grant_status] if grant_status else None,
+            limit=limit,
         )
     else:
         if not user_has_capability(current_user, Capability.ACCESS_READ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="INSUFFICIENT_PRIVILEGES")
         grants = await service.list_grants(
-            session, statuses=[grant_status] if grant_status else None
+            session, statuses=[grant_status] if grant_status else None, limit=limit
         )
     return await service.to_read(session, grants)
 

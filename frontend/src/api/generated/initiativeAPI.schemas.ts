@@ -3544,6 +3544,10 @@ export type ListAccessGrantsApiV1AccessGrantsGetParams = {
    */
   mine?: boolean;
   status?: string | null;
+  /**
+   * Cap the number of most-recent grants returned.
+   */
+  limit?: number | null;
 };
 
 export type GetUserStatsApiV1UsersMeStatsGetParams = {

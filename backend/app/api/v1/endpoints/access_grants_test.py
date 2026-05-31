@@ -76,6 +76,40 @@ async def test_support_can_request_and_owner_approves(client: AsyncClient, sessi
 
 
 @pytest.mark.integration
+async def test_my_requests_respects_limit_and_order(client: AsyncClient, session: AsyncSession):
+    """``limit`` caps the my-requests history to the most recent N (newest
+    first), so a churny requester's list can't grow unbounded."""
+    owner = await create_user(session, email="owner-lim@example.com", role=UserRole.owner)
+    support = await create_user(session, email="support-lim@example.com", role=UserRole.support)
+
+    # Five historical grants with strictly increasing requested_at.
+    base = datetime.now(timezone.utc) - timedelta(days=5)
+    for i in range(5):
+        session.add(
+            AccessGrant(
+                user_id=support.id,
+                guild_id=(await create_guild(session, creator=owner)).id,
+                access_level="read",
+                status="expired",
+                reason=f"old {i}",
+                requested_duration_minutes=60,
+                requested_by_id=support.id,
+                requested_at=base + timedelta(hours=i),
+            )
+        )
+    await session.commit()
+
+    resp = await client.get(
+        "/api/v1/access-grants/?mine=true&limit=3", headers=get_auth_headers(support)
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body) == 3, "limit must cap the result"
+    # Newest-first: the three most-recently-requested ("old 4/3/2").
+    assert [g["reason"] for g in body] == ["old 4", "old 3", "old 2"]
+
+
+@pytest.mark.integration
 async def test_member_cannot_request_access(client: AsyncClient, session: AsyncSession):
     """A plain member lacks access.request and is forbidden."""
     owner = await create_user(session, email="owner2@example.com", role=UserRole.owner)

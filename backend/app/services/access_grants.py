@@ -382,11 +382,13 @@ async def list_grants(
     *,
     user_id: Optional[int] = None,
     statuses: Optional[list[str]] = None,
+    limit: Optional[int] = None,
 ) -> list[AccessGrant]:
     """List grants, optionally filtered to one grantee and/or a set of statuses.
 
     Approvers pass ``user_id=None`` for the full queue; requesters pass their
-    own id for "my requests".
+    own id for "my requests". ``limit`` caps the result to the most recent N
+    (ordered newest-first) so an ever-growing history stays bounded.
     """
     stmt = select(AccessGrant)
     if user_id is not None:
@@ -394,6 +396,8 @@ async def list_grants(
     if statuses:
         stmt = stmt.where(AccessGrant.status.in_(statuses))
     stmt = stmt.order_by(AccessGrant.requested_at.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
     result = await session.exec(stmt)
     return list(result.all())
 
