@@ -98,7 +98,7 @@ class ProjectExportTask(SanitizedBaseModel):
     recurrence: Optional[dict] = None
     recurrence_strategy: str = "fixed"
     recurrence_occurrence_count: int = 0
-    sort_order: float = 0.0
+    position: float = 0.0
     is_archived: bool = False
     status_name: str
     # Lists are required (no default_factory): pydantic 2.x splits the

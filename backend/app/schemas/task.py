@@ -170,7 +170,7 @@ class TaskRead(TaskBase):
     task_status: TaskStatusRead
     created_at: datetime
     updated_at: datetime
-    sort_order: float
+    position: float
     is_archived: bool = False
     created_by_id: Optional[int] = None
     assignees: List[UserPublic] = []
@@ -193,7 +193,7 @@ class TaskListRead(TaskBase):
     task_status: TaskStatusRead
     created_at: datetime
     updated_at: datetime
-    sort_order: float
+    position: float
     is_archived: bool = False
     created_by_id: Optional[int] = None
     assignees: List[TaskAssigneeSummary] = []
@@ -225,7 +225,7 @@ class TaskListResponse(SanitizedBaseModel):
 class TaskReorderItem(SanitizedBaseModel):
     id: int
     task_status_id: int
-    sort_order: float
+    position: float
 
 
 class TaskReorderRequest(SanitizedBaseModel):

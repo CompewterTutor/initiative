@@ -499,9 +499,9 @@ async def test_reorder_tasks(client: AsyncClient, session: AsyncSession):
     payload = {
         "project_id": project.id,
         "items": [
-            {"id": task3.id, "task_status_id": task3.task_status_id, "sort_order": 0},
-            {"id": task1.id, "task_status_id": task1.task_status_id, "sort_order": 1},
-            {"id": task2.id, "task_status_id": task2.task_status_id, "sort_order": 2},
+            {"id": task3.id, "task_status_id": task3.task_status_id, "position": 0},
+            {"id": task1.id, "task_status_id": task1.task_status_id, "position": 1},
+            {"id": task2.id, "task_status_id": task2.task_status_id, "position": 2},
         ]
     }
 
@@ -511,6 +511,93 @@ async def test_reorder_tasks(client: AsyncClient, session: AsyncSession):
     data = response.json()
     ordered_ids = [t["id"] for t in data]
     assert ordered_ids == [task3.id, task1.id, task2.id]
+
+
+@pytest.mark.integration
+async def test_reorder_single_task_returns_only_affected(
+    client: AsyncClient, session: AsyncSession
+):
+    """A reorder sends only the moved task and the response is slimmed to it."""
+    user = await create_user(session, email="user@example.com")
+    guild = await create_guild(session)
+    await create_guild_membership(session, user=user, guild=guild)
+
+    initiative = await _create_initiative(session, guild, user)
+    project = await _create_project(session, initiative, user)
+    task1 = await _create_task(session, project, "Task 1")
+    task2 = await _create_task(session, project, "Task 2")
+    task3 = await _create_task(session, project, "Task 3")
+
+    # Anchor task1/task2 at 1 and 2 so task3 can drop between them.
+    task1.position = 1.0
+    task2.position = 2.0
+    task3.position = 3.0
+    session.add_all([task1, task2, task3])
+    await session.commit()
+
+    headers = get_guild_headers(guild, user)
+    payload = {
+        "project_id": project.id,
+        "items": [
+            {"id": task3.id, "task_status_id": task3.task_status_id, "position": 1.5},
+        ],
+    }
+
+    response = await client.post("/api/v1/tasks/reorder", headers=headers, json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    # Only the moved task is returned, and its fractional position round-trips.
+    assert [t["id"] for t in data] == [task3.id]
+    assert data[0]["position"] == 1.5
+
+
+@pytest.mark.integration
+async def test_reorder_rebalances_on_precision_exhaustion(
+    client: AsyncClient, session: AsyncSession
+):
+    """Colliding positions trigger a project-wide renumber that leaves the
+    updated_at of merely-renumbered (not explicitly moved) tasks untouched."""
+    from datetime import datetime
+
+    user = await create_user(session, email="user@example.com")
+    guild = await create_guild(session)
+    await create_guild_membership(session, user=user, guild=guild)
+
+    initiative = await _create_initiative(session, guild, user)
+    project = await _create_project(session, initiative, user)
+    task1 = await _create_task(session, project, "Task 1")
+    task2 = await _create_task(session, project, "Task 2")
+    task3 = await _create_task(session, project, "Task 3")
+
+    # task1/task2 sit within _MIN_POSITION_GAP (1e-9) of each other: exhausted.
+    task1.position = 1.0
+    task2.position = 1.0000000001
+    task3.position = 5.0
+    session.add_all([task1, task2, task3])
+    await session.commit()
+    task2_updated_before = task2.updated_at
+
+    headers = get_guild_headers(guild, user)
+    payload = {
+        "project_id": project.id,
+        # Move task3 (any move re-runs the exhaustion check on the project).
+        "items": [
+            {"id": task3.id, "task_status_id": task3.task_status_id, "position": 2.0},
+        ],
+    }
+
+    response = await client.post("/api/v1/tasks/reorder", headers=headers, json=payload)
+
+    assert response.status_code == 200
+    data = {t["id"]: t for t in response.json()}
+    # Rebalanced to evenly spaced integers across the project.
+    assert data[task2.id]["position"] == 2.0
+    assert data[task3.id]["position"] == 3.0
+    # task2 was only renumbered, not explicitly moved -> updated_at must not churn.
+    assert datetime.fromisoformat(data[task2.id]["updated_at"]) == task2_updated_before
+    # task3 was explicitly moved -> updated_at advances.
+    assert datetime.fromisoformat(data[task3.id]["updated_at"]) > task2_updated_before
 
 
 @pytest.mark.integration

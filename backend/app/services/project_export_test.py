@@ -67,7 +67,7 @@ async def _seed_populated_project(session: AsyncSession):
         task_status_id=todo_status.id,
         title="Fix the thing",
         description="Important",
-        sort_order=1024.0,
+        position=1024.0,
     )
     session.add(task)
     await session.commit()
