@@ -167,12 +167,19 @@ export const useNativeUpdate = () => {
 
   /** Swap to the downloaded bundle and reload the WebView. */
   const applyUpdate = useCallback(async () => {
-    if (!bundleIdRef.current) {
+    const bundleId = bundleIdRef.current;
+    if (!bundleId) {
       return;
     }
-    setUpdateReady(HIDDEN);
-    await CapacitorUpdater.set({ id: bundleIdRef.current });
-    // set() reloads the WebView into the new bundle; nothing after this runs.
+    try {
+      await CapacitorUpdater.set({ id: bundleId });
+      // set() reloads the WebView into the new bundle; nothing after this runs. On success
+      // the dialog disappears with the old context, so there's no need to hide it first.
+    } catch (error) {
+      // set() failed (e.g. the OS evicted the downloaded bundle between download and tap).
+      // Leave the prompt open so the user can retry rather than silently no-op.
+      console.debug("Failed to apply OTA bundle:", error);
+    }
   }, []);
 
   /** Dismiss the reload prompt for this session (re-checked on next cold start). */
