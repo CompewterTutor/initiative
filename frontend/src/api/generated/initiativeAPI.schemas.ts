@@ -3520,6 +3520,8 @@ export type GetChangelogApiV1ChangelogGet200 = {
   [key: string]: GetChangelogApiV1ChangelogGet200Item[];
 };
 
+export type GetBundleManifestApiV1NativeBundleManifestGet200 = { [key: string]: unknown };
+
 export type RegisterUserApiV1AuthRegisterPostParams = {
   invite_code?: string | null;
 };
