@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { computeMidpoint, reorderTaskList, shouldInsertAfter } from "./taskOrdering";
+import {
+  computeMidpoint,
+  isDraggingDown,
+  reorderTaskList,
+  shouldInsertAfter,
+} from "./taskOrdering";
 
 describe("computeMidpoint", () => {
   it("returns the midpoint between two neighbors", () => {
@@ -52,6 +57,30 @@ describe("shouldInsertAfter", () => {
   it("defaults to false (insert before) when a rect is missing", () => {
     expect(shouldInsertAfter(null, { top: 0, height: 40 })).toBe(false);
     expect(shouldInsertAfter({ top: 0, height: 40 }, undefined)).toBe(false);
+  });
+});
+
+describe("isDraggingDown", () => {
+  const tasks = [{ id: 1 }, { id: 2 }, { id: 3 }];
+
+  it("is true when the active card sits above the target (drag down)", () => {
+    // Drag the top card (1) onto the second (2): should land after it.
+    expect(isDraggingDown(tasks, 1, 2)).toBe(true);
+  });
+
+  it("is false when the active card sits below the target (drag up to top)", () => {
+    // Drag the bottom card (3) onto the top card (1): should land before it,
+    // i.e. reach the first slot — this is the regression that snapped to second.
+    expect(isDraggingDown(tasks, 3, 1)).toBe(false);
+  });
+
+  it("is false when there is no target card", () => {
+    expect(isDraggingDown(tasks, 1, null)).toBe(false);
+  });
+
+  it("is false when a card is not in the list", () => {
+    expect(isDraggingDown(tasks, 99, 1)).toBe(false);
+    expect(isDraggingDown(tasks, 1, 99)).toBe(false);
   });
 });
 
