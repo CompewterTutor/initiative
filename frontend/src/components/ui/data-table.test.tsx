@@ -140,4 +140,23 @@ describe("DataTable row selection", () => {
     // 2 selected, both hidden, 1 row matches the filter → filtered-variant message.
     expect(screen.getByText("2 selected (1 match filter)")).toBeInTheDocument();
   });
+
+  it("uses the filter-aware count even when selected <= filtered total", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const getCheckboxes = await enterSelectionMode(user);
+
+    // Select Alpha + Bravo (2 selected).
+    await user.click(getCheckboxes()[0]);
+    await user.click(getCheckboxes()[1]);
+
+    // Filter to show Charlie/Delta/Echo (3 visible) — none of them are selected.
+    // selected (2) <= filteredTotal (3), but both selected rows are hidden, so the
+    // plain "2 of 3 selected" would be misleading. Expect the filtered variant.
+    const filter = screen.getByPlaceholderText("Filter...");
+    await user.type(filter, "e");
+
+    expect(screen.getByText("2 selected (3 match filter)")).toBeInTheDocument();
+    expect(screen.queryByText("2 of 3 row(s) selected")).not.toBeInTheDocument();
+  });
 });

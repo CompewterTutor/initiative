@@ -595,10 +595,13 @@ export function DataTable<TData, TValue>({
         (() => {
           const selected = table.getSelectedRowModel().rows.length;
           const filteredTotal = table.getFilteredRowModel().rows.length;
-          // When a filter hides some selected rows, "X of Y selected" would read
-          // nonsensically (selected can exceed the filtered total). Show how many
-          // of the selection still matches the active filter instead.
-          const showFilteredVariant = columnFilters.length > 0 && selected > filteredTotal;
+          const filteredSelected = table.getFilteredSelectedRowModel().rows.length;
+          // When a filter hides any selected row, "X of Y selected" is misleading
+          // because X (all selected rows) includes ones not visible in the filtered
+          // view — e.g. it would read "2 of 3 selected" when none of the 3 visible
+          // rows are checked. Switch to the filter-aware variant whenever the filter
+          // hides at least one selected row, not just when selected > filteredTotal.
+          const showFilteredVariant = columnFilters.length > 0 && filteredSelected < selected;
           return (
             <div className="text-muted-foreground text-sm">
               {showFilteredVariant
