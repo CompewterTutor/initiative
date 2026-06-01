@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.1] - 2026-06-01
+
 ### Added
 
 - **Shift+click range selection in data tables.** In selection mode you can now click one row's checkbox, then shift+click another to select every row in between (inclusive) in the order they're displayed.
