@@ -181,10 +181,16 @@ export function Plugins({
       )}
       <div className="relative">
         <div className="relative">
-          <div className="" ref={onRef}>
+          {/* Horizontal padding lives on this wrapper, not the ContentEditable root:
+              lexical 0.45 writes an inline `padding-inline-start` on the editable
+              (from node indent) which would override a `px-*` class to 0. Its guard
+              is `indent === 0`, but our nodes' __indent is `undefined`, so it emits
+              `calc(undefined * ...)`. Revisit (move padding back) once lexical fixes
+              the guard — expected in 0.46. */}
+          <div className="px-8" ref={onRef}>
             <ContentEditable
               placeholder={placeholder}
-              className="ContentEditable__root relative block min-h-72 px-8 pt-4 pb-14 focus:outline-none"
+              className="ContentEditable__root relative block min-h-72 pt-4 pb-14 focus:outline-none"
             />
           </div>
           {collaborative && <div ref={cursorsContainerRef} className="collaboration-cursors" />}
