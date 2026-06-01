@@ -286,9 +286,11 @@ jobs:
 
   release:
     needs: [decide, build-android, merge-docker-public]
-    # Run even when build-android was skipped (web-only release). Only the Docker manifest
-    # must have succeeded; the APK is attached opportunistically below.
-    if: always() && needs.merge-docker-public.result == 'success'
+    # Run even when build-android was *skipped* (web-only release). Only the Docker manifest
+    # must have succeeded; the APK is attached opportunistically below. But a build-android
+    # *failure* on a native-change release is a hard error — publishing then would advertise
+    # "updates over the air" while the bumped minNativeVersion blocks OTA and no new APK exists.
+    if: always() && needs.merge-docker-public.result == 'success' && needs.build-android.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write

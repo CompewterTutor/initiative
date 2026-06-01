@@ -118,6 +118,9 @@ export const useNativeUpdate = () => {
         return;
       }
       if (decision === "native-required") {
+        // Mark handled so we don't re-prompt on every foreground resume this session
+        // (re-checked on the next cold start).
+        handledVersionRef.current = manifest.version;
         setNativeUpdateRequired({ show: true, version: manifest.version });
         return;
       }

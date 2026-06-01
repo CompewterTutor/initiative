@@ -14,6 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.v1.endpoints import native
+from app.core.messages import NativeMessages
 from app.core.version import __version__
 
 
@@ -22,12 +23,14 @@ async def test_manifest_404_when_bundle_absent(client: AsyncClient):
     """No OTA artifacts present (the default outside a built image) → 404, not a 500."""
     response = await client.get("/api/v1/native/bundle/manifest")
     assert response.status_code == 404
+    assert response.json()["detail"] == NativeMessages.OTA_BUNDLE_NOT_AVAILABLE
 
 
 @pytest.mark.integration
 async def test_download_404_when_bundle_absent(client: AsyncClient):
     response = await client.get("/api/v1/native/bundle/download")
     assert response.status_code == 404
+    assert response.json()["detail"] == NativeMessages.OTA_BUNDLE_NOT_AVAILABLE
 
 
 @pytest.mark.integration
