@@ -231,7 +231,10 @@
     "viewAllChanges": "Ver todos los cambios",
     "later": "Más tarde",
     "reloadNow": "Recargar ahora",
-    "version": "Versión {{version}}"
+    "version": "Versión {{version}}",
+    "nativeUpdateRequiredTitle": "Actualización de la aplicación requerida",
+    "nativeUpdateRequiredDescription": "La versión {{version}} está disponible, pero requiere una versión de la aplicación más reciente que la instalada. Actualiza Initiative desde tu tienda de aplicaciones o instala el APK más reciente.",
+    "nativeUpdateRequiredAcknowledge": "Entendido"
   },
   "temporaryAccess": "Acceso temporal",
   "expiresInMinutes": "caduca en {{minutes}} min",

@@ -264,5 +264,6 @@
   "ADMIN_CANNOT_DEMOTE_LAST_OWNER": "No se puede degradar al último propietario de la plataforma.",
   "ADMIN_CANNOT_DELETE_LAST_OWNER": "No se puede eliminar al último propietario de la plataforma.",
   "DOCUMENT_GRANT_CANNOT_MANAGE_MEMBERS": "El acceso temporal no puede gestionar miembros del documento",
-  "COUNTER_GRANT_CANNOT_MANAGE": "El acceso temporal no puede gestionar el acceso al grupo de contadores"
+  "COUNTER_GRANT_CANNOT_MANAGE": "El acceso temporal no puede gestionar el acceso al grupo de contadores",
+  "NATIVE_OTA_BUNDLE_NOT_AVAILABLE": "Esta versión del servidor no tiene un paquete de actualización por aire disponible"
 }

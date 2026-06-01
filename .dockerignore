@@ -10,6 +10,11 @@ backend/.coveragerc
 **/*.pyc
 backend/.venv
 
+# Node / frontend build artifacts — installed fresh inside the image. Copying the host's
+# (macOS) node_modules over the container's would corrupt the install and bloat the context.
+**/node_modules
+frontend/dist
+
 # Version control
 .git
 .gitignore

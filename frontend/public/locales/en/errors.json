@@ -264,5 +264,6 @@
   "ADMIN_CANNOT_DEMOTE_LAST_OWNER": "Cannot demote the last platform owner.",
   "ADMIN_CANNOT_DELETE_LAST_OWNER": "Cannot delete the last platform owner.",
   "DOCUMENT_GRANT_CANNOT_MANAGE_MEMBERS": "Temporary access can't manage document members",
-  "COUNTER_GRANT_CANNOT_MANAGE": "Temporary access can't manage counter group access"
+  "COUNTER_GRANT_CANNOT_MANAGE": "Temporary access can't manage counter group access",
+  "NATIVE_OTA_BUNDLE_NOT_AVAILABLE": "This server build has no over-the-air update bundle available"
 }

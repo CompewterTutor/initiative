@@ -264,5 +264,6 @@
   "ADMIN_CANNOT_DEMOTE_LAST_OWNER": "Impossible de rétrograder le dernier propriétaire de la plateforme.",
   "ADMIN_CANNOT_DELETE_LAST_OWNER": "Impossible de supprimer le dernier propriétaire de la plateforme.",
   "DOCUMENT_GRANT_CANNOT_MANAGE_MEMBERS": "L'accès temporaire ne peut pas gérer les membres du document",
-  "COUNTER_GRANT_CANNOT_MANAGE": "L'accès temporaire ne peut pas gérer l'accès au groupe de compteurs"
+  "COUNTER_GRANT_CANNOT_MANAGE": "L'accès temporaire ne peut pas gérer l'accès au groupe de compteurs",
+  "NATIVE_OTA_BUNDLE_NOT_AVAILABLE": "Cette version du serveur n'a pas de paquet de mise à jour à distance disponible"
 }

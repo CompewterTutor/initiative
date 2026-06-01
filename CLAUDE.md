@@ -88,6 +88,15 @@ This project uses **semantic versioning** (semver) with a single source of truth
 - **Frontend**: Vite injects VERSION as `__APP_VERSION__` constant, displayed in the sidebar footer
 - **Docker**: VERSION is copied into the image and set as OCI labels
 
+#### `MIN_NATIVE_VERSION` (OTA native-compatibility floor)
+
+The native (Capacitor) app receives web-bundle updates over the air: each Docker image ships the matching Capacitor bundle under `/app/ota`, served via `/api/v1/native/bundle/{manifest,download}`, and the app downloads it when the served version differs (see `useNativeUpdate`). The `MIN_NATIVE_VERSION` file at the project root is the **minimum native app (APK/IPA) version** the current web bundle requires — an OTA can only swap web assets, never native code.
+
+- `scripts/promote.sh` bumps `MIN_NATIVE_VERSION` to the release version automatically when it detects a native change between `main` and `dev` (a `frontend/capacitor.config.ts` change, a committed change under `frontend/android`/`frontend/ios`, or an added/removed/bumped `@capacitor*`/`@capgo` dependency in `frontend/package.json`). Web-only releases leave it untouched.
+- CI (`docker-publish.yml` `decide` job) compares `MIN_NATIVE_VERSION` against the previous tag: if it moved, it builds and attaches a fresh APK; if not, the **Android build is skipped** and the release ships Docker-only — existing installs update over the air.
+- The app refuses a bundle whose `minNativeVersion` exceeds the installed native app version and prompts the user to update from the store/APK instead.
+- Edge case the detector can't see: a native-affecting change that lands **only** via `pnpm-lock.yaml` (no `package.json` range change). Force a rebuild by editing `MIN_NATIVE_VERSION` manually that release.
+
 ### Releasing a Version
 
 Releases are managed by `scripts/promote.sh`, which creates a PR from `dev` to `main` with the version bump and changelog stamp. Only code owners (@jordandrako, @LeeJMorel) can run this script.

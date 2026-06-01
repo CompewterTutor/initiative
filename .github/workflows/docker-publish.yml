@@ -16,7 +16,44 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/initiative
 
 jobs:
+  decide:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build_android: ${{ steps.decide.outputs.build_android }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to build the native app
+        id: decide
+        run: |
+          # The Android/iOS app only needs rebuilding when the native shell changed — which
+          # promote.sh records by moving MIN_NATIVE_VERSION forward. Compare this ref's value
+          # against the previous release tag; web-only releases reuse the existing APK and
+          # update over the air. The committed file is the single source of truth, so both the
+          # workflow_dispatch and manual tag-push paths behave identically.
+          cur=$(cat MIN_NATIVE_VERSION 2>/dev/null || echo "")
+          prev=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$prev" ]; then
+            old=$(git show "$prev:MIN_NATIVE_VERSION" 2>/dev/null || echo "")
+          else
+            old=""
+          fi
+          if [ -z "$old" ] || [ "$old" != "$cur" ]; then
+            echo "build_android=true" >> "$GITHUB_OUTPUT"
+            echo "Native min-version changed ('$old' -> '$cur') or no prior value — building the app."
+          else
+            echo "build_android=false" >> "$GITHUB_OUTPUT"
+            echo "Native min-version unchanged ('$cur') — web-only release, skipping the app build."
+          fi
+
   build-android:
+    needs: decide
+    if: ${{ needs.decide.outputs.build_android == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -248,7 +285,12 @@ jobs:
           docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
   release:
-    needs: [build-android, merge-docker-public]
+    needs: [decide, build-android, merge-docker-public]
+    # Run even when build-android was *skipped* (web-only release). Only the Docker manifest
+    # must have succeeded; the APK is attached opportunistically below. But a build-android
+    # *failure* on a native-change release is a hard error — publishing then would advertise
+    # "updates over the air" while the bumped minNativeVersion blocks OTA and no new APK exists.
+    if: always() && needs.merge-docker-public.result == 'success' && needs.build-android.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -258,6 +300,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download Android APK
+        if: needs.build-android.result == 'success'
         uses: actions/download-artifact@v8
         with:
           name: android-apk
@@ -281,6 +324,7 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          APK_BUILT: ${{ needs.build-android.result == 'success' }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           echo "Extracting changelog for version $VERSION"
@@ -304,6 +348,16 @@ jobs:
             CHANGELOG="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
           fi
 
+          # The native app is only rebuilt when the native shell changed (see the `decide`
+          # job). Web-only releases ship no new APK — existing installs update over the air.
+          if [ "$APK_BUILT" = "true" ]; then
+            ANDROID_SECTION="### Android App
+          Download the APK from the assets below and install on your Android device."
+          else
+            ANDROID_SECTION="### Android App
+          No new app build this release — installed apps update automatically over the air on next launch."
+          fi
+
           # Build full release body with changelog + download info
           cat > release_body.md << ENDOFBODY
           $CHANGELOG
@@ -312,8 +366,7 @@ jobs:
 
           ## Downloads
 
-          ### Android App
-          Download the APK from the assets below and install on your Android device.
+          $ANDROID_SECTION
 
           ### Docker Image
           \`\`\`bash
