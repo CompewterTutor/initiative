@@ -16,6 +16,18 @@ const config: CapacitorConfig = {
     // allowMixedContent: true,
   },
   plugins: {
+    // Self-hosted OTA live updates. We drive download/set entirely from JS (manual mode):
+    // the backend serves the web bundle matching its version, and useNativeUpdate downloads
+    // it then prompts the user to reload. autoUpdate/directUpdate stay off so the plugin
+    // never swaps the bundle on its own; appReadyTimeout arms the auto-rollback safety net
+    // if a swapped-in bundle fails to call notifyAppReady().
+    CapacitorUpdater: {
+      autoUpdate: false,
+      directUpdate: false,
+      resetWhenUpdate: true,
+      appReadyTimeout: 10000,
+      responseTimeout: 20,
+    },
     // Disable built-in SystemBars insets handling - safe-area plugin handles it
     SystemBars: {
       insetsHandling: "disable",

@@ -2,6 +2,7 @@ import "./styles.css";
 import "./i18n";
 
 import { Capacitor } from "@capacitor/core";
+import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import React, { Suspense } from "react";
@@ -52,6 +53,15 @@ async function bootstrap() {
   // reach the real backend before React effects run (avoids race condition
   // where child provider effects fire before ServerProvider's useEffect).
   if (Capacitor.isNativePlatform()) {
+    // Confirm this web bundle booted so the OTA updater doesn't roll it back. If an applied
+    // bundle never reaches this point within appReadyTimeout, Capgo reverts to the last-good
+    // bundle on next launch (see capacitor.config.ts → CapacitorUpdater). Best-effort.
+    try {
+      await CapacitorUpdater.notifyAppReady();
+    } catch (error) {
+      console.debug("notifyAppReady failed (updater unavailable):", error);
+    }
+
     const storedUrl = getStoredServerUrl();
     if (storedUrl) {
       setApiBaseUrl(storedUrl);

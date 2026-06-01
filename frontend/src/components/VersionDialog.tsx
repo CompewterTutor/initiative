@@ -30,6 +30,11 @@ interface VersionDialogProps {
   open?: boolean;
   onClose?: () => void;
   newVersion?: string;
+  /**
+   * Override the "Reload Now" action. Defaults to a plain page reload (web). The native OTA
+   * flow passes a handler that swaps in the downloaded Capacitor bundle before reloading.
+   */
+  onReload?: () => void;
 }
 
 export const VersionDialog = ({
@@ -42,6 +47,7 @@ export const VersionDialog = ({
   open,
   onClose,
   newVersion,
+  onReload,
 }: VersionDialogProps) => {
   const { t } = useTranslation("guilds");
 
@@ -63,6 +69,10 @@ export const VersionDialog = ({
   });
 
   const handleReload = () => {
+    if (onReload) {
+      onReload();
+      return;
+    }
     window.location.reload();
   };
 

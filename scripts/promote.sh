@@ -132,6 +132,41 @@ parse_version() {
     V_PATCH="${BASH_REMATCH[3]}"
 }
 
+# Detect whether the native shell changed between two refs. OTA can only ship web assets,
+# so when Capacitor plugins/config or the committed native projects change, the minimum
+# native app version must move forward (old installs can't run the new web bundle) and CI
+# must build a fresh APK/IPA. Used as an `if` condition, so it is exempt from `set -e`.
+detect_native_change() {
+    local base="$1" head="$2"
+    # capacitor.config.ts changed?
+    git diff --quiet "$base" "$head" -- frontend/capacitor.config.ts || return 0
+    # committed native project files changed (Android/iOS source, Gradle, SPM, manifests)?
+    git diff --quiet "$base" "$head" -- frontend/android frontend/ios || return 0
+    # any @capacitor / @capacitor-community / @capgo dependency added/removed/bumped?
+    local re='"@(capacitor|capacitor-community|capgo)/'
+    local old new
+    old=$(git show "$base:frontend/package.json" 2>/dev/null | grep -E "$re" | sort || true)
+    new=$(git show "$head:frontend/package.json" 2>/dev/null | grep -E "$re" | sort || true)
+    [[ "$old" != "$new" ]] && return 0
+    return 1
+}
+
+# Bump MIN_NATIVE_VERSION to the release version when the native shell changed since `base`.
+# Stages the file so it lands in the version-bump commit. The committed value is the single
+# signal CI keys off to decide whether to build the APK (see docker-publish.yml `decide` job).
+stamp_min_native_version() {
+    local base="$1" head="$2" new_version="$3"
+    local current_min
+    current_min=$(cat MIN_NATIVE_VERSION 2>/dev/null | tr -d '[:space:]' || echo "unknown")
+    if detect_native_change "$base" "$head"; then
+        echo "$new_version" > MIN_NATIVE_VERSION
+        git add MIN_NATIVE_VERSION
+        warn "  Native surface changed → MIN_NATIVE_VERSION $current_min → $new_version (new APK/IPA REQUIRED; CI will build it)"
+    else
+        info "  No native changes → MIN_NATIVE_VERSION stays $current_min (web-only OTA release, no APK build)"
+    fi
+}
+
 calc_new_version() {
     local current="$1"
     parse_version "$current"
@@ -374,6 +409,9 @@ do_release() {
     # Stamp changelog
     stamp_changelog "$new_version" "$DATE"
 
+    # Move the native min-version forward if the native shell changed since main.
+    stamp_min_native_version "origin/main" "origin/dev" "$new_version"
+
     git add VERSION CHANGELOG.md
     git commit -m "bump version to $new_version"
 
@@ -480,6 +518,8 @@ do_cherry_pick() {
         else
             git add VERSION
         fi
+        # Move the native min-version forward if the cherry-picked changes touch the shell.
+        stamp_min_native_version "origin/main" "HEAD" "$new_version"
         git commit -m "bump version to $new_version"
     fi
 
