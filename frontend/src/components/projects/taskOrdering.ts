@@ -30,6 +30,28 @@ export const computeMidpoint = (
   return 0;
 };
 
+/**
+ * For a reorder WITHIN a column, whether the moved card should land after the
+ * card it was dropped on — true when the moved card currently sits above the
+ * target (a downward drag), false otherwise. Derived from the cards' current
+ * order rather than pointer geometry, which is the reliable arrayMove behaviour
+ * (it reaches both the top and bottom slots; the rect heuristic does not,
+ * because the sortable strategy shifts cards mid-drag). Returns false when
+ * either card is absent (insert before — the safe default).
+ */
+export const isDraggingDown = (
+  tasks: readonly { id: number }[],
+  activeId: number,
+  overId: number | null
+): boolean => {
+  if (overId === null) {
+    return false;
+  }
+  const activeIndex = tasks.findIndex((task) => task.id === activeId);
+  const overIndex = tasks.findIndex((task) => task.id === overId);
+  return activeIndex !== -1 && overIndex !== -1 && activeIndex < overIndex;
+};
+
 type RectLike = { top: number; height: number };
 
 /**

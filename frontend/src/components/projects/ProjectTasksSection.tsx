@@ -45,6 +45,7 @@ import {
 } from "@/components/projects/projectTasksConfig";
 import {
   computeMidpoint,
+  isDraggingDown,
   reorderTaskList,
   shouldInsertAfter,
 } from "@/components/projects/taskOrdering";
@@ -793,10 +794,19 @@ export const ProjectTasksSection = ({
       targetStatusId = overData.statusId ?? targetStatusId;
       const parsed = Number(finalOver.id);
       overTaskId = Number.isFinite(parsed) ? parsed : null;
-      // Drop before/after the target depending on which half of it the dragged
-      // card's center released over (the first slot of a column was otherwise
-      // unreachable — drops always snapped to the second slot).
-      insertAfter = shouldInsertAfter(active.rect.current.translated, finalOver.rect);
+      if (targetStatusId === currentTask.task_status_id) {
+        // Same column: derive before/after from the cards' current order. This
+        // is the reliable arrayMove semantics the list view uses and reaches
+        // both the top and bottom slots — the rect heuristic is unreliable here
+        // because the sortable strategy shifts cards mid-drag (a drag to the top
+        // would snap to the second slot).
+        insertAfter = isDraggingDown(tasks, activeId, overTaskId);
+      } else {
+        // Cross column: there's no existing order to compare against, so decide
+        // by which half of the target card the dragged card released over.
+        // Without this the first slot of the column would be unreachable.
+        insertAfter = shouldInsertAfter(active.rect.current.translated, finalOver.rect);
+      }
     } else if (overData?.type === "column") {
       targetStatusId = overData.statusId ?? targetStatusId;
     }
