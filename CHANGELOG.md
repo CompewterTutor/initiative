@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Kanban drag-and-drop is more reliable: dragging a card to the top of a column no longer snaps it to the second slot.
+
 ## [0.48.0] - 2026-05-31
 
 ### Added
