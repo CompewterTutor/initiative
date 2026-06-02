@@ -373,7 +373,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
             <p>{t("nav:home")}</p>
           </TooltipContent>
         </Tooltip>
-        <div className="flex flex-col items-center gap-3 overflow-y-auto border-t pt-3">
+        <div className="flex flex-col items-center gap-3 overflow-y-auto border-t py-3">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
