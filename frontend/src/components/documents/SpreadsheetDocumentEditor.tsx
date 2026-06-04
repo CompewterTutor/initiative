@@ -800,7 +800,7 @@ export const SpreadsheetDocumentEditor = ({
         },
         { ...op, maxRows: MAX_ROWS, maxCols: MAX_COLS }
       );
-      if (!result.changed) return;
+      if (!result) return;
       docForData.transact(() => {
         replaceAll(result.cells, result.dimensions);
         formatting.replaceAll({

@@ -37,8 +37,6 @@ export interface TransformResult {
   rows: Record<string, RowFmt>;
   frozen: { rows: number; cols: number };
   dimensions: { rows: number; cols: number };
-  /** False when the op was a no-op (count clamped to zero / nothing to do). */
-  changed: boolean;
 }
 
 export interface LineOp {
@@ -58,39 +56,25 @@ export interface LineOp {
 /** Always keep at least one line on each axis — a 0×n sheet is unusable. */
 const MIN_LINES = 1;
 
-const cellsToObject = (
-  cells: ReadonlyMap<string, CellValue> | Record<string, CellValue>
-): Record<string, CellValue> => {
-  const out: Record<string, CellValue> = {};
-  const entries = cells instanceof Map ? cells.entries() : Object.entries(cells);
-  for (const [key, value] of entries) out[key] = value as CellValue;
-  return out;
-};
-
 /**
  * Apply a single row/column insert or delete, returning fully-remapped
  * copies of every structure. The caller applies the result atomically
  * (one Yjs transaction = one undo step), exactly like the sort path.
+ *
+ * Returns ``null`` for a no-op (count clamped to zero, grid at capacity,
+ * or the last-line guard). The caller discards a no-op anyway, so a null
+ * sentinel avoids copying the (potentially thousands of) cells just to
+ * throw the copy away.
  */
-export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult => {
+export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult | null => {
   const axisIsRow = op.axis === "row";
   const currentDim = axisIsRow ? s.dimensions.rows : s.dimensions.cols;
   const maxDim = axisIsRow ? op.maxRows : op.maxCols;
   const frozen = axisIsRow ? s.frozen.rows : s.frozen.cols;
   const at = Math.max(0, Math.trunc(op.at));
 
-  const passthrough = (): TransformResult => ({
-    cells: cellsToObject(s.cells),
-    cellStyles: { ...s.cellStyles },
-    columns: { ...s.columns },
-    rows: { ...s.rows },
-    frozen: { ...s.frozen },
-    dimensions: { ...s.dimensions },
-    changed: false,
-  });
-
   let count = Math.max(0, Math.trunc(op.count));
-  if (count === 0) return passthrough();
+  if (count === 0) return null;
 
   // Build the old-index -> new-index mapper (null = the line is deleted)
   // and the post-op axis dimension + frozen count.
@@ -101,7 +85,7 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
   if (op.mode === "insert") {
     // Never grow past the hard cap.
     count = Math.min(count, Math.max(0, maxDim - currentDim));
-    if (count === 0) return passthrough();
+    if (count === 0) return null;
     mapIndex = (i) => (i < at ? i : i + count);
     newDim = currentDim + count;
     // Lines inserted inside the frozen band extend it (Excel behaviour).
@@ -110,7 +94,7 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
     // Delete: clamp to the lines that actually exist and keep >= 1 line.
     count = Math.min(count, currentDim - at);
     count = Math.min(count, currentDim - MIN_LINES);
-    if (count <= 0) return passthrough();
+    if (count <= 0) return null;
     const end = at + count; // exclusive
     mapIndex = (i) => (i < at ? i : i >= end ? i - count : null);
     newDim = currentDim - count;
@@ -163,6 +147,5 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
     dimensions: axisIsRow
       ? { rows: newDim, cols: s.dimensions.cols }
       : { rows: s.dimensions.rows, cols: newDim },
-    changed: true,
   };
 };

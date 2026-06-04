@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { type CellValue, keyOf } from "./coords";
 import type { CellFmt, ColumnFmt, RowFmt } from "./styles";
-import { type LineOp, type SheetStructures, transformSheet } from "./transform";
+import {
+  type LineOp,
+  type SheetStructures,
+  type TransformResult,
+  transformSheet,
+} from "./transform";
 
 const cellMap = (obj: Record<string, CellValue>): Map<string, CellValue> =>
   new Map(Object.entries(obj));
@@ -25,11 +30,18 @@ const op = (partial: Partial<LineOp> & Pick<LineOp, "axis" | "mode">): LineOp =>
   ...partial,
 });
 
+/** Run a transform expected to change something, narrowing away the
+ *  no-op ``null`` return so the assertions can read the result directly. */
+const run = (s: SheetStructures, o: LineOp): TransformResult => {
+  const result = transformSheet(s, o);
+  expect(result).not.toBeNull();
+  return result as TransformResult;
+};
+
 describe("transformSheet — insert rows", () => {
   it("shifts cells at/below the insert point down and leaves a gap", () => {
     const cells = cellMap({ "0:0": "a", "1:0": "b", "2:0": "c" });
-    const result = transformSheet(sheet({ cells }), op({ axis: "row", mode: "insert", at: 1 }));
-    expect(result.changed).toBe(true);
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "insert", at: 1 }));
     expect(result.cells[keyOf(0, 0)]).toBe("a");
     expect(result.cells[keyOf(1, 0)]).toBeUndefined(); // new blank row
     expect(result.cells[keyOf(2, 0)]).toBe("b");
@@ -39,10 +51,7 @@ describe("transformSheet — insert rows", () => {
 
   it("inserts N rows at once", () => {
     const cells = cellMap({ "0:0": "a", "1:0": "b" });
-    const result = transformSheet(
-      sheet({ cells }),
-      op({ axis: "row", mode: "insert", at: 1, count: 3 })
-    );
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "insert", at: 1, count: 3 }));
     expect(result.cells[keyOf(0, 0)]).toBe("a");
     expect(result.cells[keyOf(4, 0)]).toBe("b");
     expect(result.dimensions.rows).toBe(103);
@@ -51,7 +60,7 @@ describe("transformSheet — insert rows", () => {
   it("remaps per-row formatting and per-cell styles", () => {
     const rows: Record<string, RowFmt> = { "2": { height: 40 } };
     const cellStyles: Record<string, CellFmt> = { "2:1": { style: { bold: true } } };
-    const result = transformSheet(
+    const result = run(
       sheet({ rows, cellStyles }),
       op({ axis: "row", mode: "insert", at: 1, count: 1 })
     );
@@ -61,7 +70,7 @@ describe("transformSheet — insert rows", () => {
   });
 
   it("extends the frozen band when inserting inside it", () => {
-    const result = transformSheet(
+    const result = run(
       sheet({ frozen: { rows: 2, cols: 0 } }),
       op({ axis: "row", mode: "insert", at: 1, count: 2 })
     );
@@ -69,26 +78,26 @@ describe("transformSheet — insert rows", () => {
   });
 
   it("leaves frozen untouched when inserting below the band", () => {
-    const result = transformSheet(
+    const result = run(
       sheet({ frozen: { rows: 2, cols: 0 } }),
       op({ axis: "row", mode: "insert", at: 2, count: 1 })
     );
     expect(result.frozen.rows).toBe(2);
   });
 
-  it("clamps insertion to the grid cap (no-op when already full)", () => {
+  it("returns null (no-op) when the grid is already at capacity", () => {
     const result = transformSheet(
       sheet({ dimensions: { rows: 100_000, cols: 26 } }),
       op({ axis: "row", mode: "insert", at: 0, count: 5 })
     );
-    expect(result.changed).toBe(false);
+    expect(result).toBeNull();
   });
 });
 
 describe("transformSheet — delete rows", () => {
   it("drops the deleted row and pulls the rest up", () => {
     const cells = cellMap({ "0:0": "a", "1:0": "b", "2:0": "c" });
-    const result = transformSheet(sheet({ cells }), op({ axis: "row", mode: "delete", at: 1 }));
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 1 }));
     expect(result.cells[keyOf(0, 0)]).toBe("a");
     expect(result.cells[keyOf(1, 0)]).toBe("c");
     expect(result.cells[keyOf(2, 0)]).toBeUndefined();
@@ -97,17 +106,14 @@ describe("transformSheet — delete rows", () => {
 
   it("deletes N rows at once", () => {
     const cells = cellMap({ "0:0": "a", "1:0": "b", "2:0": "c", "3:0": "d" });
-    const result = transformSheet(
-      sheet({ cells }),
-      op({ axis: "row", mode: "delete", at: 1, count: 2 })
-    );
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 1, count: 2 }));
     expect(result.cells[keyOf(0, 0)]).toBe("a");
     expect(result.cells[keyOf(1, 0)]).toBe("d");
     expect(result.dimensions.rows).toBe(98);
   });
 
   it("shrinks the frozen band by the deleted overlap only", () => {
-    const result = transformSheet(
+    const result = run(
       sheet({ frozen: { rows: 3, cols: 0 } }),
       op({ axis: "row", mode: "delete", at: 1, count: 5 })
     );
@@ -115,13 +121,12 @@ describe("transformSheet — delete rows", () => {
     expect(result.frozen.rows).toBe(1);
   });
 
-  it("never deletes the last remaining line", () => {
+  it("returns null (no-op) rather than deleting the last remaining line", () => {
     const result = transformSheet(
       sheet({ dimensions: { rows: 1, cols: 26 } }),
       op({ axis: "row", mode: "delete", at: 0, count: 1 })
     );
-    expect(result.changed).toBe(false);
-    expect(result.dimensions.rows).toBe(1);
+    expect(result).toBeNull();
   });
 });
 
@@ -129,7 +134,7 @@ describe("transformSheet — columns", () => {
   it("inserts a column, shifting cells and column formatting right", () => {
     const cells = cellMap({ "0:0": "a", "0:1": "b" });
     const columns: Record<string, ColumnFmt> = { "1": { width: 200 } };
-    const result = transformSheet(
+    const result = run(
       sheet({ cells, columns }),
       op({ axis: "col", mode: "insert", at: 1, count: 1 })
     );
@@ -142,14 +147,14 @@ describe("transformSheet — columns", () => {
 
   it("deletes a column, pulling the rest left", () => {
     const cells = cellMap({ "0:0": "a", "0:1": "b", "0:2": "c" });
-    const result = transformSheet(sheet({ cells }), op({ axis: "col", mode: "delete", at: 1 }));
+    const result = run(sheet({ cells }), op({ axis: "col", mode: "delete", at: 1 }));
     expect(result.cells[keyOf(0, 0)]).toBe("a");
     expect(result.cells[keyOf(0, 1)]).toBe("c");
     expect(result.dimensions.cols).toBe(25);
   });
 
   it("leaves the other axis dimension untouched", () => {
-    const result = transformSheet(
+    const result = run(
       sheet({ dimensions: { rows: 50, cols: 10 } }),
       op({ axis: "col", mode: "insert", at: 0, count: 1 })
     );
