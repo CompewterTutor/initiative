@@ -19,6 +19,16 @@ export type SortDirection = "asc" | "desc";
 
 const isBlank = (v: CellValue | undefined): boolean => v === undefined || v === null || v === "";
 
+// One reused collator for text comparison. Constructing a collator per
+// comparison — which `String.prototype.localeCompare` effectively does —
+// dominates sort time on large, text-heavy columns; a shared instance is
+// dramatically faster. ``numeric`` gives natural ordering ("item2" before
+// "item10") and ``sensitivity: "base"`` makes it case-insensitive. The
+// sort still runs synchronously on the main thread, which is fine for the
+// typical hundreds-to-low-thousands of rows; a sheet near MAX_ROWS
+// (100k) with mostly text would be the case to revisit (e.g. a Worker).
+const textCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
 /**
  * Cross-type ordering (ascending): numbers, then text, then booleans —
  * matching Excel's sort precedence. Blanks are handled separately and
@@ -43,10 +53,7 @@ const compareValues = (a: CellValue, b: CellValue): number => {
   }
   // Natural (numeric-aware), case-insensitive text compare so "item2"
   // sorts before "item10" and "Apple" next to "apple".
-  return String(a).localeCompare(String(b), undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
+  return textCollator.compare(String(a), String(b));
 };
 
 export interface SortSheetResult {

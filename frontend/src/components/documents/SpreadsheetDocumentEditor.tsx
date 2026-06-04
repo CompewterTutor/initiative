@@ -4,6 +4,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type CSSProperties,
+  Fragment,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -1074,7 +1075,7 @@ export const SpreadsheetDocumentEditor = ({
                   )}
                 </button>
               );
-              if (readOnly) return <div key={`colh-${col.index}`}>{header}</div>;
+              if (readOnly) return <Fragment key={`colh-${col.index}`}>{header}</Fragment>;
               return (
                 <ContextMenu key={`colh-${col.index}`}>
                   <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
