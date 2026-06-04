@@ -398,6 +398,10 @@
     "deleteColumns_other": "Delete {{count}} columns",
     "deleteRows_one": "Delete row",
     "deleteRows_other": "Delete {{count}} rows",
+    "deleteLastRowBlocked": "Can't delete the only row.",
+    "deleteLastColumnBlocked": "Can't delete the only column.",
+    "maxRowsReached": "This spreadsheet is already at its maximum number of rows.",
+    "maxColumnsReached": "This spreadsheet is already at its maximum number of columns.",
     "format": {
       "scopeCell": "Cell",
       "scopeColumn": "Column",

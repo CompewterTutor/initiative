@@ -800,7 +800,21 @@ export const SpreadsheetDocumentEditor = ({
         },
         { ...op, maxRows: MAX_ROWS, maxCols: MAX_COLS }
       );
-      if (!result) return;
+      if (!result) {
+        // The op was blocked by a guard (deleting the last remaining
+        // line, or inserting into a grid already at MAX). Surface why so
+        // the silent no-op is discoverable.
+        const blockedKey =
+          op.mode === "delete"
+            ? op.axis === "row"
+              ? "spreadsheet.deleteLastRowBlocked"
+              : "spreadsheet.deleteLastColumnBlocked"
+            : op.axis === "row"
+              ? "spreadsheet.maxRowsReached"
+              : "spreadsheet.maxColumnsReached";
+        toast.info(t(`documents:${blockedKey}`));
+        return;
+      }
       docForData.transact(() => {
         replaceAll(result.cells, result.dimensions);
         formatting.replaceAll({
@@ -811,7 +825,7 @@ export const SpreadsheetDocumentEditor = ({
         });
       }, "spreadsheet-structure");
     },
-    [readOnly, cells, formatting, dimensions, replaceAll, docForData]
+    [readOnly, cells, formatting, dimensions, replaceAll, docForData, t]
   );
 
   // Insert ``count`` lines before / after the band on ``axis``, then

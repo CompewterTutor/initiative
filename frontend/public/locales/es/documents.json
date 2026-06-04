@@ -398,6 +398,10 @@
     "deleteColumns_other": "Eliminar {{count}} columnas",
     "deleteRows_one": "Eliminar fila",
     "deleteRows_other": "Eliminar {{count}} filas",
+    "deleteLastRowBlocked": "No se puede eliminar la única fila.",
+    "deleteLastColumnBlocked": "No se puede eliminar la única columna.",
+    "maxRowsReached": "Esta hoja de cálculo ya tiene el número máximo de filas.",
+    "maxColumnsReached": "Esta hoja de cálculo ya tiene el número máximo de columnas.",
     "format": {
       "scopeCell": "Celda",
       "scopeColumn": "Columna",

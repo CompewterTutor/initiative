@@ -398,6 +398,10 @@
     "deleteColumns_other": "Supprimer {{count}} colonnes",
     "deleteRows_one": "Supprimer la ligne",
     "deleteRows_other": "Supprimer {{count}} lignes",
+    "deleteLastRowBlocked": "Impossible de supprimer la seule ligne.",
+    "deleteLastColumnBlocked": "Impossible de supprimer la seule colonne.",
+    "maxRowsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de lignes.",
+    "maxColumnsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de colonnes.",
     "format": {
       "scopeCell": "Cellule",
       "scopeColumn": "Colonne",
