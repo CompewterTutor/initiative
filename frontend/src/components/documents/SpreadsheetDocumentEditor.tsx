@@ -874,8 +874,6 @@ export const SpreadsheetDocumentEditor = ({
   }, [frozenCols, colWidth]);
   const frozenBandHeight = prefixRow[frozenRows] ?? 0;
   const frozenBandWidth = prefixCol[frozenCols] ?? 0;
-  const scrollTop = rowVirtualizer.scrollOffset ?? 0;
-  const scrollLeft = colVirtualizer.scrollOffset ?? 0;
 
   const renderCell = useCallback(
     (r: number, c: number, left: number, top: number) => {
@@ -1093,6 +1091,86 @@ export const SpreadsheetDocumentEditor = ({
             })}
           </div>
 
+          {/* Frozen panes use CSS ``position: sticky`` (compositor-driven)
+              instead of per-frame JS repositioning, so they no longer lag a
+              render behind the scroll. Each band is a zero-size sticky
+              positioning context placed in flow right after the column header
+              (natural top = COL_HEADER_HEIGHT, so it pins there); an opaque
+              backing rect masks the body cells scrolling underneath. Only the
+              axis that should stay frozen gets a sticky inset — the other axis
+              has no inset and scrolls naturally with the body. */}
+
+          {/* Frozen rows band — pinned vertically (sticky top), scrolls
+              horizontally with the body. */}
+          {frozenRows > 0 && (
+            <div
+              className="sticky"
+              style={{ top: COL_HEADER_HEIGHT, width: 0, height: 0, zIndex: 6 }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{
+                  left: ROW_HEADER_WIDTH,
+                  top: 0,
+                  width: totalGridWidth,
+                  height: frozenBandHeight,
+                }}
+              />
+              {virtualCols.map((col) =>
+                col.index < frozenCols
+                  ? null
+                  : Array.from({ length: frozenRows }, (_, r) =>
+                      renderCell(r, col.index, ROW_HEADER_WIDTH + col.start, prefixRow[r])
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen cols band — pinned horizontally (sticky left), scrolls
+              vertically with the body. */}
+          {frozenCols > 0 && (
+            <div
+              className="sticky"
+              style={{ left: ROW_HEADER_WIDTH, width: 0, height: 0, zIndex: 5 }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{ left: 0, top: 0, width: frozenBandWidth, height: totalGridHeight }}
+              />
+              {virtualRows.map((row) =>
+                row.index < frozenRows
+                  ? null
+                  : Array.from({ length: frozenCols }, (_, c) =>
+                      renderCell(row.index, c, prefixCol[c], row.start)
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen corner — pinned on both axes. */}
+          {frozenRows > 0 && frozenCols > 0 && (
+            <div
+              className="sticky"
+              style={{
+                top: COL_HEADER_HEIGHT,
+                left: ROW_HEADER_WIDTH,
+                width: 0,
+                height: 0,
+                zIndex: 7,
+              }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{ left: 0, top: 0, width: frozenBandWidth, height: frozenBandHeight }}
+              />
+              {Array.from({ length: frozenRows }, (_, r) =>
+                Array.from({ length: frozenCols }, (_, c) =>
+                  renderCell(r, c, prefixCol[c], prefixRow[r])
+                )
+              )}
+            </div>
+          )}
+
           {/* Row-header strip — sticky left keeps numbers glued while
               scrolling horizontally. */}
           <div
@@ -1159,72 +1237,6 @@ export const SpreadsheetDocumentEditor = ({
                 COL_HEADER_HEIGHT + row.start
               );
             })
-          )}
-
-          {/* Frozen rows band — pinned just below the column header,
-              scrolls horizontally with the body. */}
-          {frozenRows > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH,
-                top: COL_HEADER_HEIGHT + scrollTop,
-                width: totalGridWidth,
-                height: frozenBandHeight,
-                zIndex: 6,
-              }}
-            >
-              {virtualCols.map((col) =>
-                col.index < frozenCols
-                  ? null
-                  : Array.from({ length: frozenRows }, (_, r) =>
-                      renderCell(r, col.index, col.start, prefixRow[r])
-                    )
-              )}
-            </div>
-          )}
-
-          {/* Frozen cols band — pinned right of the row header, scrolls
-              vertically with the body. */}
-          {frozenCols > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH + scrollLeft,
-                top: COL_HEADER_HEIGHT,
-                width: frozenBandWidth,
-                height: totalGridHeight,
-                zIndex: 5,
-              }}
-            >
-              {virtualRows.map((row) =>
-                row.index < frozenRows
-                  ? null
-                  : Array.from({ length: frozenCols }, (_, c) =>
-                      renderCell(row.index, c, prefixCol[c], row.start)
-                    )
-              )}
-            </div>
-          )}
-
-          {/* Frozen corner — pinned on both axes. */}
-          {frozenRows > 0 && frozenCols > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH + scrollLeft,
-                top: COL_HEADER_HEIGHT + scrollTop,
-                width: frozenBandWidth,
-                height: frozenBandHeight,
-                zIndex: 7,
-              }}
-            >
-              {Array.from({ length: frozenRows }, (_, r) =>
-                Array.from({ length: frozenCols }, (_, c) =>
-                  renderCell(r, c, prefixCol[c], prefixRow[r])
-                )
-              )}
-            </div>
           )}
         </div>
       </div>
