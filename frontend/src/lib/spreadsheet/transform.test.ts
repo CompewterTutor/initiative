@@ -221,6 +221,14 @@ describe("transformSheet — formula reference rewriting", () => {
     expect(result.cells[keyOf(0, 0)]).toBe("=#REF!");
   });
 
+  it("collapses a range to #REF! when a range endpoint row is deleted", () => {
+    // Delete the row A2 sits on (the range's start) — the whole range
+    // collapses rather than producing the invalid =SUM(#REF!:A10).
+    const cells = cellMap({ "0:0": "=SUM(A2:A11)" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 1 }));
+    expect(result.cells[keyOf(0, 0)]).toBe("=SUM(#REF!)");
+  });
+
   it("leaves non-formula values untouched", () => {
     const cells = cellMap({ "5:0": "=A1 plain", "6:0": "literal" });
     const result = run(sheet({ cells }), op({ axis: "row", mode: "insert", at: 0 }));

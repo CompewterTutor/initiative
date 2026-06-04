@@ -512,8 +512,11 @@ export const SpreadsheetDocumentEditor = ({
       if (isAggregate && isRange) {
         const rangeRef = `${colIndexToLetter(c1)}${r1 + 1}:${colIndexToLetter(c2)}${r2 + 1}`;
         const vertical = r2 - r1 >= c2 - c1;
-        const targetRow = vertical ? r2 + 1 : r1;
-        const targetCol = vertical ? c1 : c2 + 1;
+        // Clamp into the grid: a selection ending on the last row/column
+        // would otherwise target a cell that never renders, silently
+        // dropping the formula.
+        const targetRow = vertical ? Math.min(r2 + 1, MAX_ROWS - 1) : r1;
+        const targetCol = vertical ? c1 : Math.min(c2 + 1, MAX_COLS - 1);
         setCell(targetRow, targetCol, `=${name}(${rangeRef})`);
         selectCell(targetRow, targetCol);
         // Return focus to the grid so arrow keys work immediately (the menu

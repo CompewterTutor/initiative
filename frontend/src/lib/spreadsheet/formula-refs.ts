@@ -26,6 +26,13 @@ const REF_AT_START = /^(\$?)([A-Za-z]+)(\$?)(\d+)/;
 // cell reference. ``(`` after the match marks a function call.
 const IDENT_CHAR = /[A-Za-z0-9_.$]/;
 
+/** A matched ref is bogus if what follows it would extend it into a longer
+ *  identifier or a function call. ``undefined`` (end of input) is fine. */
+const isIdentTail = (c: string | undefined): boolean => {
+  const x = c ?? "";
+  return x === "(" || IDENT_CHAR.test(x);
+};
+
 /**
  * Rewrite every A1 cell reference in a formula along ``axis`` using
  * ``mapIndex`` — the exact old-index → new-index mapper that
@@ -33,10 +40,11 @@ const IDENT_CHAR = /[A-Za-z0-9_.$]/;
  * inactive axis are left untouched; a reference whose active-axis line
  * was deleted (``mapIndex`` returns ``null``) becomes ``#REF!``.
  *
- * Ranges (``A1:B10``) are rewritten endpoint-by-endpoint, so deleting a
- * row *inside* a range shrinks it (both endpoints shift, neither is
- * dropped) while deleting an endpoint's line turns that endpoint into
- * ``#REF!``. ``$`` absolute markers are preserved verbatim.
+ * Ranges (``A1:B10``) are handled as a unit: deleting a row *inside* a
+ * range shrinks it (both endpoints shift, neither is dropped), while
+ * deleting the line of *either* endpoint collapses the whole range to a
+ * single ``#REF!`` (``=SUM(#REF!)``, matching Excel — never the invalid
+ * ``=SUM(#REF!:A10)``). ``$`` absolute markers are preserved verbatim.
  *
  * The scan skips double-quoted string literals (with ``""`` escaping) so
  * text like ``="A5 total"`` is never mistaken for a reference. Non-formula
@@ -82,19 +90,27 @@ export const shiftFormulaReferences = (
     // inside ``FOO_A1`` (or a column-letter run that's really a function
     // name) isn't rewritten.
     const prev = i > 0 ? body[i - 1] : "";
-    if (!IDENT_CHAR.test(prev)) {
-      const match = REF_AT_START.exec(body.slice(i));
-      if (match) {
-        const after = body[i + match[0].length] ?? "";
-        // ``(`` => the letters+digits were a function name (LOG10); an
-        // identifier char => a longer name. Either way, not a reference.
-        if (!(after === "(" || IDENT_CHAR.test(after))) {
-          const [whole, colAbs, letters, rowAbs, digits] = match;
-          out += rewriteRef(colAbs, letters, rowAbs, digits, axis, mapIndex);
-          i += whole.length;
-          continue;
-        }
+    const match = IDENT_CHAR.test(prev) ? null : REF_AT_START.exec(body.slice(i));
+    if (match && !isIdentTail(body[i + match[0].length])) {
+      const afterIdx = i + match[0].length;
+      // Look for a ``ref:ref`` range so it can be rewritten as a unit.
+      let match2: RegExpExecArray | null = null;
+      if (body[afterIdx] === ":") {
+        const m = REF_AT_START.exec(body.slice(afterIdx + 1));
+        if (m && !isIdentTail(body[afterIdx + 1 + m[0].length])) match2 = m;
       }
+      if (match2) {
+        const start = mapRef(match, axis, mapIndex);
+        const end = mapRef(match2, axis, mapIndex);
+        // A deleted endpoint collapses the whole range (Excel behavior).
+        out += start === null || end === null ? "#REF!" : `${start}:${end}`;
+        i = afterIdx + 1 + match2[0].length;
+        continue;
+      }
+      const single = mapRef(match, axis, mapIndex);
+      out += single ?? "#REF!";
+      i += match[0].length;
+      continue;
     }
 
     out += ch;
@@ -104,20 +120,18 @@ export const shiftFormulaReferences = (
   return out;
 };
 
-const rewriteRef = (
-  colAbs: string,
-  letters: string,
-  rowAbs: string,
-  digits: string,
+/** Rewrite one matched reference along ``axis``; ``null`` if its line was
+ *  deleted (the caller turns that into ``#REF!``). */
+const mapRef = (
+  m: RegExpExecArray,
   axis: "row" | "col",
   mapIndex: (i: number) => number | null
-): string => {
+): string | null => {
+  const [, colAbs, letters, rowAbs, digits] = m;
   if (axis === "col") {
     const mapped = mapIndex(letterToColIndex(letters));
-    if (mapped === null) return "#REF!";
-    return `${colAbs}${colIndexToLetter(mapped)}${rowAbs}${digits}`;
+    return mapped === null ? null : `${colAbs}${colIndexToLetter(mapped)}${rowAbs}${digits}`;
   }
   const mapped = mapIndex(Number(digits) - 1);
-  if (mapped === null) return "#REF!";
-  return `${colAbs}${letters}${rowAbs}${mapped + 1}`;
+  return mapped === null ? null : `${colAbs}${letters}${rowAbs}${mapped + 1}`;
 };

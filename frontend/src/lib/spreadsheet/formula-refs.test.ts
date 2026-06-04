@@ -64,6 +64,16 @@ describe("shiftFormulaReferences — delete", () => {
     expect(shiftFormulaReferences("=A5", "row", deleteMap(4, 1))).toBe("=#REF!");
   });
 
+  it("collapses a whole range to #REF! when its start endpoint is deleted", () => {
+    // Delete the row A2 (index 1) sits on — never =SUM(#REF!:A10).
+    expect(shiftFormulaReferences("=SUM(A2:A11)", "row", deleteMap(1, 1))).toBe("=SUM(#REF!)");
+  });
+
+  it("collapses a whole range to #REF! when its end endpoint is deleted", () => {
+    // Delete the row A11 (index 10) sits on.
+    expect(shiftFormulaReferences("=SUM(A2:A11)", "row", deleteMap(10, 1))).toBe("=SUM(#REF!)");
+  });
+
   it("shifts references below the deleted band up", () => {
     expect(shiftFormulaReferences("=A10", "row", deleteMap(4, 2))).toBe("=A8");
   });
