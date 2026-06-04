@@ -30,6 +30,10 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { matchHistoryShortcut } from "@/hooks/useYjsHistory";
@@ -60,6 +64,7 @@ import {
   sanitizeFormatting,
   styleToCss,
 } from "@/lib/spreadsheet/styles";
+import { type LineAxis, type LineOp, transformSheet } from "@/lib/spreadsheet/transform";
 import { cellsToXlsx, xlsxToContent } from "@/lib/spreadsheet/xlsx";
 import { cn } from "@/lib/utils";
 
@@ -374,6 +379,21 @@ export const SpreadsheetDocumentEditor = ({
   );
   const rowHeaderActive = useCallback(
     (r: number): boolean => sel.mode !== "columns" && r >= selBox.r1 && r <= selBox.r2,
+    [sel.mode, selBox]
+  );
+
+  // The contiguous band a header context-menu should act on: the active
+  // multi-selection when the right-clicked header falls inside it (so
+  // insert/delete operate on every selected line), otherwise just the
+  // single clicked line.
+  const lineBand = useCallback(
+    (axis: LineAxis, index: number): { start: number; count: number } => {
+      if (axis === "col" && sel.mode === "columns" && index >= selBox.c1 && index <= selBox.c2)
+        return { start: selBox.c1, count: selBox.c2 - selBox.c1 + 1 };
+      if (axis === "row" && sel.mode === "rows" && index >= selBox.r1 && index <= selBox.r2)
+        return { start: selBox.r1, count: selBox.r2 - selBox.r1 + 1 };
+      return { start: index, count: 1 };
+    },
     [sel.mode, selBox]
   );
 
@@ -758,6 +778,120 @@ export const SpreadsheetDocumentEditor = ({
     [readOnly, cells, formatting, bulkUpdate, docForData]
   );
 
+  // Insert / delete whole rows or columns (right-click a header). The
+  // pure ``transformSheet`` shifts every downstream line and remaps all
+  // four index-keyed structures plus frozen + dimensions; we apply the
+  // result in one transaction so peers see the structural change
+  // atomically and undo rolls it back in a single step. ``replaceAll``
+  // broadcasts the new dimensions through yMeta alongside the cells (the
+  // import path's pattern) so a delete actually shrinks the canvas for
+  // everyone instead of relying on the local-only auto-grow.
+  const applyLineTransform = useCallback(
+    (op: Pick<LineOp, "axis" | "mode" | "at" | "count">) => {
+      if (readOnly) return;
+      const result = transformSheet(
+        {
+          cells,
+          cellStyles: formatting.cellStyles,
+          columns: formatting.columns,
+          rows: formatting.rows,
+          frozen: formatting.frozen,
+          dimensions,
+        },
+        { ...op, maxRows: MAX_ROWS, maxCols: MAX_COLS }
+      );
+      if (!result) {
+        // The op was blocked by a guard (deleting the last remaining
+        // line, or inserting into a grid already at MAX). Surface why so
+        // the silent no-op is discoverable.
+        const blockedKey =
+          op.mode === "delete"
+            ? op.axis === "row"
+              ? "spreadsheet.deleteLastRowBlocked"
+              : "spreadsheet.deleteLastColumnBlocked"
+            : op.axis === "row"
+              ? "spreadsheet.maxRowsReached"
+              : "spreadsheet.maxColumnsReached";
+        toast.info(t(`documents:${blockedKey}`));
+        return;
+      }
+      docForData.transact(() => {
+        replaceAll(result.cells, result.dimensions);
+        formatting.replaceAll({
+          columns: result.columns,
+          rows: result.rows,
+          cellStyles: result.cellStyles,
+          frozen: result.frozen,
+        });
+      }, "spreadsheet-structure");
+
+      // Remap the selection along the shifted axis so it tracks the same
+      // content — otherwise an insert-above leaves the stale band straddling
+      // the freshly inserted blank lines, and a later right-click would
+      // delete more than intended. ``delta`` is signed and respects capping:
+      // > 0 inserted, < 0 deleted.
+      const axisIsRow = op.axis === "row";
+      const at = Math.max(0, Math.trunc(op.at));
+      const delta =
+        (axisIsRow ? result.dimensions.rows : result.dimensions.cols) -
+        (axisIsRow ? dimensions.rows : dimensions.cols);
+      const newDim = axisIsRow ? result.dimensions.rows : result.dimensions.cols;
+      const remapIdx = (i: number): number => {
+        if (delta >= 0) return i >= at ? i + delta : i; // insert
+        const removed = -delta;
+        if (i < at) return i;
+        if (i >= at + removed) return i - removed;
+        return Math.min(at, newDim - 1); // line was inside the deleted band
+      };
+      setSel((p) => ({
+        mode: p.mode,
+        anchor: axisIsRow
+          ? { row: remapIdx(p.anchor.row), col: p.anchor.col }
+          : { row: p.anchor.row, col: remapIdx(p.anchor.col) },
+        focus: axisIsRow
+          ? { row: remapIdx(p.focus.row), col: p.focus.col }
+          : { row: p.focus.row, col: remapIdx(p.focus.col) },
+      }));
+
+      if (result.capped) {
+        // Fewer lines than requested were applied — a guard kept the last
+        // line (delete) or the grid cap left room for only some (insert).
+        // Hint so the leftover/missing line isn't a silent mystery.
+        const cappedKey =
+          op.mode === "delete"
+            ? op.axis === "row"
+              ? "spreadsheet.deleteLastRowKept"
+              : "spreadsheet.deleteLastColumnKept"
+            : op.axis === "row"
+              ? "spreadsheet.insertRowsCapped"
+              : "spreadsheet.insertColumnsCapped";
+        toast.info(t(`documents:${cappedKey}`));
+      }
+    },
+    [readOnly, cells, formatting, dimensions, replaceAll, docForData, t]
+  );
+
+  // Insert ``count`` lines before / after the band on ``axis``, then
+  // delete the whole band. "before" = left/above (at the band start);
+  // "after" = right/below (just past the band end).
+  const insertLines = useCallback(
+    (axis: LineAxis, band: { start: number; count: number }, count: number, after: boolean) => {
+      applyLineTransform({
+        axis,
+        mode: "insert",
+        at: after ? band.start + band.count : band.start,
+        count,
+      });
+    },
+    [applyLineTransform]
+  );
+  const deleteLines = useCallback(
+    (axis: LineAxis, band: { start: number; count: number }) => {
+      applyLineTransform({ axis, mode: "delete", at: band.start, count: band.count });
+    },
+    [applyLineTransform]
+  );
+
   // --- column / row resize ----------------------------------------------
   // Listeners are attached synchronously inside startResize (the pointerdown
   // handler) so there is never a gap between "drag started" and "pointerup
@@ -1035,8 +1169,11 @@ export const SpreadsheetDocumentEditor = ({
                   onContextMenu={() => {
                     // Highlight the column the menu will act on (right-click
                     // doesn't go through the left-button onMouseDown path).
+                    // Keep an existing multi-column selection if the click
+                    // lands inside it so the menu acts on the whole band.
                     containerRef.current?.focus();
-                    selectColumn(col.index);
+                    if (!(sel.mode === "columns" && colHeaderActive(col.index)))
+                      selectColumn(col.index);
                   }}
                   onMouseEnter={() => {
                     if (selectingRef.current !== "columns") return;
@@ -1076,18 +1213,18 @@ export const SpreadsheetDocumentEditor = ({
                 </button>
               );
               if (readOnly) return <Fragment key={`colh-${col.index}`}>{header}</Fragment>;
+              const band = lineBand("col", col.index);
               return (
-                <ContextMenu key={`colh-${col.index}`}>
-                  <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem onSelect={() => handleSortColumn(col.index, "asc")}>
-                      {t("documents:spreadsheet.sortAscending")}
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={() => handleSortColumn(col.index, "desc")}>
-                      {t("documents:spreadsheet.sortDescending")}
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                <HeaderContextMenu
+                  key={`colh-${col.index}`}
+                  axis="col"
+                  band={band}
+                  onInsert={(count, after) => insertLines("col", band, count, after)}
+                  onDelete={() => deleteLines("col", band)}
+                  onSort={(direction) => handleSortColumn(col.index, direction)}
+                >
+                  {header}
+                </HeaderContextMenu>
               );
             })}
           </div>
@@ -1178,53 +1315,74 @@ export const SpreadsheetDocumentEditor = ({
             className="sticky left-0 z-10 bg-muted"
             style={{ width: ROW_HEADER_WIDTH, height: totalGridHeight }}
           >
-            {virtualRows.map((row) => (
-              <button
-                type="button"
-                key={`rowh-${row.index}`}
-                onMouseDown={(e) => {
-                  if (e.button !== 0) return;
-                  containerRef.current?.focus();
-                  selectingRef.current = "rows";
-                  selectRow(row.index, e.shiftKey);
-                }}
-                onMouseEnter={() => {
-                  if (selectingRef.current !== "rows") return;
-                  setSel((p) => ({
-                    anchor: p.anchor,
-                    focus: { row: row.index, col: 0 },
-                    mode: "rows",
-                  }));
-                }}
-                className={cn(
-                  "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
-                  rowHeaderActive(row.index)
-                    ? "bg-primary/20 text-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}
-                style={{
-                  left: 0,
-                  top: row.start,
-                  width: ROW_HEADER_WIDTH,
-                  height: row.size,
-                }}
-              >
-                {row.index + 1}
-                {!readOnly && (
-                  <div
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => startResize("row", row.index, e)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      resetSize("row", row.index);
-                    }}
-                    className="absolute bottom-0 left-0 z-10 w-full cursor-row-resize hover:bg-primary/40"
-                    style={{ height: RESIZE_HANDLE }}
-                    aria-hidden
-                  />
-                )}
-              </button>
-            ))}
+            {virtualRows.map((row) => {
+              const header = (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    containerRef.current?.focus();
+                    selectingRef.current = "rows";
+                    selectRow(row.index, e.shiftKey);
+                  }}
+                  onContextMenu={() => {
+                    // Highlight the row the menu will act on; keep an
+                    // existing multi-row selection if the click lands inside
+                    // it so the menu acts on the whole band.
+                    containerRef.current?.focus();
+                    if (!(sel.mode === "rows" && rowHeaderActive(row.index))) selectRow(row.index);
+                  }}
+                  onMouseEnter={() => {
+                    if (selectingRef.current !== "rows") return;
+                    setSel((p) => ({
+                      anchor: p.anchor,
+                      focus: { row: row.index, col: 0 },
+                      mode: "rows",
+                    }));
+                  }}
+                  className={cn(
+                    "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
+                    rowHeaderActive(row.index)
+                      ? "bg-primary/20 text-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                  style={{
+                    left: 0,
+                    top: row.start,
+                    width: ROW_HEADER_WIDTH,
+                    height: row.size,
+                  }}
+                >
+                  {row.index + 1}
+                  {!readOnly && (
+                    <div
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => startResize("row", row.index, e)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        resetSize("row", row.index);
+                      }}
+                      className="absolute bottom-0 left-0 z-10 w-full cursor-row-resize hover:bg-primary/40"
+                      style={{ height: RESIZE_HANDLE }}
+                      aria-hidden
+                    />
+                  )}
+                </button>
+              );
+              if (readOnly) return <Fragment key={`rowh-${row.index}`}>{header}</Fragment>;
+              const band = lineBand("row", row.index);
+              return (
+                <HeaderContextMenu
+                  key={`rowh-${row.index}`}
+                  axis="row"
+                  band={band}
+                  onInsert={(count, after) => insertLines("row", band, count, after)}
+                  onDelete={() => deleteLines("row", band)}
+                >
+                  {header}
+                </HeaderContextMenu>
+              );
+            })}
           </div>
 
           {/* Body cells (excludes anything covered by a frozen band). */}
@@ -1254,6 +1412,111 @@ export const SpreadsheetDocumentEditor = ({
         destructive
       />
     </div>
+  );
+};
+
+/** Largest N the "insert multiple" stepper accepts; the transform also
+ *  clamps to the remaining grid capacity, this just keeps the input sane. */
+const MAX_INSERT_N = 1_000;
+/** Stepper default — reset on every menu open so a value typed for one
+ *  header never bleeds into another (the menus are keyed by index, so React
+ *  reuses an instance across different rows/cols after an insert/delete). */
+const DEFAULT_INSERT_N = 2;
+
+interface HeaderContextMenuProps {
+  axis: LineAxis;
+  /** The contiguous band the menu acts on: the active multi-selection
+   *  when it covers this header, otherwise just the clicked line. */
+  band: { start: number; count: number };
+  onInsert: (count: number, after: boolean) => void;
+  onDelete: () => void;
+  /** Columns only — sort the whole sheet by this column. */
+  onSort?: (direction: SortDirection) => void;
+  /** The header button that triggers the menu. */
+  children: React.ReactNode;
+}
+
+/** Right-click menu shared by the row and column headers: insert one
+ *  line either side, insert N via a stepper submenu, or delete the
+ *  selected band. Column headers additionally get the sort actions. */
+const HeaderContextMenu = ({
+  axis,
+  band,
+  onInsert,
+  onDelete,
+  onSort,
+  children,
+}: HeaderContextMenuProps) => {
+  const { t } = useTranslation(["documents", "common"]);
+  const [n, setN] = useState(DEFAULT_INSERT_N);
+  const isRow = axis === "row";
+  const before = isRow ? "insertRowAbove" : "insertColumnLeft";
+  const after = isRow ? "insertRowBelow" : "insertColumnRight";
+  const beforeN = isRow ? "insertRowsAboveN" : "insertColumnsLeftN";
+  const afterN = isRow ? "insertRowsBelowN" : "insertColumnsRightN";
+
+  return (
+    <ContextMenu onOpenChange={(open) => open && setN(DEFAULT_INSERT_N)}>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={() => onInsert(1, false)}>
+          {t(`documents:spreadsheet.${before}`)}
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => onInsert(1, true)}>
+          {t(`documents:spreadsheet.${after}`)}
+        </ContextMenuItem>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>{t("documents:spreadsheet.insertMultiple")}</ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className="text-muted-foreground text-xs">
+                {t("documents:spreadsheet.insertCount")}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={MAX_INSERT_N}
+                value={n}
+                // biome-ignore lint/a11y/noAutofocus: focuses the stepper when the submenu opens so the user can type N immediately
+                autoFocus
+                // Keep keystrokes in the input — otherwise the menu's
+                // typeahead steals them and jumps focus to an item.
+                onKeyDown={(e) => e.stopPropagation()}
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => {
+                  const next = Number.parseInt(e.target.value, 10);
+                  setN(Number.isFinite(next) ? Math.max(1, Math.min(next, MAX_INSERT_N)) : 1);
+                }}
+                className="w-16 rounded border border-border bg-background px-1.5 py-0.5 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <ContextMenuItem onSelect={() => onInsert(n, false)}>
+              {t(`documents:spreadsheet.${beforeN}`, { count: n })}
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => onInsert(n, true)}>
+              {t(`documents:spreadsheet.${afterN}`, { count: n })}
+            </ContextMenuItem>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive">
+          {t(isRow ? "documents:spreadsheet.deleteRows" : "documents:spreadsheet.deleteColumns", {
+            count: band.count,
+          })}
+        </ContextMenuItem>
+        {onSort && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => onSort("asc")}>
+              {t("documents:spreadsheet.sortAscending")}
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => onSort("desc")}>
+              {t("documents:spreadsheet.sortDescending")}
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 
