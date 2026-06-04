@@ -47,6 +47,7 @@ import {
   detectClipboardDelimiter,
   offsetCells,
 } from "@/lib/spreadsheet/csv";
+import { createEvaluator, isFormula } from "@/lib/spreadsheet/formula";
 import { type SortDirection, sortSheetByColumn } from "@/lib/spreadsheet/sort";
 import {
   type CellFmt,
@@ -109,6 +110,10 @@ const COL_GROWTH_STEP = 10;
 const MAX_ROWS = 100_000;
 const MAX_COLS = 1_000;
 const RESIZE_HANDLE = 5;
+
+// Functions that aggregate a range — picking one from the toolbar with a
+// multi-cell selection fills the range in automatically (AutoSum-style).
+const AGGREGATE_FUNCTIONS = new Set(["SUM", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA"]);
 
 const slugify = (s: string): string =>
   s
@@ -267,6 +272,13 @@ export const SpreadsheetDocumentEditor = ({
       setDimensions({ rows: nextRows, cols: nextCols });
     }
   }, [cells, dimensions, setDimensions]);
+
+  // Formula evaluator bound to the current cell snapshot. Rebuilt whenever
+  // ``cells`` changes (local edit, remote peer write, undo/redo all yield a
+  // fresh map), so computed values recalc automatically; each formula is
+  // evaluated at most once per snapshot via the evaluator's internal cache,
+  // and only for cells the virtualized grid actually renders.
+  const evaluator = useMemo(() => createEvaluator(cells), [cells]);
 
   // Emit the JSON snapshot to the parent on every change so the
   // existing autosave hook can PATCH ``document.content``. Captured in
@@ -476,6 +488,37 @@ export const SpreadsheetDocumentEditor = ({
     setEditing(null);
   }, []);
 
+  // Insert a formula from the toolbar's function menu. When an aggregate
+  // (SUM/AVERAGE/…) is picked with a multi-cell range selected, drop a
+  // completed ``=FN(range)`` in the cell just past the selection — below a
+  // tall selection, to the right of a wide one — so the formula never sits
+  // inside its own range (which would be a cycle). Otherwise begin editing
+  // the focus cell with a ``=FN(`` starter so the user fills the arguments.
+  const insertFunction = useCallback(
+    (name: string) => {
+      if (readOnly) return;
+      const isAggregate = AGGREGATE_FUNCTIONS.has(name);
+      const { r1, r2, c1, c2 } = selBox;
+      const isRange = sel.mode === "range" && (r1 !== r2 || c1 !== c2);
+      if (isAggregate && isRange) {
+        const rangeRef = `${colIndexToLetter(c1)}${r1 + 1}:${colIndexToLetter(c2)}${r2 + 1}`;
+        const vertical = r2 - r1 >= c2 - c1;
+        const targetRow = vertical ? r2 + 1 : r1;
+        const targetCol = vertical ? c1 : c2 + 1;
+        setCell(targetRow, targetCol, `=${name}(${rangeRef})`);
+        selectCell(targetRow, targetCol);
+        // Return focus to the grid so arrow keys work immediately (the menu
+        // suppresses its own close-auto-focus so it can't fight this).
+        containerRef.current?.focus();
+        return;
+      }
+      // Begin editing the focus cell; the editing-input focus effect takes
+      // over once the input mounts.
+      beginEdit(sel.focus.row, sel.focus.col, `=${name}(`);
+    },
+    [readOnly, selBox, sel.mode, sel.focus, setCell, selectCell, beginEdit]
+  );
+
   const editingCellKey = editing ? `${editing.row}:${editing.col}` : null;
   useEffect(() => {
     if (editingCellKey && editingInputRef.current) {
@@ -613,6 +656,20 @@ export const SpreadsheetDocumentEditor = ({
     [editing, readOnly, sel.focus, setCell, bulkUpdate]
   );
 
+  // Resolve a cell to the value that should leave the editor (copy / file
+  // export): a formula yields its computed result (or error token), a
+  // literal yields itself. Keeps exported files and pastes as data, never
+  // raw ``=...`` text whose relative refs wouldn't survive the move.
+  const resolveExport = useCallback(
+    (row: number, col: number): CellValue => {
+      const v = cells.get(keyOf(row, col)) ?? null;
+      if (!isFormula(v)) return v;
+      const { value, error } = evaluator.evaluate(row, col);
+      return error ?? value;
+    },
+    [cells, evaluator]
+  );
+
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
       if (editing) return;
@@ -625,7 +682,7 @@ export const SpreadsheetDocumentEditor = ({
         for (let r = r1; r <= r2; r++) {
           const cols: string[] = [];
           for (let c = c1; c <= c2; c++) {
-            const v = cells.get(keyOf(r, c));
+            const v = resolveExport(r, c);
             cols.push(v == null ? "" : String(v));
           }
           lines.push(cols.join("\t"));
@@ -636,34 +693,34 @@ export const SpreadsheetDocumentEditor = ({
         e.clipboardData.setData("text/plain", text);
         return;
       }
-      const value = cells.get(keyOf(sel.focus.row, sel.focus.col));
+      const value = resolveExport(sel.focus.row, sel.focus.col);
       if (value == null) return;
       e.preventDefault();
       e.clipboardData.setData("text/plain", String(value));
     },
-    [editing, cells, sel.mode, sel.focus, selBox]
+    [editing, resolveExport, sel.mode, sel.focus, selBox]
   );
 
   const handleExportCsv = useCallback(() => {
     try {
-      const csv = cellsToCsv(cells);
+      const csv = cellsToCsv(cells, resolveExport);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       downloadBlob(blob, `${slugify(documentTitle)}.csv`);
       toast.success(t("documents:spreadsheet.exportSuccess"));
     } catch {
       toast.error(t("documents:spreadsheet.exportError"));
     }
-  }, [cells, documentTitle, t]);
+  }, [cells, resolveExport, documentTitle, t]);
 
   const handleExportXlsx = useCallback(async () => {
     try {
-      const blob = await cellsToXlsx(cells, formatting, documentTitle);
+      const blob = await cellsToXlsx(cells, formatting, documentTitle, resolveExport);
       downloadBlob(blob, `${slugify(documentTitle)}.xlsx`);
       toast.success(t("documents:spreadsheet.exportSuccess"));
     } catch {
       toast.error(t("documents:spreadsheet.exportError"));
     }
-  }, [cells, formatting, documentTitle, t]);
+  }, [cells, formatting, documentTitle, resolveExport, t]);
 
   const handleImportClick = useCallback(() => {
     if (readOnly) return;
@@ -1016,13 +1073,26 @@ export const SpreadsheetDocumentEditor = ({
       const isEditing = editing?.row === r && editing?.col === c;
       const value = cells.get(keyOf(r, c));
       const numberFormat = resolveCellFormat(r, c, formatting);
-      const display = isEditing ? "" : value == null ? "" : formatCellValue(value, numberFormat);
+      // Formula cells show their computed result (or an error token); the
+      // raw "=..." text is what ``beginEdit`` puts back in the input. The
+      // computed result also drives number formatting and the red-negative
+      // rule, exactly as a literal value would.
+      const evaluated = isFormula(value) ? evaluator.evaluate(r, c) : null;
+      const error = evaluated?.error ?? null;
+      const resolved = evaluated ? evaluated.value : (value ?? null);
+      const display = isEditing
+        ? ""
+        : error
+          ? error
+          : resolved == null
+            ? ""
+            : formatCellValue(resolved, numberFormat);
       const isBoolean = typeof value === "boolean" && !numberFormat;
       const peer = peerSelectionsByCell.get(keyOf(r, c));
       const cellCss = styleToCss(resolveCellStyle(r, c, formatting));
-      // A red/redParens negative number wins over any explicit text
-      // color (Excel's numFmt color section overrides the font color).
-      if (negativeRendersRed(value ?? null, numberFormat)) cellCss.color = "#dc2626";
+      // A formula error, or a red/redParens negative number, wins over any
+      // explicit text color (Excel's numFmt color section overrides font).
+      if (error || negativeRendersRed(resolved, numberFormat)) cellCss.color = "#dc2626";
       return (
         <CellView
           key={keyOf(r, c)}
@@ -1032,6 +1102,7 @@ export const SpreadsheetDocumentEditor = ({
           inSelection={isInSel(r, c)}
           isEditing={Boolean(isEditing)}
           display={display}
+          title={error ?? undefined}
           booleanValue={isBoolean ? (value as boolean) : null}
           readOnly={readOnly}
           draft={isEditing ? editing!.draft : ""}
@@ -1067,6 +1138,7 @@ export const SpreadsheetDocumentEditor = ({
     },
     [
       cells,
+      evaluator,
       formatting,
       sel.focus,
       isInSel,
@@ -1108,6 +1180,7 @@ export const SpreadsheetDocumentEditor = ({
           onExportCsv={handleExportCsv}
           onExportXlsx={handleExportXlsx}
           onImport={handleImportClick}
+          onInsertFunction={insertFunction}
           onUndo={history.undo}
           onRedo={history.redo}
           canUndo={history.canUndo}
@@ -1530,6 +1603,8 @@ interface CellViewProps {
   inSelection: boolean;
   isEditing: boolean;
   display: string;
+  /** Tooltip text — used to surface a formula error token (e.g. #DIV/0!). */
+  title?: string;
   booleanValue: boolean | null;
   readOnly: boolean;
   draft: string;
@@ -1552,6 +1627,7 @@ const CellView = ({
   inSelection,
   isEditing,
   display,
+  title,
   booleanValue,
   readOnly,
   draft,
@@ -1649,6 +1725,7 @@ const CellView = ({
     <div
       className={cn(baseClass, "flex cursor-cell items-center px-1.5")}
       style={containerStyle}
+      title={title}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
       onDoubleClick={onDoubleClick}

@@ -15,6 +15,7 @@
  */
 
 import { type CellValue, keyOf, parseKey } from "@/lib/spreadsheet/coords";
+import { isFormula, shiftFormulaReferences } from "@/lib/spreadsheet/formula-refs";
 import type { CellFmt, ColumnFmt, RowFmt } from "@/lib/spreadsheet/styles";
 
 export type LineAxis = "row" | "col";
@@ -109,23 +110,35 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
     newFrozen = frozen - Math.max(0, Math.min(end, frozen) - at);
   }
 
-  // Remap a "r:c"-keyed structure along the active axis only.
-  const remapCellKeys = <T>(src: ReadonlyMap<string, T> | Record<string, T>): Record<string, T> => {
+  // Remap a "r:c"-keyed structure along the active axis only. ``mapValue``
+  // (used only for the cell map) rewrites the value itself — formulas need
+  // their A1 references shifted by the same mapper that moves the keys, so
+  // ``=A5`` keeps pointing at the same data after an insert/delete.
+  const remapCellKeys = <T>(
+    src: ReadonlyMap<string, T> | Record<string, T>,
+    mapValue?: (value: T) => T
+  ): Record<string, T> => {
     const out: Record<string, T> = {};
     const entries = src instanceof Map ? src.entries() : Object.entries(src);
     for (const [key, value] of entries) {
+      const mapped2 = mapValue ? mapValue(value) : value;
       const p = parseKey(key);
       if (!p) {
-        out[key] = value as T;
+        out[key] = mapped2;
         continue;
       }
       const [r, c] = p;
       const mapped = mapIndex(axisIsRow ? r : c);
       if (mapped === null) continue; // line was deleted
-      out[keyOf(axisIsRow ? mapped : r, axisIsRow ? c : mapped)] = value as T;
+      out[keyOf(axisIsRow ? mapped : r, axisIsRow ? c : mapped)] = mapped2;
     }
     return out;
   };
+
+  // Shift the A1 references inside a formula by the active-axis mapper.
+  // Non-formula values pass through untouched.
+  const remapFormula = (value: CellValue): CellValue =>
+    isFormula(value) ? shiftFormulaReferences(value, op.axis, mapIndex) : value;
 
   // Remap a bare integer-keyed structure (column or row formatting).
   const remapBare = <T>(src: Record<string, T>): Record<string, T> => {
@@ -144,7 +157,7 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
   };
 
   return {
-    cells: remapCellKeys(s.cells),
+    cells: remapCellKeys(s.cells, remapFormula),
     cellStyles: remapCellKeys(s.cellStyles),
     columns: axisIsRow ? { ...s.columns } : remapBare(s.columns),
     rows: axisIsRow ? remapBare(s.rows) : { ...s.rows },

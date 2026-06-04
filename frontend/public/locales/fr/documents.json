@@ -406,6 +406,24 @@
     "insertColumnsCapped": "Nombre maximal de colonnes atteint ; autant que possible ont été ajoutées.",
     "maxRowsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de lignes.",
     "maxColumnsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de colonnes.",
+    "formula": {
+      "menu": "Fonctions",
+      "menuLabel": "Insérer une fonction",
+      "hint": "Astuce : sélectionnez d'abord une plage et une fonction d'agrégation la remplit pour vous.",
+      "aggregateGroup": "Agrégation",
+      "otherGroup": "Logique et maths",
+      "desc": {
+        "SUM": "Additionne une plage de cellules",
+        "AVERAGE": "Moyenne d'une plage",
+        "MIN": "Plus petite valeur d'une plage",
+        "MAX": "Plus grande valeur d'une plage",
+        "COUNT": "Compte les cellules contenant des nombres",
+        "COUNTA": "Compte les cellules non vides",
+        "IF": "Une valeur si un test réussit, une autre sinon",
+        "ROUND": "Arrondit un nombre à N décimales",
+        "ABS": "Valeur absolue (non négative)"
+      }
+    },
     "format": {
       "scopeCell": "Cellule",
       "scopeColumn": "Colonne",

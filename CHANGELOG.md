@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Formulas in spreadsheet cells.** Start a cell with `=` to write a formula — arithmetic (`=A1+B1*2`, `=(A1+A2)/2`, percentages, exponents) plus common functions like `SUM`, `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `IF`, `ROUND`, and `ABS` over single cells or ranges (`=SUM(A1:A10)`). Cells show the computed result and recalculate live as their inputs change, including edits from collaborators; number formats (currency, percent, etc.) apply to results, and errors such as `#DIV/0!` or a circular reference (`#CYCLE!`) show in red with a tooltip. Inserting or deleting rows/columns rewrites references so formulas keep pointing at the right cells, and copying or exporting to CSV/XLSX emits the computed values.
 - **Insert and delete spreadsheet rows and columns.** Right-click a row or column header in a spreadsheet document to insert a line before or after (above/below for rows, left/right for columns), or delete the selected line(s). The "Insert multiple…" submenu takes a count so you can add several rows or columns at once. Existing cells, styles, number formats, and frozen panes all shift to stay aligned, and selecting a band of headers first lets you insert next to — or delete — the whole range at once.
 
 ## [0.49.2] - 2026-06-03

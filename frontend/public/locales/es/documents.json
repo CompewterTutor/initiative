@@ -406,6 +406,24 @@
     "insertColumnsCapped": "Se alcanzó el número máximo de columnas; se añadieron todas las que cupieron.",
     "maxRowsReached": "Esta hoja de cálculo ya tiene el número máximo de filas.",
     "maxColumnsReached": "Esta hoja de cálculo ya tiene el número máximo de columnas.",
+    "formula": {
+      "menu": "Funciones",
+      "menuLabel": "Insertar función",
+      "hint": "Sugerencia: selecciona primero un rango y una función de agregación lo rellenará por ti.",
+      "aggregateGroup": "Agregación",
+      "otherGroup": "Lógica y matemáticas",
+      "desc": {
+        "SUM": "Suma un rango de celdas",
+        "AVERAGE": "Promedio de un rango",
+        "MIN": "Valor más pequeño de un rango",
+        "MAX": "Valor más grande de un rango",
+        "COUNT": "Cuenta las celdas que contienen números",
+        "COUNTA": "Cuenta las celdas que no están vacías",
+        "IF": "Un valor si una prueba se cumple y otro si no",
+        "ROUND": "Redondea un número a N decimales",
+        "ABS": "Valor absoluto (no negativo)"
+      }
+    },
     "format": {
       "scopeCell": "Celda",
       "scopeColumn": "Columna",

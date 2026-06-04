@@ -21,6 +21,7 @@ import {
   PaintBucket,
   Palette,
   Redo2,
+  Sigma,
   SlidersHorizontal,
   Snowflake,
   Square,
@@ -32,7 +33,7 @@ import {
   Undo2,
   Upload,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { SpreadsheetFormattingStore } from "@/components/documents/spreadsheet/useSpreadsheetFormatting";
@@ -41,6 +42,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -94,6 +97,8 @@ interface SpreadsheetToolbarProps {
   onExportCsv: () => void;
   onExportXlsx: () => void;
   onImport: () => void;
+  /** Insert a formula for the named function (e.g. "SUM") into the sheet. */
+  onInsertFunction: (name: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -159,6 +164,7 @@ export const SpreadsheetToolbar = ({
   onExportCsv,
   onExportXlsx,
   onImport,
+  onInsertFunction,
   onUndo,
   onRedo,
   canUndo,
@@ -786,6 +792,79 @@ export const SpreadsheetToolbar = ({
     </DropdownMenu>
   );
 
+  // Literal t() keys (the typed t rejects template literals — see
+  // ``presetLabel`` above). Grouped so aggregates sit apart from the
+  // logic/math helpers in the menu.
+  const functionGroups = [
+    {
+      title: t("documents:spreadsheet.formula.aggregateGroup"),
+      items: [
+        { name: "SUM", desc: t("documents:spreadsheet.formula.desc.SUM") },
+        { name: "AVERAGE", desc: t("documents:spreadsheet.formula.desc.AVERAGE") },
+        { name: "MIN", desc: t("documents:spreadsheet.formula.desc.MIN") },
+        { name: "MAX", desc: t("documents:spreadsheet.formula.desc.MAX") },
+        { name: "COUNT", desc: t("documents:spreadsheet.formula.desc.COUNT") },
+        { name: "COUNTA", desc: t("documents:spreadsheet.formula.desc.COUNTA") },
+      ],
+    },
+    {
+      title: t("documents:spreadsheet.formula.otherGroup"),
+      items: [
+        { name: "IF", desc: t("documents:spreadsheet.formula.desc.IF") },
+        { name: "ROUND", desc: t("documents:spreadsheet.formula.desc.ROUND") },
+        { name: "ABS", desc: t("documents:spreadsheet.formula.desc.ABS") },
+      ],
+    },
+  ];
+
+  const functionMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={readOnly}
+          className="h-8 gap-1.5"
+          aria-label={t("documents:spreadsheet.formula.menuLabel")}
+        >
+          <Sigma className="h-4 w-4" />
+          <span className="hidden lg:inline">{t("documents:spreadsheet.formula.menu")}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-w-[16rem]"
+        // Let the editor place focus (cell input or grid) without the menu
+        // yanking it back to the trigger on close.
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        {functionGroups.map((group, gi) => (
+          <Fragment key={group.title}>
+            {gi > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
+              {group.title}
+            </DropdownMenuLabel>
+            {group.items.map((fn) => (
+              <DropdownMenuItem
+                key={fn.name}
+                onSelect={() => onInsertFunction(fn.name)}
+                className="flex-col items-start gap-0.5"
+              >
+                <span className="font-mono text-sm">{fn.name}</span>
+                <span className="text-muted-foreground text-xs">{fn.desc}</span>
+              </DropdownMenuItem>
+            ))}
+          </Fragment>
+        ))}
+        <DropdownMenuSeparator />
+        <p className="px-2 py-1.5 text-muted-foreground text-xs">
+          {t("documents:spreadsheet.formula.hint")}
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const historyControls = (
     <div className="flex shrink-0 items-center">
       <Button
@@ -822,6 +901,7 @@ export const SpreadsheetToolbar = ({
       <div className="flex w-full items-center gap-2">
         {fileMenu}
         {historyControls}
+        {functionMenu}
         {labelSpan}
         <Popover>
           <PopoverTrigger asChild>
@@ -896,6 +976,8 @@ export const SpreadsheetToolbar = ({
       </GroupPopover>
       <div className="mx-0.5 h-5 w-px bg-border" aria-hidden />
       {clearButton}
+      <div className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+      {functionMenu}
     </div>
   );
 };
