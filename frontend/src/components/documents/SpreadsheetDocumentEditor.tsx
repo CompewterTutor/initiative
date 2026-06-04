@@ -221,6 +221,11 @@ export const SpreadsheetDocumentEditor = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editingInputRef = useRef<HTMLInputElement>(null);
+  // Set when an edit ends via the keyboard (Enter/Tab/Escape) so focus
+  // returns to the grid — otherwise it falls to <body> as the input
+  // unmounts and type-to-edit on the next cell stops working. A blur
+  // (click-away) leaves this false so focus stays where the user clicked.
+  const refocusGridRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeStartRef = useRef<{ pos: number; size: number }>({ pos: 0, size: 0 });
@@ -535,6 +540,11 @@ export const SpreadsheetDocumentEditor = ({
   useEffect(() => {
     if (editingCellKey && editingInputRef.current) {
       editingInputRef.current.focus();
+    } else if (!editingCellKey && refocusGridRef.current) {
+      // Edit ended via the keyboard: pull focus back to the grid (the
+      // input has now unmounted) so the next keystroke is handled.
+      refocusGridRef.current = false;
+      containerRef.current?.focus();
     }
   }, [editingCellKey]);
 
@@ -702,14 +712,17 @@ export const SpreadsheetDocumentEditor = ({
       switch (e.key) {
         case "Enter":
           e.preventDefault();
+          refocusGridRef.current = true;
           commitEdit({ row: editing.row + 1, col: editing.col });
           return;
         case "Escape":
           e.preventDefault();
+          refocusGridRef.current = true;
           cancelEdit();
           return;
         case "Tab":
           e.preventDefault();
+          refocusGridRef.current = true;
           commitEdit({
             row: editing.row,
             col: e.shiftKey
