@@ -4,6 +4,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type CSSProperties,
+  Fragment,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -25,6 +26,12 @@ import { useSpreadsheetFormatting } from "@/components/documents/spreadsheet/use
 import { useSpreadsheetHistory } from "@/components/documents/spreadsheet/useSpreadsheetHistory";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { matchHistoryShortcut } from "@/hooks/useYjsHistory";
 import { toast } from "@/lib/chesterToast";
 import { downloadBlob } from "@/lib/csv";
@@ -36,6 +43,7 @@ import {
   detectClipboardDelimiter,
   offsetCells,
 } from "@/lib/spreadsheet/csv";
+import { type SortDirection, sortSheetByColumn } from "@/lib/spreadsheet/sort";
 import {
   type CellFmt,
   type ColumnFmt,
@@ -718,6 +726,38 @@ export const SpreadsheetDocumentEditor = ({
     toast.success(t("documents:spreadsheet.importSuccess"));
   }, [pendingImport, replaceAll, formatting, docForData, t]);
 
+  // Sort the whole sheet by a column (right-click a column header). Rows
+  // are reordered as records, keeping every other column aligned; cell
+  // values, per-cell styles, and per-row formatting all travel with the
+  // row. Frozen header rows stay pinned (the sort starts below them).
+  const handleSortColumn = useCallback(
+    (col: number, direction: SortDirection) => {
+      if (readOnly) return;
+      const result = sortSheetByColumn(cells, formatting.cellStyles, formatting.rows, {
+        column: col,
+        direction,
+        startRow: formatting.frozen.rows,
+      });
+      if (!result.changed) return;
+      // One transaction so peers see the reorder atomically and undo
+      // rolls the whole sort back in a single step. The inner store
+      // transacts flatten into this outer one (same pattern as import).
+      docForData.transact(() => {
+        bulkUpdate((draft) => {
+          draft.clear();
+          for (const [key, value] of Object.entries(result.cells)) draft.set(key, value);
+        });
+        formatting.replaceAll({
+          columns: formatting.columns,
+          rows: result.rows,
+          cellStyles: result.cellStyles,
+          frozen: formatting.frozen,
+        });
+      }, "spreadsheet-sort");
+    },
+    [readOnly, cells, formatting, bulkUpdate, docForData]
+  );
+
   // --- column / row resize ----------------------------------------------
   // Listeners are attached synchronously inside startResize (the pointerdown
   // handler) so there is never a gap between "drag started" and "pointerup
@@ -835,8 +875,6 @@ export const SpreadsheetDocumentEditor = ({
   }, [frozenCols, colWidth]);
   const frozenBandHeight = prefixRow[frozenRows] ?? 0;
   const frozenBandWidth = prefixCol[frozenCols] ?? 0;
-  const scrollTop = rowVirtualizer.scrollOffset ?? 0;
-  const scrollLeft = colVirtualizer.scrollOffset ?? 0;
 
   const renderCell = useCallback(
     (r: number, c: number, left: number, top: number) => {
@@ -984,54 +1022,155 @@ export const SpreadsheetDocumentEditor = ({
               className="sticky top-0 left-0 z-30 border-border border-r border-b bg-muted"
               style={{ width: ROW_HEADER_WIDTH, height: COL_HEADER_HEIGHT }}
             />
-            {virtualCols.map((col) => (
-              <button
-                type="button"
-                key={`colh-${col.index}`}
-                onMouseDown={(e) => {
-                  if (e.button !== 0) return;
-                  containerRef.current?.focus();
-                  selectingRef.current = "columns";
-                  selectColumn(col.index, e.shiftKey);
-                }}
-                onMouseEnter={() => {
-                  if (selectingRef.current !== "columns") return;
-                  setSel((p) => ({
-                    anchor: p.anchor,
-                    focus: { row: 0, col: col.index },
-                    mode: "columns",
-                  }));
-                }}
-                className={cn(
-                  "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
-                  colHeaderActive(col.index)
-                    ? "bg-primary/20 text-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}
-                style={{
-                  left: ROW_HEADER_WIDTH + col.start,
-                  top: 0,
-                  width: col.size,
-                  height: COL_HEADER_HEIGHT,
-                }}
-              >
-                {colIndexToLetter(col.index)}
-                {!readOnly && (
-                  <div
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => startResize("col", col.index, e)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      resetSize("col", col.index);
-                    }}
-                    className="absolute top-0 right-0 z-10 h-full cursor-col-resize hover:bg-primary/40"
-                    style={{ width: RESIZE_HANDLE }}
-                    aria-hidden
-                  />
-                )}
-              </button>
-            ))}
+            {virtualCols.map((col) => {
+              const header = (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    containerRef.current?.focus();
+                    selectingRef.current = "columns";
+                    selectColumn(col.index, e.shiftKey);
+                  }}
+                  onContextMenu={() => {
+                    // Highlight the column the menu will act on (right-click
+                    // doesn't go through the left-button onMouseDown path).
+                    containerRef.current?.focus();
+                    selectColumn(col.index);
+                  }}
+                  onMouseEnter={() => {
+                    if (selectingRef.current !== "columns") return;
+                    setSel((p) => ({
+                      anchor: p.anchor,
+                      focus: { row: 0, col: col.index },
+                      mode: "columns",
+                    }));
+                  }}
+                  className={cn(
+                    "absolute flex cursor-pointer items-center justify-center border-border border-r border-b font-mono text-xs",
+                    colHeaderActive(col.index)
+                      ? "bg-primary/20 text-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                  style={{
+                    left: ROW_HEADER_WIDTH + col.start,
+                    top: 0,
+                    width: col.size,
+                    height: COL_HEADER_HEIGHT,
+                  }}
+                >
+                  {colIndexToLetter(col.index)}
+                  {!readOnly && (
+                    <div
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => startResize("col", col.index, e)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        resetSize("col", col.index);
+                      }}
+                      className="absolute top-0 right-0 z-10 h-full cursor-col-resize hover:bg-primary/40"
+                      style={{ width: RESIZE_HANDLE }}
+                      aria-hidden
+                    />
+                  )}
+                </button>
+              );
+              if (readOnly) return <Fragment key={`colh-${col.index}`}>{header}</Fragment>;
+              return (
+                <ContextMenu key={`colh-${col.index}`}>
+                  <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onSelect={() => handleSortColumn(col.index, "asc")}>
+                      {t("documents:spreadsheet.sortAscending")}
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => handleSortColumn(col.index, "desc")}>
+                      {t("documents:spreadsheet.sortDescending")}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            })}
           </div>
+
+          {/* Frozen panes use CSS ``position: sticky`` (compositor-driven)
+              instead of per-frame JS repositioning, so they no longer lag a
+              render behind the scroll. Each band is a zero-size sticky
+              positioning context placed in flow right after the column header
+              (natural top = COL_HEADER_HEIGHT, so it pins there); an opaque
+              backing rect masks the body cells scrolling underneath. Only the
+              axis that should stay frozen gets a sticky inset — the other axis
+              has no inset and scrolls naturally with the body. */}
+
+          {/* Frozen rows band — pinned vertically (sticky top), scrolls
+              horizontally with the body. */}
+          {frozenRows > 0 && (
+            <div
+              className="sticky"
+              style={{ top: COL_HEADER_HEIGHT, width: 0, height: 0, zIndex: 6 }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{
+                  left: ROW_HEADER_WIDTH,
+                  top: 0,
+                  width: totalGridWidth,
+                  height: frozenBandHeight,
+                }}
+              />
+              {virtualCols.map((col) =>
+                col.index < frozenCols
+                  ? null
+                  : Array.from({ length: frozenRows }, (_, r) =>
+                      renderCell(r, col.index, ROW_HEADER_WIDTH + col.start, prefixRow[r])
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen cols band — pinned horizontally (sticky left), scrolls
+              vertically with the body. */}
+          {frozenCols > 0 && (
+            <div
+              className="sticky"
+              style={{ left: ROW_HEADER_WIDTH, width: 0, height: 0, zIndex: 5 }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{ left: 0, top: 0, width: frozenBandWidth, height: totalGridHeight }}
+              />
+              {virtualRows.map((row) =>
+                row.index < frozenRows
+                  ? null
+                  : Array.from({ length: frozenCols }, (_, c) =>
+                      renderCell(row.index, c, prefixCol[c], row.start)
+                    )
+              )}
+            </div>
+          )}
+
+          {/* Frozen corner — pinned on both axes. */}
+          {frozenRows > 0 && frozenCols > 0 && (
+            <div
+              className="sticky"
+              style={{
+                top: COL_HEADER_HEIGHT,
+                left: ROW_HEADER_WIDTH,
+                width: 0,
+                height: 0,
+                zIndex: 7,
+              }}
+            >
+              <div
+                className="absolute bg-background"
+                style={{ left: 0, top: 0, width: frozenBandWidth, height: frozenBandHeight }}
+              />
+              {Array.from({ length: frozenRows }, (_, r) =>
+                Array.from({ length: frozenCols }, (_, c) =>
+                  renderCell(r, c, prefixCol[c], prefixRow[r])
+                )
+              )}
+            </div>
+          )}
 
           {/* Row-header strip — sticky left keeps numbers glued while
               scrolling horizontally. */}
@@ -1099,72 +1238,6 @@ export const SpreadsheetDocumentEditor = ({
                 COL_HEADER_HEIGHT + row.start
               );
             })
-          )}
-
-          {/* Frozen rows band — pinned just below the column header,
-              scrolls horizontally with the body. */}
-          {frozenRows > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH,
-                top: COL_HEADER_HEIGHT + scrollTop,
-                width: totalGridWidth,
-                height: frozenBandHeight,
-                zIndex: 6,
-              }}
-            >
-              {virtualCols.map((col) =>
-                col.index < frozenCols
-                  ? null
-                  : Array.from({ length: frozenRows }, (_, r) =>
-                      renderCell(r, col.index, col.start, prefixRow[r])
-                    )
-              )}
-            </div>
-          )}
-
-          {/* Frozen cols band — pinned right of the row header, scrolls
-              vertically with the body. */}
-          {frozenCols > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH + scrollLeft,
-                top: COL_HEADER_HEIGHT,
-                width: frozenBandWidth,
-                height: totalGridHeight,
-                zIndex: 5,
-              }}
-            >
-              {virtualRows.map((row) =>
-                row.index < frozenRows
-                  ? null
-                  : Array.from({ length: frozenCols }, (_, c) =>
-                      renderCell(row.index, c, prefixCol[c], row.start)
-                    )
-              )}
-            </div>
-          )}
-
-          {/* Frozen corner — pinned on both axes. */}
-          {frozenRows > 0 && frozenCols > 0 && (
-            <div
-              className="absolute bg-background"
-              style={{
-                left: ROW_HEADER_WIDTH + scrollLeft,
-                top: COL_HEADER_HEIGHT + scrollTop,
-                width: frozenBandWidth,
-                height: frozenBandHeight,
-                zIndex: 7,
-              }}
-            >
-              {Array.from({ length: frozenRows }, (_, r) =>
-                Array.from({ length: frozenCols }, (_, c) =>
-                  renderCell(r, c, prefixCol[c], prefixRow[r])
-                )
-              )}
-            </div>
           )}
         </div>
       </div>

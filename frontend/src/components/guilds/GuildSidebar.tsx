@@ -210,7 +210,7 @@ const SortableGuildButton = ({
           >
             {isActive && isHomeMode ? (
               <span
-                className="-translate-x-1/2 absolute -bottom-2 left-1/2 z-10 mt-1 h-1 w-7 rounded-full bg-primary/60"
+                className="absolute·-bottom-2·left-1/2·z-10·mt-1·h-1·w-7·-translate-x-1/2·rounded-full·bg-primary/60"
                 aria-hidden="true"
               />
             ) : null}
@@ -373,7 +373,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
             <p>{t("nav:home")}</p>
           </TooltipContent>
         </Tooltip>
-        <div className="flex flex-col items-center gap-3 overflow-y-auto border-t pt-3">
+        <div className="flex flex-col items-center gap-3 overflow-y-auto border-t py-3">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}

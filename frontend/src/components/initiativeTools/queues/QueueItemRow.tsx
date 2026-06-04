@@ -47,8 +47,7 @@ export const QueueItemRow = ({
   };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a native <button> would make
-    // nested interactive children (the Act button on held rows) invalid HTML.
+    // biome-ignore lint/a11y/useSemanticElements: a native <button> would make nested interactive children (the Act button on held rows) invalid HTML.
     <div
       role="button"
       tabIndex={0}
