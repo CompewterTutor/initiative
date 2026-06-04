@@ -16,6 +16,14 @@ import { useYjsHistory, type YjsHistory } from "@/hooks/useYjsHistory";
 // "spreadsheet-fmt-bootstrap") are intentionally excluded so hydrating
 // a fresh doc is never undoable. CSV/XLSX import IS included so a
 // fat-fingered import is a single undo step.
+//
+// IMPORTANT: an action that wraps several store mutations in an *outer*
+// `doc.transact(fn, origin)` must list that OUTER origin here, not the
+// inner store origins. Yjs flattens nested transacts and keeps only the
+// outermost origin, so "spreadsheet-sort" / "spreadsheet-structure" (the
+// sort and row/column insert/delete wrappers) are what the UndoManager
+// actually sees — the inner "spreadsheet-bulk" / "spreadsheet-fmt-*"
+// origins never surface for those ops.
 const SPREADSHEET_UNDO_ORIGINS = [
   "spreadsheet-edit",
   "spreadsheet-bulk",
@@ -24,6 +32,8 @@ const SPREADSHEET_UNDO_ORIGINS = [
   "spreadsheet-fmt-batch",
   "spreadsheet-fmt-replace-all",
   "spreadsheet-import",
+  "spreadsheet-sort",
+  "spreadsheet-structure",
 ] as const;
 
 // The shared maps the data hooks mutate. `getMap` is idempotent, so

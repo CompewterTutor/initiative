@@ -1,7 +1,9 @@
+import { act, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import { createYjsUndoManager, matchHistoryShortcut } from "./useYjsHistory";
+import { createYjsUndoManager, matchHistoryShortcut, useYjsHistory } from "./useYjsHistory";
 
 const TRACKED = ["spreadsheet-edit"];
 const scope = (d: Y.Doc) => [d.getMap("cells"), d.getMap("meta")];
@@ -64,6 +66,31 @@ describe("createYjsUndoManager", () => {
     um.undo();
     expect(cells.has("0:1")).toBe(false);
     expect(cells.get("0:0")).toBe("a");
+  });
+});
+
+describe("useYjsHistory (React lifecycle)", () => {
+  it("still tracks edits after a StrictMode mount/remount cycle", () => {
+    const doc = new Y.Doc();
+    const cells = doc.getMap("cells");
+    const { result } = renderHook(
+      () => useYjsHistory({ doc, getScope: scope, trackedOrigins: TRACKED }),
+      { wrapper: StrictMode }
+    );
+
+    expect(result.current.canUndo).toBe(false);
+
+    // A tracked edit after the (double-invoked) effects have settled must
+    // still flip canUndo — i.e. the UndoManager survived StrictMode's
+    // simulated unmount and is still observing the doc.
+    act(() => {
+      doc.transact(() => cells.set("0:0", "a"), "spreadsheet-edit");
+    });
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => result.current.undo());
+    expect(cells.has("0:0")).toBe(false);
+    expect(result.current.canRedo).toBe(true);
   });
 });
 
