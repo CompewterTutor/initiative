@@ -400,6 +400,10 @@
     "deleteRows_other": "Eliminar {{count}} filas",
     "deleteLastRowBlocked": "No se puede eliminar la única fila.",
     "deleteLastColumnBlocked": "No se puede eliminar la única columna.",
+    "deleteLastRowKept": "Se mantuvo la última fila: una hoja de cálculo necesita al menos una.",
+    "deleteLastColumnKept": "Se mantuvo la última columna: una hoja de cálculo necesita al menos una.",
+    "insertRowsCapped": "Se alcanzó el número máximo de filas; se añadieron todas las que cupieron.",
+    "insertColumnsCapped": "Se alcanzó el número máximo de columnas; se añadieron todas las que cupieron.",
     "maxRowsReached": "Esta hoja de cálculo ya tiene el número máximo de filas.",
     "maxColumnsReached": "Esta hoja de cálculo ya tiene el número máximo de columnas.",
     "format": {

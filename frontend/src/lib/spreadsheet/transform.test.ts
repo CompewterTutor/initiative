@@ -92,6 +92,16 @@ describe("transformSheet — insert rows", () => {
     );
     expect(result).toBeNull();
   });
+
+  it("caps an insert that only partly fits and flags it", () => {
+    // Room for 2 more rows but 5 requested → insert 2, report capped.
+    const result = run(
+      sheet({ dimensions: { rows: 99_998, cols: 26 } }),
+      op({ axis: "row", mode: "insert", at: 0, count: 5 })
+    );
+    expect(result.dimensions.rows).toBe(100_000);
+    expect(result.capped).toBe(true);
+  });
 });
 
 describe("transformSheet — delete rows", () => {
@@ -127,6 +137,25 @@ describe("transformSheet — delete rows", () => {
       op({ axis: "row", mode: "delete", at: 0, count: 1 })
     );
     expect(result).toBeNull();
+  });
+
+  it("caps a full-sheet delete to keep the last row and flags it", () => {
+    // Selecting all 4 rows and deleting keeps one and reports capped.
+    const result = run(
+      sheet({ dimensions: { rows: 4, cols: 26 } }),
+      op({ axis: "row", mode: "delete", at: 0, count: 4 })
+    );
+    expect(result.dimensions.rows).toBe(1);
+    expect(result.capped).toBe(true);
+  });
+
+  it("does not flag capped when the delete fits", () => {
+    const result = run(
+      sheet({ dimensions: { rows: 4, cols: 26 } }),
+      op({ axis: "row", mode: "delete", at: 1, count: 2 })
+    );
+    expect(result.dimensions.rows).toBe(2);
+    expect(result.capped).toBe(false);
   });
 });
 

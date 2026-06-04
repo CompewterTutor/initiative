@@ -37,6 +37,12 @@ export interface TransformResult {
   rows: Record<string, RowFmt>;
   frozen: { rows: number; cols: number };
   dimensions: { rows: number; cols: number };
+  /** True when fewer lines than requested were applied — the op partly
+   *  succeeded but a guard capped it (delete left the last line standing,
+   *  or insert hit the grid cap with room for only some). Lets the caller
+   *  surface a hint so the leftover line / missing inserts aren't a silent
+   *  mystery. A full no-op returns ``null`` instead. */
+  capped: boolean;
 }
 
 export interface LineOp {
@@ -73,8 +79,9 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
   const frozen = axisIsRow ? s.frozen.rows : s.frozen.cols;
   const at = Math.max(0, Math.trunc(op.at));
 
-  let count = Math.max(0, Math.trunc(op.count));
-  if (count === 0) return null;
+  const requested = Math.max(0, Math.trunc(op.count));
+  if (requested === 0) return null;
+  let count = requested;
 
   // Build the old-index -> new-index mapper (null = the line is deleted)
   // and the post-op axis dimension + frozen count.
@@ -147,5 +154,6 @@ export const transformSheet = (s: SheetStructures, op: LineOp): TransformResult 
     dimensions: axisIsRow
       ? { rows: newDim, cols: s.dimensions.cols }
       : { rows: s.dimensions.rows, cols: newDim },
+    capped: count < requested,
   };
 };

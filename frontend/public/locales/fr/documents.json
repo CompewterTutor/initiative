@@ -400,6 +400,10 @@
     "deleteRows_other": "Supprimer {{count}} lignes",
     "deleteLastRowBlocked": "Impossible de supprimer la seule ligne.",
     "deleteLastColumnBlocked": "Impossible de supprimer la seule colonne.",
+    "deleteLastRowKept": "La dernière ligne a été conservée : une feuille de calcul doit en avoir au moins une.",
+    "deleteLastColumnKept": "La dernière colonne a été conservée : une feuille de calcul doit en avoir au moins une.",
+    "insertRowsCapped": "Nombre maximal de lignes atteint ; autant que possible ont été ajoutées.",
+    "insertColumnsCapped": "Nombre maximal de colonnes atteint ; autant que possible ont été ajoutées.",
     "maxRowsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de lignes.",
     "maxColumnsReached": "Cette feuille de calcul a déjà atteint le nombre maximal de colonnes.",
     "format": {

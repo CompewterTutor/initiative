@@ -824,6 +824,20 @@ export const SpreadsheetDocumentEditor = ({
           frozen: result.frozen,
         });
       }, "spreadsheet-structure");
+      if (result.capped) {
+        // Fewer lines than requested were applied — a guard kept the last
+        // line (delete) or the grid cap left room for only some (insert).
+        // Hint so the leftover/missing line isn't a silent mystery.
+        const cappedKey =
+          op.mode === "delete"
+            ? op.axis === "row"
+              ? "spreadsheet.deleteLastRowKept"
+              : "spreadsheet.deleteLastColumnKept"
+            : op.axis === "row"
+              ? "spreadsheet.insertRowsCapped"
+              : "spreadsheet.insertColumnsCapped";
+        toast.info(t(`documents:${cappedKey}`));
+      }
     },
     [readOnly, cells, formatting, dimensions, replaceAll, docForData, t]
   );
