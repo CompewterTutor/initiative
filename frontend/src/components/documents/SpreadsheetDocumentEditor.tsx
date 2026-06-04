@@ -201,6 +201,14 @@ export const SpreadsheetDocumentEditor = ({
     mode: "range" | "columns" | "rows";
   }>({ anchor: { row: 0, col: 0 }, focus: { row: 0, col: 0 }, mode: "range" });
   const [editing, setEditing] = useState<{ row: number; col: number; draft: string } | null>(null);
+  // A pending cut (Excel-style "move"): the source rectangle and a snapshot
+  // of its raw cell payload (keyed by offset from the top-left, formulas
+  // preserved). The source isn't cleared until the next paste consumes it,
+  // so an un-pasted cut is non-destructive. ``cancelCut`` drops the marquee.
+  const [cut, setCut] = useState<{
+    box: { r1: number; r2: number; c1: number; c2: number };
+    payload: Record<string, CellValue>;
+  } | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   // Which header/cell drag is in progress (null = not dragging).
   const selectingRef = useRef<null | "range" | "columns" | "rows">(null);
@@ -465,6 +473,7 @@ export const SpreadsheetDocumentEditor = ({
   const beginEdit = useCallback(
     (row: number, col: number, initialDraft?: string) => {
       if (readOnly) return;
+      setCut(null); // starting an edit cancels a pending cut (Excel behavior)
       const existing = cells.get(keyOf(row, col));
       const initial =
         initialDraft !== undefined ? initialDraft : existing == null ? "" : String(existing);
@@ -531,6 +540,7 @@ export const SpreadsheetDocumentEditor = ({
   // actually hold data (the map is sparse) so a clear is bounded.
   const clearSelection = useCallback(() => {
     if (readOnly) return;
+    setCut(null);
     const { r1, r2, c1, c2 } = selBox;
     bulkUpdate((draft) => {
       if (sel.mode === "range") {
@@ -548,6 +558,65 @@ export const SpreadsheetDocumentEditor = ({
     });
   }, [readOnly, sel.mode, selBox, bulkUpdate]);
 
+  // Resolve a cell to the value that should leave the editor (copy / cut /
+  // file export): a formula yields its computed result (or error token), a
+  // literal yields itself. Keeps exported files and pastes as data, never
+  // raw ``=...`` text whose relative refs wouldn't survive the move.
+  const resolveExport = useCallback(
+    (row: number, col: number): CellValue => {
+      const v = cells.get(keyOf(row, col)) ?? null;
+      if (!isFormula(v)) return v;
+      const { value, error } = evaluator.evaluate(row, col);
+      return error ?? value;
+    },
+    [cells, evaluator]
+  );
+
+  // Serialize the current selection to TSV of computed values, the
+  // Sheets/Excel clipboard convention. Column/row selections serialize
+  // just the focus cell (a whole column would be unbounded).
+  const selectionToTsv = useCallback((): string => {
+    if (sel.mode === "range") {
+      const { r1, r2, c1, c2 } = selBox;
+      const lines: string[] = [];
+      for (let r = r1; r <= r2; r++) {
+        const cols: string[] = [];
+        for (let c = c1; c <= c2; c++) {
+          const v = resolveExport(r, c);
+          cols.push(v == null ? "" : String(v));
+        }
+        lines.push(cols.join("\t"));
+      }
+      return lines.join("\n");
+    }
+    const v = resolveExport(sel.focus.row, sel.focus.col);
+    return v == null ? "" : String(v);
+  }, [sel.mode, sel.focus, selBox, resolveExport]);
+
+  // Cut = move. Snapshot the source rectangle's raw cells (formulas kept
+  // verbatim) and mark it with a marquee; the source is only cleared when
+  // a paste consumes the cut (see handlePaste). Also writes computed values
+  // to the OS clipboard so the cut block can be pasted into other apps.
+  // Driven from the keyboard (Ctrl/Cmd+X) because the browser doesn't fire
+  // a native ``cut`` event on a non-editable grid.
+  const handleCut = useCallback(() => {
+    if (readOnly || editing) return;
+    const box =
+      sel.mode === "range"
+        ? selBox
+        : { r1: sel.focus.row, r2: sel.focus.row, c1: sel.focus.col, c2: sel.focus.col };
+    const payload: Record<string, CellValue> = {};
+    for (let r = box.r1; r <= box.r2; r++) {
+      for (let c = box.c1; c <= box.c2; c++) {
+        const v = cells.get(keyOf(r, c));
+        if (v != null) payload[keyOf(r - box.r1, c - box.c1)] = v;
+      }
+    }
+    const tsv = selectionToTsv();
+    if (tsv) void navigator.clipboard?.writeText(tsv).catch(() => {});
+    setCut({ box, payload });
+  }, [readOnly, editing, sel.mode, sel.focus, selBox, cells, selectionToTsv]);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (editing) return;
@@ -559,8 +628,21 @@ export const SpreadsheetDocumentEditor = ({
         else redoHistory();
         return;
       }
+      // Cut (Ctrl/Cmd+X) — the grid div gets no native ``cut`` event, so we
+      // drive it from the keyboard. Copy/paste still use the native events.
+      if ((e.ctrlKey || e.metaKey) && (e.key === "x" || e.key === "X")) {
+        e.preventDefault();
+        handleCut();
+        return;
+      }
       const { row, col } = sel.focus;
       switch (e.key) {
+        case "Escape":
+          if (cut) {
+            e.preventDefault();
+            setCut(null);
+          }
+          return;
         case "ArrowDown":
           e.preventDefault();
           moveSelection(1, 0, e.shiftKey);
@@ -600,6 +682,8 @@ export const SpreadsheetDocumentEditor = ({
     [
       editing,
       readOnly,
+      cut,
+      handleCut,
       undoHistory,
       redoHistory,
       sel.focus,
@@ -638,10 +722,30 @@ export const SpreadsheetDocumentEditor = ({
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
       if (editing || readOnly) return;
+      const { row, col } = sel.focus;
+      // A pending cut takes precedence over the clipboard text: move the
+      // snapshot to the focus cell and clear the source, in one transaction
+      // (one undo step, one peer update). Formulas move verbatim — their
+      // references stay pointing where they did, matching Excel's cut.
+      if (cut) {
+        e.preventDefault();
+        const placed = offsetCells(cut.payload, row, col);
+        const { r1, r2, c1, c2 } = cut.box;
+        bulkUpdate((draft) => {
+          for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) draft.delete(keyOf(r, c));
+          for (const [key, value] of Object.entries(placed)) draft.set(key, value);
+        });
+        setSel({
+          anchor: { row, col },
+          focus: { row: row + (r2 - r1), col: col + (c2 - c1) },
+          mode: "range",
+        });
+        setCut(null);
+        return;
+      }
       const text = e.clipboardData.getData("text/plain");
       if (!text) return;
       e.preventDefault();
-      const { row, col } = sel.focus;
       if (!text.includes("\n") && !text.includes("\t") && !text.includes(",")) {
         setCell(row, col, coerceScalar(text));
         return;
@@ -653,52 +757,19 @@ export const SpreadsheetDocumentEditor = ({
         for (const [key, value] of Object.entries(offset)) draft.set(key, value);
       });
     },
-    [editing, readOnly, sel.focus, setCell, bulkUpdate]
-  );
-
-  // Resolve a cell to the value that should leave the editor (copy / file
-  // export): a formula yields its computed result (or error token), a
-  // literal yields itself. Keeps exported files and pastes as data, never
-  // raw ``=...`` text whose relative refs wouldn't survive the move.
-  const resolveExport = useCallback(
-    (row: number, col: number): CellValue => {
-      const v = cells.get(keyOf(row, col)) ?? null;
-      if (!isFormula(v)) return v;
-      const { value, error } = evaluator.evaluate(row, col);
-      return error ?? value;
-    },
-    [cells, evaluator]
+    [editing, readOnly, cut, sel.focus, setCell, bulkUpdate]
   );
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
       if (editing) return;
-      // Range selections copy the rectangle as TSV (Sheets/Excel
-      // convention). Column/row selections copy just the active cell —
-      // serializing an entire column would be unbounded.
-      if (sel.mode === "range") {
-        const { r1, r2, c1, c2 } = selBox;
-        const lines: string[] = [];
-        for (let r = r1; r <= r2; r++) {
-          const cols: string[] = [];
-          for (let c = c1; c <= c2; c++) {
-            const v = resolveExport(r, c);
-            cols.push(v == null ? "" : String(v));
-          }
-          lines.push(cols.join("\t"));
-        }
-        const text = lines.join("\n");
-        if (text === "") return;
-        e.preventDefault();
-        e.clipboardData.setData("text/plain", text);
-        return;
-      }
-      const value = resolveExport(sel.focus.row, sel.focus.col);
-      if (value == null) return;
+      setCut(null); // a fresh copy supersedes any pending cut
+      const text = selectionToTsv();
+      if (text === "") return;
       e.preventDefault();
-      e.clipboardData.setData("text/plain", String(value));
+      e.clipboardData.setData("text/plain", text);
     },
-    [editing, resolveExport, sel.mode, sel.focus, selBox]
+    [editing, selectionToTsv]
   );
 
   const handleExportCsv = useCallback(() => {
@@ -810,6 +881,7 @@ export const SpreadsheetDocumentEditor = ({
   const handleSortColumn = useCallback(
     (col: number, direction: SortDirection) => {
       if (readOnly) return;
+      setCut(null); // reordering rows would strand the cut marquee
       const result = sortSheetByColumn(cells, formatting.cellStyles, formatting.rows, {
         column: col,
         direction,
@@ -846,6 +918,7 @@ export const SpreadsheetDocumentEditor = ({
   const applyLineTransform = useCallback(
     (op: Pick<LineOp, "axis" | "mode" | "at" | "count">) => {
       if (readOnly) return;
+      setCut(null); // shifting lines would strand the cut marquee
       const result = transformSheet(
         {
           cells,
@@ -1089,6 +1162,9 @@ export const SpreadsheetDocumentEditor = ({
             : formatCellValue(resolved, numberFormat);
       const isBoolean = typeof value === "boolean" && !numberFormat;
       const peer = peerSelectionsByCell.get(keyOf(r, c));
+      const inCut = cut
+        ? r >= cut.box.r1 && r <= cut.box.r2 && c >= cut.box.c1 && c <= cut.box.c2
+        : false;
       const cellCss = styleToCss(resolveCellStyle(r, c, formatting));
       // A formula error, or a red/redParens negative number, wins over any
       // explicit text color (Excel's numFmt color section overrides font).
@@ -1100,6 +1176,7 @@ export const SpreadsheetDocumentEditor = ({
           cellCss={cellCss}
           isActive={isActive}
           inSelection={isInSel(r, c)}
+          inCut={inCut}
           isEditing={Boolean(isEditing)}
           display={display}
           title={error ?? undefined}
@@ -1142,6 +1219,7 @@ export const SpreadsheetDocumentEditor = ({
       formatting,
       sel.focus,
       isInSel,
+      cut,
       editing,
       readOnly,
       peerSelectionsByCell,
@@ -1601,6 +1679,8 @@ interface CellViewProps {
   isActive: boolean;
   /** Inside the current selection (but not the focus cell). */
   inSelection: boolean;
+  /** Inside the pending-cut source — draws a dashed "move" marquee. */
+  inCut: boolean;
   isEditing: boolean;
   display: string;
   /** Tooltip text — used to surface a formula error token (e.g. #DIV/0!). */
@@ -1625,6 +1705,7 @@ const CellView = ({
   cellCss,
   isActive,
   inSelection,
+  inCut,
   isEditing,
   display,
   title,
@@ -1679,6 +1760,11 @@ const CellView = ({
       <div className="pointer-events-none absolute inset-0 bg-primary/15" />
     ) : null;
 
+  // Dashed "move" marquee on a cell awaiting a cut-paste.
+  const cutOverlay = inCut ? (
+    <div className="pointer-events-none absolute inset-0 z-[1] border-2 border-primary border-dashed" />
+  ) : null;
+
   if (isEditing) {
     return (
       <div className={baseClass} style={containerStyle}>
@@ -1715,6 +1801,7 @@ const CellView = ({
           aria-label={booleanValue ? "true" : "false"}
         />
         {selectionOverlay}
+        {cutOverlay}
         {peerOverlay}
       </div>
     );
@@ -1732,6 +1819,7 @@ const CellView = ({
     >
       <span className="w-full truncate">{display}</span>
       {selectionOverlay}
+      {cutOverlay}
       {peerOverlay}
     </div>
   );
