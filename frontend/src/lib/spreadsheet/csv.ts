@@ -19,7 +19,11 @@ import { boundingBox, type CellValue, keyOf, parseKey } from "./coords";
  * Numbers / Excel use when interpreting CSV booleans on import).
  */
 export const cellsToCsv = (
-  cells: Record<string, CellValue> | ReadonlyMap<string, CellValue>
+  cells: Record<string, CellValue> | ReadonlyMap<string, CellValue>,
+  /** Optional per-cell resolver. When supplied, its return value is what's
+   *  serialized — used so formula cells export their *computed* value
+   *  (or error token) rather than the raw ``=...`` text. */
+  resolve?: (row: number, col: number) => CellValue
 ): string => {
   const lookup =
     cells instanceof Map
@@ -31,7 +35,7 @@ export const cellsToCsv = (
   for (let r = 0; r < rows; r++) {
     const row: string[] = [];
     for (let c = 0; c < cols; c++) {
-      const value = lookup(keyOf(r, c));
+      const value = resolve ? resolve(r, c) : lookup(keyOf(r, c));
       row.push(value == null ? "" : String(value));
     }
     grid.push(row);

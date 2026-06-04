@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as Y from "yjs";
 
 /**
@@ -119,19 +119,23 @@ export const useYjsHistory = ({
     timeoutRef.current = captureTimeout;
   });
 
-  const manager = useMemo(
-    () =>
-      createYjsUndoManager(doc, {
-        getScope: (d) => getScopeRef.current(d),
-        trackedOrigins: trackedRef.current,
-        captureTimeout: timeoutRef.current,
-      }),
-    [doc]
-  );
-
+  // The manager is created *inside* the effect — not in `useMemo` — so its
+  // construction is paired with the `destroy()` cleanup in the same effect.
+  // Under React StrictMode (and any future remount) the effect's
+  // mount→cleanup→mount cycle would otherwise destroy a `useMemo`-built
+  // manager and never rebuild it (the memo deps are unchanged), leaving a
+  // dead manager that observes nothing and never lights up undo/redo.
+  // A ref exposes the live manager to the stable undo/redo/clear callbacks.
+  const managerRef = useRef<Y.UndoManager | null>(null);
   const [state, setState] = useState({ canUndo: false, canRedo: false });
 
   useEffect(() => {
+    const manager = createYjsUndoManager(doc, {
+      getScope: (d) => getScopeRef.current(d),
+      trackedOrigins: trackedRef.current,
+      captureTimeout: timeoutRef.current,
+    });
+    managerRef.current = manager;
     if (!manager) {
       setState({ canUndo: false, canRedo: false });
       return;
@@ -149,12 +153,13 @@ export const useYjsHistory = ({
       // destroy() detaches all listeners and stops tracking; safe even
       // if the doc is being torn down.
       manager.destroy();
+      managerRef.current = null;
     };
-  }, [manager]);
+  }, [doc]);
 
-  const undo = useCallback(() => manager?.undo(), [manager]);
-  const redo = useCallback(() => manager?.redo(), [manager]);
-  const clear = useCallback(() => manager?.clear(), [manager]);
+  const undo = useCallback(() => managerRef.current?.undo(), []);
+  const redo = useCallback(() => managerRef.current?.redo(), []);
+  const clear = useCallback(() => managerRef.current?.clear(), []);
 
   return { undo, redo, canUndo: state.canUndo, canRedo: state.canRedo, clear };
 };
