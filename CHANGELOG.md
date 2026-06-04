@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cut and move cells in spreadsheets.** Press Ctrl/Cmd+X to cut a cell or range — the source gets a dashed marquee and is left untouched until you paste, at which point the cells (formulas and all) move to the new location. Press Escape, copy, or start editing to cancel the cut.
 - **Insert and delete spreadsheet rows and columns.** Right-click a row or column header in a spreadsheet document to insert a line before or after (above/below for rows, left/right for columns), or delete the selected line(s). The "Insert multiple…" submenu takes a count so you can add several rows or columns at once. Existing cells, styles, number formats, and frozen panes all shift to stay aligned, and selecting a band of headers first lets you insert next to — or delete — the whole range at once.
 
+### Fixed
+
+- **Type straight into the next spreadsheet cell after Enter/Tab.** Committing a cell edit with Enter or Tab kept keyboard focus on the grid, so you can immediately start typing into the newly selected cell instead of having to click it first.
+
 ## [0.49.2] - 2026-06-03
 
 ### Added
