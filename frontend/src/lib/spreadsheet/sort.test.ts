@@ -46,6 +46,15 @@ describe("sortSheetByColumn", () => {
     expect(column(result.cells, 0, 3)).toEqual([5, "x", true]);
   });
 
+  it("reverses the full cross-type order when descending (Excel parity)", () => {
+    // Excel descending reverses the whole order — booleans, then text,
+    // then numbers — with blanks still pinned last. Negating the
+    // ascending comparator (including the type rank) gives exactly that.
+    const cells = cellMap({ "0:0": 5, "1:0": "x", "2:0": true });
+    const result = sortSheetByColumn(cells, {}, {}, { column: 0, direction: "desc" });
+    expect(column(result.cells, 0, 3)).toEqual([true, "x", 5]);
+  });
+
   it("always sinks blanks to the bottom, even descending", () => {
     // Blanks keep their original relative order (null from row 1 before
     // "" from row 3) and their stored value is preserved verbatim.
