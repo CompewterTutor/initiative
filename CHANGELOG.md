@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.4] - 2026-06-04
+
 ### Fixed
 
 - **Type straight into the next spreadsheet cell after Enter/Tab.** Committing a cell edit with Enter or Tab kept keyboard focus on the grid, so you can immediately start typing into the newly selected cell instead of having to click it first.
