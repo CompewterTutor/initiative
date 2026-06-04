@@ -378,6 +378,8 @@
     "importConfirmDescription": "L'importation d'un fichier écrasera toutes les cellules de cette feuille de calcul (et, pour les fichiers Excel, sa mise en forme). Cette action est irréversible.",
     "importConfirmAction": "Importer et remplacer",
     "importSuccess": "Feuille de calcul importée",
+    "sortAscending": "Trier A → Z",
+    "sortDescending": "Trier Z → A",
     "format": {
       "scopeCell": "Cellule",
       "scopeColumn": "Colonne",

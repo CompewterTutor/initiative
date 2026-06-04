@@ -378,6 +378,8 @@
     "importConfirmDescription": "Importar un archivo sobrescribirá todas las celdas de esta hoja de cálculo (y, para archivos de Excel, su formato). Esto no se puede deshacer.",
     "importConfirmAction": "Importar y reemplazar",
     "importSuccess": "Hoja de cálculo importada",
+    "sortAscending": "Ordenar A → Z",
+    "sortDescending": "Ordenar Z → A",
     "format": {
       "scopeCell": "Celda",
       "scopeColumn": "Columna",
