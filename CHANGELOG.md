@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Insert and delete spreadsheet rows and columns.** Right-click a row or column header in a spreadsheet document to insert a line before or after (above/below for rows, left/right for columns), or delete the selected line(s). The "Insert multiple…" submenu takes a count so you can add several rows or columns at once. Existing cells, styles, number formats, and frozen panes all shift to stay aligned, and selecting a band of headers first lets you insert next to — or delete — the whole range at once.
+
 ## [0.49.2] - 2026-06-03
 
 ### Added
