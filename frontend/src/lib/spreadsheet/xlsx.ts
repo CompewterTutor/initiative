@@ -198,7 +198,11 @@ const numFmtToPreset = (numFmt: unknown): NumberFormat | undefined => {
 export const cellsToXlsx = async (
   cells: ReadonlyMap<string, CellValue> | Record<string, CellValue>,
   formatting: SpreadsheetFormatting,
-  documentTitle: string
+  documentTitle: string,
+  /** Optional per-cell resolver. When supplied, formula cells export their
+   *  *computed* value (or error token) instead of the raw ``=...`` text;
+   *  cell existence / styling still keys off the stored value. */
+  resolve?: (row: number, col: number) => CellValue
 ): Promise<Blob> => {
   const { Workbook } = await import("exceljs");
   const wb = new Workbook();
@@ -213,12 +217,13 @@ export const cellsToXlsx = async (
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const raw = lookup(keyOf(r, c));
+      const exportValue = resolve ? resolve(r, c) : raw;
       const style = resolveCellStyle(r, c, formatting);
       const fmt = resolveCellFormat(r, c, formatting);
       const hasStyle = Object.keys(style).length > 0;
       if (raw == null && !hasStyle && !fmt) continue;
       const cell = ws.getCell(r + 1, c + 1);
-      if (raw != null) cell.value = raw as string | number | boolean;
+      if (exportValue != null) cell.value = exportValue as string | number | boolean;
       if (
         style.bold ||
         style.italic ||

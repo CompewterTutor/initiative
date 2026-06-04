@@ -406,6 +406,24 @@
     "insertColumnsCapped": "Reached the maximum number of columns; added as many as would fit.",
     "maxRowsReached": "This spreadsheet is already at its maximum number of rows.",
     "maxColumnsReached": "This spreadsheet is already at its maximum number of columns.",
+    "formula": {
+      "menu": "Functions",
+      "menuLabel": "Insert function",
+      "hint": "Tip: select a range first and an aggregate fills it in for you.",
+      "aggregateGroup": "Aggregate",
+      "otherGroup": "Logic & math",
+      "desc": {
+        "SUM": "Add up a range of cells",
+        "AVERAGE": "Average of a range",
+        "MIN": "Smallest value in a range",
+        "MAX": "Largest value in a range",
+        "COUNT": "Count cells containing numbers",
+        "COUNTA": "Count cells that aren't empty",
+        "IF": "One value if a test passes, another if not",
+        "ROUND": "Round a number to N decimals",
+        "ABS": "Absolute (non-negative) value"
+      }
+    },
     "format": {
       "scopeCell": "Cell",
       "scopeColumn": "Column",

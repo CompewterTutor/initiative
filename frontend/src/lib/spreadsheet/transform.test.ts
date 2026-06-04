@@ -191,3 +191,49 @@ describe("transformSheet — columns", () => {
     expect(result.dimensions.cols).toBe(11);
   });
 });
+
+describe("transformSheet — formula reference rewriting", () => {
+  it("shifts references in both moved and unmoved formulas on row insert", () => {
+    // Insert 1 row at row 5. C1 (0:2) stays put but references A7 (below
+    // the insert) so its ref shifts to A8; A7 (6:0) moves down to A8 and
+    // its ref shifts too.
+    const cells = cellMap({ "0:2": "=A7", "6:0": "=A7+1" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "insert", at: 5 }));
+    expect(result.cells[keyOf(0, 2)]).toBe("=A8"); // unmoved cell, ref shifted
+    expect(result.cells[keyOf(7, 0)]).toBe("=A8+1"); // moved from 6:0 to 7:0
+  });
+
+  it("rewrites column references on column insert", () => {
+    const cells = cellMap({ "0:0": "=B1*2" });
+    const result = run(sheet({ cells }), op({ axis: "col", mode: "insert", at: 0 }));
+    expect(result.cells[keyOf(0, 1)]).toBe("=C1*2"); // cell moved A->B, ref B->C
+  });
+
+  it("shrinks a range on interior row delete", () => {
+    const cells = cellMap({ "0:0": "=SUM(A2:A11)" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 4 }));
+    expect(result.cells[keyOf(0, 0)]).toBe("=SUM(A2:A10)");
+  });
+
+  it("turns a reference to a deleted row into #REF!", () => {
+    const cells = cellMap({ "0:0": "=A5" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 4 }));
+    expect(result.cells[keyOf(0, 0)]).toBe("=#REF!");
+  });
+
+  it("collapses a range to #REF! when a range endpoint row is deleted", () => {
+    // Delete the row A2 sits on (the range's start) — the whole range
+    // collapses rather than producing the invalid =SUM(#REF!:A10).
+    const cells = cellMap({ "0:0": "=SUM(A2:A11)" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "delete", at: 1 }));
+    expect(result.cells[keyOf(0, 0)]).toBe("=SUM(#REF!)");
+  });
+
+  it("leaves non-formula values untouched", () => {
+    const cells = cellMap({ "5:0": "=A1 plain", "6:0": "literal" });
+    const result = run(sheet({ cells }), op({ axis: "row", mode: "insert", at: 0 }));
+    // "=A1 plain" is a formula string; "A1" has a trailing space then text,
+    // so the ref still rewrites, but the surrounding text is preserved.
+    expect(result.cells[keyOf(7, 0)]).toBe("literal");
+  });
+});
