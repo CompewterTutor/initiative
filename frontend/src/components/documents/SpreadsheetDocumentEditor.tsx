@@ -824,6 +824,35 @@ export const SpreadsheetDocumentEditor = ({
           frozen: result.frozen,
         });
       }, "spreadsheet-structure");
+
+      // Remap the selection along the shifted axis so it tracks the same
+      // content — otherwise an insert-above leaves the stale band straddling
+      // the freshly inserted blank lines, and a later right-click would
+      // delete more than intended. ``delta`` is signed and respects capping:
+      // > 0 inserted, < 0 deleted.
+      const axisIsRow = op.axis === "row";
+      const at = Math.max(0, Math.trunc(op.at));
+      const delta =
+        (axisIsRow ? result.dimensions.rows : result.dimensions.cols) -
+        (axisIsRow ? dimensions.rows : dimensions.cols);
+      const newDim = axisIsRow ? result.dimensions.rows : result.dimensions.cols;
+      const remapIdx = (i: number): number => {
+        if (delta >= 0) return i >= at ? i + delta : i; // insert
+        const removed = -delta;
+        if (i < at) return i;
+        if (i >= at + removed) return i - removed;
+        return Math.min(at, newDim - 1); // line was inside the deleted band
+      };
+      setSel((p) => ({
+        mode: p.mode,
+        anchor: axisIsRow
+          ? { row: remapIdx(p.anchor.row), col: p.anchor.col }
+          : { row: p.anchor.row, col: remapIdx(p.anchor.col) },
+        focus: axisIsRow
+          ? { row: remapIdx(p.focus.row), col: p.focus.col }
+          : { row: p.focus.row, col: remapIdx(p.focus.col) },
+      }));
+
       if (result.capped) {
         // Fewer lines than requested were applied — a guard kept the last
         // line (delete) or the grid cap left room for only some (insert).
@@ -1389,6 +1418,10 @@ export const SpreadsheetDocumentEditor = ({
 /** Largest N the "insert multiple" stepper accepts; the transform also
  *  clamps to the remaining grid capacity, this just keeps the input sane. */
 const MAX_INSERT_N = 1_000;
+/** Stepper default — reset on every menu open so a value typed for one
+ *  header never bleeds into another (the menus are keyed by index, so React
+ *  reuses an instance across different rows/cols after an insert/delete). */
+const DEFAULT_INSERT_N = 2;
 
 interface HeaderContextMenuProps {
   axis: LineAxis;
@@ -1415,7 +1448,7 @@ const HeaderContextMenu = ({
   children,
 }: HeaderContextMenuProps) => {
   const { t } = useTranslation(["documents", "common"]);
-  const [n, setN] = useState(2);
+  const [n, setN] = useState(DEFAULT_INSERT_N);
   const isRow = axis === "row";
   const before = isRow ? "insertRowAbove" : "insertColumnLeft";
   const after = isRow ? "insertRowBelow" : "insertColumnRight";
@@ -1423,7 +1456,7 @@ const HeaderContextMenu = ({
   const afterN = isRow ? "insertRowsBelowN" : "insertColumnsRightN";
 
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={(open) => open && setN(DEFAULT_INSERT_N)}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={() => onInsert(1, false)}>
