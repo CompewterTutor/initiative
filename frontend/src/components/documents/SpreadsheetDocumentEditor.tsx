@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,6 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 import * as Y from "yjs";
 
+import { FormulaCellInput } from "@/components/documents/spreadsheet/FormulaCellInput";
 import {
   SpreadsheetToolbar,
   type ToolbarSelection,
@@ -49,6 +51,12 @@ import {
 } from "@/lib/spreadsheet/csv";
 import { type Box, computeAutofillTarget, computeFillWrites } from "@/lib/spreadsheet/fill";
 import { createEvaluator, isFormula } from "@/lib/spreadsheet/formula";
+import {
+  extractReferences,
+  FORMULA_REF_COLORS,
+  type FormulaRefToken,
+  referenceInsertTarget,
+} from "@/lib/spreadsheet/formula-refs";
 import { type SortDirection, sortSheetByColumn } from "@/lib/spreadsheet/sort";
 import {
   type CellFmt,
@@ -144,6 +152,21 @@ interface DragState {
   size: number;
 }
 
+/** A formula-reference highlight on one cell: its color and which of its
+ *  edges sit on the boundary of the reference's box (so the four edges of a
+ *  range draw a single outline rather than a grid of boxes). */
+interface RefHighlight {
+  color: string;
+  top: boolean;
+  right: boolean;
+  bottom: boolean;
+  left: boolean;
+}
+
+/** Stable empty array for non-editing cells, so they don't get a fresh
+ *  ``refTokens`` prop identity every render. */
+const EMPTY_REF_TOKENS: FormulaRefToken[] = [];
+
 export const SpreadsheetDocumentEditor = ({
   initialContent,
   onContentChange,
@@ -235,6 +258,23 @@ export const SpreadsheetDocumentEditor = ({
   // unmounts and type-to-edit on the next cell stops working. A blur
   // (click-away) leaves this false so focus stays where the user clicked.
   const refocusGridRef = useRef(false);
+  // Point-mode (click/drag a cell into the formula being edited). The most
+  // recently inserted reference: ``anchor`` is the cell it started on, ``span``
+  // the draft range it currently occupies (so an extend re-splices over it).
+  // Persists across the mouseup that ends a click — a later shift-click reads
+  // it to extend into a range — and is cleared when the edit ends or the user
+  // types (which invalidates the recorded span).
+  const pointRefRef = useRef<{
+    anchor: { row: number; col: number };
+    span: { start: number; end: number };
+  } | null>(null);
+  // True only while the mouse button is held after a point-mode click, so a
+  // hover (mouseenter) extends the range during a drag but not on a stray
+  // pass-over. Cleared on mouseup (see the fill-drag listener).
+  const pointDraggingRef = useRef(false);
+  // Caret offset to restore after a point-mode splice updates the draft (the
+  // input is controlled, so the selection must be reapplied post-render).
+  const pendingCaretRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeStartRef = useRef<{ pos: number; size: number }>({ pos: 0, size: 0 });
@@ -301,6 +341,35 @@ export const SpreadsheetDocumentEditor = ({
   // evaluated at most once per snapshot via the evaluator's internal cache,
   // and only for cells the virtualized grid actually renders.
   const evaluator = useMemo(() => createEvaluator(cells), [cells]);
+
+  // References in the formula currently being edited, used to color the
+  // editor text and outline the cells they point at. Empty unless a formula
+  // (``=...``) is being typed.
+  const editingRefs = useMemo<FormulaRefToken[]>(
+    () => (editing && isFormula(editing.draft) ? extractReferences(editing.draft) : []),
+    [editing]
+  );
+
+  // The reference highlight (color + which edges form the box boundary) for a
+  // single cell, or null. Scans the (few) tokens rather than pre-enumerating
+  // every cell of every range, so a huge ``A1:A100000`` stays cheap.
+  const refHighlightAt = useCallback(
+    (r: number, c: number): RefHighlight | null => {
+      for (const t of editingRefs) {
+        if (r >= t.r1 && r <= t.r2 && c >= t.c1 && c <= t.c2) {
+          return {
+            color: FORMULA_REF_COLORS[t.colorIndex % FORMULA_REF_COLORS.length],
+            top: r === t.r1,
+            bottom: r === t.r2,
+            left: c === t.c1,
+            right: c === t.c2,
+          };
+        }
+      }
+      return null;
+    },
+    [editingRefs]
+  );
 
   // Emit the JSON snapshot to the parent on every change so the
   // existing autosave hook can PATCH ``document.content``. Captured in
@@ -537,6 +606,9 @@ export const SpreadsheetDocumentEditor = ({
   useEffect(() => {
     const onUp = () => {
       selectingRef.current = null;
+      // End any point-mode drag, but keep the last reference so a follow-up
+      // shift-click can still extend it into a range.
+      pointDraggingRef.current = false;
       const source = fillSourceRef.current;
       if (source) {
         const target = fillTargetRef.current ?? source;
@@ -577,6 +649,7 @@ export const SpreadsheetDocumentEditor = ({
       const value = coerceScalar(editing.draft);
       setCell(editing.row, editing.col, value === "" ? null : value);
       setEditing(null);
+      pointRefRef.current = null;
       if (next) selectCell(next.row, next.col);
     },
     [editing, setCell, selectCell]
@@ -584,7 +657,67 @@ export const SpreadsheetDocumentEditor = ({
 
   const cancelEdit = useCallback(() => {
     setEditing(null);
+    pointRefRef.current = null;
   }, []);
+
+  // Point mode: splice the clicked cell's reference into the formula being
+  // edited. ``extend`` builds an ``A1:B3`` range from the drag anchor and
+  // overwrites the reference inserted on mousedown; otherwise it resolves the
+  // caret position (insert vs replace-the-last-ref) and seeds the drag.
+  // Returns false when the caret isn't in a reference-accepting spot, so the
+  // caller falls back to a normal (committing) click.
+  const insertReference = useCallback(
+    (row: number, col: number, extend: boolean): boolean => {
+      if (!editing) return false;
+      const input = editingInputRef.current;
+      if (!input) return false;
+      const draft = editing.draft;
+      const cellRef = (r: number, c: number) => `${colIndexToLetter(c)}${r + 1}`;
+      let span: { start: number; end: number };
+      let refText: string;
+      if (extend) {
+        const last = pointRefRef.current;
+        if (!last) return false;
+        span = last.span;
+        const r1 = Math.min(last.anchor.row, row);
+        const r2 = Math.max(last.anchor.row, row);
+        const c1 = Math.min(last.anchor.col, col);
+        const c2 = Math.max(last.anchor.col, col);
+        refText =
+          r1 === r2 && c1 === c2 ? cellRef(r1, c1) : `${cellRef(r1, c1)}:${cellRef(r2, c2)}`;
+      } else {
+        const caret = input.selectionStart ?? draft.length;
+        const target = referenceInsertTarget(draft, caret);
+        if (target.kind === "none") return false;
+        span =
+          target.kind === "insert"
+            ? { start: target.at, end: target.at }
+            : { start: target.start, end: target.end };
+        refText = cellRef(row, col);
+        pointRefRef.current = { anchor: { row, col }, span };
+      }
+      const next = draft.slice(0, span.start) + refText + draft.slice(span.end);
+      const newEnd = span.start + refText.length;
+      if (pointRefRef.current) pointRefRef.current.span = { start: span.start, end: newEnd };
+      pendingCaretRef.current = newEnd;
+      setEditing({ row: editing.row, col: editing.col, draft: next });
+      return true;
+    },
+    [editing]
+  );
+
+  // Restore the caret after a point-mode splice (the controlled input resets
+  // it on re-render). Runs before paint so there's no visible jump.
+  useLayoutEffect(() => {
+    if (pendingCaretRef.current === null) return;
+    const input = editingInputRef.current;
+    if (input) {
+      const pos = pendingCaretRef.current;
+      input.focus();
+      input.setSelectionRange(pos, pos);
+    }
+    pendingCaretRef.current = null;
+  }, [editing]);
 
   // Insert a formula from the toolbar's function menu. When an aggregate
   // (SUM/AVERAGE/…) is picked with a multi-cell range selected, drop a
@@ -1295,14 +1428,43 @@ export const SpreadsheetDocumentEditor = ({
           inputRef={isEditing ? editingInputRef : null}
           peerColor={peer?.selection.color ?? null}
           peerName={peer?.user.name ?? null}
+          refHighlight={refHighlightAt(r, c)}
+          refTokens={isEditing ? editingRefs : EMPTY_REF_TOKENS}
           onMouseDown={(e) => {
             if (isEditing) return;
             if (e.button !== 0) return;
+            // Point mode: while editing a formula, clicking another cell
+            // splices its reference into the draft instead of moving the
+            // selection. preventDefault keeps the input focused (no blur →
+            // no commit). A null return means "not a reference spot" — fall
+            // through to a normal, committing click.
+            if (editing && isFormula(editing.draft)) {
+              // Shift-click extends the last inserted reference into a range;
+              // a plain click inserts/moves a single reference.
+              const extend = e.shiftKey && pointRefRef.current !== null;
+              if (insertReference(r, c, extend)) {
+                e.preventDefault();
+                pointDraggingRef.current = true;
+                return;
+              }
+            }
             containerRef.current?.focus();
             selectingRef.current = "range";
             selectCell(r, c, e.shiftKey);
           }}
-          onMouseEnter={() => {
+          onMouseEnter={(e) => {
+            // A point-mode drag (button still held) extends the reference into
+            // a range. Gate on the live button state (``e.buttons``) rather
+            // than only the flag, so a missed mouseup (release off-window, HMR)
+            // can't leave the drag stuck following the cursor.
+            if (pointDraggingRef.current) {
+              if (e.buttons === 0) {
+                pointDraggingRef.current = false;
+              } else {
+                insertReference(r, c, true);
+                return;
+              }
+            }
             // A fill drag in progress takes over hover: extend its preview
             // instead of moving the selection focus.
             if (fillSourceRef.current) {
@@ -1324,7 +1486,12 @@ export const SpreadsheetDocumentEditor = ({
             selectCell(r, c);
             setCell(r, c, !(value as boolean));
           }}
-          onDraftChange={(draft) => setEditing({ row: r, col: c, draft })}
+          onDraftChange={(draft) => {
+            // Typing invalidates the recorded reference span, so a later
+            // shift-click starts a fresh reference rather than re-splicing.
+            pointRefRef.current = null;
+            setEditing({ row: r, col: c, draft });
+          }}
           onEditingKeyDown={handleEditingKeyDown}
           onEditingBlur={() => commitEdit()}
         />
@@ -1341,6 +1508,9 @@ export const SpreadsheetDocumentEditor = ({
       cut,
       fillPreview,
       editing,
+      editingRefs,
+      refHighlightAt,
+      insertReference,
       readOnly,
       peerSelectionsByCell,
       colWidth,
@@ -1816,10 +1986,14 @@ interface CellViewProps {
   readOnly: boolean;
   draft: string;
   inputRef: React.RefObject<HTMLInputElement | null> | null;
+  /** Colors this cell as a referenced cell of the formula being edited. */
+  refHighlight: RefHighlight | null;
+  /** References in the editing draft — colors the in-cell formula text. */
+  refTokens: FormulaRefToken[];
   peerColor: string | null;
   peerName: string | null;
   onMouseDown: (e: React.MouseEvent) => void;
-  onMouseEnter: () => void;
+  onMouseEnter: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
   onToggleBoolean: () => void;
   onDraftChange: (draft: string) => void;
@@ -1844,6 +2018,8 @@ const CellView = ({
   readOnly,
   draft,
   inputRef,
+  refHighlight,
+  refTokens,
   peerColor,
   peerName,
   onMouseDown,
@@ -1905,6 +2081,23 @@ const CellView = ({
       <div className="pointer-events-none absolute inset-0 bg-primary/10" />
     ) : null;
 
+  // Colored outline marking this cell as a reference of the formula being
+  // edited. Borders only on the box-boundary edges so a range reads as one
+  // rectangle rather than a grid of boxes.
+  const refOverlay = refHighlight ? (
+    <div
+      className="pointer-events-none absolute inset-0 z-[2]"
+      style={{
+        borderColor: refHighlight.color,
+        borderStyle: "solid",
+        borderTopWidth: refHighlight.top ? 2 : 0,
+        borderBottomWidth: refHighlight.bottom ? 2 : 0,
+        borderLeftWidth: refHighlight.left ? 2 : 0,
+        borderRightWidth: refHighlight.right ? 2 : 0,
+      }}
+    />
+  ) : null;
+
   // The draggable fill handle on the selection's bottom-right corner. Its
   // own mousedown starts the fill (stopping selection); double-click
   // auto-fills down. Centered on the corner, above the ring/overlays.
@@ -1927,13 +2120,13 @@ const CellView = ({
   if (isEditing) {
     return (
       <div className={baseClass} style={containerStyle}>
-        <input
-          ref={inputRef}
+        <FormulaCellInput
+          inputRef={inputRef}
           value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
+          tokens={refTokens}
+          onChange={onDraftChange}
           onKeyDown={onEditingKeyDown}
           onBlur={onEditingBlur}
-          className="h-full w-full select-text bg-background px-1.5 outline-none"
         />
         {peerOverlay}
       </div>
@@ -1961,6 +2154,7 @@ const CellView = ({
         />
         {selectionOverlay}
         {fillPreviewOverlay}
+        {refOverlay}
         {cutOverlay}
         {peerOverlay}
         {fillHandle}
@@ -1981,6 +2175,7 @@ const CellView = ({
       <span className="w-full truncate">{display}</span>
       {selectionOverlay}
       {fillPreviewOverlay}
+      {refOverlay}
       {cutOverlay}
       {peerOverlay}
       {fillHandle}
