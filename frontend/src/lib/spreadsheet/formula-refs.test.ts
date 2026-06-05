@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isFormula, shiftFormulaReferences } from "./formula-refs";
+import { isFormula, shiftFormulaReferences, translateFormula } from "./formula-refs";
 
 // The same old-index -> new-index mappers transformSheet builds.
 const insertMap =
@@ -95,5 +95,43 @@ describe("shiftFormulaReferences — boundaries", () => {
 
   it("handles multiple references in one formula", () => {
     expect(shiftFormulaReferences("=A5+B5*C1", "row", insertMap(0, 1))).toBe("=A6+B6*C2");
+  });
+});
+
+describe("translateFormula", () => {
+  it("shifts relative references by the row/col delta", () => {
+    expect(translateFormula("=A1+B1", 2, 0)).toBe("=A3+B3");
+    expect(translateFormula("=A1+B1", 0, 2)).toBe("=C1+D1");
+    expect(translateFormula("=A1", 2, 3)).toBe("=D3");
+  });
+
+  it("pins $-absolute components in place", () => {
+    expect(translateFormula("=$A$1+B1", 2, 0)).toBe("=$A$1+B3");
+    expect(translateFormula("=A$1", 2, 3)).toBe("=D$1");
+    expect(translateFormula("=$A1", 2, 3)).toBe("=$A3");
+  });
+
+  it("turns an off-grid reference into #REF!", () => {
+    // =A1 pulled up one row → row index -1.
+    expect(translateFormula("=A1", -1, 0)).toBe("=#REF!");
+    // =A1 pulled left one col → col index -1.
+    expect(translateFormula("=A1", 0, -1)).toBe("=#REF!");
+  });
+
+  it("translates both endpoints of a range as a unit", () => {
+    expect(translateFormula("=SUM(A1:A3)", 5, 0)).toBe("=SUM(A6:A8)");
+  });
+
+  it("collapses a range to #REF! when an endpoint goes off-grid", () => {
+    expect(translateFormula("=SUM(A1:A3)", -1, 0)).toBe("=SUM(#REF!)");
+  });
+
+  it("leaves string literals and function names alone", () => {
+    expect(translateFormula('="A1 total"&A1', 1, 0)).toBe('="A1 total"&A2');
+    expect(translateFormula("=LOG10(A1)", 1, 0)).toBe("=LOG10(A2)");
+  });
+
+  it("returns non-formula input unchanged", () => {
+    expect(translateFormula("plain A1", 1, 0)).toBe("plain A1");
   });
 });

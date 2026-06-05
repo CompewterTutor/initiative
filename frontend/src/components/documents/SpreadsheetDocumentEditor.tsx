@@ -47,6 +47,7 @@ import {
   detectClipboardDelimiter,
   offsetCells,
 } from "@/lib/spreadsheet/csv";
+import { type Box, computeAutofillTarget, computeFillWrites } from "@/lib/spreadsheet/fill";
 import { createEvaluator, isFormula } from "@/lib/spreadsheet/formula";
 import { type SortDirection, sortSheetByColumn } from "@/lib/spreadsheet/sort";
 import {
@@ -212,6 +213,14 @@ export const SpreadsheetDocumentEditor = ({
   const [drag, setDrag] = useState<DragState | null>(null);
   // Which header/cell drag is in progress (null = not dragging).
   const selectingRef = useRef<null | "range" | "columns" | "rows">(null);
+  // Fill-handle drag: ``fillSourceRef`` is the rectangle captured when the
+  // drag began, ``fillTargetRef`` the latest extended rectangle. Both live in
+  // refs so the once-registered window ``mouseup`` listener reads current
+  // values (never a stale closure, the same reason ``selectingRef`` is a ref).
+  // ``fillPreview`` mirrors the target in state purely to drive the tint.
+  const fillSourceRef = useRef<Box | null>(null);
+  const fillTargetRef = useRef<Box | null>(null);
+  const [fillPreview, setFillPreview] = useState<Box | null>(null);
   const [pendingImport, setPendingImport] = useState<{
     cells: Record<string, CellValue>;
     rows: number;
@@ -456,11 +465,83 @@ export const SpreadsheetDocumentEditor = ({
     });
   }, []);
 
+  // Commit a fill (drag or double-click): tile / extrapolate the source
+  // rectangle across the new region in one transaction, then keep the filled
+  // block selected. A target identical to the source (a click with no drag)
+  // is a no-op. ``null`` writes clear their cell so the map stays sparse.
+  const commitFill = useCallback(
+    (source: Box, target: Box) => {
+      if (readOnly) return;
+      const writes = computeFillWrites((r, c) => cells.get(keyOf(r, c)) ?? null, source, target);
+      if (writes.size === 0) return;
+      bulkUpdate((draft) => {
+        for (const [key, value] of writes) {
+          if (value == null) draft.delete(key);
+          else draft.set(key, value);
+        }
+      });
+      setSel({
+        anchor: { row: source.r1, col: source.c1 },
+        focus: { row: target.r2, col: target.c2 },
+        mode: "range",
+      });
+    },
+    [readOnly, cells, bulkUpdate]
+  );
+  // The once-registered window ``mouseup`` listener calls the latest commit
+  // through this ref (its closure would otherwise capture a stale ``cells``).
+  const commitFillRef = useRef(commitFill);
+  commitFillRef.current = commitFill;
+
+  // Grab the fill handle: capture the current selection as the source and
+  // seed the preview there (a click with no drag stays a no-op).
+  const startFill = useCallback(() => {
+    if (readOnly) return;
+    fillSourceRef.current = selBox;
+    fillTargetRef.current = selBox;
+    setFillPreview(selBox);
+  }, [readOnly, selBox]);
+
+  // Extend an in-progress fill toward a hovered cell, constrained to the
+  // dominant axis (vertical vs horizontal), the way a fill handle is.
+  const extendFill = useCallback((row: number, col: number) => {
+    const source = fillSourceRef.current;
+    if (!source) return;
+    const vert = Math.max(0, row - source.r2, source.r1 - row);
+    const horiz = Math.max(0, col - source.c2, source.c1 - col);
+    let target: Box;
+    if (vert === 0 && horiz === 0) target = source;
+    else if (vert >= horiz)
+      target = { ...source, r1: Math.min(source.r1, row), r2: Math.max(source.r2, row) };
+    else target = { ...source, c1: Math.min(source.c1, col), c2: Math.max(source.c2, col) };
+    fillTargetRef.current = target;
+    setFillPreview(target);
+  }, []);
+
+  // Double-click the handle: fill down to the neighbor column's data extent.
+  const autofillDown = useCallback(() => {
+    if (readOnly) return;
+    const target = computeAutofillTarget(
+      (r, c) => cells.get(keyOf(r, c)) ?? null,
+      selBox,
+      dimensions
+    );
+    commitFill(selBox, target);
+  }, [readOnly, cells, selBox, dimensions, commitFill]);
+
   // Clear the selectingRef on any pointer release so a drag that ends
-  // off-grid still stops extending the selection.
+  // off-grid still stops extending the selection. A fill drag commits here.
   useEffect(() => {
     const onUp = () => {
       selectingRef.current = null;
+      const source = fillSourceRef.current;
+      if (source) {
+        const target = fillTargetRef.current ?? source;
+        fillSourceRef.current = null;
+        fillTargetRef.current = null;
+        setFillPreview(null);
+        commitFillRef.current(source, target);
+      }
     };
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
@@ -1185,6 +1266,13 @@ export const SpreadsheetDocumentEditor = ({
       // A formula error, or a red/redParens negative number, wins over any
       // explicit text color (Excel's numFmt color section overrides font).
       if (error || negativeRendersRed(resolved, numberFormat)) cellCss.color = "#dc2626";
+      // The fill handle sits on the bottom-right corner of a cell-range
+      // selection; the preview tint covers the live drag extent.
+      const isFillCorner =
+        !readOnly && !isEditing && sel.mode === "range" && r === selBox.r2 && c === selBox.c2;
+      const inFillPreview = fillPreview
+        ? r >= fillPreview.r1 && r <= fillPreview.r2 && c >= fillPreview.c1 && c <= fillPreview.c2
+        : false;
       return (
         <CellView
           key={keyOf(r, c)}
@@ -1193,6 +1281,8 @@ export const SpreadsheetDocumentEditor = ({
           isActive={isActive}
           inSelection={isInSel(r, c)}
           inCut={inCut}
+          inFillPreview={inFillPreview}
+          showFillHandle={isFillCorner}
           isEditing={Boolean(isEditing)}
           display={display}
           title={error ?? undefined}
@@ -1210,6 +1300,12 @@ export const SpreadsheetDocumentEditor = ({
             selectCell(r, c, e.shiftKey);
           }}
           onMouseEnter={() => {
+            // A fill drag in progress takes over hover: extend its preview
+            // instead of moving the selection focus.
+            if (fillSourceRef.current) {
+              extendFill(r, c);
+              return;
+            }
             if (selectingRef.current !== "range") return;
             setSel((p) => ({
               anchor: p.anchor,
@@ -1217,6 +1313,8 @@ export const SpreadsheetDocumentEditor = ({
               mode: "range",
             }));
           }}
+          onFillHandleMouseDown={startFill}
+          onFillHandleDoubleClick={autofillDown}
           onDoubleClick={() => beginEdit(r, c)}
           onToggleBoolean={() => {
             if (readOnly || !isBoolean) return;
@@ -1234,8 +1332,11 @@ export const SpreadsheetDocumentEditor = ({
       evaluator,
       formatting,
       sel.focus,
+      sel.mode,
+      selBox,
       isInSel,
       cut,
+      fillPreview,
       editing,
       readOnly,
       peerSelectionsByCell,
@@ -1246,6 +1347,9 @@ export const SpreadsheetDocumentEditor = ({
       setCell,
       handleEditingKeyDown,
       commitEdit,
+      startFill,
+      autofillDown,
+      extendFill,
     ]
   );
 
@@ -1697,6 +1801,10 @@ interface CellViewProps {
   inSelection: boolean;
   /** Inside the pending-cut source — draws a dashed "move" marquee. */
   inCut: boolean;
+  /** Inside the live fill-handle drag extent — draws a preview tint. */
+  inFillPreview: boolean;
+  /** This is the selection's bottom-right corner — renders the fill nub. */
+  showFillHandle: boolean;
   isEditing: boolean;
   display: string;
   /** Tooltip text — used to surface a formula error token (e.g. #DIV/0!). */
@@ -1714,6 +1822,8 @@ interface CellViewProps {
   onDraftChange: (draft: string) => void;
   onEditingKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onEditingBlur: () => void;
+  onFillHandleMouseDown: () => void;
+  onFillHandleDoubleClick: () => void;
 }
 
 const CellView = ({
@@ -1722,6 +1832,8 @@ const CellView = ({
   isActive,
   inSelection,
   inCut,
+  inFillPreview,
+  showFillHandle,
   isEditing,
   display,
   title,
@@ -1738,6 +1850,8 @@ const CellView = ({
   onDraftChange,
   onEditingKeyDown,
   onEditingBlur,
+  onFillHandleMouseDown,
+  onFillHandleDoubleClick,
 }: CellViewProps) => {
   const baseClass = useMemo(
     () =>
@@ -1781,6 +1895,32 @@ const CellView = ({
     <div className="pointer-events-none absolute inset-0 z-[1] border-2 border-primary border-dashed" />
   ) : null;
 
+  // Tint over the new region a fill drag will write (the source already
+  // reads through the selection tint, so only paint cells outside it).
+  const fillPreviewOverlay =
+    inFillPreview && !inSelection && !isActive ? (
+      <div className="pointer-events-none absolute inset-0 bg-primary/10" />
+    ) : null;
+
+  // The draggable fill handle on the selection's bottom-right corner. Its
+  // own mousedown starts the fill (stopping selection); double-click
+  // auto-fills down. Centered on the corner, above the ring/overlays.
+  const fillHandle = showFillHandle ? (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only affordance; grid keyboard model owns navigation
+    <div
+      className="absolute right-0 bottom-0 z-[3] h-[7px] w-[7px] translate-x-1/2 translate-y-1/2 cursor-crosshair rounded-[1px] border border-background bg-primary"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onFillHandleMouseDown();
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onFillHandleDoubleClick();
+      }}
+    />
+  ) : null;
+
   if (isEditing) {
     return (
       <div className={baseClass} style={containerStyle}>
@@ -1817,8 +1957,10 @@ const CellView = ({
           aria-label={booleanValue ? "true" : "false"}
         />
         {selectionOverlay}
+        {fillPreviewOverlay}
         {cutOverlay}
         {peerOverlay}
+        {fillHandle}
       </div>
     );
   }
@@ -1835,8 +1977,10 @@ const CellView = ({
     >
       <span className="w-full truncate">{display}</span>
       {selectionOverlay}
+      {fillPreviewOverlay}
       {cutOverlay}
       {peerOverlay}
+      {fillHandle}
     </div>
   );
 };
