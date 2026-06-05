@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isFormula, shiftFormulaReferences, translateFormula } from "./formula-refs";
+import {
+  extractReferences,
+  isFormula,
+  referenceInsertTarget,
+  shiftFormulaReferences,
+  translateFormula,
+} from "./formula-refs";
 
 // The same old-index -> new-index mappers transformSheet builds.
 const insertMap =
@@ -133,5 +139,83 @@ describe("translateFormula", () => {
 
   it("returns non-formula input unchanged", () => {
     expect(translateFormula("plain A1", 1, 0)).toBe("plain A1");
+  });
+});
+
+describe("extractReferences", () => {
+  it("returns an empty array for non-formula input", () => {
+    expect(extractReferences("hello")).toEqual([]);
+    expect(extractReferences("123")).toEqual([]);
+  });
+
+  it("locates a single cell reference with its box and span", () => {
+    // "=A1" — A1 is row 0, col 0; the token spans offsets 1..3 in "=A1".
+    expect(extractReferences("=A1")).toEqual([
+      { text: "A1", start: 1, end: 3, r1: 0, c1: 0, r2: 0, c2: 0, colorIndex: 0 },
+    ]);
+  });
+
+  it("normalizes a range to a single token / box", () => {
+    const [ref] = extractReferences("=SUM(B2:C4)");
+    expect(ref).toMatchObject({ text: "B2:C4", r1: 1, c1: 1, r2: 3, c2: 2 });
+    expect(ref.start).toBe(5);
+    expect(ref.end).toBe(10);
+  });
+
+  it("gives distinct references distinct color indices in appearance order", () => {
+    expect(extractReferences("=A1+B2").map((r) => r.colorIndex)).toEqual([0, 1]);
+  });
+
+  it("shares a color index across repeated identical references", () => {
+    expect(extractReferences("=A1+A1").map((r) => r.colorIndex)).toEqual([0, 0]);
+  });
+
+  it("ignores references inside quoted string literals", () => {
+    expect(extractReferences('="A5 total"')).toEqual([]);
+  });
+
+  it("does not treat function names or longer identifiers as references", () => {
+    expect(extractReferences("=LOG10(2)")).toEqual([]);
+    expect(extractReferences("=SUM(1,2)")).toEqual([]);
+  });
+
+  it("captures absolute ($) references with the $ markers in the text", () => {
+    const [ref] = extractReferences("=$A$1");
+    expect(ref).toMatchObject({ text: "$A$1", r1: 0, c1: 0, r2: 0, c2: 0 });
+  });
+
+  it("computes correct offsets for multiple references", () => {
+    const refs = extractReferences("=A1+B2");
+    expect(refs.map((r) => [r.start, r.end])).toEqual([
+      [1, 3],
+      [4, 6],
+    ]);
+  });
+});
+
+describe("referenceInsertTarget", () => {
+  it("inserts after the leading = ", () => {
+    expect(referenceInsertTarget("=", 1)).toEqual({ kind: "insert", at: 1 });
+  });
+
+  it("inserts after an operator, ( or ,", () => {
+    expect(referenceInsertTarget("=A1+", 4)).toEqual({ kind: "insert", at: 4 });
+    expect(referenceInsertTarget("=SUM(", 5)).toEqual({ kind: "insert", at: 5 });
+    expect(referenceInsertTarget("=SUM(A1,", 8)).toEqual({ kind: "insert", at: 8 });
+  });
+
+  it("inserts after trailing whitespace following an operator", () => {
+    expect(referenceInsertTarget("=A1+ ", 5)).toEqual({ kind: "insert", at: 5 });
+  });
+
+  it("replaces a reference that follows the = or an operator", () => {
+    expect(referenceInsertTarget("=A1", 3)).toEqual({ kind: "replace", start: 1, end: 3 });
+    expect(referenceInsertTarget("=SUM(A1", 7)).toEqual({ kind: "replace", start: 5, end: 7 });
+    expect(referenceInsertTarget("=B2+C3", 6)).toEqual({ kind: "replace", start: 4, end: 6 });
+  });
+
+  it("returns none mid-literal or for a non-formula", () => {
+    expect(referenceInsertTarget("=hello", 6)).toEqual({ kind: "none" });
+    expect(referenceInsertTarget("plain", 5)).toEqual({ kind: "none" });
   });
 });

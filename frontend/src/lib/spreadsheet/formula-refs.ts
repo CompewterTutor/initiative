@@ -171,3 +171,184 @@ const mapRefTranslate = (m: RegExpExecArray, rowDelta: number, colDelta: number)
   if (row < 0 || col < 0) return null;
   return `${colAbs}${colIndexToLetter(col)}${rowAbs}${row + 1}`;
 };
+
+// ---------------------------------------------------------------------------
+// Reference extraction (read-only) for the formula editor's live highlights.
+// ---------------------------------------------------------------------------
+
+/**
+ * Palette for the editor's reference highlights. The same index colors a
+ * reference's outline box on the grid and its text in the formula input, and
+ * is reused for repeated identical references (Excel behavior). Index with
+ * ``colorIndex % FORMULA_REF_COLORS.length``.
+ */
+export const FORMULA_REF_COLORS = [
+  "#1a73e8",
+  "#188038",
+  "#a142f4",
+  "#e8710a",
+  "#d93025",
+  "#12a4af",
+  "#c5221f",
+  "#9334e6",
+];
+
+/** One A1 reference (or ``A1:B3`` range) located inside a formula string. */
+export interface FormulaRefToken {
+  /** The matched text, e.g. ``A1`` or ``$A$1:B3``. */
+  text: string;
+  /** Character offset of the token in the full formula (including the leading "="). */
+  start: number;
+  /** Exclusive end offset. */
+  end: number;
+  /** Normalized bounding box (0-based, top-left .. bottom-right). */
+  r1: number;
+  c1: number;
+  r2: number;
+  c2: number;
+  /** Stable index into {@link FORMULA_REF_COLORS}, shared by identical refs. */
+  colorIndex: number;
+}
+
+/** Resolve a matched A1 reference to 0-based coords, or ``null`` if off-grid. */
+const refCoords = (m: RegExpExecArray): { row: number; col: number } | null => {
+  const col = letterToColIndex(m[2]);
+  const row = Number(m[4]) - 1;
+  if (col < 0 || row < 0) return null;
+  return { row, col };
+};
+
+/**
+ * Locate every A1 reference / range in a formula and return its character
+ * span and grid box, for the editor's live highlighting. Mirrors the
+ * quote-skipping and identifier-boundary rules of {@link scanReferences} (the
+ * two walks must stay in sync); off-grid references are simply omitted rather
+ * than collapsed to ``#REF!``. Non-formula input yields an empty array.
+ *
+ * ``colorIndex`` is assigned per unique reference text in order of first
+ * appearance, so ``=A1+A1`` colors both ``A1`` tokens identically.
+ */
+export const extractReferences = (formula: string): FormulaRefToken[] => {
+  if (!isFormula(formula)) return [];
+  const body = formula.slice(1);
+  const raw: Omit<FormulaRefToken, "colorIndex">[] = [];
+  let i = 0;
+  let inQuote = false;
+
+  while (i < body.length) {
+    const ch = body[i];
+
+    if (inQuote) {
+      if (ch === '"') {
+        if (body[i + 1] === '"') {
+          i += 2;
+          continue;
+        }
+        inQuote = false;
+      }
+      i++;
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuote = true;
+      i++;
+      continue;
+    }
+
+    const prev = i > 0 ? body[i - 1] : "";
+    const match = IDENT_CHAR.test(prev) ? null : REF_AT_START.exec(body.slice(i));
+    if (match && !isIdentTail(body[i + match[0].length])) {
+      const afterIdx = i + match[0].length;
+      const first = refCoords(match);
+      // Look for a ``ref:ref`` range so it's recorded as one token/box.
+      let match2: RegExpExecArray | null = null;
+      if (body[afterIdx] === ":") {
+        const m = REF_AT_START.exec(body.slice(afterIdx + 1));
+        if (m && !isIdentTail(body[afterIdx + 1 + m[0].length])) match2 = m;
+      }
+      if (match2) {
+        const end2 = afterIdx + 1 + match2[0].length;
+        const second = refCoords(match2);
+        if (first && second) {
+          raw.push({
+            text: body.slice(i, end2),
+            start: i + 1,
+            end: end2 + 1,
+            r1: Math.min(first.row, second.row),
+            c1: Math.min(first.col, second.col),
+            r2: Math.max(first.row, second.row),
+            c2: Math.max(first.col, second.col),
+          });
+        }
+        i = end2;
+        continue;
+      }
+      if (first) {
+        raw.push({
+          text: match[0],
+          start: i + 1,
+          end: afterIdx + 1,
+          r1: first.row,
+          c1: first.col,
+          r2: first.row,
+          c2: first.col,
+        });
+      }
+      i = afterIdx;
+      continue;
+    }
+
+    i++;
+  }
+
+  const colorByText = new Map<string, number>();
+  return raw.map((t) => {
+    let colorIndex = colorByText.get(t.text);
+    if (colorIndex === undefined) {
+      colorIndex = colorByText.size;
+      colorByText.set(t.text, colorIndex);
+    }
+    return { ...t, colorIndex };
+  });
+};
+
+/**
+ * Where (if anywhere) a clicked cell's reference should land in the formula
+ * draft, given the caret position — the editor's "point mode" decision.
+ *
+ * - ``insert``: the caret follows a token that expects an operand (``=``, an
+ *   operator, ``(``, ``,`` or ``:``) — splice a fresh reference there.
+ * - ``replace``: the caret sits just after a reference that itself follows an
+ *   operand-accepting token — clicking moves that reference (Excel behavior).
+ * - ``none``: the caret is mid-literal/value — the click should commit the
+ *   edit normally instead.
+ */
+export type InsertTarget =
+  | { kind: "none" }
+  | { kind: "insert"; at: number }
+  | { kind: "replace"; start: number; end: number };
+
+// Final char of the (whitespace-trimmed) text before the caret that means a
+// reference may follow.
+const REF_ACCEPTING_END = /[=(,:+\-*/^&<>%]$/;
+// A trailing A1 reference (or range) at the end of the pre-caret text.
+const TRAILING_REF = /(\$?[A-Za-z]+\$?\d+(?::\$?[A-Za-z]+\$?\d+)?)$/;
+
+export const referenceInsertTarget = (draft: string, caret: number): InsertTarget => {
+  if (!isFormula(draft)) return { kind: "none" };
+  const before = draft.slice(0, caret);
+  const trimmed = before.replace(/\s+$/, "");
+  if (REF_ACCEPTING_END.test(trimmed)) return { kind: "insert", at: caret };
+  const refMatch = TRAILING_REF.exec(trimmed);
+  if (refMatch) {
+    const start = trimmed.length - refMatch[1].length;
+    const charBefore = start > 0 ? trimmed[start - 1] : "";
+    // The leading "=" (start === 1) or any operand-accepting char before the
+    // reference means the user is still pointing — clicking moves the ref.
+    if (start === 1 || REF_ACCEPTING_END.test(charBefore)) {
+      return { kind: "replace", start, end: trimmed.length };
+    }
+  }
+  return { kind: "none" };
+};
