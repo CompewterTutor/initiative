@@ -56,6 +56,25 @@ describe("computeFillWrites — numeric series", () => {
     // n = r - source.r1 (=3): row 2 → n=-1 → 0, row 1 → n=-2 → -10.
     expect(w).toEqual({ [keyOf(2, 0)]: 0, [keyOf(1, 0)]: -10 });
   });
+
+  it("rounds to the seeds' precision instead of leaking float drift", () => {
+    const read = reader({ [keyOf(0, 0)]: 0.1, [keyOf(1, 0)]: 0.2 });
+    const w = writesAt(computeFillWrites(read, box(0, 1, 0, 0), box(0, 6, 0, 0)));
+    // Naive 0.1 + 0.1*n would give 0.30000000000000004, 0.7000000000000001, …
+    expect(w).toEqual({
+      [keyOf(2, 0)]: 0.3,
+      [keyOf(3, 0)]: 0.4,
+      [keyOf(4, 0)]: 0.5,
+      [keyOf(5, 0)]: 0.6,
+      [keyOf(6, 0)]: 0.7,
+    });
+  });
+
+  it("preserves multi-decimal precision when seeds warrant it", () => {
+    const read = reader({ [keyOf(0, 0)]: 1.25, [keyOf(1, 0)]: 1.5 });
+    const w = writesAt(computeFillWrites(read, box(0, 1, 0, 0), box(0, 3, 0, 0)));
+    expect(w).toEqual({ [keyOf(2, 0)]: 1.75, [keyOf(3, 0)]: 2 });
+  });
 });
 
 describe("computeFillWrites — text+integer series", () => {
