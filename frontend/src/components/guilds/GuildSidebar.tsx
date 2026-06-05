@@ -271,7 +271,7 @@ const GrantGuildButton = ({
             washes out on the colored tooltip. */}
         <p className="text-primary-foreground/80 text-xs">
           {t("temporaryAccess")}
-          {left !== null ? `   ${t("expiresInMinutes", { minutes: left })}` : ""}
+          {left !== null ? ` · ${t("expiresInMinutes", { minutes: left })}` : ""}
         </p>
       </TooltipContent>
     </Tooltip>
