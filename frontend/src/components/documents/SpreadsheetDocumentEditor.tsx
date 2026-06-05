@@ -480,8 +480,11 @@ export const SpreadsheetDocumentEditor = ({
           else draft.set(key, value);
         }
       });
+      // Anchor on the target's top-left (not the source's) so an up/left
+      // fill — where target.r1/c1 sit above/left of the source — keeps the
+      // whole written region selected, not just the original cells.
       setSel({
-        anchor: { row: source.r1, col: source.c1 },
+        anchor: { row: target.r1, col: target.c1 },
         focus: { row: target.r2, col: target.c2 },
         mode: "range",
       });
