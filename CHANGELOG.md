@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.7] - 2026-06-05
+
+### Added
+
+- **Formula reference highlights and click-to-insert in spreadsheets.** While editing a cell formula (one starting with `=`), each cell or range it references is outlined on the grid in a distinct color, and the matching reference text in the cell is colored to match. Click another cell to drop its reference into the formula, drag or shift-click to insert a range (`A1:B3`), and click again to move the just-inserted reference — so you can build formulas by pointing instead of typing.
+
 ## [0.49.6] - 2026-06-05
 
 ### Fixed
