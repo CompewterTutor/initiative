@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.5] - 2026-06-04
+
 ### Added
 
 - **Drag the fill handle to fill cells in spreadsheets.** Grab the small square on the bottom-right corner of a cell or selection and drag down, up, left, or right to fill the range. Formulas adjust their relative references as they go (`=A1` filled down becomes `=A2`, `=A3`, …) while `$`-anchored parts stay put; numeric runs and `text + number` patterns extrapolate as a series (1, 2 → 3, 4, 5; `Item 1` → `Item 2`); anything else is copied. Double-click the handle to auto-fill down to the extent of the neighboring column's data. The whole fill is a single undo step and syncs to collaborators.
