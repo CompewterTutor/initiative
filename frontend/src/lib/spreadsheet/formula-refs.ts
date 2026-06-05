@@ -34,26 +34,22 @@ const isIdentTail = (c: string | undefined): boolean => {
 };
 
 /**
- * Rewrite every A1 cell reference in a formula along ``axis`` using
- * ``mapIndex`` — the exact old-index → new-index mapper that
- * ``transformSheet`` builds for an insert/delete. References on the
- * inactive axis are left untouched; a reference whose active-axis line
- * was deleted (``mapIndex`` returns ``null``) becomes ``#REF!``.
+ * Scan a formula and rewrite every A1 cell reference through ``mapSingle``,
+ * which maps one matched reference to its replacement text (or ``null`` to
+ * mark it deleted / off-grid → ``#REF!``).
  *
- * Ranges (``A1:B10``) are handled as a unit: deleting a row *inside* a
- * range shrinks it (both endpoints shift, neither is dropped), while
- * deleting the line of *either* endpoint collapses the whole range to a
- * single ``#REF!`` (``=SUM(#REF!)``, matching Excel — never the invalid
- * ``=SUM(#REF!:A10)``). ``$`` absolute markers are preserved verbatim.
+ * Ranges (``A1:B10``) are handled as a unit: a ``null`` from *either*
+ * endpoint collapses the whole range to a single ``#REF!`` (``=SUM(#REF!)``,
+ * matching Excel — never the invalid ``=SUM(#REF!:A10)``).
  *
  * The scan skips double-quoted string literals (with ``""`` escaping) so
- * text like ``="A5 total"`` is never mistaken for a reference. Non-formula
- * input is returned unchanged.
+ * text like ``="A5 total"`` is never mistaken for a reference, and only
+ * probes at identifier boundaries so a function name (``LOG10``) or a name
+ * like ``FOO_A1`` isn't rewritten. Non-formula input is returned unchanged.
  */
-export const shiftFormulaReferences = (
+const scanReferences = (
   formula: string,
-  axis: "row" | "col",
-  mapIndex: (i: number) => number | null
+  mapSingle: (m: RegExpExecArray) => string | null
 ): string => {
   if (!isFormula(formula)) return formula;
   const body = formula.slice(1);
@@ -100,15 +96,14 @@ export const shiftFormulaReferences = (
         if (m && !isIdentTail(body[afterIdx + 1 + m[0].length])) match2 = m;
       }
       if (match2) {
-        const start = mapRef(match, axis, mapIndex);
-        const end = mapRef(match2, axis, mapIndex);
-        // A deleted endpoint collapses the whole range (Excel behavior).
+        const start = mapSingle(match);
+        const end = mapSingle(match2);
+        // A deleted/off-grid endpoint collapses the whole range (Excel).
         out += start === null || end === null ? "#REF!" : `${start}:${end}`;
         i = afterIdx + 1 + match2[0].length;
         continue;
       }
-      const single = mapRef(match, axis, mapIndex);
-      out += single ?? "#REF!";
+      out += mapSingle(match) ?? "#REF!";
       i += match[0].length;
       continue;
     }
@@ -119,6 +114,36 @@ export const shiftFormulaReferences = (
 
   return out;
 };
+
+/**
+ * Rewrite every A1 cell reference in a formula along ``axis`` using
+ * ``mapIndex`` — the exact old-index → new-index mapper that
+ * ``transformSheet`` builds for an insert/delete. References on the
+ * inactive axis are left untouched; a reference whose active-axis line
+ * was deleted (``mapIndex`` returns ``null``) becomes ``#REF!``.
+ *
+ * Ranges shrink when an interior line is deleted and collapse to ``#REF!``
+ * when an endpoint's line is deleted. ``$`` absolute markers are preserved
+ * verbatim, but the index *still moves* — an insert above ``$A$5`` pushes
+ * it to ``$A$6`` because the content it points at shifted. (Contrast
+ * {@link translateFormula}, where ``$`` pins the reference in place.)
+ */
+export const shiftFormulaReferences = (
+  formula: string,
+  axis: "row" | "col",
+  mapIndex: (i: number) => number | null
+): string => scanReferences(formula, (m) => mapRef(m, axis, mapIndex));
+
+/**
+ * Translate every *relative* A1 reference in a formula by ``rowDelta`` /
+ * ``colDelta`` — the copy/fill semantics of a spreadsheet. A ``$`` marker
+ * pins that component in place (``$A$1`` never moves; ``A$1`` moves only by
+ * column; ``$A1`` only by row). A reference pushed off the grid (negative
+ * row or column) becomes ``#REF!``, and a range collapses to ``#REF!`` if
+ * either endpoint does. Non-formula input is returned unchanged.
+ */
+export const translateFormula = (formula: string, rowDelta: number, colDelta: number): string =>
+  scanReferences(formula, (m) => mapRefTranslate(m, rowDelta, colDelta));
 
 /** Rewrite one matched reference along ``axis``; ``null`` if its line was
  *  deleted (the caller turns that into ``#REF!``). */
@@ -134,4 +159,15 @@ const mapRef = (
   }
   const mapped = mapIndex(Number(digits) - 1);
   return mapped === null ? null : `${colAbs}${letters}${rowAbs}${mapped + 1}`;
+};
+
+/** Translate one matched reference by ``rowDelta`` / ``colDelta``, leaving
+ *  ``$``-pinned components untouched; ``null`` if pushed off the grid (the
+ *  caller turns that into ``#REF!``). */
+const mapRefTranslate = (m: RegExpExecArray, rowDelta: number, colDelta: number): string | null => {
+  const [, colAbs, letters, rowAbs, digits] = m;
+  const col = letterToColIndex(letters) + (colAbs ? 0 : colDelta);
+  const row = Number(digits) - 1 + (rowAbs ? 0 : rowDelta);
+  if (row < 0 || col < 0) return null;
+  return `${colAbs}${colIndexToLetter(col)}${rowAbs}${row + 1}`;
 };
