@@ -52,7 +52,7 @@ export const FormulaCellInput = ({
       <div
         ref={mirrorRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-1.5 text-sm"
+        className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-1.5"
       >
         {segments.map((s, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: positional text segments, no stable id
@@ -70,7 +70,12 @@ export const FormulaCellInput = ({
         onScroll={(e) => {
           if (mirrorRef.current) mirrorRef.current.scrollLeft = e.currentTarget.scrollLeft;
         }}
-        className="relative z-[1] h-full w-full select-text bg-transparent px-1.5 text-sm text-transparent caret-foreground outline-none"
+        // ``font: inherit`` so the input matches the cell's font size/weight
+        // (inputs don't inherit font by default) — both layers then track the
+        // container's text-sm default and any per-cell font-size override,
+        // keeping the colored mirror aligned with the typed text.
+        style={{ font: "inherit" }}
+        className="relative z-[1] h-full w-full select-text bg-transparent px-1.5 text-transparent caret-foreground outline-none"
       />
     </div>
   );
