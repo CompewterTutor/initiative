@@ -31,11 +31,16 @@ const config: CapacitorConfig = {
     // Native splash overlay. We drive it manually (launchAutoHide off) so it can cover the
     // OTA bundle swap: useNativeUpdate shows it before CapacitorUpdater.set() reloads the
     // WebView, and the freshly-swapped bundle hides it in main.tsx after notifyAppReady().
-    // Keeping it up on cold launch until that same hide() also removes the white flash that
-    // would otherwise appear before React mounts.
+    // Keeping it up on cold launch until that same hide() also removes the flash that would
+    // otherwise appear before React mounts.
+    //
+    // No backgroundColor: the generated splash drawable is full-screen and theme-aware (Android
+    // resolves @drawable/splash to its drawable-night variant in dark mode), so forcing a static
+    // color here would only reintroduce a wrong-theme flash — a white one in dark mode, or a
+    // dark one in light mode. Omitting it lets the plugin skip the fill (SplashScreen.java only
+    // paints when backgroundColor is set) and the theme-correct image cover the screen.
     SplashScreen: {
       launchAutoHide: false,
-      backgroundColor: "#ffffff",
       showSpinner: false,
     },
     // Disable built-in SystemBars insets handling - safe-area plugin handles it
