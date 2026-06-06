@@ -41,6 +41,28 @@ const formatInt = (n: number, pad: number): string => {
 };
 
 /**
+ * Decimal places in a number's shortest base-10 form (``0.1`` → 1, ``2`` → 0),
+ * clamped to 12 so an already noisy seed like ``0.30000000000000004`` reports a
+ * sane precision instead of 17, letting {@link roundTo} scrub the noise rather
+ * than propagate it.
+ */
+const decimalPlaces = (n: number): number => {
+  if (!Number.isFinite(n)) return 0;
+  const s = String(n);
+  const e = s.indexOf("e");
+  if (e >= 0) {
+    const dot = s.indexOf(".");
+    const mantissa = dot >= 0 ? e - dot - 1 : 0;
+    return Math.min(12, Math.max(0, mantissa - Number(s.slice(e + 1))));
+  }
+  const dot = s.indexOf(".");
+  return dot >= 0 ? Math.min(12, s.length - dot - 1) : 0;
+};
+
+/** Round to ``dp`` decimals via decimal-string round-trip, dropping IEEE-754 drift. */
+const roundTo = (x: number, dp: number): number => Number(x.toFixed(dp));
+
+/**
  * Build an extrapolator over the offset ``n`` from a source line's first
  * cell (``n = 0`` is that first cell, ``n = length`` the cell just past the
  * end, ``n = -1`` the cell just before it), or ``null`` when the line is not
@@ -57,7 +79,12 @@ const detectSeries = (values: CellValue[]): ((n: number) => CellValue) | null =>
   if (values.every((v) => typeof v === "number")) {
     const nums = values as number[];
     const step = H >= 2 ? (nums[H - 1] - nums[0]) / (H - 1) : 0;
-    return (n) => nums[0] + step * n;
+    // Round each term to the seeds' precision so accumulated float drift
+    // (0.1, 0.2 → 0.30000000000000004) doesn't surface in the filled cells.
+    // ``reduce`` rather than ``Math.max(...spread)`` so a huge source range
+    // can't blow the argument-count / call-stack limit.
+    const dp = nums.reduce((acc, v) => Math.max(acc, decimalPlaces(v)), 0);
+    return (n) => roundTo(nums[0] + step * n, dp);
   }
 
   // Constant-prefix text with a trailing integer (``Item 1`` → ``Item 2``).
