@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { removeItem } from "@/lib/storage";
+
 import { PrideProvider, usePride } from "./usePride";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -10,6 +12,9 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 afterEach(() => {
   vi.useRealTimers();
   document.documentElement.classList.remove("pride");
+  // Self-contained: don't rely on the global setup's localStorage.clear() so a
+  // persisted preference can't leak into the next test (or watch-mode re-run).
+  removeItem("initiative-pride");
 });
 
 describe("usePride", () => {

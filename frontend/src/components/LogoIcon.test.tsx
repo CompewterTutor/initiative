@@ -2,12 +2,16 @@ import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PrideProvider } from "@/hooks/usePride";
+import { removeItem } from "@/lib/storage";
 
 import { LogoIcon } from "./LogoIcon";
 
 afterEach(() => {
   vi.useRealTimers();
   document.documentElement.classList.remove("pride");
+  // A stale "on"/"off" preference would override the date-based behaviour these
+  // tests fake, so clear it rather than rely on the global setup cleanup.
+  removeItem("initiative-pride");
 });
 
 describe("LogoIcon", () => {
