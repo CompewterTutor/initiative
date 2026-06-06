@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.9] - 2026-06-06
+
 ### Added
 
 - **Pride month mode. HAPPY PRIDE!** The Initiative logo becomes an animated rainbow gradient — a flowing, softly glowing mark that appears everywhere the logo does (sidebar, sign-in, registration, landing). The "initiative" wordmark flows the same rainbow, and primary buttons gain an animated rainbow outline (their fill and label stay solid for readability). It turns on automatically during June (Pride Month) and can be set to always On, always Off, or Auto from the appearance menu (the sun/moon toggle). The animation respects the system "reduce motion" setting.
