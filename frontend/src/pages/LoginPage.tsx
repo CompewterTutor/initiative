@@ -144,7 +144,7 @@ export const LoginPage = () => {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/60 px-4 py-12">
         <div className="flex items-center gap-3 font-semibold text-3xl text-primary tracking-tight">
           <LogoIcon className="h-12 w-12" aria-hidden="true" focusable="false" />
-          {t("common:appName")}
+          <span className="pride-wordmark">{t("common:appName")}</span>
         </div>
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader>
