@@ -2,6 +2,7 @@ import "./styles.css";
 import "./i18n";
 
 import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
@@ -13,6 +14,7 @@ import { TaskCompletionEffectHost } from "@/components/effects/TaskCompletionEff
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { GuildProvider, useGuilds } from "@/hooks/useGuilds";
 import { KeepScreenAwakeProvider } from "@/hooks/useKeepScreenAwake";
+import { PrideProvider } from "@/hooks/usePride";
 import { ServerProvider, useServer } from "@/hooks/useServer";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { queryClient } from "@/lib/queryClient";
@@ -62,6 +64,16 @@ async function bootstrap() {
       console.debug("notifyAppReady failed (updater unavailable):", error);
     }
 
+    // Drop the native splash now that this bundle is alive. It is kept up (launchAutoHide off)
+    // to cover both cold start and the OTA bundle swap that useNativeUpdate raises before
+    // CapacitorUpdater.set() reloads the WebView. Always hide it — even if notifyAppReady threw
+    // above — so a failure there can't strand the user on the splash. Best-effort.
+    try {
+      await SplashScreen.hide();
+    } catch (error) {
+      console.debug("SplashScreen.hide failed (plugin unavailable):", error);
+    }
+
     const storedUrl = getStoredServerUrl();
     if (storedUrl) {
       setApiBaseUrl(storedUrl);
@@ -72,17 +84,19 @@ async function bootstrap() {
     <React.StrictMode>
       <Suspense fallback={null}>
         <ThemeProvider>
-          <KeepScreenAwakeProvider>
-            <ServerProvider>
-              <QueryClientProvider client={queryClient}>
-                <AuthProvider>
-                  <GuildProvider>
-                    <InnerApp />
-                  </GuildProvider>
-                </AuthProvider>
-              </QueryClientProvider>
-            </ServerProvider>
-          </KeepScreenAwakeProvider>
+          <PrideProvider>
+            <KeepScreenAwakeProvider>
+              <ServerProvider>
+                <QueryClientProvider client={queryClient}>
+                  <AuthProvider>
+                    <GuildProvider>
+                      <InnerApp />
+                    </GuildProvider>
+                  </AuthProvider>
+                </QueryClientProvider>
+              </ServerProvider>
+            </KeepScreenAwakeProvider>
+          </PrideProvider>
         </ThemeProvider>
       </Suspense>
     </React.StrictMode>

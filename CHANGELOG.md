@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.9] - 2026-06-06
+
+### Added
+
+- **Pride month mode. HAPPY PRIDE!** The Initiative logo becomes an animated rainbow gradient — a flowing, softly glowing mark that appears everywhere the logo does (sidebar, sign-in, registration, landing). The "initiative" wordmark flows the same rainbow, and primary buttons gain an animated rainbow outline (their fill and label stay solid for readability). It turns on automatically during June (Pride Month) and can be set to always On, always Off, or Auto from the appearance menu (the sun/moon toggle). The animation respects the system "reduce motion" setting.
+
+### Fixed
+
+- **Native app: in-app updates now apply reliably instead of re-prompting.** When the app downloaded a new version and you tapped "Reload Now," the reload sometimes failed to take and the update dialog reappeared. The app now shows a splash screen that covers the entire reload — waiting for the new version to finish downloading and verifying before swapping it in — so the update applies the first time. (Reaches existing installs after a store/APK update.)
+
 ## [0.49.8] - 2026-06-05
 
 ### Added
