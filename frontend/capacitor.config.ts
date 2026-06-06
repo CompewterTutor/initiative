@@ -28,6 +28,16 @@ const config: CapacitorConfig = {
       appReadyTimeout: 10000,
       responseTimeout: 20,
     },
+    // Native splash overlay. We drive it manually (launchAutoHide off) so it can cover the
+    // OTA bundle swap: useNativeUpdate shows it before CapacitorUpdater.set() reloads the
+    // WebView, and the freshly-swapped bundle hides it in main.tsx after notifyAppReady().
+    // Keeping it up on cold launch until that same hide() also removes the white flash that
+    // would otherwise appear before React mounts.
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: "#ffffff",
+      showSpinner: false,
+    },
     // Disable built-in SystemBars insets handling - safe-area plugin handles it
     SystemBars: {
       insetsHandling: "disable",
