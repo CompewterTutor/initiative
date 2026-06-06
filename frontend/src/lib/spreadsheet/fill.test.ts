@@ -75,6 +75,14 @@ describe("computeFillWrites — numeric series", () => {
     const w = writesAt(computeFillWrites(read, box(0, 1, 0, 0), box(0, 3, 0, 0)));
     expect(w).toEqual({ [keyOf(2, 0)]: 1.75, [keyOf(3, 0)]: 2 });
   });
+
+  it("rounds decimals when filling upward (negative offset)", () => {
+    // Seeds at rows 3-4 (0.5, 0.6); filling up exercises the negative-n path.
+    const read = reader({ [keyOf(3, 0)]: 0.5, [keyOf(4, 0)]: 0.6 });
+    const w = writesAt(computeFillWrites(read, box(3, 4, 0, 0), box(0, 4, 0, 0)));
+    // n = r - 3: row 2 → 0.4, row 1 → 0.3, row 0 → 0.2 — no float drift.
+    expect(w).toEqual({ [keyOf(2, 0)]: 0.4, [keyOf(1, 0)]: 0.3, [keyOf(0, 0)]: 0.2 });
+  });
 });
 
 describe("computeFillWrites — text+integer series", () => {

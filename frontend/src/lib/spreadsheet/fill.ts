@@ -81,7 +81,9 @@ const detectSeries = (values: CellValue[]): ((n: number) => CellValue) | null =>
     const step = H >= 2 ? (nums[H - 1] - nums[0]) / (H - 1) : 0;
     // Round each term to the seeds' precision so accumulated float drift
     // (0.1, 0.2 → 0.30000000000000004) doesn't surface in the filled cells.
-    const dp = Math.max(...nums.map(decimalPlaces));
+    // ``reduce`` rather than ``Math.max(...spread)`` so a huge source range
+    // can't blow the argument-count / call-stack limit.
+    const dp = nums.reduce((acc, v) => Math.max(acc, decimalPlaces(v)), 0);
     return (n) => roundTo(nums[0] + step * n, dp);
   }
 
