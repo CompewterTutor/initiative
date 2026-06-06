@@ -8,12 +8,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { type PridePreference, usePride } from "@/hooks/usePride";
 import { useTheme } from "@/hooks/useTheme";
 
 export const ModeToggle = () => {
   const { theme, setTheme } = useTheme();
+  const { preference: pride, setPreference: setPride } = usePride();
   const { t } = useTranslation("nav");
 
   return (
@@ -31,7 +34,7 @@ export const ModeToggle = () => {
           <span className="sr-only">{t("toggleTheme")}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-36">
+      <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuLabel>{t("theme")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={theme}
@@ -40,6 +43,16 @@ export const ModeToggle = () => {
           <DropdownMenuRadioItem value="system">{t("themeSystem")}</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="light">{t("themeLight")}</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">{t("themeDark")}</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>{t("pride")}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={pride}
+          onValueChange={(value) => setPride(value as PridePreference)}
+        >
+          <DropdownMenuRadioItem value="auto">{t("prideAuto")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="on">{t("prideOn")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="off">{t("prideOff")}</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

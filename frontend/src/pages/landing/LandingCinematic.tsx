@@ -608,7 +608,7 @@ export const LandingCinematic = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5 font-bold text-primary text-xl tracking-tight">
             <LogoIcon className="h-8 w-8" aria-hidden="true" />
-            <span>initiative</span>
+            <span className="pride-wordmark">initiative</span>
           </div>
           <div className="flex items-center gap-3">
             <ModeToggle />
@@ -1175,7 +1175,7 @@ export const LandingCinematic = () => {
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <div className="flex items-center gap-2 font-semibold text-primary">
               <LogoIcon className="h-6 w-6" aria-hidden="true" />
-              <span>initiative</span>
+              <span className="pride-wordmark">initiative</span>
             </div>
             <p className="text-muted-foreground text-sm">
               {t("footer.copyright", { year: new Date().getFullYear() })}

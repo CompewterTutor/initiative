@@ -14,6 +14,7 @@ import { TaskCompletionEffectHost } from "@/components/effects/TaskCompletionEff
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { GuildProvider, useGuilds } from "@/hooks/useGuilds";
 import { KeepScreenAwakeProvider } from "@/hooks/useKeepScreenAwake";
+import { PrideProvider } from "@/hooks/usePride";
 import { ServerProvider, useServer } from "@/hooks/useServer";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { queryClient } from "@/lib/queryClient";
@@ -83,17 +84,19 @@ async function bootstrap() {
     <React.StrictMode>
       <Suspense fallback={null}>
         <ThemeProvider>
-          <KeepScreenAwakeProvider>
-            <ServerProvider>
-              <QueryClientProvider client={queryClient}>
-                <AuthProvider>
-                  <GuildProvider>
-                    <InnerApp />
-                  </GuildProvider>
-                </AuthProvider>
-              </QueryClientProvider>
-            </ServerProvider>
-          </KeepScreenAwakeProvider>
+          <PrideProvider>
+            <KeepScreenAwakeProvider>
+              <ServerProvider>
+                <QueryClientProvider client={queryClient}>
+                  <AuthProvider>
+                    <GuildProvider>
+                      <InnerApp />
+                    </GuildProvider>
+                  </AuthProvider>
+                </QueryClientProvider>
+              </ServerProvider>
+            </KeepScreenAwakeProvider>
+          </PrideProvider>
         </ThemeProvider>
       </Suspense>
     </React.StrictMode>
