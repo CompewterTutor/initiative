@@ -16,6 +16,9 @@ interface FormulaCellInputProps {
   /** Fired when this input gains focus — lets the editor track which of the
    *  two editing surfaces (cell vs formula bar) point-mode should target. */
   onFocus?: () => void;
+  /** Accessible label for the input — set for the standalone formula bar; the
+   *  in-cell editor inherits the grid's labelling and leaves it undefined. */
+  ariaLabel?: string;
 }
 
 /**
@@ -36,6 +39,7 @@ export const FormulaCellInput = ({
   onKeyDown,
   onBlur,
   onFocus,
+  ariaLabel,
 }: FormulaCellInputProps) => {
   const mirrorRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +74,7 @@ export const FormulaCellInput = ({
       </div>
       <input
         ref={inputRef}
+        aria-label={ariaLabel}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}

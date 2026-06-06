@@ -96,6 +96,7 @@ export const SpreadsheetFormulaBar = ({
         ) : (
           <FormulaCellInput
             inputRef={inputRef}
+            ariaLabel={t("documents:spreadsheet.formulaBar.inputLabel")}
             value={value}
             tokens={tokens}
             onChange={onChange}

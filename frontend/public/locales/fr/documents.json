@@ -425,7 +425,8 @@
       }
     },
     "formulaBar": {
-      "nameBoxLabel": "Zone Nom : aller à une cellule ou une plage (p. ex. B12 ou A1:C3)"
+      "nameBoxLabel": "Zone Nom : aller à une cellule ou une plage (p. ex. B12 ou A1:C3)",
+      "inputLabel": "Barre de formule : modifier la formule ou la valeur de la cellule active"
     },
     "format": {
       "scopeCell": "Cellule",

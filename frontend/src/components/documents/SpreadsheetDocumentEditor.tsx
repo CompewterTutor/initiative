@@ -1597,12 +1597,11 @@ export const SpreadsheetDocumentEditor = ({
 
   // The formula bar mirrors the live edit draft, else the focus cell's raw
   // value (its formula/value as stored, not the computed result).
-  const formulaBarValue = editing
-    ? editing.draft
-    : (() => {
-        const raw = cells.get(keyOf(sel.focus.row, sel.focus.col));
-        return raw == null ? "" : String(raw);
-      })();
+  const formulaBarValue = useMemo(() => {
+    if (editing) return editing.draft;
+    const raw = cells.get(keyOf(sel.focus.row, sel.focus.col));
+    return raw == null ? "" : String(raw);
+  }, [editing, cells, sel.focus.row, sel.focus.col]);
 
   // Focusing the bar begins an edit of the focus cell (unless one is already
   // live); the flag keeps focus in the bar instead of the cell input.
