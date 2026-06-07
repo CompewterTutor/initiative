@@ -4,8 +4,6 @@ Self-hosted project management for friend groups, gaming communities, and small 
 
 > **Pre-release software** — this project hasn't reached v1.0.0 yet. The API may change between minor releases.
 
-![Initiative screenshot](https://github.com/user-attachments/assets/c2c6b9c8-3f6f-4d17-a1ba-9338c033674d)
-
 - **Guilds** keep each group's data completely separate, enforced by PostgreSQL Row Level Security
 - **Initiatives & projects** organize related work, documents, and members
 - **Drag-and-drop boards** plus Table, Calendar, and Gantt views
