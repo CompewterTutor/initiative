@@ -508,6 +508,15 @@ export interface PropertySummary {
   value: unknown;
 }
 
+/**
+ * Lightweight tag representation for embedding in other schemas.
+ */
+export interface TagSummary {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface CalendarEventSummary {
   /**
    * @minLength 1
@@ -529,6 +538,7 @@ export interface CalendarEventSummary {
   attendee_names: string[];
   attendee_previews: CalendarEventAttendeePreview[];
   property_values: PropertySummary[];
+  tags: TagSummary[];
   created_at: string;
   updated_at: string;
 }
@@ -543,15 +553,6 @@ export interface CalendarEventListResponse {
 
 export interface CalendarEventRSVPUpdate {
   rsvp_status: RSVPStatus;
-}
-
-/**
- * Lightweight tag representation for embedding in other schemas.
- */
-export interface TagSummary {
-  id: number;
-  name: string;
-  color: string;
 }
 
 export interface CalendarEventRead {
@@ -575,10 +576,10 @@ export interface CalendarEventRead {
   attendee_names: string[];
   attendee_previews: CalendarEventAttendeePreview[];
   property_values: PropertySummary[];
+  tags: TagSummary[];
   created_at: string;
   updated_at: string;
   attendees: CalendarEventAttendeeRead[];
-  tags: TagSummary[];
   documents: CalendarEventDocumentRead[];
 }
 

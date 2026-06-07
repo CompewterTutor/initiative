@@ -5,7 +5,12 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllTasks } from "@/api/query-keys";
-import { type CalendarEntry, CalendarView, type CalendarViewMode } from "@/components/calendar";
+import {
+  CALENDAR_VIEW_MODE_KEY,
+  type CalendarEntry,
+  CalendarView,
+  type CalendarViewMode,
+} from "@/components/calendar";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { buildPropertyColumns, propertyColumnIds } from "@/components/properties/propertyColumns";
 import { getOpenCreateTaskWizard } from "@/components/tasks/CreateTaskWizard";
@@ -18,6 +23,7 @@ import { useGlobalTasksTable } from "@/hooks/useGlobalTasksTable";
 import { useGuilds } from "@/hooks/useGuilds";
 import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibility";
 import { useProperties } from "@/hooks/useProperties";
+import { useViewPreference } from "@/hooks/useViewPreference";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
 import type { TranslateFn } from "@/types/i18n";
 
@@ -29,7 +35,10 @@ export const MyTasksPage = () => {
   const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
-  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>("month");
+  const [calendarViewMode, setCalendarViewMode] = useViewPreference<CalendarViewMode>(
+    CALENDAR_VIEW_MODE_KEY,
+    "month"
+  );
   const [calendarFocusDate, setCalendarFocusDate] = useState(() => new Date());
   const weekStartsOn = (user?.week_starts_on ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
