@@ -34,6 +34,7 @@ import type {
 } from "@/api/generated/initiativeAPI.schemas";
 import {
   buildTaskCalendarEntries,
+  CALENDAR_VIEW_MODE_KEY,
   type CalendarEntry,
   type CalendarEntryReschedule,
   CalendarView,
@@ -301,7 +302,12 @@ export const ProjectTasksSection = ({
   // Calendar view state
   const { user } = useAuth();
   const weekStartsOn = (user?.week_starts_on ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
-  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>("month");
+  // Persist the chosen sub-view (day/week/month/...) per-user, shared with the
+  // other calendars via the same preference key.
+  const [calendarViewMode, setCalendarViewMode] = useViewPreference<CalendarViewMode>(
+    CALENDAR_VIEW_MODE_KEY,
+    "month"
+  );
   const [calendarFocusDate, setCalendarFocusDate] = useState(() => new Date());
 
   // Fetch tasks with server-side filtering (page_size=0 fetches all for drag-and-drop)
