@@ -965,19 +965,16 @@ function WeekView({
             const dayMaxLane = Math.max(laneEnds.length, 1);
 
             return (
-              <DroppableDiv
-                key={key}
-                dropId={`day:${key}`}
-                data={{ type: "day", dateKey: key }}
-                disabled={!dndEnabled}
-                className="relative border-l"
-                overClassName="bg-primary/5"
-              >
-                {/* Hour slot backgrounds */}
+              <div key={key} className="relative border-l">
+                {/* Hour slots — droppable so a timed entry dropped here moves
+                    to this column's day AND this hour. */}
                 {hours.map((hour) => (
-                  // biome-ignore lint/a11y/noStaticElementInteractions: role is set if interactive
-                  <div
+                  <DroppableDiv
                     key={hour}
+                    dropId={`week-slot:${key}:${hour}`}
+                    data={{ type: "hour", hour, dateKey: key }}
+                    disabled={!dndEnabled}
+                    overClassName="bg-primary/10"
                     className={cn("border-b", onSlotClick && "cursor-pointer hover:bg-accent/30")}
                     style={{ height: ROW_HEIGHT }}
                     role={onSlotClick ? "button" : undefined}
@@ -1037,7 +1034,7 @@ function WeekView({
                     </DraggableEntryButton>
                   );
                 })}
-              </DroppableDiv>
+              </div>
             );
           })}
         </div>
@@ -1681,17 +1678,25 @@ export const CalendarView = ({
         return;
       }
 
-      // drop.type === "hour": change the time, keep the date. Skip all-day.
-      if (entry.allDay) return;
-      const newStart = new Date(start);
-      newStart.setHours(drop.hour, 0, 0, 0);
+      // drop.type === "hour": set the date to the dropped column's day. Timed
+      // entries also move to the dropped hour; all-day markers keep their
+      // (midnight) time and only change date — so dropping a task start/due
+      // marker into a week column reschedules its date. In day view the column
+      // is always the focused day, so only the time changes.
+      const targetDay = parseISO(`${drop.dateKey}T00:00:00`);
+      const newStart = new Date(targetDay);
+      if (entry.allDay) {
+        newStart.setHours(start.getHours(), start.getMinutes(), start.getSeconds(), 0);
+      } else {
+        newStart.setHours(drop.hour, 0, 0, 0);
+      }
       if (newStart.getTime() === start.getTime()) return; // no-op
       const newEnd = new Date(newStart.getTime() + durationMs);
       onEntryReschedule?.({
         entry,
         startAt: newStart.toISOString(),
         endAt: newEnd.toISOString(),
-        mode: "time",
+        mode: entry.allDay ? "day" : "time",
       });
     },
     [onEntryReschedule]
