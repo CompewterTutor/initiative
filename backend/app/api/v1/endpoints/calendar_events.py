@@ -24,6 +24,7 @@ from app.db.session import get_admin_session, reapply_rls_context
 from app.models.calendar_event import (
     CalendarEvent,
     CalendarEventAttendee,
+    CalendarEventTag,
 )
 from app.models.guild import GuildMembership
 from app.models.initiative import Initiative, PermissionKey
@@ -188,6 +189,7 @@ async def list_global_calendar_events(
             CalendarEventAttendee.user,
         ),
         selectinload(CalendarEvent.initiative),
+        selectinload(CalendarEvent.tag_links).selectinload(CalendarEventTag.tag),
         selectinload(CalendarEvent.property_values)
         .selectinload(CalendarEventPropertyValue.property_definition),
         selectinload(CalendarEvent.property_values)
@@ -440,6 +442,7 @@ async def list_calendar_events(
         .options(
             selectinload(CalendarEvent.attendees).selectinload(CalendarEventAttendee.user),
             selectinload(CalendarEvent.initiative).selectinload(Initiative.memberships),
+            selectinload(CalendarEvent.tag_links).selectinload(CalendarEventTag.tag),
             selectinload(CalendarEvent.property_values)
             .selectinload(CalendarEventPropertyValue.property_definition),
             selectinload(CalendarEvent.property_values)

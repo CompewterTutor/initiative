@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Drag and drop to reschedule on the calendar.** Drag an event or task to a different day in month view (its time of day is kept), or onto a specific day-and-time slot in week view, or to a different hour in day view — rescheduling it without opening it. A plain click still opens the item.
+- **"Add Event" button on an initiative's calendar.** A floating Add Event button (matching the existing Add Task button) now appears on an initiative's Events page for members who can create events.
+- **Tags on the calendar list view.** Tasks and events in the calendar list now show their tags.
+
+### Changed
+
+- **The chosen calendar view now persists.** Switching between day, week, month, year, or list view is remembered across sessions and devices, and shared across the Events, My Tasks, and Created Tasks calendars.
+- **Tasks clearly distinguish start from due on the calendar.** Start and due dates are labeled "Start"/"Due" with distinct markers, and a task that both starts and is due on the same day now renders as a single block spanning its time slot instead of two all-day entries.
+
 ## [0.49.9] - 2026-06-06
 
 ### Added
