@@ -13,6 +13,7 @@ import type {
   TaskStatusCategory,
 } from "@/api/generated/initiativeAPI.schemas";
 import {
+  buildTaskCalendarEntries,
   CALENDAR_VIEW_MODE_KEY,
   type CalendarEntry,
   type CalendarEntryReschedule,
@@ -39,27 +40,10 @@ import { useTasks, useUpdateTask } from "@/hooks/useTasks";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { toast } from "@/lib/chesterToast";
 import { useGuildPath } from "@/lib/guildUrl";
+import { getProjectColor } from "@/lib/projectColor";
 import { getItem, setItem } from "@/lib/storage";
 
-import { buildTaskCalendarEntries } from "./taskCalendarEntries";
-
 const STORAGE_KEY = "initiative-events-prefs";
-
-/** Distinct colors auto-assigned to projects on the calendar */
-const PROJECT_COLORS = [
-  "#3b82f6", // blue
-  "#10b981", // emerald
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#ec4899", // pink
-  "#14b8a6", // teal
-  "#f97316", // orange
-  "#06b6d4", // cyan
-  "#84cc16", // lime
-];
-
-const getProjectColor = (projectId: number) => PROJECT_COLORS[projectId % PROJECT_COLORS.length];
 
 const STATUS_CATEGORIES: TaskStatusCategory[] = ["backlog", "todo", "in_progress", "done"];
 const PRIORITY_ORDER: TaskPriority[] = ["low", "medium", "high", "urgent"];

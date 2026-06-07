@@ -1,7 +1,8 @@
 import { isSameDay, parseISO } from "date-fns";
 
 import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
-import type { CalendarEntry } from "@/components/calendar";
+
+import type { CalendarEntry } from "./CalendarView";
 
 /**
  * Build the calendar entries for a single task.
