@@ -1627,6 +1627,11 @@ export const NotificationType = {
   access_grant_approved: "access_grant_approved",
   access_grant_denied: "access_grant_denied",
   access_grant_revoked: "access_grant_revoked",
+  event_invitation: "event_invitation",
+  event_updated: "event_updated",
+  event_cancelled: "event_cancelled",
+  event_rsvp: "event_rsvp",
+  event_reminder: "event_reminder",
 } as const;
 
 export type NotificationReadData = { [key: string]: unknown };
@@ -3202,6 +3207,11 @@ export interface UserRead {
   push_project_added: boolean;
   push_overdue_tasks: boolean;
   push_mentions: boolean;
+  email_events: boolean;
+  push_events: boolean;
+  email_event_reminders: boolean;
+  push_event_reminders: boolean;
+  event_reminder_minutes_before: number | null;
   last_overdue_notification_at: string | null;
   last_task_assignment_digest_at: string | null;
   color_theme: string;
@@ -3239,6 +3249,11 @@ export interface UserSelfUpdate {
   push_project_added?: boolean | null;
   push_overdue_tasks?: boolean | null;
   push_mentions?: boolean | null;
+  email_events?: boolean | null;
+  push_events?: boolean | null;
+  email_event_reminders?: boolean | null;
+  push_event_reminders?: boolean | null;
+  event_reminder_minutes_before?: number | null;
   color_theme?: string | null;
   task_completion_visual_feedback?: string | null;
   task_completion_audio_feedback?: boolean | null;
@@ -3317,6 +3332,11 @@ export interface UserUpdate {
   push_project_added?: boolean | null;
   push_overdue_tasks?: boolean | null;
   push_mentions?: boolean | null;
+  email_events?: boolean | null;
+  push_events?: boolean | null;
+  email_event_reminders?: boolean | null;
+  push_event_reminders?: boolean | null;
+  event_reminder_minutes_before?: number | null;
   color_theme?: string | null;
   task_completion_visual_feedback?: string | null;
   task_completion_audio_feedback?: boolean | null;
