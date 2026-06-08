@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { TaskListRead } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllTasks } from "@/api/query-keys";
 import {
+  buildTaskCalendarEntries,
   CALENDAR_VIEW_MODE_KEY,
   type CalendarEntry,
   CalendarView,
@@ -25,6 +26,7 @@ import { usePersistedColumnVisibility } from "@/hooks/usePersistedColumnVisibili
 import { useProperties } from "@/hooks/useProperties";
 import { useViewPreference } from "@/hooks/useViewPreference";
 import { guildPath, useGuildPath } from "@/lib/guildUrl";
+import { getProjectColor } from "@/lib/projectColor";
 import type { TranslateFn } from "@/types/i18n";
 
 export const MyTasksPage = () => {
@@ -107,37 +109,14 @@ export const MyTasksPage = () => {
 
   const calendarEntries = useMemo<CalendarEntry[]>(() => {
     const entries: CalendarEntry[] = [];
+    // Reuse the shared builder so start/due markers get the same visual
+    // treatment as the other calendars, injecting guildId into meta for
+    // cross-guild navigation. Not draggable here (no reschedule handler).
     table.displayTasks.forEach((task) => {
-      const taskAttendees = task.assignees
-        .filter((a) => a.full_name)
-        .map((a) => ({
-          name: a.full_name!,
-          avatarUrl: a.avatar_url,
-          avatarBase64: a.avatar_base64,
-          userId: a.id,
-        }));
-
-      if (task.due_date) {
+      for (const entry of buildTaskCalendarEntries(task, getProjectColor(task.project_id), false)) {
         entries.push({
-          id: `${task.id}-due`,
-          title: task.title,
-          startAt: task.due_date,
-          endAt: task.due_date,
-          allDay: true,
-          attendees: taskAttendees,
-          meta: { guildId: task.guild_id },
-        });
-      }
-      if (task.start_date) {
-        entries.push({
-          id: `${task.id}-start`,
-          title: task.title,
-          startAt: task.start_date,
-          endAt: task.start_date,
-          allDay: true,
-          color: "#10b981",
-          attendees: taskAttendees,
-          meta: { guildId: task.guild_id },
+          ...entry,
+          meta: { ...(entry.meta as Record<string, unknown>), guildId: task.guild_id },
         });
       }
     });
@@ -145,11 +124,10 @@ export const MyTasksPage = () => {
   }, [table.displayTasks]);
 
   const handleEntryClick = (entry: CalendarEntry) => {
-    const taskId = Number(String(entry.id).split("-")[0]);
-    if (!taskId) return;
-    const meta = entry.meta as { guildId?: number } | undefined;
-    const path = `/tasks/${taskId}`;
-    void navigate({ to: meta?.guildId ? guildPath(meta.guildId, path) : gp(path) });
+    const meta = entry.meta as { taskId?: number; guildId?: number } | undefined;
+    if (!meta?.taskId) return;
+    const path = `/tasks/${meta.taskId}`;
+    void navigate({ to: meta.guildId ? guildPath(meta.guildId, path) : gp(path) });
   };
 
   return (
