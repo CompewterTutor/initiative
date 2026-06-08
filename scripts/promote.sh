@@ -17,6 +17,7 @@ CUSTOM_VERSION=""
 CHERRY_SHAS=()
 DRY_RUN=false
 AUTO_CONFIRM=false
+FORCE_NATIVE=false   # force MIN_NATIVE_VERSION bump even if no native change is detected
 CLEANUP_BRANCH=""
 ALLOWED_OWNERS=("jordandrako" "LeeJMorel")
 DATE=$(date +%Y-%m-%d)
@@ -57,6 +58,9 @@ Options:
   --version X.Y.Z      Promote + set explicit version
   --cherry-pick SHA... Cherry-pick specific commits instead of full merge
   --rollback           Revert a release on main
+  --force-native       Force-bump MIN_NATIVE_VERSION to the release version even if no
+                       native change is auto-detected (CI will build a fresh APK/IPA).
+                       Use when a native-affecting change landed only via pnpm-lock.yaml.
   --dry-run            Show what would happen without making changes
   -y                   Auto-confirm prompts
   -h, --help           Show this help
@@ -67,6 +71,7 @@ Examples:
   scripts/promote.sh --patch                # Promote + patch release
   scripts/promote.sh --minor                # Promote + minor release
   scripts/promote.sh --major                # Promote + major release
+  scripts/promote.sh --patch --force-native # Patch release, force a native APK rebuild
   scripts/promote.sh --cherry-pick abc123   # Cherry-pick a hotfix to main
   scripts/promote.sh --rollback             # Revert the latest release
   scripts/promote.sh --rollback --version 0.29.1  # Revert a specific release
@@ -96,6 +101,7 @@ parse_args() {
                 [[ ${#CHERRY_SHAS[@]} -eq 0 ]] && die "--cherry-pick requires at least one SHA"
                 ;;
             --rollback) MODE="rollback"; shift ;;
+            --force-native) FORCE_NATIVE=true; shift ;;
             --dry-run)  DRY_RUN=true; shift ;;
             -y)         AUTO_CONFIRM=true; shift ;;
             -h|--help)  usage; exit 0 ;;
@@ -115,6 +121,13 @@ parse_args() {
     # Cherry-pick can also have a version bump
     if [[ "$MODE" == "cherry-pick" && -n "$BUMP_TYPE" ]]; then
         : # valid combination
+    fi
+
+    # --force-native only does something when a version is bumped (release, or cherry-pick
+    # with a bump) — that's the only path that stamps MIN_NATIVE_VERSION. Reject it elsewhere
+    # so it never silently no-ops.
+    if $FORCE_NATIVE && [[ -z "$BUMP_TYPE" ]]; then
+        die "--force-native requires a version bump (--patch/--minor/--major/--version)"
     fi
 }
 
@@ -151,20 +164,41 @@ detect_native_change() {
     return 1
 }
 
-# Bump MIN_NATIVE_VERSION to the release version when the native shell changed since `base`.
-# Stages the file so it lands in the version-bump commit. The committed value is the single
-# signal CI keys off to decide whether to build the APK (see docker-publish.yml `decide` job).
+# Bump MIN_NATIVE_VERSION to the release version when the native shell changed since `base`
+# (or when --force-native is passed). Stages the file so it lands in the version-bump commit.
+# The committed value is the single signal CI keys off to decide whether to build the APK
+# (see docker-publish.yml `decide` job).
 stamp_min_native_version() {
     local base="$1" head="$2" new_version="$3"
     local current_min
     current_min=$(cat MIN_NATIVE_VERSION 2>/dev/null | tr -d '[:space:]' || echo "unknown")
-    if detect_native_change "$base" "$head"; then
+    if $FORCE_NATIVE; then
+        echo "$new_version" > MIN_NATIVE_VERSION
+        git add MIN_NATIVE_VERSION
+        warn "  --force-native → MIN_NATIVE_VERSION $current_min → $new_version (new APK/IPA REQUIRED; CI will build it)"
+    elif detect_native_change "$base" "$head"; then
         echo "$new_version" > MIN_NATIVE_VERSION
         git add MIN_NATIVE_VERSION
         warn "  Native surface changed → MIN_NATIVE_VERSION $current_min → $new_version (new APK/IPA REQUIRED; CI will build it)"
     else
         info "  No native changes → MIN_NATIVE_VERSION stays $current_min (web-only OTA release, no APK build)"
     fi
+}
+
+# Report (without staging) whether MIN_NATIVE_VERSION would move, mirroring
+# stamp_min_native_version's decision. Used in the release preview / dry run.
+preview_min_native_version() {
+    local base="$1" head="$2" new_version="$3"
+    local current_min
+    current_min=$(cat MIN_NATIVE_VERSION 2>/dev/null | tr -d '[:space:]' || echo "unknown")
+    if $FORCE_NATIVE; then
+        warn "  MIN_NATIVE_VERSION: $current_min → $new_version (forced via --force-native; CI builds APK/IPA)"
+    elif detect_native_change "$base" "$head"; then
+        warn "  MIN_NATIVE_VERSION: $current_min → $new_version (native change detected; CI builds APK/IPA)"
+    else
+        info "  MIN_NATIVE_VERSION: stays $current_min (web-only OTA release, no APK build)"
+    fi
+    echo ""
 }
 
 calc_new_version() {
@@ -390,6 +424,7 @@ do_release() {
 
     echo -e "${BOLD}Version: $current → $new_version${NC}"
     preview_changelog "$new_version"
+    preview_min_native_version "origin/main" "origin/dev" "$new_version"
 
     if $DRY_RUN; then
         info "Dry run complete — no changes made."
