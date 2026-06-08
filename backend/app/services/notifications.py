@@ -1164,15 +1164,21 @@ async def _run_event_reminder_pass(session: AsyncSession, *, now: datetime) -> N
         )
         if existing.first() is not None:
             continue
-        await notify_event_reminder(
-            session, recipient=user, event=event, guild_id=event.guild_id
-        )
+        # Reserve the dedup row and commit it *before* dispatching the external
+        # channels. This loop polls every 60s, so if email/push went out first
+        # and the ledger commit then failed, the next poll would resend. Writing
+        # the ledger first means a commit failure here simply retries cleanly,
+        # and a success guarantees at most one send.
         session.add(
             EventReminderDispatch(
                 event_id=event.id,
                 user_id=user.id,
                 event_start_at=event.start_at,
             )
+        )
+        await session.commit()
+        await notify_event_reminder(
+            session, recipient=user, event=event, guild_id=event.guild_id
         )
         await session.commit()
 

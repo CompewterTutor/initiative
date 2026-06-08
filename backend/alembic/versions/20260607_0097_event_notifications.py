@@ -61,7 +61,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["event_id"], ["calendar_events.id"], ondelete="CASCADE"
         ),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "event_id",

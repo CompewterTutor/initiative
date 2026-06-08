@@ -34,7 +34,14 @@ class EventReminderDispatch(SQLModel, table=True):
             index=True,
         ),
     )
-    user_id: int = Field(foreign_key="users.id", nullable=False, index=True)
+    user_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
     event_start_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
