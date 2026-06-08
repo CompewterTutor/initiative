@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.50.2] - 2026-06-08
+
 ### Added
 
 - **Events can span multiple days.** A timed event's end can now fall on a later day (the 24-hour limit is gone). The create dialog and edit page gained separate end-date pickers, and the calendar draws a multi-day timed event across each day it touches — in week and day views it fills the time grid on every day (start day from its start time, full middle days, end day up to its end time) rather than sitting in the all-day bar.
