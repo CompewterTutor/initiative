@@ -160,6 +160,12 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         # test's trailing reads would keep AccessShare locks on the guild-schema
         # tables — which the teardown's DROP SCHEMA (AccessExclusive) would block on.
         await bound_conn.rollback()
+        # Drop any guild role / schema routing the request path's set_rls_context
+        # left on this connection (session-level GUCs survive rollback + pool
+        # return), so the superuser cleanup below isn't stuck as guild_<id>.
+        await bound_conn.exec_driver_sql(
+            "SELECT set_config('role', 'none', false), set_config('search_path', 'public', false)"
+        )
 
     # Session is now closed (its rollback released any lock on public.guilds the
     # create-guild endpoint's trailing SELECT left held). Clean up on a fresh

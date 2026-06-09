@@ -52,8 +52,10 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             "set_config('app.pam_guild_id', '', false), "
             "set_config('app.pam_read', 'false', false), "
             "set_config('app.pam_write', 'false', false), "
-            # Route guild-scoped tables back to public on a recycled connection.
-            "set_config('search_path', 'public', false)"
+            # Route guild-scoped tables back to public and drop any assumed guild
+            # role on a recycled connection.
+            "set_config('search_path', 'public', false), "
+            "set_config('role', 'none', false)"
         ))
         yield session
 
@@ -124,13 +126,21 @@ async def set_rls_context(
     pr = "true" if pam_read else "false"
     pw = "true" if pam_write else "false"
 
-    # Route guild-scoped tables to the active guild's schema. Each guild's
-    # content lives in guild_<id>; that schema holds only the guild-scoped
-    # tables, so shared tables (users, guilds, ...) resolve in public.
-    # int() makes the schema name injection-safe.
+    # Route guild-scoped tables to the active guild's schema AND assume that
+    # guild's role. Each guild's content lives in guild_<id>; that schema holds
+    # only the guild-scoped tables, so shared tables (users, guilds, ...) resolve
+    # in public. The login role has no standing access to any guild schema
+    # (fail-closed) — it must SET ROLE into the per-guild role, which owns its
+    # schema and inherits shared/public access from app_guild_base. int() makes
+    # the schema/role name injection-safe.
     route_guild = guild_id if guild_id is not None else pam_guild_id
     sp = f"guild_{int(route_guild)}, public" if route_guild is not None else "public"
+    role_target = f"guild_{int(route_guild)}" if route_guild is not None else "none"
 
+    # Reset to the login role first: a session already SET ROLE'd into guild A
+    # cannot SET ROLE into guild B (it isn't a member). 'none' returns to the
+    # authenticated login role, which IS a member of every provisioned guild role.
+    await session.execute(text("SELECT set_config('role', 'none', false)"))
     await session.execute(text(
         "SELECT set_config('app.current_user_id', :uid, false), "
         "set_config('app.current_guild_id', :gid, false), "
@@ -139,9 +149,10 @@ async def set_rls_context(
         "set_config('app.pam_guild_id', :pgid, false), "
         "set_config('app.pam_read', :pr, false), "
         "set_config('app.pam_write', :pw, false), "
-        "set_config('search_path', :sp, false)"
+        "set_config('search_path', :sp, false), "
+        "set_config('role', :role, false)"
     ), {"uid": uid, "gid": gid, "grole": grole, "sa": sa, "pgid": pgid,
-        "pr": pr, "pw": pw, "sp": sp})
+        "pr": pr, "pw": pw, "sp": sp, "role": role_target})
 
 
 async def reapply_rls_context(session: AsyncSession) -> None:

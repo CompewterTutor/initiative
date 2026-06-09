@@ -98,24 +98,28 @@ def _guild_schema_ddl(schema: str) -> str:
 
 
 def _grant_statements(schema: str) -> list[str]:
-    """GRANTs that let the per-guild role and the app login role reach the schema.
+    """Fail-closed grants for a guild's schema.
 
-    Default privileges cover objects created later; the explicit grants cover
-    what already exists. (Tightening to per-guild roles + SET ROLE is the
-    fail-closed step.)
+    Only the per-guild role gets DML on the schema. It inherits shared/public
+    access from ``app_guild_base``. The login roles are granted membership in the
+    guild role ``WITH INHERIT FALSE`` — they can ``SET ROLE`` into it but hold no
+    standing access to the schema, so a guild's data is reachable only by
+    assuming its role.
     """
     role = schema  # the per-guild role shares the schema's name (guild_<id>)
-    stmts: list[str] = []
-    for grantee in (role, APP_LOGIN_ROLE, ADMIN_LOGIN_ROLE):
-        stmts += [
-            f'GRANT USAGE ON SCHEMA "{schema}" TO "{grantee}"',
-            f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" '
-            f'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{grantee}"',
-            f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT USAGE ON SEQUENCES TO "{grantee}"',
-            f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{schema}" TO "{grantee}"',
-            f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{grantee}"',
-        ]
-    return stmts
+    return [
+        # The per-guild role owns DML on its schema...
+        f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"',
+        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" '
+        f'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{role}"',
+        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT USAGE ON SEQUENCES TO "{role}"',
+        f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{schema}" TO "{role}"',
+        f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{role}"',
+        # ...and inherits shared/public access (users, guilds, ...) from the base role.
+        f'GRANT app_guild_base TO "{role}"',
+        # The login roles may assume the guild role but inherit nothing from it.
+        f'GRANT "{role}" TO "{APP_LOGIN_ROLE}", "{ADMIN_LOGIN_ROLE}" WITH INHERIT FALSE',
+    ]
 
 
 async def _exec_batch(conn: AsyncConnection, statements: list[str]) -> None:
