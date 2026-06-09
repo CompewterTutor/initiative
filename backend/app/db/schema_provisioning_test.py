@@ -27,7 +27,7 @@ _GID_ROLE_A = 990_104
 _GID_ROLE_B = 990_105
 _GID_ROLE_DROP = 990_106
 _GID_ROLE_WRITE = 990_107
-_GID_ENUMS = 990_108
+_GID_BACKFILL = 990_108
 _GID_REPROVISION = 990_109
 _GID_DROP_ABSENT = 990_110
 
@@ -211,22 +211,37 @@ async def test_guild_role_can_write_in_its_own_schema(engine):
             await conn.execute(text("DELETE FROM public.guilds WHERE id = :id"), {"id": gid})
 
 
-async def test_guild_schema_has_its_own_enum_types(engine):
-    """Each guild schema is self-contained, including copies of named enums."""
-    gid = _GID_ENUMS
+async def test_reprovision_backfills_missing_tables_with_grants(engine):
+    """Re-provisioning recreates a table missing from the schema and grants it.
+
+    Stands in for "a new guild-scoped table was added to the manifest": the
+    table is absent from an existing schema, and a re-provision must create it
+    *and* extend the role's access to it.
+    """
+    gid = _GID_BACKFILL
     schema = guild_schema_name(gid)
+    role = guild_role_name(gid)
     try:
         async with engine.begin() as conn:
             await provision_guild_schema(conn, gid)
+            # Simulate a table that didn't exist when the schema was first made.
+            await conn.exec_driver_sql(f'DROP TABLE "{schema}".subtasks CASCADE')
+
         async with engine.connect() as conn:
-            in_guild = await conn.scalar(
-                text(
-                    "SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace "
-                    "WHERE n.nspname = :s AND t.typname = 'task_priority'"
-                ),
-                {"s": schema},
-            )
-        assert in_guild == 1, "guild schema should own its own task_priority enum"
+            gone = await conn.scalar(text(f"SELECT to_regclass('{schema}.subtasks')"))
+        assert gone is None, "precondition: subtasks dropped"
+
+        async with engine.begin() as conn:
+            await provision_guild_schema(conn, gid)  # back-fill
+
+        async with engine.connect() as conn:
+            recreated = await conn.scalar(text(f"SELECT to_regclass('{schema}.subtasks')"))
+            # and the role's grant reaches the back-filled table
+            await conn.exec_driver_sql(f'SET ROLE "{role}"')
+            readable = await conn.scalar(text(f'SELECT count(*) FROM "{schema}".subtasks'))
+            await conn.exec_driver_sql("RESET ROLE")
+        assert recreated is not None, "subtasks should be back-filled"
+        assert readable == 0, "role should be able to read the back-filled table"
     finally:
         async with engine.begin() as conn:
             await drop_guild_schema(conn, gid)
