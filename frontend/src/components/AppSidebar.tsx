@@ -462,7 +462,7 @@ export const AppSidebar = () => {
                   </TabsContent>
 
                   <TabsContent value="tags" className="mt-0 flex-1 overflow-hidden">
-                    <ScrollArea className="[&_[data-radix-scroll-area-viewport]>div]:!block h-full">
+                    <ScrollArea className="[&_[data-radix-scroll-area-viewport]>div]:block! h-full">
                       <SidebarContent className="overflow-x-hidden overflow-y-visible">
                         <SidebarGroup>
                           <SidebarGroupLabel className="flex items-center gap-2 py-2">

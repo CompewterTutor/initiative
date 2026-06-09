@@ -352,7 +352,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
 
   return (
     <aside
-      className="sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r bg-sidebar px-2 pb-4 scrollbar-thin"
+      className="sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r bg-sidebar px-2 pb-4"
       style={{ paddingTop: "calc(var(--safe-area-inset-top) + 1rem)" }}
     >
       <TooltipProvider delayDuration={200}>
@@ -373,7 +373,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
             <p>{t("nav:home")}</p>
           </TooltipContent>
         </Tooltip>
-        <div className="flex flex-col items-center gap-3 overflow-y-auto border-t py-3">
+        <div className="scrollbar-thin flex flex-col items-center gap-3 overflow-y-auto border-t py-3">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
