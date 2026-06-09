@@ -127,10 +127,16 @@ async def sync_oidc_assignments(
     # per-guild schemas under schema-per-guild), so a purged initiative/role can
     # leave a dangling mapping. Drop it here rather than fail a membership insert.
     if initiative_guild:
+        from sqlalchemy import tuple_ as sa_tuple
+
         existing = set(
             (
                 await session.exec(
-                    select(Initiative.id).where(Initiative.id.in_(tuple(initiative_guild)))
+                    select(Initiative.id).where(
+                        sa_tuple(Initiative.id, Initiative.guild_id).in_(
+                            tuple(initiative_guild.items())
+                        )
+                    )
                 )
             ).all()
         )
