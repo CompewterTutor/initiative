@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sidebars and the kanban board now show a slim, styled scrollbar instead of the browser default — the app sidebar uses a proper scroll area, while the guild rail and kanban (column and horizontal board) scrollers keep their native scrolling and drag behavior with just restyled scrollbars.
 - OIDC claim mappings no longer use database foreign keys for their initiative/role references — those tables move into per-guild schemas under schema-per-guild, which a shared-table FK can't span. Validity is enforced in the app (the create endpoint already validates) and the login sync skips stale references; the trade-off is documented in the model.
 
 ### Fixed
