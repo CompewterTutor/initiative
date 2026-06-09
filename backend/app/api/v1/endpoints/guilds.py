@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from contextlib import suppress
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
@@ -38,6 +40,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _serialize_guild(
@@ -164,9 +167,14 @@ async def create_guild(
     try:
         await provision_guild(guild.id)
     except Exception:
-        await deprovision_guild(guild.id)
+        # Undo the guild first so we never leave one un-provisioned; only then
+        # best-effort drop any partially-created schema (its failure must not
+        # block the guild rollback or mask the original error).
         await guilds_service.delete_guild(session, guild)
         await session.commit()
+        with suppress(Exception):
+            await deprovision_guild(guild.id)
+        logger.exception("Guild %s provisioning failed; guild rolled back", guild.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=GuildMessages.GUILD_PROVISION_FAILED,
@@ -306,9 +314,13 @@ async def delete_guild(
 
     await guilds_service.delete_guild(session, guild)
     await session.commit()
-    # Drop the schema/role after the guild rows are gone. If it fails the guild
-    # is still deleted; an orphaned empty schema is harmless.
-    await deprovision_guild(guild_id)
+    # The guild rows are gone (committed) — dropping the schema/role is
+    # best-effort cleanup. If it fails, the deletion still succeeded and an
+    # orphaned empty schema is harmless, so don't fail the request.
+    try:
+        await deprovision_guild(guild_id)
+    except Exception:
+        logger.exception("Failed to deprovision schema/role for deleted guild %s", guild_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

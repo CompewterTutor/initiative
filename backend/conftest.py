@@ -182,8 +182,16 @@ async def client(session: AsyncSession, engine, monkeypatch) -> AsyncGenerator[A
 
     app.dependency_overrides.clear()
 
+    # Release the test session's transaction first: the create-guild endpoint
+    # ends on a SELECT (no commit after), leaving the session idle-in-transaction
+    # holding a lock on public.guilds that DROP SCHEMA (guild tables FK to it)
+    # would block on. lock_timeout makes any residual conflict fail fast rather
+    # than hang the suite.
+    await session.rollback()
+
     # Drop any guild_<n> schemas/roles provisioned during the test.
     async with engine.begin() as conn:
+        await conn.exec_driver_sql("SET lock_timeout = '10s'")
         for (schema,) in (
             await conn.execute(
                 text("SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'")

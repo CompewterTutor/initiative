@@ -9,9 +9,12 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+import app.api.v1.endpoints.guilds as guilds_endpoint
 from app.db.schema_provisioning import guild_role_name, guild_schema_name
+from app.models.guild import Guild
 from app.testing.factories import (
     create_user,
     get_auth_headers,
@@ -75,3 +78,50 @@ async def test_delete_guild_deprovisions_schema_and_role(
 
     assert not await _schema_exists(engine, schema)
     assert not await _role_exists(engine, role)
+
+
+async def test_create_guild_rolls_back_when_provisioning_fails(
+    client: AsyncClient, session: AsyncSession, monkeypatch
+):
+    """If provisioning fails, the guild is rolled back (no orphaned row)."""
+
+    async def boom(_guild_id):
+        raise RuntimeError("provisioning failed")
+
+    monkeypatch.setattr(guilds_endpoint, "provision_guild", boom)
+
+    user = await create_user(session, email="rollback@example.com")
+    headers = get_auth_headers(user)
+    resp = await client.post("/api/v1/guilds/", headers=headers, json={"name": "Rollback Guild"})
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "GUILD_PROVISION_FAILED"
+    remaining = (
+        await session.exec(select(Guild).where(Guild.name == "Rollback Guild"))
+    ).all()
+    assert remaining == [], "guild row must be rolled back when provisioning fails"
+
+
+async def test_delete_guild_succeeds_even_if_deprovision_fails(
+    client: AsyncClient, session: AsyncSession, engine: AsyncEngine, monkeypatch
+):
+    """A teardown failure must not 500 a deletion whose rows are already gone."""
+    user = await create_user(session, email="deprov-fail@example.com")
+    headers = get_auth_headers(user)
+    resp = await client.post("/api/v1/guilds/", headers=headers, json={"name": "Teardown Fail"})
+    gid = resp.json()["id"]
+
+    async def boom(_guild_id):
+        raise RuntimeError("deprovisioning failed")
+
+    monkeypatch.setattr(guilds_endpoint, "deprovision_guild", boom)
+    resp = await client.request(
+        "DELETE",
+        f"/api/v1/guilds/{gid}",
+        headers=headers,
+        json={"password": "testpassword123", "confirmation_text": "DELETE GUILD TEARDOWN FAIL"},
+    )
+
+    assert resp.status_code == 204, "deletion succeeds despite deprovision failure"
+    remaining = (await session.exec(select(Guild).where(Guild.id == gid))).all()
+    assert remaining == [], "guild row is gone"
