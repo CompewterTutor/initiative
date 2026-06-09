@@ -56,7 +56,7 @@ SHARED_TABLES: frozenset[str] = frozenset(
 # The actual tenant content. Always accessed with a guild context.
 GUILD_SCOPED_TABLES: frozenset[str] = frozenset(
     {
-        # Guild config that always reads with a guild context
+        # Guild config — guild-scoped because it holds private config (API keys)
         "guild_settings",
         "webhook_subscriptions",
         # Initiatives + roles
