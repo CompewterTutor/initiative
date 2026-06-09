@@ -37,7 +37,13 @@ async def get_primary_guild(session: AsyncSession) -> Guild:
         updated_at=now,
     )
     session.add(guild)
-    await session.flush()
+    # Commit the shared guild row before provisioning so the new schema's FKs to
+    # public.guilds don't deadlock on an uncommitted insert. (Only the first time
+    # the primary guild is created — i.e. fresh-DB seeding.)
+    await session.commit()
+    from app.db.schema_provisioning import provision_guild
+
+    await provision_guild(guild.id)
     return guild
 
 

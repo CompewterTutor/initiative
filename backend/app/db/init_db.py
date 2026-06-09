@@ -7,7 +7,7 @@ from sqlmodel import select
 from app.core.config import settings
 from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL
 from app.core.security import get_password_hash
-from app.db.session import AdminSessionLocal, run_migrations
+from app.db.session import AdminSessionLocal, run_migrations, set_rls_context
 from app.models.user import User, UserRole
 from app.models.guild import GuildRole
 from app.services import app_settings as app_settings_service
@@ -26,21 +26,18 @@ async def init_superuser() -> None:
         return
 
     async with AdminSessionLocal() as session:
-        async with session.begin():
-            primary_guild = await guilds_service.get_primary_guild(session)
-            result = await session.exec(select(User).where(User.email_hash == hash_email(settings.FIRST_SUPERUSER_EMAIL)))
-            user = result.one_or_none()
-            if user:
-                await guilds_service.ensure_membership(
-                    session,
-                    guild_id=primary_guild.id,
-                    user_id=user.id,
-                    role=GuildRole.admin,
-                )
-                await initiatives_service.ensure_default_initiative(session, user, guild_id=primary_guild.id)
-                return
+        # get_primary_guild creates + commits + provisions the guild's schema on a
+        # fresh DB (so it can't sit inside one big transaction). Route into that
+        # schema so the guild-scoped default initiative lands there, not in public.
+        primary_guild = await guilds_service.get_primary_guild(session)
+        await set_rls_context(session, guild_id=primary_guild.id)
 
-            superuser = User(
+        result = await session.exec(
+            select(User).where(User.email_hash == hash_email(settings.FIRST_SUPERUSER_EMAIL))
+        )
+        user = result.one_or_none()
+        if user is None:
+            user = User(
                 email_hash=hash_email(settings.FIRST_SUPERUSER_EMAIL),
                 email_encrypted=encrypt_field(settings.FIRST_SUPERUSER_EMAIL, SALT_EMAIL),
                 full_name=settings.FIRST_SUPERUSER_FULL_NAME,
@@ -48,15 +45,17 @@ async def init_superuser() -> None:
                 role=UserRole.owner,
                 email_verified=True,
             )
-            session.add(superuser)
+            session.add(user)
             await session.flush()
-            await guilds_service.ensure_membership(
-                session,
-                guild_id=primary_guild.id,
-                user_id=superuser.id,
-                role=GuildRole.admin,
-            )
-            await initiatives_service.ensure_default_initiative(session, superuser, guild_id=primary_guild.id)
+
+        await guilds_service.ensure_membership(
+            session,
+            guild_id=primary_guild.id,
+            user_id=user.id,
+            role=GuildRole.admin,
+        )
+        await initiatives_service.ensure_default_initiative(session, user, guild_id=primary_guild.id)
+        await session.commit()
 
 
 async def check_pre_baseline_db() -> None:
@@ -140,7 +139,11 @@ async def init() -> None:
     await run_migrations()
     await init_superuser()
     async with AdminSessionLocal() as session:
-        await app_settings_service.get_or_create_guild_settings(session)
+        # guild_settings is guild-scoped; route into the primary guild's schema
+        # so the seeded settings row lands there, not in public.
+        primary_id = await guilds_service.get_primary_guild_id(session)
+        await set_rls_context(session, guild_id=primary_id)
+        await app_settings_service.get_or_create_guild_settings(session, guild_id=primary_id)
 
 
 if __name__ == "__main__":  # pragma: no cover
