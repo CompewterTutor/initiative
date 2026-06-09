@@ -59,12 +59,21 @@ def _guild_metadata(schema: str) -> tuple[MetaData, list]:
     return md, guild_tables
 
 
-def _create_missing_tables(sync_conn: Connection, schema: str) -> None:
+def _create_tables(sync_conn: Connection, schema: str, names: set[str]) -> None:
     # public on the search path so unqualified enum types resolve to the shared
-    # public types; checkfirst creates only the tables absent from this schema.
+    # public types; checkfirst still guards (skips the shared enum types).
     sync_conn.exec_driver_sql("SET search_path TO public")
     md, guild_tables = _guild_metadata(schema)
-    md.create_all(sync_conn, tables=guild_tables, checkfirst=True)
+    to_create = [t for t in guild_tables if t.name in names]
+    md.create_all(sync_conn, tables=to_create, checkfirst=True)
+
+
+async def _existing_tables(conn: AsyncConnection, schema: str) -> set[str]:
+    rows = await conn.execute(
+        text("SELECT table_name FROM information_schema.tables WHERE table_schema = :s"),
+        {"s": schema},
+    )
+    return {row[0] for row in rows}
 
 
 async def _role_exists(conn: AsyncConnection, role: str) -> bool:
@@ -109,7 +118,14 @@ async def provision_guild_schema(conn: AsyncConnection, guild_id: int) -> str:
 
     await conn.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     await _ensure_role(conn, role)
-    await conn.run_sync(_create_missing_tables, schema)
+
+    # One round-trip to find what's missing; skip the metadata build + per-table
+    # checkfirst probes entirely when the schema is already complete (the common
+    # re-provision case). Only newly-manifested tables get created.
+    missing = {t.name for t in _guild_scoped_tables()} - await _existing_tables(conn, schema)
+    if missing:
+        await conn.run_sync(_create_tables, schema, missing)
+
     await _grant_schema_to_role(conn, schema, role)
     return schema
 
