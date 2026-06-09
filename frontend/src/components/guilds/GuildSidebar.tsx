@@ -352,7 +352,7 @@ export const GuildSidebar = ({ isHomeMode = false }: { isHomeMode?: boolean }) =
 
   return (
     <aside
-      className="sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r bg-sidebar px-2 pb-4"
+      className="sticky top-0 flex max-h-screen w-20 flex-col items-center gap-3 border-r bg-sidebar px-2 pb-4 scrollbar-thin"
       style={{ paddingTop: "calc(var(--safe-area-inset-top) + 1rem)" }}
     >
       <TooltipProvider delayDuration={200}>

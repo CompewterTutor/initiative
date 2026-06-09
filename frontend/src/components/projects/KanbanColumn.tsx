@@ -123,7 +123,7 @@ export const KanbanColumn = ({
           "h-full w-full transition-colors",
           collapsed
             ? "flex flex-1 items-center justify-center px-2"
-            : "flex-1 space-y-3 overflow-y-auto p-3 pr-2",
+            : "scrollbar-thin flex-1 space-y-3 overflow-y-auto p-3 pr-2",
           isOver ? "bg-muted/40" : null
         )}
       >
