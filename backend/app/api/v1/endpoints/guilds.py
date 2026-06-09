@@ -353,7 +353,11 @@ async def delete_guild(
             "SELECT set_config('role', 'none', false), "
             "set_config('search_path', 'public', false), "
             "set_config('app.current_user_id', :uid, false), "
-            "set_config('app.current_guild_id', :gid, false)"
+            "set_config('app.current_guild_id', :gid, false), "
+            # Fail fast instead of hanging if a concurrent session holds a lock on
+            # public.guilds; the schema is already dropped, so a retry just redoes
+            # the (idempotent) deprovision and re-attempts the row delete.
+            "set_config('lock_timeout', '10s', false)"
         ),
         {"uid": str(user_id), "gid": str(guild_id)},
     )

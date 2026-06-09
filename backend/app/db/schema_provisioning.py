@@ -167,6 +167,11 @@ async def drop_guild_schema(conn: AsyncConnection, guild_id: int) -> None:
     schema = guild_schema_name(guild_id)
     role = guild_role_name(guild_id)
 
+    # DROP SCHEMA needs an exclusive lock on the schema's tables (and on
+    # public.guilds to drop their FKs); concurrent app sessions can hold it. Fail
+    # fast rather than hang — the caller treats a failure as "retry later", and
+    # this drop is idempotent so a retry recovers cleanly.
+    await conn.exec_driver_sql("SET lock_timeout = '10s'")
     await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
     if await _role_exists(conn, role):
         await conn.exec_driver_sql(f'DROP OWNED BY "{role}"')  # clear grants first
