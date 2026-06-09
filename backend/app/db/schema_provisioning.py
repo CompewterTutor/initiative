@@ -33,6 +33,10 @@ def _guild_scoped_tables() -> list:
     return [t for t in SQLModel.metadata.sorted_tables if t.name in GUILD_SCOPED_TABLES]
 
 
+# TODO(post-v1): once existing guilds have migrated and provisioning volume
+# actually matters, consider cloning a prebuilt `guild_template` schema
+# (pg_dump --schema | rename) instead of generating per-table DDL here — much
+# faster at scale, but it doesn't cover back-fill, so keep this path for that.
 def _guild_metadata(schema: str) -> tuple[MetaData, list]:
     """Build a schema-qualified copy of the model and the guild tables to create.
 
