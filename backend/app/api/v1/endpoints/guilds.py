@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from contextlib import suppress
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
@@ -9,6 +11,7 @@ from app.core.capabilities import Capability, user_has_capability
 from app.core.config import settings
 from app.core.messages import AdvancedToolMessages, GuildMessages
 from app.core.security import create_advanced_tool_handoff_token, verify_password
+from app.db.schema_provisioning import deprovision_guild, provision_guild
 from app.db.session import get_admin_session, reapply_rls_context, set_rls_context
 from app.models.guild import GuildRole, GuildMembership, Guild
 from app.models.user import User
@@ -37,6 +40,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _serialize_guild(
@@ -156,6 +160,25 @@ async def create_guild(
     await initiatives_service.ensure_default_initiative(session, current_user, guild_id=guild.id)
     await session.commit()
     await reapply_rls_context(session)
+    # Provision the guild's schema/role AFTER commit. Doing it before would
+    # deadlock: the uncommitted guilds INSERT holds a lock on public.guilds that
+    # the new schema's foreign keys to public.guilds need. If provisioning fails,
+    # undo the guild so we never leave one un-provisioned.
+    try:
+        await provision_guild(guild.id)
+    except Exception:
+        # Undo the guild first so we never leave one un-provisioned; only then
+        # best-effort drop any partially-created schema (its failure must not
+        # block the guild rollback or mask the original error).
+        await guilds_service.delete_guild(session, guild)
+        await session.commit()
+        with suppress(Exception):
+            await deprovision_guild(guild.id)
+        logger.exception("Guild %s provisioning failed; guild rolled back", guild.id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=GuildMessages.GUILD_PROVISION_FAILED,
+        )
     membership = await guilds_service.get_membership(session, guild_id=guild.id, user_id=current_user.id)
     if not membership:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=GuildMessages.GUILD_MEMBERSHIP_CREATE_FAILED)
@@ -291,6 +314,13 @@ async def delete_guild(
 
     await guilds_service.delete_guild(session, guild)
     await session.commit()
+    # The guild rows are gone (committed) — dropping the schema/role is
+    # best-effort cleanup. If it fails, the deletion still succeeded and an
+    # orphaned empty schema is harmless, so don't fail the request.
+    try:
+        await deprovision_guild(guild_id)
+    except Exception:
+        logger.exception("Failed to deprovision schema/role for deleted guild %s", guild_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

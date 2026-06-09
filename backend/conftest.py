@@ -144,20 +144,26 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(session: AsyncSession, engine, monkeypatch) -> AsyncGenerator[AsyncClient, None]:
     """
     Create an async HTTP client for testing API endpoints.
 
     This fixture:
     - Overrides the database session dependency to use the test session
+    - Points the (superuser) provisioning engine at the test DB so endpoints
+      that provision per-guild schemas/roles act on the test database, and drops
+      any guild_<n> schemas/roles they created (cluster-global roles must not
+      leak between tests)
     - Provides an AsyncClient configured with the FastAPI app
-    - Automatically handles request/response lifecycle
 
     Usage:
         async def test_endpoint(client: AsyncClient):
             response = await client.get("/api/v1/health")
             assert response.status_code == 200
     """
+    import app.db.session as db_session
+
+    monkeypatch.setattr(db_session, "provisioning_engine", engine)
 
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
@@ -175,6 +181,30 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield test_client
 
     app.dependency_overrides.clear()
+
+    # Release the test session's transaction first: the create-guild endpoint
+    # ends on a SELECT (no commit after), leaving the session idle-in-transaction
+    # holding a lock on public.guilds that DROP SCHEMA (guild tables FK to it)
+    # would block on. lock_timeout makes any residual conflict fail fast rather
+    # than hang the suite.
+    await session.rollback()
+
+    # Drop any guild_<n> schemas/roles provisioned during the test.
+    async with engine.begin() as conn:
+        await conn.exec_driver_sql("SET lock_timeout = '10s'")
+        for (schema,) in (
+            await conn.execute(
+                text("SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'")
+            )
+        ).all():
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        for (role,) in (
+            await conn.execute(
+                text("SELECT rolname FROM pg_roles WHERE rolname ~ '^guild_[0-9]+$'")
+            )
+        ).all():
+            await conn.execute(text(f'DROP OWNED BY "{role}"'))
+            await conn.execute(text(f'DROP ROLE IF EXISTS "{role}"'))
 
 
 @pytest.fixture
