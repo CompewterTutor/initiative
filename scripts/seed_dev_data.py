@@ -3596,6 +3596,8 @@ async def clean() -> None:
     half-broken state. Run dev-migrate afterwards to recreate the primary guild +
     superuser.
     """
+    import contextlib
+
     import app.db.session as db_session
 
     print("Cleaning up dev data (dropping guild schemas + wiping shared rows)...")
@@ -3617,13 +3619,20 @@ async def clean() -> None:
                 )
             ).all()
         ]
-        for role in roles:
-            await conn.exec_driver_sql(f'DROP OWNED BY "{role}"')
-            await conn.exec_driver_sql(f'DROP ROLE IF EXISTS "{role}"')
-        await conn.exec_driver_sql(
-            "TRUNCATE TABLE users, guilds RESTART IDENTITY CASCADE"
-        )
-        print(f"  Dropped {len(schemas)} guild schema(s) + {len(roles)} role(s); wiped users + guilds")
+        await conn.exec_driver_sql("TRUNCATE TABLE users, guilds RESTART IDENTITY CASCADE")
+
+    # Drop guild roles best-effort, each in its own transaction: guild roles are
+    # cluster-global, so one a co-located test DB also uses owns objects in *that*
+    # database and can't be dropped here — that must not abort the cleanup.
+    dropped = 0
+    for role in roles:
+        with contextlib.suppress(Exception):
+            async with db_session.provisioning_engine.begin() as rconn:
+                await rconn.exec_driver_sql("SET lock_timeout = '5s'")
+                await rconn.exec_driver_sql(f'DROP OWNED BY "{role}"')
+                await rconn.exec_driver_sql(f'DROP ROLE IF EXISTS "{role}"')
+            dropped += 1
+    print(f"  Dropped {len(schemas)} guild schema(s) + {dropped}/{len(roles)} role(s); wiped users + guilds")
 
     STATE_FILE.unlink(missing_ok=True)
     print("Done! All dev data removed. Run dev-migrate to recreate the primary guild + superuser.")
