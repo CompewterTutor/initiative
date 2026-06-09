@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tag and custom-property colors now accept 8-digit hex (`#RRGGBBAA`) for an alpha channel, matching task statuses.
+
+### Fixed
+
+- Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
+
 ## [0.50.2] - 2026-06-08
 
 ### Added
