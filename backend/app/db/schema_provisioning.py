@@ -11,13 +11,21 @@ yet.
 from __future__ import annotations
 
 from sqlalchemy import MetaData, text
-from sqlalchemy.engine import Connection
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.schema import CreateIndex, CreateTable
 from sqlmodel import SQLModel
 
+from app.core.config import settings
 from app.db import base  # noqa: F401  # ensure SQLModel.metadata holds every table
 from app.db import session as db_session
 from app.db.tenancy import GUILD_SCOPED_TABLES
+
+# The login role the request path connects as; it must be able to read/write the
+# guild schema since per-request routing (search_path) sends guild-scoped queries
+# there. (Tightening this to per-guild roles + SET ROLE is the fail-closed step.)
+APP_LOGIN_ROLE = make_url(settings.DATABASE_URL_APP).username
 
 
 def guild_schema_name(guild_id: int) -> str:
@@ -64,21 +72,60 @@ def _guild_metadata(schema: str) -> tuple[MetaData, list]:
     return md, guild_tables
 
 
-def _create_tables(sync_conn: Connection, schema: str, names: set[str]) -> None:
-    # public on the search path so unqualified enum types resolve to the shared
-    # public types; checkfirst still guards (skips the shared enum types).
-    sync_conn.exec_driver_sql("SET search_path TO public")
-    md, guild_tables = _guild_metadata(schema)
-    to_create = [t for t in guild_tables if t.name in names]
-    md.create_all(sync_conn, tables=to_create, checkfirst=True)
+def _guild_schema_ddl(schema: str) -> str:
+    """One batch of ``CREATE TABLE/INDEX IF NOT EXISTS`` for the guild schema.
+
+    Built from the model so it always matches the manifest, and idempotent
+    (``IF NOT EXISTS``) so a re-run back-fills any newly-manifested table. Enums
+    are shared from public (``create_type=False`` — no per-schema type creation),
+    so it must run with public on the search path. Returned as a single string
+    to execute in one round-trip (per-statement round-trips are what made the
+    old create_all path ~4x slower).
+    """
+    _, tables = _guild_metadata(schema)
+    dialect = postgresql.dialect()
+    stmts: list[str] = []
+    for t in tables:
+        for col in t.columns:
+            if hasattr(col.type, "create_type"):
+                col.type.create_type = False
+        stmts.append(str(CreateTable(t, if_not_exists=True).compile(dialect=dialect)).strip())
+        for idx in t.indexes:
+            stmts.append(str(CreateIndex(idx, if_not_exists=True).compile(dialect=dialect)).strip())
+    return ";\n".join(stmts) + ";"
 
 
-async def _existing_tables(conn: AsyncConnection, schema: str) -> set[str]:
-    rows = await conn.execute(
-        text("SELECT table_name FROM information_schema.tables WHERE table_schema = :s"),
-        {"s": schema},
-    )
-    return {row[0] for row in rows}
+def _grant_statements(schema: str) -> list[str]:
+    """GRANTs that let the per-guild role and the app login role reach the schema.
+
+    Default privileges cover objects created later; the explicit grants cover
+    what already exists. (Tightening to per-guild roles + SET ROLE is the
+    fail-closed step.)
+    """
+    role = schema  # the per-guild role shares the schema's name (guild_<id>)
+    stmts: list[str] = []
+    for grantee in (role, APP_LOGIN_ROLE):
+        stmts += [
+            f'GRANT USAGE ON SCHEMA "{schema}" TO "{grantee}"',
+            f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" '
+            f'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{grantee}"',
+            f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT USAGE ON SEQUENCES TO "{grantee}"',
+            f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{schema}" TO "{grantee}"',
+            f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{grantee}"',
+        ]
+    return stmts
+
+
+async def _exec_batch(conn: AsyncConnection, statements: list[str]) -> None:
+    """Run many DDL/GRANT statements in a single round-trip.
+
+    SQLAlchemy's exec_driver_sql uses asyncpg's extended (single-statement)
+    protocol; dropping to the raw connection's simple-query path runs the whole
+    batch at once, on the same (transactional) connection.
+    """
+    await conn.exec_driver_sql("SET search_path TO public")  # enums resolve in public
+    raw = await conn.get_raw_connection()
+    await raw.driver_connection.execute(";\n".join(statements) + ";")
 
 
 async def _role_exists(conn: AsyncConnection, role: str) -> bool:
@@ -92,46 +139,20 @@ async def _ensure_role(conn: AsyncConnection, role: str) -> None:
         await conn.exec_driver_sql(f'CREATE ROLE "{role}" NOLOGIN')
 
 
-async def _grant_schema_to_role(conn: AsyncConnection, schema: str, role: str) -> None:
-    # USAGE + DML on its own schema and nothing else — the guild boundary.
-    await conn.exec_driver_sql(f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"')
-    # Default privileges cover objects created later; the explicit grants cover
-    # what already exists (including tables back-filled by this same call).
-    await conn.exec_driver_sql(
-        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" '
-        f'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{role}"'
-    )
-    await conn.exec_driver_sql(
-        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT USAGE ON SEQUENCES TO "{role}"'
-    )
-    await conn.exec_driver_sql(
-        f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{schema}" TO "{role}"'
-    )
-    await conn.exec_driver_sql(
-        f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{role}"'
-    )
-
-
 async def provision_guild_schema(conn: AsyncConnection, guild_id: int) -> str:
     """Create/refresh ``guild_<id>`` (schema + tables + scoped role). Idempotent.
 
-    Needs a privileged connection (CREATEROLE + CREATE on the database). A
-    re-run back-fills any newly-manifested tables and re-applies grants.
+    Needs a privileged connection (CREATEROLE + CREATE on the database). The
+    table DDL and grants run as a single round-trip; ``IF NOT EXISTS`` makes a
+    re-run back-fill any newly-manifested table and re-apply grants harmlessly.
     """
     schema = guild_schema_name(guild_id)
     role = guild_role_name(guild_id)
 
     await conn.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     await _ensure_role(conn, role)
-
-    # One round-trip to find what's missing; skip the metadata build + per-table
-    # checkfirst probes entirely when the schema is already complete (the common
-    # re-provision case). Only newly-manifested tables get created.
-    missing = {t.name for t in _guild_scoped_tables()} - await _existing_tables(conn, schema)
-    if missing:
-        await conn.run_sync(_create_tables, schema, missing)
-
-    await _grant_schema_to_role(conn, schema, role)
+    # Tables (IF NOT EXISTS) + grants, in one round-trip.
+    await _exec_batch(conn, [_guild_schema_ddl(schema), *_grant_statements(schema)])
     return schema
 
 
