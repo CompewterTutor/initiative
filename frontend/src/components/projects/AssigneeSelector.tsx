@@ -55,10 +55,10 @@ export const AssigneeSelector = ({
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-  const labelById = useMemo(() => {
-    const map = new Map<number, string>();
+  const optionById = useMemo(() => {
+    const map = new Map<number, AssigneeOption>();
     options.forEach((option) => {
-      map.set(option.id, option.label);
+      map.set(option.id, option);
     });
     return map;
   }, [options]);
@@ -81,12 +81,17 @@ export const AssigneeSelector = ({
     return [...selected, ...currentUser, ...rest];
   }, [options, selectedSet, currentUserId]);
 
-  const selectedOptions = useMemo(() => {
-    return selectedIds.map((id) => ({
-      id,
-      label: labelById.get(id) ?? `User #${id}`,
-    }));
-  }, [labelById, selectedIds]);
+  const selectedOptions = useMemo<AssigneeOption[]>(() => {
+    return selectedIds.map((id) => {
+      const option = optionById.get(id);
+      return {
+        id,
+        label: option?.label ?? `User #${id}`,
+        avatarUrl: option?.avatarUrl,
+        avatarBase64: option?.avatarBase64,
+      };
+    });
+  }, [optionById, selectedIds]);
 
   const toggleAssignee = (id: number) => {
     if (!Number.isFinite(id)) {
@@ -174,7 +179,7 @@ export const AssigneeSelector = ({
                   return (
                     <CommandItem
                       key={option.id}
-                      value={option.label}
+                      value={`${option.id}-${option.label}`}
                       onSelect={() => toggleAssignee(option.id)}
                       className="cursor-pointer"
                     >
