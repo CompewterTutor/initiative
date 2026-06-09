@@ -5,6 +5,7 @@ from contextlib import suppress
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy import text
 
 from app.api.deps import SessionDep, UserSessionDep, get_current_active_user
 from app.core.capabilities import Capability, user_has_capability
@@ -175,10 +176,13 @@ async def create_guild(
         await session.commit()
     except Exception:
         logger.exception("Guild %s setup failed; rolling back", guild.id)
+        # Roll back first: discards the failed seed's partial writes AND reverts
+        # the SET ROLE guild_<id> (Postgres SET is transactional) so deprovision
+        # can DROP the role. The admin session is then back to app_admin
+        # (BYPASSRLS), so removing the shared rows isn't filtered by RLS.
+        await session.rollback()
         with suppress(Exception):
             await deprovision_guild(guild.id)  # drops the schema + any partial content
-        # Reset routing to public, then remove the shared rows we committed.
-        await set_rls_context(session, user_id=current_user.id)
         stale = await guilds_service.get_guild(session, guild_id=guild.id)
         if stale:
             await guilds_service.delete_guild(session, stale)
@@ -321,15 +325,41 @@ async def delete_guild(
             detail=GuildMessages.CONFIRMATION_MISMATCH,
         )
 
-    await guilds_service.delete_guild(session, guild)
-    await session.commit()
-    # The guild rows are gone (committed) — dropping the schema/role is
-    # best-effort cleanup. If it fails, the deletion still succeeded and an
-    # orphaned empty schema is harmless, so don't fail the request.
+    # Drop the guild's schema (its content) BEFORE deleting the guild row: the
+    # schema's queues/counters/calendar FKs to public.guilds are NO ACTION and
+    # would block the row delete. Roll back first — this releases the read lock on
+    # public.guilds (DROP SCHEMA needs an exclusive lock) AND reverts the SET ROLE
+    # guild_<id> that _set_guild_admin_rls set (Postgres SET is transactional;
+    # rollback undoes it), so deprovision can DROP the role this session is no
+    # longer assuming.
+    user_id = current_user.id  # capture before rollback expires the ORM object
+    await session.rollback()
     try:
         await deprovision_guild(guild_id)
     except Exception:
-        logger.exception("Failed to deprovision schema/role for deleted guild %s", guild_id)
+        # The schema couldn't be dropped, so we can't delete the guild row (its
+        # schema's NO ACTION FKs would block it). Fail atomically — nothing removed.
+        logger.exception("Failed to deprovision guild %s; aborting delete", guild_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=GuildMessages.GUILD_DELETE_FAILED,
+        )
+
+    # The guild role no longer exists, so re-establish only the guild *context*
+    # (no SET ROLE) so the shared public.guilds row delete passes its guild_delete
+    # RLS policy. This transaction commits, so the GUCs aren't rolled back.
+    await session.execute(
+        text(
+            "SELECT set_config('role', 'none', false), "
+            "set_config('search_path', 'public', false), "
+            "set_config('app.current_user_id', :uid, false), "
+            "set_config('app.current_guild_id', :gid, false)"
+        ),
+        {"uid": str(user_id), "gid": str(guild_id)},
+    )
+    guild = await guilds_service.get_guild(session, guild_id=guild_id)
+    await guilds_service.delete_guild(session, guild)
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

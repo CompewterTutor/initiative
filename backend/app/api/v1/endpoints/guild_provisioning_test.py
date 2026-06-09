@@ -103,10 +103,13 @@ async def test_create_guild_rolls_back_when_provisioning_fails(
     assert remaining == [], "guild row must be rolled back when provisioning fails"
 
 
-async def test_delete_guild_succeeds_even_if_deprovision_fails(
+async def test_delete_guild_fails_atomically_when_deprovision_fails(
     client: AsyncClient, session: AsyncSession, engine: AsyncEngine, monkeypatch
 ):
-    """A teardown failure must not 500 a deletion whose rows are already gone."""
+    """Under schema-per-guild the schema must be dropped BEFORE the guild row (the
+    schema's NO ACTION FKs to public.guilds would block the row delete). So a
+    deprovision failure fails the whole deletion atomically — the guild row stays,
+    rather than leaving a row whose schema couldn't be removed."""
     user = await create_user(session, email="deprov-fail@example.com")
     headers = get_auth_headers(user)
     resp = await client.post("/api/v1/guilds/", headers=headers, json={"name": "Teardown Fail"})
@@ -123,6 +126,6 @@ async def test_delete_guild_succeeds_even_if_deprovision_fails(
         json={"password": "testpassword123", "confirmation_text": "DELETE GUILD TEARDOWN FAIL"},
     )
 
-    assert resp.status_code == 204, "deletion succeeds despite deprovision failure"
+    assert resp.status_code == 500
     remaining = (await session.exec(select(Guild).where(Guild.id == gid))).all()
-    assert remaining == [], "guild row is gone"
+    assert len(remaining) == 1, "guild row remains when its schema couldn't be dropped"

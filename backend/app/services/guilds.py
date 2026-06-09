@@ -11,9 +11,6 @@ from app.core.encryption import encrypt_field, SALT_EMAIL
 from app.core.messages import GuildMessages
 from app.models.guild import Guild, GuildInvite, GuildMembership, GuildRole
 from app.models.guild_setting import GuildSetting
-from app.models.initiative import Initiative, InitiativeMember
-from app.models.project import Project, ProjectPermission
-from app.models.task import Task, TaskAssignee
 from app.models.user import User
 
 DEFAULT_INVITE_EXPIRATION_DAYS = 7
@@ -37,9 +34,10 @@ async def get_primary_guild(session: AsyncSession) -> Guild:
         updated_at=now,
     )
     session.add(guild)
-    # Commit the shared guild row before provisioning so the new schema's FKs to
-    # public.guilds don't deadlock on an uncommitted insert. (Only the first time
-    # the primary guild is created — i.e. fresh-DB seeding.)
+    # Commit the new guild row before provisioning so the schema's FKs to
+    # public.guilds don't deadlock against the uncommitted insert. Provision at
+    # creation — a brand-new primary guild is schema-native from birth. (Only the
+    # first time the primary guild is created, i.e. fresh-DB seeding.)
     await session.commit()
     from app.db.schema_provisioning import provision_guild
 
@@ -406,28 +404,22 @@ async def delete_guild_invite(session: AsyncSession, *, guild_id: int, invite_id
 
 
 async def delete_guild(session: AsyncSession, guild: Guild) -> None:
-    initiative_ids = [row for row in (await session.exec(select(Initiative.id).where(Initiative.guild_id == guild.id))).all()]
-    project_ids: list[int] = []
-    task_ids: list[int] = []
-    if initiative_ids:
-        project_ids = [row for row in (await session.exec(select(Project.id).where(Project.initiative_id.in_(initiative_ids)))).all()]
-    if project_ids:
-        task_ids = [row for row in (await session.exec(select(Task.id).where(Task.project_id.in_(project_ids)))).all()]
+    """Delete a guild's shared rows.
 
-    if task_ids:
-        await session.exec(delete(TaskAssignee).where(TaskAssignee.task_id.in_(task_ids)))
-        await session.exec(delete(Task).where(Task.id.in_(task_ids)))
-    if project_ids:
-        await session.exec(delete(ProjectPermission).where(ProjectPermission.project_id.in_(project_ids)))
-        await session.exec(delete(Project).where(Project.id.in_(project_ids)))
-    if initiative_ids:
-        await session.exec(delete(InitiativeMember).where(InitiativeMember.initiative_id.in_(initiative_ids)))
-        await session.exec(delete(Initiative).where(Initiative.id.in_(initiative_ids)))
+    Under schema-per-guild the guild's content lives in its schema and is removed
+    separately by ``deprovision_guild`` (``DROP SCHEMA … CASCADE``). Here we only
+    delete the shared guild row; its ``ON DELETE CASCADE`` foreign keys clear the
+    roster (memberships, invites, OIDC claim mappings, access grants).
 
-    await session.exec(delete(GuildInvite).where(GuildInvite.guild_id == guild.id))
-    await session.exec(delete(GuildMembership).where(GuildMembership.guild_id == guild.id))
-    await session.exec(delete(GuildSetting).where(GuildSetting.guild_id == guild.id))
-    await session.delete(guild)
+    The caller MUST drop the schema first: the schema's queues/counters/calendar
+    foreign keys to ``public.guilds`` are ``NO ACTION`` and would otherwise block
+    this delete.
+
+    Uses a bulk DELETE (not ``session.delete``) so the row goes via the DB-level
+    ON DELETE CASCADE FKs — ``session.delete`` would walk ORM relationships and
+    attempt sync loads in the async context (MissingGreenlet).
+    """
+    await session.exec(delete(Guild).where(Guild.id == guild.id))
 
 
 async def get_invite_by_code(session: AsyncSession, *, code: str) -> GuildInvite | None:
