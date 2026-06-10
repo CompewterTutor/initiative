@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update as sa_update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import AdminSessionLocal, set_rls_context
@@ -73,23 +73,6 @@ def _initiative_target_path(initiative_id: int | None) -> str:
     if initiative_id is None:
         return "/initiatives"
     return f"/initiatives/{initiative_id}"
-
-
-async def _project_guild_map(session: AsyncSession, project_ids: set[int]) -> dict[int, int]:
-    if not project_ids:
-        return {}
-    stmt = (
-        select(Project.id, Initiative.guild_id)
-        .join(Project.initiative)
-        .where(Project.id.in_(tuple(project_ids)))
-    )
-    result = await session.exec(stmt)
-    rows = result.all()
-    mapping: dict[int, int] = {}
-    for project_id, guild_id in rows:
-        if project_id is not None and guild_id is not None:
-            mapping[int(project_id)] = int(guild_id)
-    return mapping
 
 
 async def enqueue_task_assignment_event(
@@ -983,84 +966,91 @@ async def notify_event_reminder(
     )
 
 
-async def _pending_assignment_user_ids(session: AsyncSession) -> list[int]:
-    stmt = (
-        select(TaskAssignmentDigestItem.user_id)
-        .where(TaskAssignmentDigestItem.processed_at.is_(None))
-        .distinct()
-    )
-    result = await session.exec(stmt)
-    return result.scalars().all()
+async def _run_assignment_digest_pass(session: AsyncSession, *, now: datetime) -> None:
+    """Send task-assignment digests to opted-in users as of ``now``.
 
+    Split out from ``process_task_assignment_digests`` so tests can drive it with
+    the test session. Each user's pending digest items live in their own guild
+    schemas, so they're gathered with the user's membership context (no
+    superadmin) and the items are marked processed back in each schema.
+    """
+    result = await session.exec(select(User).where(User.email_task_assignment.is_not(False)))
+    users = result.scalars().all()
+    if not users:
+        logger.debug("task-digest: no opted-in users")
+        return
+    # Capture before routing — the gather expunges the identity map.
+    candidates = [(u.id, u.email, u.last_task_assignment_digest_at) for u in users]
+    for user_id, email, last_at in candidates:
+        if last_at and last_at + timedelta(hours=1) > now:
+            continue  # rate-limited to one digest per hour
+        per_guild_items: dict[int, list[int]] = {}
 
-async def _load_user(session: AsyncSession, user_id: int) -> User | None:
-    result = await session.exec(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+        async def _fetch(routed: AsyncSession, gid: int) -> list[dict]:
+            items = (
+                await routed.exec(
+                    select(TaskAssignmentDigestItem)
+                    .where(
+                        TaskAssignmentDigestItem.user_id == user_id,
+                        TaskAssignmentDigestItem.processed_at.is_(None),
+                    )
+                    .order_by(TaskAssignmentDigestItem.created_at.asc())
+                )
+            ).scalars().all()
+            per_guild_items[gid] = [item.id for item in items]
+            return [
+                {
+                    "task_title": item.task_title,
+                    "project_name": item.project_name,
+                    "assigned_by_name": item.assigned_by_name,
+                    "link": _build_smart_link(
+                        target_path=_task_target_path(item.task_id, item.project_id),
+                        guild_id=gid,  # the item's guild IS the routed schema
+                    ),
+                }
+                for item in items
+            ]
+
+        guild_ids = await member_guild_ids(session, user_id)
+        assignments = await gather_across_guilds(session, user_id, guild_ids, _fetch)
+        if not assignments:
+            continue
+        # Send: re-load the user (gather expunged it) in a shared-table context.
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one()
+        try:
+            await email_service.send_task_assignment_digest_email(session, user, assignments)
+            logger.info("task-digest: sent %d assignment(s) to user %s", len(assignments), email)
+        except email_service.EmailNotConfiguredError:
+            logger.warning("SMTP not configured; skipping task digest for %s", email)
+            continue
+        except RuntimeError as exc:  # pragma: no cover
+            logger.error("Failed to send task digest: %s", exc)
+            continue
+        # Mark the gathered items processed, back in each guild's schema.
+        for gid, item_ids in per_guild_items.items():
+            if not item_ids:
+                continue
+            session.expunge_all()
+            await set_rls_context(session, user_id=user_id, guild_id=gid)
+            await session.exec(
+                sa_update(TaskAssignmentDigestItem)
+                .where(TaskAssignmentDigestItem.id.in_(item_ids))
+                .values(processed_at=now)
+            )
+            await session.commit()
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one()
+        user.last_task_assignment_digest_at = now
+        session.add(user)
+        await session.commit()
 
 
 async def process_task_assignment_digests() -> None:
     async with AdminSessionLocal() as session:
-        user_ids = await _pending_assignment_user_ids(session)
-        if not user_ids:
-            logger.debug("task-digest: no pending assignment events")
-            return
-        logger.debug("task-digest: processing %d user(s)", len(user_ids))
-        now = datetime.now(timezone.utc)
-        for user_id in user_ids:
-            user = await _load_user(session, int(user_id))
-            if not user or user.email_task_assignment is False:
-                await clear_task_assignment_queue_for_user(session, user_id)
-                await session.commit()
-                continue
-            events_stmt = (
-                select(TaskAssignmentDigestItem)
-                .where(
-                    TaskAssignmentDigestItem.user_id == user_id,
-                    TaskAssignmentDigestItem.processed_at.is_(None),
-                )
-                .order_by(TaskAssignmentDigestItem.created_at.asc())
-            )
-            events_result = await session.exec(events_stmt)
-            events = events_result.scalars().all()
-            if not events:
-                continue
-            if user.last_task_assignment_digest_at and user.last_task_assignment_digest_at + timedelta(hours=1) > now:
-                continue
-            project_ids = {event.project_id for event in events if event.project_id is not None}
-            guild_map = await _project_guild_map(session, project_ids)
-            assignments = []
-            for event in events:
-                target_path = _task_target_path(event.task_id, event.project_id)
-                assignments.append(
-                    {
-                        "task_title": event.task_title,
-                        "project_name": event.project_name,
-                        "assigned_by_name": event.assigned_by_name,
-                        "link": _build_smart_link(
-                            target_path=target_path,
-                            guild_id=guild_map.get(event.project_id),
-                        ),
-                    }
-                )
-            try:
-                await email_service.send_task_assignment_digest_email(session, user, assignments)
-                logger.info(
-                    "task-digest: sent %d assignment(s) to user %s",
-                    len(assignments),
-                    user.email,
-                )
-            except email_service.EmailNotConfiguredError:
-                logger.warning("SMTP not configured; skipping task digest for %s", user.email)
-                continue
-            except RuntimeError as exc:  # pragma: no cover
-                logger.error("Failed to send task digest: %s", exc)
-                continue
-            for event in events:
-                event.processed_at = now
-                session.add(event)
-            user.last_task_assignment_digest_at = now
-            session.add(user)
-            await session.commit()
+        await _run_assignment_digest_pass(session, now=datetime.now(timezone.utc))
 
 
 def _resolve_timezone(value: str | None) -> ZoneInfo:

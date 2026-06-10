@@ -16,10 +16,12 @@ from app.models.calendar_event import CalendarEvent, CalendarEventAttendee, RSVP
 from app.models.event_reminder_dispatch import EventReminderDispatch
 from app.models.notification import Notification, NotificationType
 from app.models.task import Task, TaskAssignee, TaskPriority, TaskStatus, TaskStatusCategory
+from app.models.task_assignment_digest import TaskAssignmentDigestItem
 from app.models.user import User
 from app.services import email as email_service
 from app.services.notifications import (
     _format_event_when,
+    _run_assignment_digest_pass,
     _run_event_reminder_pass,
     _run_overdue_pass,
     notify_initiative_membership,
@@ -311,3 +313,76 @@ async def test_overdue_digest_gathers_tasks_across_user_guilds(session: AsyncSes
 
     assert captured.get("user_id") == user.id
     assert captured.get("titles") == {"Alpha overdue", "Beta overdue"}
+
+
+async def _assignment_item_in_new_guild(session: AsyncSession, user: User, *, label: str):
+    """Queue a task-assignment digest item for ``user`` in a brand-new guild."""
+    # A prior call left the session in a guild-member context; reset so the new
+    # guild INSERT into public.guilds isn't RLS-denied.
+    await set_rls_context(session, is_superadmin=True)
+    guild = await create_guild(session, creator=user)
+    await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
+    initiative = await create_initiative(session, guild, user, name=label)
+    project = await create_project(session, initiative, user, name=f"{label} Project")
+    status = TaskStatus(
+        guild_id=guild.id, project_id=project.id, name="Todo",
+        category=TaskStatusCategory.todo, position=0, is_default=True,
+    )
+    session.add(status)
+    await session.commit()
+    await session.refresh(status)
+    task = Task(
+        guild_id=guild.id, project_id=project.id, task_status_id=status.id,
+        title=f"{label} task", priority=TaskPriority.medium,
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    # digest items have no guild_id column, so route by search_path before insert.
+    await set_rls_context(session, user_id=user.id, guild_id=guild.id)
+    session.add(
+        TaskAssignmentDigestItem(
+            user_id=user.id, task_id=task.id, project_id=project.id,
+            task_title=task.title, project_name=project.name, assigned_by_name="Assigner",
+        )
+    )
+    await session.commit()
+    return guild
+
+
+@pytest.mark.integration
+async def test_assignment_digest_gathers_items_across_user_guilds(
+    session: AsyncSession, monkeypatch
+):
+    """The task-assignment digest must collect a user's pending items from every
+    guild they belong to and mark them processed in each schema — a single
+    public-scoped scan (the old behaviour) would see none of them."""
+    user = await create_user(session, email="multi-digest@example.com")  # opted in by default
+    guild_a = await _assignment_item_in_new_guild(session, user, label="Alpha")
+    guild_b = await _assignment_item_in_new_guild(session, user, label="Beta")
+
+    captured: dict = {}
+
+    async def _capture_email(sess, recipient, assignments):
+        captured["user_id"] = recipient.id
+        captured["titles"] = {a["task_title"] for a in assignments}
+
+    monkeypatch.setattr(email_service, "send_task_assignment_digest_email", _capture_email)
+
+    await set_rls_context(session, is_superadmin=True)
+    await _run_assignment_digest_pass(session, now=datetime.now(timezone.utc))
+
+    assert captured.get("user_id") == user.id
+    assert captured.get("titles") == {"Alpha task", "Beta task"}
+
+    # Items were marked processed in each guild's own schema.
+    for guild_id in (guild_a.id, guild_b.id):
+        await set_rls_context(session, user_id=user.id, guild_id=guild_id)
+        pending = (
+            await session.exec(
+                select(TaskAssignmentDigestItem).where(
+                    TaskAssignmentDigestItem.processed_at.is_(None)
+                )
+            )
+        ).all()
+        assert pending == [], f"guild {guild_id} items not marked processed"
