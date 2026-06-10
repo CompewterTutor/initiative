@@ -11,9 +11,6 @@ from app.core.encryption import encrypt_field, SALT_EMAIL
 from app.core.messages import GuildMessages
 from app.models.guild import Guild, GuildInvite, GuildMembership, GuildRole
 from app.models.guild_setting import GuildSetting
-from app.models.initiative import Initiative, InitiativeMember
-from app.models.project import Project, ProjectPermission
-from app.models.task import Task, TaskAssignee
 from app.models.user import User
 
 DEFAULT_INVITE_EXPIRATION_DAYS = 7
@@ -37,7 +34,13 @@ async def get_primary_guild(session: AsyncSession) -> Guild:
         updated_at=now,
     )
     session.add(guild)
-    await session.flush()
+    # Commit the new guild row, then provision its schema — a brand-new primary
+    # guild is schema-native from birth. (Only the first time the primary guild is
+    # created, i.e. fresh-DB seeding.)
+    await session.commit()
+    from app.db.schema_provisioning import provision_guild
+
+    await provision_guild(guild.id)
     return guild
 
 
@@ -208,6 +211,16 @@ async def list_memberships(
     return result.all()
 
 
+async def create_guild_settings(session: AsyncSession, guild_id: int) -> GuildSetting:
+    """Seed a guild_settings row. guild_settings is guild-scoped (it holds
+    private config like API keys), so under schema-per-guild this must run with
+    the session already routed to the guild's schema."""
+    settings_row = GuildSetting(guild_id=guild_id, retention_days=90)
+    session.add(settings_row)
+    await session.flush()
+    return settings_row
+
+
 async def create_guild(
     session: AsyncSession,
     *,
@@ -216,6 +229,11 @@ async def create_guild(
     icon_base64: str | None = None,
     creator: User | None = None,
 ) -> Guild:
+    """Create a guild's *shared* rows only — the guild row (public) and the
+    creator's admin membership (public). The guild-scoped seed rows (settings +
+    default initiative) live in the guild's schema, which doesn't exist yet, so
+    the caller commits this, then calls :func:`seed_guild_content`.
+    """
     now = datetime.now(timezone.utc)
     guild = Guild(
         name=name.strip(),
@@ -227,11 +245,6 @@ async def create_guild(
     )
     session.add(guild)
     await session.flush()
-    # Always seed a guild_settings row so list_memberships's LEFT JOIN
-    # never returns retention_days=NULL ambiguously (NULL must mean "user
-    # explicitly chose never auto-purge", not "row missing").
-    session.add(GuildSetting(guild_id=guild.id, retention_days=90))
-    await session.flush()
     if creator:
         await ensure_membership(
             session,
@@ -240,6 +253,36 @@ async def create_guild(
             role=GuildRole.admin,
         )
     return guild
+
+
+async def seed_guild_content(
+    session: AsyncSession,
+    *,
+    guild_id: int,
+    creator: User,
+    is_superadmin: bool = False,
+) -> None:
+    """Provision a new guild's schema and create its guild-scoped seed rows
+    (settings + default initiative) *inside* it.
+
+    The shared guild row must already exist; this provisions the schema + role and
+    seeds into it (the caller commits around the call). On failure the caller
+    should ``deprovision_guild`` and remove the shared rows.
+    """
+    from app.db.schema_provisioning import provision_guild
+    from app.db.session import set_rls_context
+    from app.services import initiatives as initiatives_service
+
+    await provision_guild(guild_id)
+    await set_rls_context(
+        session,
+        user_id=creator.id,
+        guild_id=guild_id,
+        guild_role=GuildRole.admin.value,
+        is_superadmin=is_superadmin,
+    )
+    await create_guild_settings(session, guild_id)
+    await initiatives_service.ensure_default_initiative(session, creator, guild_id=guild_id)
 
 
 async def update_guild(
@@ -359,28 +402,23 @@ async def delete_guild_invite(session: AsyncSession, *, guild_id: int, invite_id
 
 
 async def delete_guild(session: AsyncSession, guild: Guild) -> None:
-    initiative_ids = [row for row in (await session.exec(select(Initiative.id).where(Initiative.guild_id == guild.id))).all()]
-    project_ids: list[int] = []
-    task_ids: list[int] = []
-    if initiative_ids:
-        project_ids = [row for row in (await session.exec(select(Project.id).where(Project.initiative_id.in_(initiative_ids)))).all()]
-    if project_ids:
-        task_ids = [row for row in (await session.exec(select(Task.id).where(Task.project_id.in_(project_ids)))).all()]
+    """Delete a guild's shared rows.
 
-    if task_ids:
-        await session.exec(delete(TaskAssignee).where(TaskAssignee.task_id.in_(task_ids)))
-        await session.exec(delete(Task).where(Task.id.in_(task_ids)))
-    if project_ids:
-        await session.exec(delete(ProjectPermission).where(ProjectPermission.project_id.in_(project_ids)))
-        await session.exec(delete(Project).where(Project.id.in_(project_ids)))
-    if initiative_ids:
-        await session.exec(delete(InitiativeMember).where(InitiativeMember.initiative_id.in_(initiative_ids)))
-        await session.exec(delete(Initiative).where(Initiative.id.in_(initiative_ids)))
+    Under schema-per-guild the guild's content lives in its schema and is removed
+    separately by ``deprovision_guild`` (``DROP SCHEMA … CASCADE``). Here we only
+    delete the shared guild row; its ``ON DELETE CASCADE`` foreign keys clear the
+    roster (memberships, invites, OIDC claim mappings, access grants).
 
-    await session.exec(delete(GuildInvite).where(GuildInvite.guild_id == guild.id))
-    await session.exec(delete(GuildMembership).where(GuildMembership.guild_id == guild.id))
-    await session.exec(delete(GuildSetting).where(GuildSetting.guild_id == guild.id))
-    await session.delete(guild)
+    Order-independent w.r.t. the schema drop: guild-schema tables carry no FKs to
+    ``public.guilds`` (provisioning omits cross-schema FKs), so this row delete is
+    never blocked by the schema. Callers delete the row first (reliable, makes the
+    guild gone) and drop the schema as best-effort cleanup afterwards.
+
+    Uses a bulk DELETE (not ``session.delete``) so the row goes via the DB-level
+    ON DELETE CASCADE FKs — ``session.delete`` would walk ORM relationships and
+    attempt sync loads in the async context (MissingGreenlet).
+    """
+    await session.exec(delete(Guild).where(Guild.id == guild.id))
 
 
 async def get_invite_by_code(session: AsyncSession, *, code: str) -> GuildInvite | None:

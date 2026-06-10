@@ -130,6 +130,11 @@ async def create_guild(
     if commit:
         await session.commit()
         await session.refresh(guild)
+        # Schema-native: commit the guild row, then provision its schema so the
+        # routing harness can send this guild's guild-scoped writes into it.
+        from app.db.schema_provisioning import provision_guild
+
+        await provision_guild(guild.id)
 
     return guild
 

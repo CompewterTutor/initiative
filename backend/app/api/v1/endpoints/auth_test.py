@@ -829,3 +829,49 @@ async def test_password_reset_rejects_short_password(
         await session.exec(select(UserToken).where(UserToken.token == token))
     ).one()
     assert fresh.consumed_at is None
+
+
+@pytest.mark.integration
+@pytest.mark.auth
+async def test_register_rolls_back_when_guild_seed_fails(
+    client: AsyncClient, session: AsyncSession, monkeypatch
+):
+    """A DB-side guild-seed failure mid-registration rolls back the whole
+    registration — no orphaned user or guild rows — and returns 500.
+
+    The seed failure here aborts the transaction, so registration must roll back
+    before its cleanup queries run; otherwise they raise PendingRollbackError and
+    the already-committed user + guild rows are stranded.
+    """
+    from sqlalchemy import text
+    from sqlmodel import select
+
+    from app.models.guild import Guild
+    from app.services import guilds as guilds_service
+
+    async def _boom(seed_session, *args, **kwargs):
+        # Simulate a real DB failure: abort the transaction like a failing query
+        # would, so the cleanup path MUST rollback before it can delete anything.
+        await seed_session.execute(text("SELECT * FROM does_not_exist_xyz"))
+
+    monkeypatch.setattr(guilds_service, "seed_guild_content", _boom)
+
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "seedfail@example.com",
+            "full_name": "Seed Fail",
+            "password": "securepassword123",
+        },
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "UNABLE_TO_CREATE_USER"
+
+    # Neither the user nor its guild may survive a failed registration.
+    users = (
+        await session.exec(select(User).where(User.email_hash == hash_email("seedfail@example.com")))
+    ).all()
+    assert users == [], "user row must be rolled back when guild seeding fails"
+    guilds = (await session.exec(select(Guild))).all()
+    assert guilds == [], "guild row must be rolled back when guild seeding fails"

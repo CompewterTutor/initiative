@@ -649,11 +649,16 @@ async def test_initiative_guild_isolation(client: AsyncClient, session: AsyncSes
     assert "Guild 1 Initiative" in initiative_names1
     assert "Guild 2 Initiative" not in initiative_names1
 
-    # Cannot access guild1 initiative with guild2 context
+    # Cannot access guild1's initiative with guild2 context. Under schema-per-guild
+    # ids are per-schema (not globally unique), so initiative1.id may collide with
+    # a guild2 initiative — but it must never resolve to guild1's initiative.
     headers2 = get_guild_headers(guild2, user)
     response2 = await client.get(f"/api/v1/initiatives/{initiative1.id}", headers=headers2)
 
-    assert response2.status_code == 404
+    if response2.status_code == 200:
+        assert response2.json()["name"] != "Guild 1 Initiative"
+    else:
+        assert response2.status_code == 404
 
 
 # ---------------------------------------------------------------------------

@@ -1,17 +1,19 @@
 import asyncio
+from contextlib import suppress
 from urllib.parse import urlparse
 
 import asyncpg
+from sqlalchemy import delete as sql_delete
 from sqlmodel import select
 
 from app.core.config import settings
 from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL
 from app.core.security import get_password_hash
-from app.db.session import AdminSessionLocal, run_migrations
+from app.db.schema_provisioning import deprovision_guild
+from app.db.session import AdminSessionLocal, run_migrations, set_rls_context
+from app.models.guild import Guild
 from app.models.user import User, UserRole
-from app.models.guild import GuildRole
 from app.services import app_settings as app_settings_service
-from app.services import initiatives as initiatives_service
 from app.services import guilds as guilds_service
 
 BASELINE_REVISION = "20260216_0053"
@@ -26,37 +28,51 @@ async def init_superuser() -> None:
         return
 
     async with AdminSessionLocal() as session:
-        async with session.begin():
-            primary_guild = await guilds_service.get_primary_guild(session)
-            result = await session.exec(select(User).where(User.email_hash == hash_email(settings.FIRST_SUPERUSER_EMAIL)))
-            user = result.one_or_none()
-            if user:
-                await guilds_service.ensure_membership(
-                    session,
-                    guild_id=primary_guild.id,
-                    user_id=user.id,
-                    role=GuildRole.admin,
-                )
-                await initiatives_service.ensure_default_initiative(session, user, guild_id=primary_guild.id)
-                return
+        existing = await session.exec(
+            select(User).where(User.email_hash == hash_email(settings.FIRST_SUPERUSER_EMAIL))
+        )
+        if existing.one_or_none() is not None:
+            return  # already seeded
 
-            superuser = User(
-                email_hash=hash_email(settings.FIRST_SUPERUSER_EMAIL),
-                email_encrypted=encrypt_field(settings.FIRST_SUPERUSER_EMAIL, SALT_EMAIL),
-                full_name=settings.FIRST_SUPERUSER_FULL_NAME,
-                hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
-                role=UserRole.owner,
-                email_verified=True,
-            )
-            session.add(superuser)
-            await session.flush()
-            await guilds_service.ensure_membership(
-                session,
-                guild_id=primary_guild.id,
-                user_id=superuser.id,
-                role=GuildRole.admin,
-            )
-            await initiatives_service.ensure_default_initiative(session, superuser, guild_id=primary_guild.id)
+        # Create the first superuser (the platform owner)...
+        user = User(
+            email_hash=hash_email(settings.FIRST_SUPERUSER_EMAIL),
+            email_encrypted=encrypt_field(settings.FIRST_SUPERUSER_EMAIL, SALT_EMAIL),
+            full_name=settings.FIRST_SUPERUSER_FULL_NAME,
+            hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
+            role=UserRole.owner,
+            email_verified=True,
+        )
+        session.add(user)
+        await session.commit()
+
+        # ...and their guild the same way the API does: create the shared rows,
+        # commit, then provision the schema and seed its content (settings +
+        # default initiative). No bespoke seeding path — it's a real guild.
+        guild = await guilds_service.create_guild(session, name="Primary Guild", creator=user)
+        await session.commit()
+        # Capture ids before the seed: the rollback in the failure path expires the
+        # ORM objects, so reading guild.id / user.id afterwards would reload.
+        guild_id = guild.id
+        user_id = user.id
+        try:
+            await guilds_service.seed_guild_content(session, guild_id=guild_id, creator=user)
+            await session.commit()
+        except Exception:
+            # Undo the whole first-boot seed so a restart re-initializes cleanly.
+            # Otherwise the committed user makes init_superuser short-circuit on
+            # every restart, stranding the primary guild without a schema. Mirrors
+            # the API/registration cleanup. Roll back FIRST (an aborted session
+            # would fault the cleanup queries, and it reverts the seed's SET ROLE
+            # so deprovision can DROP the role); this is an admin (BYPASSRLS)
+            # session, so the bulk DELETEs aren't RLS-filtered.
+            await session.rollback()
+            with suppress(Exception):
+                await deprovision_guild(guild_id)
+            await session.exec(sql_delete(Guild).where(Guild.id == guild_id))
+            await session.exec(sql_delete(User).where(User.id == user_id))
+            await session.commit()
+            raise
 
 
 async def check_pre_baseline_db() -> None:
@@ -140,7 +156,12 @@ async def init() -> None:
     await run_migrations()
     await init_superuser()
     async with AdminSessionLocal() as session:
-        await app_settings_service.get_or_create_guild_settings(session)
+        # guild_settings is guild-scoped; route into the primary guild's schema so
+        # the seeded settings row lands there, not in public. get_primary_guild_id
+        # provisions the guild if it has to create it (no-FIRST_SUPERUSER path).
+        primary_id = await guilds_service.get_primary_guild_id(session)
+        await set_rls_context(session, guild_id=primary_id)
+        await app_settings_service.get_or_create_guild_settings(session, guild_id=primary_id)
 
 
 if __name__ == "__main__":  # pragma: no cover

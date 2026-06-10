@@ -30,6 +30,12 @@ from app.core.rate_limit import limiter
 from app.db.session import get_admin_session, get_session
 from app.main import app
 
+# Per-guild ROLES are cluster-global (Postgres has no per-database roles), so the
+# suite's guild_<id> roles would collide with a co-located seeded dev DB's. Prefix
+# the suite's roles (test_guild_<id>) so they're distinct catalog entries. Schemas
+# are per-database and stay unprefixed. Set at import — before any provisioning.
+settings.GUILD_ROLE_PREFIX = "test_"
+
 # Use a separate test database (replace only the database name at the end)
 _base_url = settings.DATABASE_URL.rsplit("/", 1)[0]
 TEST_DATABASE_URL = _base_url + "/initiative_test"
@@ -107,6 +113,23 @@ async def engine():
     await test_engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def _schema_test_harness(engine, monkeypatch):
+    """Make every test schema-per-guild aware.
+
+    - Installs the before_flush router so direct-session (factory) guild-scoped
+      writes land in the guild's schema, mirroring what set_rls_context does for
+      the request path.
+    - Points the (superuser) provisioning engine at the test DB so create_guild /
+      the guilds endpoint provision schemas/roles on the test database.
+    """
+    import app.db.session as db_session
+    from app.testing.schema_harness import install_guild_routing
+
+    install_guild_routing()
+    monkeypatch.setattr(db_session, "provisioning_engine", engine)
+
+
 @pytest.fixture(scope="function")
 async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     """
@@ -117,53 +140,98 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     - Truncates all tables after the test to ensure isolation
 
     This ensures test isolation by cleaning up all data after each test.
+
+    The session is bound to a single dedicated connection (not the engine pool)
+    so that the per-guild ``search_path`` the routing harness sets survives across
+    commits — an engine-bound session checks out a fresh, unrouted connection per
+    transaction, which is why a flush-then-refresh would otherwise lose the route.
     """
-    # Create a session
-    async_session = sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autocommit=False,
-        autoflush=False,
-    )
+    async with engine.connect() as bound_conn:
+        async_session = sessionmaker(
+            bind=bound_conn,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
 
-    async with async_session() as test_session:
-        yield test_session
+        async with async_session() as test_session:
+            yield test_session
 
-        # Expire all objects to detach them from the session
-        test_session.expire_all()
+            # Expire all objects to detach them from the session
+            test_session.expire_all()
 
-    # Clean up - truncate all tables to reset state
-    # Use a new connection to avoid session conflicts
+        # Roll back the bound connection explicitly: closing a session bound to an
+        # external connection does NOT end that connection's transaction, so the
+        # test's trailing reads would keep AccessShare locks on the guild-schema
+        # tables — which the teardown's DROP SCHEMA (AccessExclusive) would block on.
+        await bound_conn.rollback()
+        # Drop any guild role / schema routing the request path's set_rls_context
+        # left on this connection (session-level GUCs survive rollback + pool
+        # return), so the superuser cleanup below isn't stuck as guild_<id>.
+        await bound_conn.exec_driver_sql(
+            "SELECT set_config('role', 'none', false), set_config('search_path', 'public', false)"
+        )
+
+    # Session is now closed (its rollback released any lock on public.guilds the
+    # create-guild endpoint's trailing SELECT left held). Clean up on a fresh
+    # connection: drop the per-guild schemas/roles provisioned during the test
+    # (cluster-global roles must not leak between tests), then truncate public.
     async with engine.begin() as conn:
-        # Disable foreign key checks temporarily for faster truncate
+        await conn.exec_driver_sql("SET lock_timeout = '10s'")
+        for (schema,) in (
+            await conn.execute(
+                text("SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'")
+            )
+        ).all():
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        # Only the suite's own prefixed roles (test_guild_<id>) — never a
+        # co-located dev DB's unprefixed guild_<id> roles (they share this
+        # cluster-global catalog but belong to that database).
+        role_pattern = f"^{settings.GUILD_ROLE_PREFIX}guild_[0-9]+(_ro)?$"
+        roles = [
+            r for (r,) in (
+                await conn.execute(
+                    text("SELECT rolname FROM pg_roles WHERE rolname ~ :pat"), {"pat": role_pattern}
+                )
+            ).all()
+        ]
+        # Truncate all public tables to reset state.
         await conn.execute(text("SET session_replication_role = 'replica'"))
         for table in reversed(SQLModel.metadata.sorted_tables):
             await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
         await conn.execute(text("SET session_replication_role = 'origin'"))
 
+    # Drop the suite's prefixed roles, each in its own transaction. Prefixed roles
+    # are distinct from a co-located dev DB's, so these should succeed — the
+    # suppress is belt-and-suspenders so one stuck role can't abort the rest.
+    from contextlib import suppress
+
+    for role in roles:
+        with suppress(Exception):
+            async with engine.begin() as rconn:
+                await rconn.exec_driver_sql("SET lock_timeout = '5s'")
+                await rconn.exec_driver_sql(f'DROP OWNED BY "{role}"')
+                await rconn.exec_driver_sql(f'DROP ROLE IF EXISTS "{role}"')
+
 
 @pytest.fixture
-async def client(session: AsyncSession, engine, monkeypatch) -> AsyncGenerator[AsyncClient, None]:
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     Create an async HTTP client for testing API endpoints.
 
     This fixture:
     - Overrides the database session dependency to use the test session
-    - Points the (superuser) provisioning engine at the test DB so endpoints
-      that provision per-guild schemas/roles act on the test database, and drops
-      any guild_<n> schemas/roles they created (cluster-global roles must not
-      leak between tests)
     - Provides an AsyncClient configured with the FastAPI app
+
+    Provisioning-engine redirection and per-guild schema/role cleanup are handled
+    globally (see ``_schema_test_harness`` and the ``session`` fixture teardown).
 
     Usage:
         async def test_endpoint(client: AsyncClient):
             response = await client.get("/api/v1/health")
             assert response.status_code == 200
     """
-    import app.db.session as db_session
-
-    monkeypatch.setattr(db_session, "provisioning_engine", engine)
 
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
@@ -182,29 +250,10 @@ async def client(session: AsyncSession, engine, monkeypatch) -> AsyncGenerator[A
 
     app.dependency_overrides.clear()
 
-    # Release the test session's transaction first: the create-guild endpoint
-    # ends on a SELECT (no commit after), leaving the session idle-in-transaction
-    # holding a lock on public.guilds that DROP SCHEMA (guild tables FK to it)
-    # would block on. lock_timeout makes any residual conflict fail fast rather
-    # than hang the suite.
+    # The create-guild endpoint ends on a SELECT (no commit after), leaving the
+    # session idle-in-transaction holding a lock on public.guilds that the
+    # teardown's DROP SCHEMA would block on. Release it now.
     await session.rollback()
-
-    # Drop any guild_<n> schemas/roles provisioned during the test.
-    async with engine.begin() as conn:
-        await conn.exec_driver_sql("SET lock_timeout = '10s'")
-        for (schema,) in (
-            await conn.execute(
-                text("SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'")
-            )
-        ).all():
-            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-        for (role,) in (
-            await conn.execute(
-                text("SELECT rolname FROM pg_roles WHERE rolname ~ '^guild_[0-9]+$'")
-            )
-        ).all():
-            await conn.execute(text(f'DROP OWNED BY "{role}"'))
-            await conn.execute(text(f'DROP ROLE IF EXISTS "{role}"'))
 
 
 @pytest.fixture

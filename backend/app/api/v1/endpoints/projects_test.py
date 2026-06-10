@@ -628,11 +628,15 @@ async def test_project_guild_isolation(client: AsyncClient, session: AsyncSessio
     await create_guild_membership(session, user=user, guild=guild1, role=GuildRole.admin)
     await create_guild_membership(session, user=user, guild=guild2, role=GuildRole.admin)
 
+    from app.testing.factories import create_project as factory_create_project
+
     initiative1 = await _create_initiative_with_member(session, guild1, user)
     initiative2 = await _create_initiative_with_member(session, guild2, user)
 
-    project1 = await _create_project(session, initiative1, user)
-    await _create_project(session, initiative2, user)
+    # Distinct names so the cross-guild check below can tell them apart even when
+    # their per-schema ids collide.
+    project1 = await factory_create_project(session, initiative1, user, name="Guild 1 Project")
+    await factory_create_project(session, initiative2, user, name="Guild 2 Project")
 
     # Request with guild1 context
     headers1 = get_guild_headers(guild1, user)
@@ -640,14 +644,20 @@ async def test_project_guild_isolation(client: AsyncClient, session: AsyncSessio
 
     assert response1.status_code == 200
     data1 = response1.json()["items"]
-    project_ids1 = {p["id"] for p in data1}
-    assert project1.id in project_ids1
+    project_names1 = {p["name"] for p in data1}
+    assert "Guild 1 Project" in project_names1
+    assert "Guild 2 Project" not in project_names1
 
-    # Cannot access guild1 project with guild2 context
+    # Cannot access guild1's project with guild2 context. Under schema-per-guild
+    # ids are per-schema (not globally unique), so project1.id may collide with a
+    # guild2 project — but it must never resolve to guild1's project.
     headers2 = get_guild_headers(guild2, user)
     response2 = await client.get(f"/api/v1/projects/{project1.id}", headers=headers2)
 
-    assert response2.status_code == 404
+    if response2.status_code == 200:
+        assert response2.json()["name"] != "Guild 1 Project"
+    else:
+        assert response2.status_code == 404
 
 
 @pytest.mark.integration

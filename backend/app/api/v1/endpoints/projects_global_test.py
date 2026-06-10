@@ -128,7 +128,11 @@ async def test_list_global_projects_respects_permissions(
 async def test_list_global_projects_guild_filter(
     client: AsyncClient, session: AsyncSession
 ):
-    """guild_ids filter should restrict results to specific guilds."""
+    """The global list spans every guild the user belongs to; guild_ids narrows it.
+
+    Project ids are per-guild (per-schema), so two guilds' projects can share an
+    id — items are keyed by (guild_id, id), which is what callers must use too.
+    """
     user = await create_user(session, email="user@example.com")
     guild1, _, project1 = await _setup_guild_with_project(
         session, user, guild_name="Guild 1"
@@ -136,16 +140,26 @@ async def test_list_global_projects_guild_filter(
     guild2, _, project2 = await _setup_guild_with_project(
         session, user, guild_name="Guild 2"
     )
-
     headers = get_guild_headers(guild1, user)
+
+    def keyed(resp):
+        return {(p["initiative"]["guild_id"], p["id"]) for p in resp.json()["items"]}
+
+    # No filter: projects from BOTH guilds are aggregated.
+    response = await client.get("/api/v1/projects/global", headers=headers)
+    assert response.status_code == 200
+    found = keyed(response)
+    assert (guild1.id, project1.id) in found
+    assert (guild2.id, project2.id) in found
+
+    # Filtered to guild1: only guild1's project.
     response = await client.get(
         f"/api/v1/projects/global?guild_ids={guild1.id}", headers=headers
     )
-
     assert response.status_code == 200
-    project_ids = {p["id"] for p in response.json()["items"]}
-    assert project1.id in project_ids
-    assert project2.id not in project_ids
+    found = keyed(response)
+    assert (guild1.id, project1.id) in found
+    assert (guild2.id, project2.id) not in found
 
 
 @pytest.mark.integration

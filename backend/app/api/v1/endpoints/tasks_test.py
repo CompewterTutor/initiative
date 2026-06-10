@@ -620,9 +620,13 @@ async def test_reorder_rebalances_on_precision_exhaustion(
     assert data[task2.id]["position"] == 2.0
     assert data[task3.id]["position"] == 3.0
     # task2 was only renumbered, not explicitly moved -> updated_at must not churn.
-    assert datetime.fromisoformat(data[task2.id]["updated_at"]) == task2_updated_before
+    # (Normalize the trailing 'Z' — datetime.fromisoformat rejects it on <3.11.)
+    def _parse(ts: str) -> datetime:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+    assert _parse(data[task2.id]["updated_at"]) == task2_updated_before
     # task3 was explicitly moved -> updated_at advances.
-    assert datetime.fromisoformat(data[task3.id]["updated_at"]) > task2_updated_before
+    assert _parse(data[task3.id]["updated_at"]) > task2_updated_before
 
 
 @pytest.mark.integration
@@ -704,23 +708,41 @@ async def test_list_global_tasks_guild_ids_filter(
     project2 = await _create_project(session, initiative2, user)
     task_in_guild2 = await _create_task(session, project2, "Task in Guild 2")
 
-    # User is the assignee on both tasks, so both would surface in
-    # scope=global without a filter.
+    # User is the assignee on both tasks, so both would surface in scope=global
+    # without a filter. TaskAssignee has no guild_id, so the harness can't route a
+    # mixed flush — route each write into its guild's schema explicitly.
+    from app.db.session import set_rls_context
+
+    await set_rls_context(session, user_id=user.id, guild_id=guild1.id)
     session.add(TaskAssignee(task_id=task_in_guild1.id, user_id=user.id))
+    await session.commit()
+    await set_rls_context(session, user_id=user.id, guild_id=guild2.id)
     session.add(TaskAssignee(task_id=task_in_guild2.id, user_id=user.id))
     await session.commit()
 
     headers = get_guild_headers(guild1, user)
+
+    def keyed(resp):
+        # Task ids are per-guild (per-schema); key by (guild_id, id).
+        return {(t["guild_id"], t["id"]) for t in resp.json()["items"]}
+
+    # No filter: tasks from BOTH guilds are aggregated.
+    response = await client.get("/api/v1/tasks/?scope=global", headers=headers)
+    assert response.status_code == 200, response.text
+    found = keyed(response)
+    assert (guild1.id, task_in_guild1.id) in found
+    assert (guild2.id, task_in_guild2.id) in found
+
+    # Filtered to guild1: only guild1's task.
     conditions = json.dumps([{"field": "guild_ids", "op": "in_", "value": [guild1.id]}])
     response = await client.get(
         f"/api/v1/tasks/?scope=global&conditions={conditions}",
         headers=headers,
     )
-
     assert response.status_code == 200, response.text
-    task_ids = {t["id"] for t in response.json()["items"]}
-    assert task_in_guild1.id in task_ids
-    assert task_in_guild2.id not in task_ids
+    found = keyed(response)
+    assert (guild1.id, task_in_guild1.id) in found
+    assert (guild2.id, task_in_guild2.id) not in found
 
 
 @pytest.mark.integration

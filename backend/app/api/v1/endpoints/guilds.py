@@ -5,13 +5,14 @@ from contextlib import suppress
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy import text
 
 from app.api.deps import SessionDep, UserSessionDep, get_current_active_user
 from app.core.capabilities import Capability, user_has_capability
 from app.core.config import settings
 from app.core.messages import AdvancedToolMessages, GuildMessages
 from app.core.security import create_advanced_tool_handoff_token, verify_password
-from app.db.schema_provisioning import deprovision_guild, provision_guild
+from app.db.schema_provisioning import deprovision_guild
 from app.db.session import get_admin_session, reapply_rls_context, set_rls_context
 from app.models.guild import GuildRole, GuildMembership, Guild
 from app.models.user import User
@@ -150,6 +151,9 @@ async def create_guild(
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GuildMessages.GUILD_NAME_REQUIRED)
 
+    # The guild's shared rows (guild + admin membership) live in public. Commit
+    # them first so provisioning + the in-schema seed below run as a distinct,
+    # compensatable step (on failure: deprovision + delete these committed rows).
     guild = await guilds_service.create_guild(
         session,
         name=name,
@@ -157,28 +161,36 @@ async def create_guild(
         icon_base64=guild_in.icon_base64,
         creator=current_user,
     )
-    await initiatives_service.ensure_default_initiative(session, current_user, guild_id=guild.id)
     await session.commit()
-    await reapply_rls_context(session)
-    # Provision the guild's schema/role AFTER commit. Doing it before would
-    # deadlock: the uncommitted guilds INSERT holds a lock on public.guilds that
-    # the new schema's foreign keys to public.guilds need. If provisioning fails,
-    # undo the guild so we never leave one un-provisioned.
     try:
-        await provision_guild(guild.id)
-    except Exception:
-        # Undo the guild first so we never leave one un-provisioned; only then
-        # best-effort drop any partially-created schema (its failure must not
-        # block the guild rollback or mask the original error).
-        await guilds_service.delete_guild(session, guild)
+        # Provision the schema and create the guild-scoped seed rows (settings +
+        # default initiative) *inside* it — so a new guild is schema-native from
+        # birth, with private config (API keys, etc.) isolated in its schema.
+        await guilds_service.seed_guild_content(
+            session,
+            guild_id=guild.id,
+            creator=current_user,
+            is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
+        )
         await session.commit()
+    except Exception:
+        logger.exception("Guild %s setup failed; rolling back", guild.id)
+        # Roll back first: discards the failed seed's partial writes AND reverts
+        # the SET ROLE guild_<id> (Postgres SET is transactional) so deprovision
+        # can DROP the role. The admin session is then back to app_admin
+        # (BYPASSRLS), so removing the shared rows isn't filtered by RLS.
+        await session.rollback()
         with suppress(Exception):
-            await deprovision_guild(guild.id)
-        logger.exception("Guild %s provisioning failed; guild rolled back", guild.id)
+            await deprovision_guild(guild.id)  # drops the schema + any partial content
+        stale = await guilds_service.get_guild(session, guild_id=guild.id)
+        if stale:
+            await guilds_service.delete_guild(session, stale)
+            await session.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=GuildMessages.GUILD_PROVISION_FAILED,
         )
+    await reapply_rls_context(session)
     membership = await guilds_service.get_membership(session, guild_id=guild.id, user_id=current_user.id)
     if not membership:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=GuildMessages.GUILD_MEMBERSHIP_CREATE_FAILED)
@@ -312,15 +324,27 @@ async def delete_guild(
             detail=GuildMessages.CONFIRMATION_MISMATCH,
         )
 
+    # Delete the guild ROW first — reliable, and the guild is immediately gone from
+    # the app's point of view. Its ON DELETE CASCADE FKs clear the shared roster
+    # (memberships, invites, OIDC mappings, access grants). The guild-scoped data
+    # lives in the schema, which holds no FKs back to public.guilds, so the
+    # row delete isn't blocked by it. Runs as the assumed guild role, so the
+    # public.guilds guild_delete RLS policy (current_guild_id) matches.
     await guilds_service.delete_guild(session, guild)
     await session.commit()
-    # The guild rows are gone (committed) — dropping the schema/role is
-    # best-effort cleanup. If it fails, the deletion still succeeded and an
-    # orphaned empty schema is harmless, so don't fail the request.
+
+    # Drop the schema + role as best-effort cleanup. Reset the assumed guild role
+    # first (committed) so DROP ROLE can run. With the cross-schema FKs gone,
+    # DROP SCHEMA only locks this guild's tables — no contention with the app's
+    # reads of public.guilds/users. A failed cleanup must NEVER undo the committed
+    # deletion: an orphaned, empty schema is harmless and reclaimed on a retry or
+    # the next provision of that id.
+    await session.execute(text("SELECT set_config('role', 'none', false)"))
+    await session.commit()
     try:
         await deprovision_guild(guild_id)
     except Exception:
-        logger.exception("Failed to deprovision schema/role for deleted guild %s", guild_id)
+        logger.exception("Schema/role cleanup for deleted guild %s failed (orphan is harmless)", guild_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -446,6 +470,18 @@ async def check_leave_eligibility(
     membership = await guilds_service.get_membership(session, guild_id=guild_id, user_id=current_user.id)
     if membership is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=GuildMessages.NOT_GUILD_MEMBER)
+
+    # UserSessionDep sets only the user; the blocker checks below read this guild's
+    # schema-scoped data (owned projects, sole-PM initiatives). Now that membership
+    # is confirmed, route the session into the guild's schema so those queries
+    # resolve there instead of public.
+    await set_rls_context(
+        session,
+        user_id=current_user.id,
+        guild_id=guild_id,
+        guild_role=membership.role.value,
+        is_superadmin=user_has_capability(current_user, Capability.DATA_BYPASS),
+    )
 
     from app.services.users import get_owned_projects_in_guild, is_last_admin_of_guild
 
