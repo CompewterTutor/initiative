@@ -162,9 +162,8 @@ async def register_user(
             guild_name_source = (user.full_name or user.email.split("@", 1)[0]).strip() or user.email
             guild_name = guild_name_source if guild_name_source.lower().endswith("guild") else f"{guild_name_source}'s Guild"
             # create_guild makes the shared rows (guild + admin membership). Commit
-            # them — together with the user — so provisioning's FK to public.guilds
-            # doesn't deadlock, then provision + seed the schema (settings + default
-            # initiative). On failure, undo the whole registration.
+            # them — together with the user — then provision + seed the schema
+            # (settings + default initiative). On failure, undo the whole registration.
             guild = await guilds_service.create_guild(session, name=guild_name, creator=user)
             await session.commit()
             # Capture ids before the seed: the rollback in the failure path expires

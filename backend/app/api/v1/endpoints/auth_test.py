@@ -839,9 +839,9 @@ async def test_register_rolls_back_when_guild_seed_fails(
     """A DB-side guild-seed failure mid-registration rolls back the whole
     registration — no orphaned user or guild rows — and returns 500.
 
-    Regression: the cleanup path skipped ``session.rollback()``, so a seed failure
-    that aborted the transaction left every subsequent cleanup query raising
-    PendingRollbackError and stranded the already-committed user + guild rows.
+    The seed failure here aborts the transaction, so registration must roll back
+    before its cleanup queries run; otherwise they raise PendingRollbackError and
+    the already-committed user + guild rows are stranded.
     """
     from sqlalchemy import text
     from sqlmodel import select

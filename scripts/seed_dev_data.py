@@ -3543,8 +3543,8 @@ async def seed() -> None:
             ("task", t_evade_id, (NOW + timedelta(days=4)).date()),
             ])
 
-        # Commit guild 3's data (the session is no longer wrapped in a
-        # begin() block — each guild section is committed as it completes).
+        # Commit guild 3's data — each guild section is committed as it completes
+        # (its writes are routed into that guild's schema).
         await session.commit()
 
     _save_state(ids.data)

@@ -202,8 +202,8 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
             await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
         await conn.execute(text("SET session_replication_role = 'origin'"))
 
-    # Drop the suite's prefixed roles, each in its own transaction. Prefixing means
-    # they no longer collide with a co-located dev DB, so these should succeed — the
+    # Drop the suite's prefixed roles, each in its own transaction. Prefixed roles
+    # are distinct from a co-located dev DB's, so these should succeed — the
     # suppress is belt-and-suspenders so one stuck role can't abort the rest.
     from contextlib import suppress
 

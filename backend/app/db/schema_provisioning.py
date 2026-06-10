@@ -3,9 +3,9 @@
 `provision_guild_schema` creates `guild_<id>` with every guild-scoped table
 (from `app.db.tenancy.GUILD_SCOPED_TABLES`) plus a Postgres role scoped to that
 schema; `drop_guild_schema` removes both. Idempotent — re-running back-fills any
-guild-scoped table added to the manifest since the schema was created. A
-building block for schema-per-guild tenancy — not wired into the request path
-yet.
+guild-scoped table added to the manifest since the schema was created. This is
+where each guild's schema + role come from; per-request routing (search_path +
+SET ROLE in `set_rls_context`) sends guild-scoped queries into them.
 """
 
 from __future__ import annotations

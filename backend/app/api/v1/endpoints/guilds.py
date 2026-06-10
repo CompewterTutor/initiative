@@ -152,9 +152,8 @@ async def create_guild(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GuildMessages.GUILD_NAME_REQUIRED)
 
     # The guild's shared rows (guild + admin membership) live in public. Commit
-    # them first so the lock on the new guilds row is released before provisioning
-    # — the schema's FKs to public.guilds would otherwise deadlock against the
-    # uncommitted insert.
+    # them first so provisioning + the in-schema seed below run as a distinct,
+    # compensatable step (on failure: deprovision + delete these committed rows).
     guild = await guilds_service.create_guild(
         session,
         name=name,
@@ -328,7 +327,7 @@ async def delete_guild(
     # Delete the guild ROW first — reliable, and the guild is immediately gone from
     # the app's point of view. Its ON DELETE CASCADE FKs clear the shared roster
     # (memberships, invites, OIDC mappings, access grants). The guild-scoped data
-    # lives in the schema, which no longer has FKs back to public.guilds, so the
+    # lives in the schema, which holds no FKs back to public.guilds, so the
     # row delete isn't blocked by it. Runs as the assumed guild role, so the
     # public.guilds guild_delete RLS policy (current_guild_id) matches.
     await guilds_service.delete_guild(session, guild)

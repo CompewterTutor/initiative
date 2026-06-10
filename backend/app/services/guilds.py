@@ -34,10 +34,9 @@ async def get_primary_guild(session: AsyncSession) -> Guild:
         updated_at=now,
     )
     session.add(guild)
-    # Commit the new guild row before provisioning so the schema's FKs to
-    # public.guilds don't deadlock against the uncommitted insert. Provision at
-    # creation — a brand-new primary guild is schema-native from birth. (Only the
-    # first time the primary guild is created, i.e. fresh-DB seeding.)
+    # Commit the new guild row, then provision its schema — a brand-new primary
+    # guild is schema-native from birth. (Only the first time the primary guild is
+    # created, i.e. fresh-DB seeding.)
     await session.commit()
     from app.db.schema_provisioning import provision_guild
 
@@ -266,10 +265,9 @@ async def seed_guild_content(
     """Provision a new guild's schema and create its guild-scoped seed rows
     (settings + default initiative) *inside* it.
 
-    The caller MUST have committed the shared guild row first — provisioning's
-    foreign keys to ``public.guilds`` would otherwise deadlock against the
-    uncommitted insert. The caller commits again afterwards. On failure the
-    caller should ``deprovision_guild`` and remove the shared rows.
+    The shared guild row must already exist; this provisions the schema + role and
+    seeds into it (the caller commits around the call). On failure the caller
+    should ``deprovision_guild`` and remove the shared rows.
     """
     from app.db.schema_provisioning import provision_guild
     from app.db.session import set_rls_context
@@ -411,10 +409,10 @@ async def delete_guild(session: AsyncSession, guild: Guild) -> None:
     delete the shared guild row; its ``ON DELETE CASCADE`` foreign keys clear the
     roster (memberships, invites, OIDC claim mappings, access grants).
 
-    Order-independent w.r.t. the schema drop: guild-schema tables no longer carry
-    FKs to ``public.guilds`` (stripped at provisioning), so this row delete is never
-    blocked by the schema. Callers delete the row first (reliable, makes the guild
-    gone) and drop the schema as best-effort cleanup afterwards.
+    Order-independent w.r.t. the schema drop: guild-schema tables carry no FKs to
+    ``public.guilds`` (provisioning omits cross-schema FKs), so this row delete is
+    never blocked by the schema. Callers delete the row first (reliable, makes the
+    guild gone) and drop the schema as best-effort cleanup afterwards.
 
     Uses a bulk DELETE (not ``session.delete``) so the row goes via the DB-level
     ON DELETE CASCADE FKs — ``session.delete`` would walk ORM relationships and
