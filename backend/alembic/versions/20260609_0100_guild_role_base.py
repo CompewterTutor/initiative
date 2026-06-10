@@ -64,4 +64,3 @@ def downgrade() -> None:
     op.execute("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM app_guild_base")
     op.execute("REVOKE USAGE ON SCHEMA public FROM app_guild_base")
     op.execute("DROP OWNED BY app_guild_base")
-    op.execute("DROP ROLE IF EXISTS app_guild_base")
