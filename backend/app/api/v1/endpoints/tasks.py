@@ -9,6 +9,7 @@ from sqlalchemy import case, func, literal, text
 from sqlmodel import select, delete
 
 from app.db.query import (
+    _clamp_page,
     apply_filters,
     apply_sorting,
     build_paginated_response,
@@ -18,6 +19,7 @@ from app.db.query import (
     parse_sort_fields,
 )
 from app.schemas.query import FilterOp
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import (
     RLSSessionDep,
@@ -27,13 +29,13 @@ from app.api.deps import (
     GuildContext,
 )
 from app.db.session import reapply_rls_context
+from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.models.project import Project, ProjectPermission, ProjectRolePermission
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.task import Task, TaskAssignee, TaskPriority, TaskStatus, TaskStatusCategory, Subtask
 from app.models.tag import Tag, TaskTag
 from app.models.property import PropertyDefinition, TaskPropertyValue
 from app.models.user import User
-from app.models.guild import GuildMembership
 from app.models.comment import Comment
 from pydantic import BaseModel, ValidationError
 
@@ -889,6 +891,53 @@ def _property_value_filter_clauses(
     return clauses
 
 
+def _global_task_options():
+    return (
+        selectinload(Task.project)
+        .selectinload(Project.initiative)
+        .selectinload(Initiative.guild),
+        selectinload(Task.assignees),
+        selectinload(Task.task_status),
+        selectinload(Task.tag_links).selectinload(TaskTag.tag),
+        selectinload(Task.property_values).selectinload(TaskPropertyValue.property_definition),
+        selectinload(Task.property_values).selectinload(TaskPropertyValue.value_user),
+    )
+
+
+async def _gather_global_task_reads(
+    session: SessionDep,
+    current_user: User,
+    *,
+    build_query,
+    guild_ids: Optional[List[int]],
+    page: int,
+    page_size: int,
+) -> tuple[list[TaskListRead], int, int]:
+    """Run a per-guild task query across every guild the user belongs to and
+    merge into TaskListReads.
+
+    Each guild's tasks keep their in-schema sort; guilds are concatenated in id
+    order (per-schema ``position`` can't order across guilds). Annotation +
+    conversion happen inside each guild's routed context.
+    """
+    target_guilds = await member_guild_ids(session, current_user.id, restrict_to=guild_ids)
+
+    async def _fetch(guild_session: AsyncSession, _guild_id: int) -> list[TaskListRead]:
+        tasks = list((await guild_session.exec(build_query())).all())
+        await _annotate_tasks(guild_session, tasks)
+        _annotate_task_tags(tasks)
+        _annotate_task_properties(tasks)
+        return [_task_to_list_read(task) for task in tasks]
+
+    items = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
+    total_count = len(items)
+    actual_page = _clamp_page(page, page_size, total_count)
+    if page_size > 0:
+        start = (actual_page - 1) * page_size
+        items = items[start : start + page_size]
+    return items, total_count, actual_page
+
+
 async def _list_global_tasks(
     session: SessionDep,
     current_user: User,
@@ -905,10 +954,10 @@ async def _list_global_tasks(
     page_size: int = 20,
     sort_fields: list | None = None,
     tz: str | None = None,
-) -> tuple[list[Task], int, int]:
+) -> tuple[list[TaskListRead], int, int]:
+    """Tasks assigned to the user, across every guild they belong to."""
     conditions = [
         TaskAssignee.user_id == current_user.id,
-        GuildMembership.user_id == current_user.id,
         Project.is_archived.is_(False),
         Project.is_template.is_(False),
     ]
@@ -920,50 +969,33 @@ async def _list_global_tasks(
         conditions.append(Task.priority.in_(tuple(priorities)))
     if initiative_ids:
         conditions.append(Project.initiative_id.in_(tuple(initiative_ids)))
-    if guild_ids:
-        conditions.append(Initiative.guild_id.in_(tuple(guild_ids)))
     conditions.extend(
         _property_value_filter_clauses(
             property_value_conditions or [], property_definitions or {}
         )
     )
 
-    # Build base join chain
-    def _base_query(stmt):
+    def _build():
         stmt = (
-            stmt
+            select(Task)
             .join(TaskAssignee, TaskAssignee.task_id == Task.id)
             .join(Task.project)
             .join(Project.initiative)
-            .join(Initiative.guild)
-            .join(GuildMembership, GuildMembership.guild_id == Initiative.guild_id)
         )
         if status_category:
             stmt = stmt.join(TaskStatus, Task.task_status_id == TaskStatus.id).where(
                 TaskStatus.category.in_(tuple(status_category))
             )
-        return stmt.where(*conditions)
+        stmt = stmt.where(*conditions).options(*_global_task_options())
+        return apply_sorting(
+            stmt, Task, sort_fields=sort_fields,
+            allowed_fields=_task_sort_fields(tz), default_sort=TASK_DEFAULT_SORT,
+        )
 
-    count_subq = _base_query(select(Task.id)).subquery()
-    count_stmt = select(func.count()).select_from(count_subq)
-
-    statement = _base_query(select(Task)).options(
-        selectinload(Task.project)
-        .selectinload(Project.initiative)
-        .selectinload(Initiative.guild),
-        selectinload(Task.assignees),
-        selectinload(Task.task_status),
-        selectinload(Task.tag_links).selectinload(TaskTag.tag),
-        selectinload(Task.property_values).selectinload(
-            TaskPropertyValue.property_definition
-        ),
-        selectinload(Task.property_values).selectinload(
-            TaskPropertyValue.value_user
-        ),
+    return await _gather_global_task_reads(
+        session, current_user, build_query=_build,
+        guild_ids=guild_ids, page=page, page_size=page_size,
     )
-    statement = apply_sorting(statement, Task, sort_fields=sort_fields, allowed_fields=_task_sort_fields(tz), default_sort=TASK_DEFAULT_SORT)
-
-    return await paginated_query(session, statement, count_stmt, page, page_size)
 
 
 async def _list_global_created_tasks(
@@ -982,11 +1014,10 @@ async def _list_global_created_tasks(
     page_size: int = 20,
     sort_fields: list | None = None,
     tz: str | None = None,
-) -> tuple[list[Task], int, int]:
-    """List tasks created by the current user across all guilds they belong to."""
+) -> tuple[list[TaskListRead], int, int]:
+    """Tasks created by the user, across every guild they belong to."""
     conditions = [
         Task.created_by_id == current_user.id,
-        GuildMembership.user_id == current_user.id,
         Project.is_archived.is_(False),
         Project.is_template.is_(False),
     ]
@@ -998,48 +1029,28 @@ async def _list_global_created_tasks(
         conditions.append(Task.priority.in_(tuple(priorities)))
     if initiative_ids:
         conditions.append(Project.initiative_id.in_(tuple(initiative_ids)))
-    if guild_ids:
-        conditions.append(Initiative.guild_id.in_(tuple(guild_ids)))
     conditions.extend(
         _property_value_filter_clauses(
             property_value_conditions or [], property_definitions or {}
         )
     )
 
-    def _base_query(stmt):
-        stmt = (
-            stmt
-            .join(Task.project)
-            .join(Project.initiative)
-            .join(Initiative.guild)
-            .join(GuildMembership, GuildMembership.guild_id == Initiative.guild_id)
-        )
+    def _build():
+        stmt = select(Task).join(Task.project).join(Project.initiative)
         if status_category:
             stmt = stmt.join(TaskStatus, Task.task_status_id == TaskStatus.id).where(
                 TaskStatus.category.in_(tuple(status_category))
             )
-        return stmt.where(*conditions)
+        stmt = stmt.where(*conditions).options(*_global_task_options())
+        return apply_sorting(
+            stmt, Task, sort_fields=sort_fields,
+            allowed_fields=_task_sort_fields(tz), default_sort=TASK_DEFAULT_SORT,
+        )
 
-    count_subq = _base_query(select(Task.id)).subquery()
-    count_stmt = select(func.count()).select_from(count_subq)
-
-    statement = _base_query(select(Task)).options(
-        selectinload(Task.project)
-        .selectinload(Project.initiative)
-        .selectinload(Initiative.guild),
-        selectinload(Task.assignees),
-        selectinload(Task.task_status),
-        selectinload(Task.tag_links).selectinload(TaskTag.tag),
-        selectinload(Task.property_values).selectinload(
-            TaskPropertyValue.property_definition
-        ),
-        selectinload(Task.property_values).selectinload(
-            TaskPropertyValue.value_user
-        ),
+    return await _gather_global_task_reads(
+        session, current_user, build_query=_build,
+        guild_ids=guild_ids, page=page, page_size=page_size,
     )
-    statement = apply_sorting(statement, Task, sort_fields=sort_fields, allowed_fields=_task_sort_fields(tz), default_sort=TASK_DEFAULT_SORT)
-
-    return await paginated_query(session, statement, count_stmt, page, page_size)
 
 
 @router.get("/", response_model=TaskListResponse)
@@ -1118,7 +1129,7 @@ async def list_tasks(
     )
 
     if scope == "global":
-        tasks, total_count, actual_page = await _list_global_tasks(
+        items, total_count, actual_page = await _list_global_tasks(
             session,
             current_user,
             project_id=project_id,
@@ -1134,17 +1145,13 @@ async def list_tasks(
             sort_fields=sort_fields,
             tz=tz,
         )
-        await _annotate_tasks(session, tasks)
-        _annotate_task_tags(tasks)
-        _annotate_task_properties(tasks)
-        items = [_task_to_list_read(task) for task in tasks]
         return TaskListResponse(**build_paginated_response(
             items=items, total_count=total_count, page=actual_page,
             page_size=page_size, sorting=sorting,
         ))
 
     elif scope == "global_created":
-        tasks, total_count, actual_page = await _list_global_created_tasks(
+        items, total_count, actual_page = await _list_global_created_tasks(
             session,
             current_user,
             project_id=project_id,
@@ -1160,10 +1167,6 @@ async def list_tasks(
             sort_fields=sort_fields,
             tz=tz,
         )
-        await _annotate_tasks(session, tasks)
-        _annotate_task_tags(tasks)
-        _annotate_task_properties(tasks)
-        items = [_task_to_list_read(task) for task in tasks]
         return TaskListResponse(**build_paginated_response(
             items=items, total_count=total_count, page=actual_page,
             page_size=page_size, sorting=sorting,

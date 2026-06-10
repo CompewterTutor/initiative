@@ -25,8 +25,12 @@ from app.testing.factories import (
 
 async def _create_task(session, project, title="Test Task", *, created_by_id=None):
     """Helper to create a task with optional created_by_id."""
+    from app.db.session import set_rls_context
     from app.services import task_statuses as task_statuses_service
 
+    # Route status setup + the task into the project's guild schema; a prior
+    # setup may have left the search_path on a different guild.
+    await set_rls_context(session, user_id=created_by_id, guild_id=project.guild_id)
     await task_statuses_service.ensure_default_statuses(session, project.id)
     status = await task_statuses_service.get_default_status(session, project.id)
 
@@ -214,18 +218,31 @@ async def test_list_global_created_tasks_guild_filter(
         session, project2, "Guild 2 Task", created_by_id=user.id
     )
 
-    # Filter to guild1 only
     headers = get_guild_headers(guild1, user)
+
+    def keyed(resp):
+        # Task ids are per-guild (per-schema); key by (guild_id, id).
+        return {(t["guild_id"], t["id"]) for t in resp.json()["items"]}
+
+    # No filter: created tasks from BOTH guilds are aggregated.
+    response = await client.get(
+        "/api/v1/tasks/?scope=global_created", headers=headers
+    )
+    assert response.status_code == 200
+    found = keyed(response)
+    assert (guild1.id, task1.id) in found
+    assert (guild2.id, task2.id) in found
+
+    # Filter to guild1 only.
     conditions = json.dumps([{"field": "guild_ids", "op": "in_", "value": [guild1.id]}])
     response = await client.get(
         f"/api/v1/tasks/?scope=global_created&conditions={conditions}",
         headers=headers,
     )
-
     assert response.status_code == 200
-    task_ids = {t["id"] for t in response.json()["items"]}
-    assert task1.id in task_ids
-    assert task2.id not in task_ids
+    found = keyed(response)
+    assert (guild1.id, task1.id) in found
+    assert (guild2.id, task2.id) not in found
 
 
 @pytest.mark.integration
