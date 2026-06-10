@@ -11,19 +11,26 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.db.session import set_rls_context
 from app.models.calendar_event import CalendarEvent, CalendarEventAttendee, RSVPStatus
 from app.models.event_reminder_dispatch import EventReminderDispatch
 from app.models.notification import Notification, NotificationType
+from app.models.task import Task, TaskAssignee, TaskPriority, TaskStatus, TaskStatusCategory
 from app.models.user import User
+from app.services import email as email_service
 from app.services.notifications import (
     _format_event_when,
     _run_event_reminder_pass,
+    _run_overdue_pass,
     notify_initiative_membership,
 )
+from app.models.guild import GuildRole
 from app.testing import (
     create_calendar_event,
     create_guild,
+    create_guild_membership,
     create_initiative,
+    create_project,
     create_user,
 )
 
@@ -244,3 +251,63 @@ async def test_notify_initiative_membership_carries_guild_context(session: Async
     assert data["guild_id"] == guild.id
     assert data["target_path"] == f"/initiatives/{initiative.id}"
     assert f"guild_id={guild.id}" in data["smart_link"]
+
+
+async def _overdue_task_in_new_guild(session: AsyncSession, user: User, *, label: str):
+    """Give ``user`` an overdue task assigned to them in a brand-new guild, so a
+    user in several guilds has overdue work spread across guild schemas."""
+    guild = await create_guild(session, creator=user)
+    await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
+    initiative = await create_initiative(session, guild, user, name=label)
+    project = await create_project(session, initiative, user, name=f"{label} Project")
+    status = TaskStatus(
+        guild_id=guild.id, project_id=project.id, name="Todo",
+        category=TaskStatusCategory.todo, position=0, is_default=True,
+    )
+    session.add(status)
+    await session.commit()
+    await session.refresh(status)
+    task = Task(
+        guild_id=guild.id, project_id=project.id, task_status_id=status.id,
+        title=f"{label} overdue", priority=TaskPriority.medium,
+        due_date=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    session.add(TaskAssignee(task_id=task.id, user_id=user.id, guild_id=guild.id))
+    await session.commit()
+    return guild
+
+
+@pytest.mark.integration
+async def test_overdue_digest_gathers_tasks_across_user_guilds(session: AsyncSession, monkeypatch):
+    """The overdue digest must collect a user's overdue tasks from EVERY guild
+    they belong to. Under schema-per-guild each guild's tasks live in its own
+    schema, so a single public-scoped scan (the old behaviour) would miss all
+    but the routed guild — this asserts both guilds' tasks reach the email."""
+    user = await create_user(
+        session,
+        email="multi-overdue@example.com",
+        email_overdue_tasks=True,
+        overdue_notification_time="00:00",  # always past, so the digest fires
+        timezone="UTC",
+    )
+    await _overdue_task_in_new_guild(session, user, label="Alpha")
+    await _overdue_task_in_new_guild(session, user, label="Beta")
+
+    captured: dict = {}
+
+    async def _capture_email(sess, recipient, tasks):
+        captured["user_id"] = recipient.id
+        captured["titles"] = {t["title"] for t in tasks}
+
+    monkeypatch.setattr(email_service, "send_overdue_tasks_email", _capture_email)
+
+    # Mirror the worker's starting context: its AdminSessionLocal (app_admin) sees
+    # the shared users table; the gather inside still scopes guild data per member.
+    await set_rls_context(session, is_superadmin=True)
+    await _run_overdue_pass(session, now=datetime.now(timezone.utc))
+
+    assert captured.get("user_id") == user.id
+    assert captured.get("titles") == {"Alpha overdue", "Beta overdue"}

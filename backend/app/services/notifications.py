@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select, delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.db.session import AdminSessionLocal
+from app.db.session import AdminSessionLocal, set_rls_context
+from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.core.config import settings as app_config
 from app.models.initiative import Initiative
 from app.models.project import Project
@@ -1070,7 +1071,12 @@ def _resolve_timezone(value: str | None) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
-async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dict]:
+async def _overdue_tasks_for_user(session: AsyncSession, user_id: int) -> list[dict]:
+    """Overdue tasks assigned to the user *in the currently routed guild schema*.
+
+    Run once per guild via ``gather_across_guilds`` (the session is routed into
+    each of the user's guilds in turn), so it only ever sees one guild's rows.
+    """
     stmt = (
         select(Task, Project.name, Project.id, Initiative.guild_id)
         .join(Project, Task.project_id == Project.id)
@@ -1078,7 +1084,7 @@ async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dic
         .join(TaskAssignee, TaskAssignee.task_id == Task.id)
         .join(TaskStatus, Task.task_status_id == TaskStatus.id)
         .where(
-            TaskAssignee.user_id == user.id,
+            TaskAssignee.user_id == user_id,
             Task.due_date.is_not(None),
             Task.due_date < datetime.now(timezone.utc),
             TaskStatus.category != TaskStatusCategory.done,
@@ -1102,44 +1108,68 @@ async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dic
     return tasks
 
 
+async def _run_overdue_pass(session: AsyncSession, *, now: datetime) -> None:
+    """Send overdue-task digests to opted-in users as of ``now``.
+
+    Split out from ``process_overdue_notifications`` so tests can drive it with
+    the test session (the worker opens its own ``AdminSessionLocal``). Each
+    user's overdue tasks are gathered from their own guild schemas with their
+    membership context — no superadmin / all-guild access.
+    """
+    result = await session.exec(select(User).where(User.email_overdue_tasks.is_(True)))
+    users = result.scalars().all()
+    if not users:
+        logger.debug("overdue-digest: no users opted in")
+        return
+    # Capture plain fields up front: gathering routes per guild and expunges the
+    # identity map, which would detach these ORM rows.
+    candidates = [
+        (u.id, u.email, u.timezone, u.overdue_notification_time, u.last_overdue_notification_at)
+        for u in users
+    ]
+    for user_id, email, user_tz, notify_time, last_at in candidates:
+        tz = _resolve_timezone(user_tz)
+        now_local = now.astimezone(tz)
+        try:
+            hour, minute = map(int, notify_time.split(":"))
+        except Exception:
+            hour, minute = 21, 0
+        target_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if now_local < target_local:
+            continue
+        if last_at and last_at.astimezone(tz).date() == now_local.date():
+            continue
+        # User-scoped: visit each of the user's guild schemas with their own
+        # membership context (no superadmin) and collect their overdue tasks.
+        guild_ids = await member_guild_ids(session, user_id)
+        tasks = await gather_across_guilds(
+            session, user_id, guild_ids,
+            lambda routed, _gid: _overdue_tasks_for_user(routed, user_id),
+        )
+        if not tasks:
+            continue
+        # Re-load the user (the gather expunged it) to send + stamp it. The
+        # email/stamp touch only shared tables, so the user-only context is fine.
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one()
+        try:
+            await email_service.send_overdue_tasks_email(session, user, tasks)
+            logger.info("overdue-digest: sent %d overdue task(s) to user %s", len(tasks), email)
+        except email_service.EmailNotConfiguredError:
+            logger.warning("SMTP not configured; skipping overdue digest for %s", email)
+            continue
+        except RuntimeError as exc:  # pragma: no cover
+            logger.error("Failed to send overdue digest: %s", exc)
+            continue
+        user.last_overdue_notification_at = now
+        session.add(user)
+        await session.commit()
+
+
 async def process_overdue_notifications() -> None:
     async with AdminSessionLocal() as session:
-        stmt = select(User).where(User.email_overdue_tasks.is_(True))
-        result = await session.exec(stmt)
-        users = result.scalars().all()
-        if not users:
-            logger.debug("overdue-digest: no users opted in")
-            return
-        now_utc = datetime.now(timezone.utc)
-        for user in users:
-            tz = _resolve_timezone(user.timezone)
-            now_local = now_utc.astimezone(tz)
-            try:
-                hour, minute = map(int, user.overdue_notification_time.split(":"))
-            except Exception:
-                hour, minute = 21, 0
-            target_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if now_local < target_local:
-                continue
-            if user.last_overdue_notification_at:
-                last_local = user.last_overdue_notification_at.astimezone(tz)
-                if last_local.date() == now_local.date():
-                    continue
-            tasks = await _overdue_tasks_for_user(session, user)
-            if not tasks:
-                continue
-            try:
-                await email_service.send_overdue_tasks_email(session, user, tasks)
-                logger.info("overdue-digest: sent %d overdue task(s) to user %s", len(tasks), user.email)
-            except email_service.EmailNotConfiguredError:
-                logger.warning("SMTP not configured; skipping overdue digest for %s", user.email)
-                continue
-            except RuntimeError as exc:  # pragma: no cover
-                logger.error("Failed to send overdue digest: %s", exc)
-                continue
-            user.last_overdue_notification_at = now_utc
-            session.add(user)
-            await session.commit()
+        await _run_overdue_pass(session, now=datetime.now(timezone.utc))
 
 
 async def _run_event_reminder_pass(session: AsyncSession, *, now: datetime) -> None:
