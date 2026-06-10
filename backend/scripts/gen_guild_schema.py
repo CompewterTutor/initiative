@@ -93,6 +93,30 @@ def _schema_relative_index(indexdef: str) -> str:
     return indexdef + ";"
 
 
+# The guild_id denormalization triggers. The trigger FUNCTIONS are shared (in
+# public, no pinned search_path) and read the parent table unqualified, so under
+# search_path=<guild_schema>,public they populate guild_id from the guild's own
+# rows. They must live in each guild schema or NOT NULL guild_id inserts fail.
+_TRIGGER_SQL = text(
+    """
+    SELECT cl.relname AS tbl, pg_get_triggerdef(tg.oid) AS triggerdef
+    FROM pg_trigger tg
+    JOIN pg_class cl ON cl.oid = tg.tgrelid
+    JOIN pg_namespace n ON n.oid = cl.relnamespace AND n.nspname = 'public'
+    WHERE NOT tg.tgisinternal AND cl.relname = ANY(:t)
+    ORDER BY cl.relname, tg.tgname
+    """
+)
+
+
+def _schema_relative_trigger(triggerdef: str) -> str:
+    # CREATE TRIGGER name ... ON public.tbl ... EXECUTE FUNCTION fn()  ->
+    # schema-relative + idempotent (CREATE OR REPLACE; the function stays shared).
+    triggerdef = triggerdef.replace("CREATE TRIGGER ", "CREATE OR REPLACE TRIGGER ")
+    triggerdef = triggerdef.replace(" ON public.", " ON ")
+    return triggerdef + ";"
+
+
 def _guard(conname: str, body: str) -> str:
     # Idempotent ADD CONSTRAINT: skip if a constraint of this name already exists
     # in the current schema (search_path puts the guild schema first).
@@ -111,9 +135,11 @@ async def main() -> None:
         table_stmts = await conn.run_sync(_build_tables)
         index_rows = (await conn.execute(_INDEX_SQL, {"t": sorted(GUILD_SCOPED_TABLES)})).fetchall()
         rows = (await conn.execute(_CONSTRAINT_SQL, {"t": sorted(GUILD_SCOPED_TABLES)})).fetchall()
+        trigger_rows = (await conn.execute(_TRIGGER_SQL, {"t": sorted(GUILD_SCOPED_TABLES)})).fetchall()
     await engine.dispose()
 
     indexes = [_schema_relative_index(r.indexdef) for r in index_rows]
+    triggers = [_schema_relative_trigger(r.triggerdef) for r in trigger_rows]
     checks, fks = [], []
     for r in rows:
         if r.contype == "c":
@@ -136,13 +162,15 @@ async def main() -> None:
         + "\n".join(checks)
         + "\n\n-- intra-schema FOREIGN KEYs\n"
         + "\n".join(fks)
+        + "\n\n-- guild_id denormalization triggers (functions are shared in public)\n"
+        + "\n".join(triggers)
         + "\n"
     )
     with open(_OUT, "w") as fh:
         fh.write(sql)
     print(
         f"wrote {_OUT}: {len(table_stmts)} table + {len(indexes)} index + "
-        f"{len(checks)} check + {len(fks)} FK stmts"
+        f"{len(checks)} check + {len(fks)} FK + {len(triggers)} trigger stmts"
     )
 
 

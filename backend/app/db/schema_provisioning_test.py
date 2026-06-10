@@ -345,6 +345,14 @@ async def test_guild_schema_matches_alembic_public(engine):
                 ), {"ns": ns, "t": t})
                 return sorted(x.i.split(" USING ", 1)[1] for x in r if " USING " in x.i)
 
+            async def trig(ns, t):  # guild_id denorm triggers (functions stay shared)
+                r = await conn.execute(text(
+                    "SELECT pg_get_triggerdef(tg.oid) d FROM pg_trigger tg "
+                    "JOIN pg_class cl ON cl.oid=tg.tgrelid "
+                    "WHERE cl.oid=(:ns||'.'||:t)::regclass AND NOT tg.tgisinternal"
+                ), {"ns": ns, "t": t})
+                return sorted(re.sub(r"\bON \w+\.", "ON ", x.d) for x in r)  # strip table schema
+
             drift = []
             for t in sorted(GUILD_SCOPED_TABLES):
                 if await cols("public", t) != await cols(schema, t):
@@ -355,6 +363,8 @@ async def test_guild_schema_matches_alembic_public(engine):
                     drift.append(f"foreign keys: {t}")
                 if await idx("public", t) != await idx(schema, t):
                     drift.append(f"indexes: {t}")
+                if await trig("public", t) != await trig(schema, t):
+                    drift.append(f"triggers: {t}")
             assert drift == [], f"guild schema drifted from Alembic's public: {drift}"
     finally:
         async with engine.begin() as conn:

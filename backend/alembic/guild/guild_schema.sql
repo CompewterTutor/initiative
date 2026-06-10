@@ -739,3 +739,19 @@ DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'task_tag
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tasks_task_status_id' AND connamespace = current_schema()::regnamespace) THEN ALTER TABLE "tasks" ADD CONSTRAINT "fk_tasks_task_status_id" FOREIGN KEY (task_status_id) REFERENCES task_statuses(id) ON DELETE RESTRICT; END IF; END $$;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tasks_project_id_fkey' AND connamespace = current_schema()::regnamespace) THEN ALTER TABLE "tasks" ADD CONSTRAINT "tasks_project_id_fkey" FOREIGN KEY (project_id) REFERENCES projects(id); END IF; END $$;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'webhook_subscriptions_initiative_id_fkey' AND connamespace = current_schema()::regnamespace) THEN ALTER TABLE "webhook_subscriptions" ADD CONSTRAINT "webhook_subscriptions_initiative_id_fkey" FOREIGN KEY (initiative_id) REFERENCES initiatives(id) ON DELETE CASCADE; END IF; END $$;
+
+-- guild_id denormalization triggers (functions are shared in public)
+CREATE OR REPLACE TRIGGER tr_comments_set_guild_id BEFORE INSERT OR UPDATE OF task_id, document_id ON comments FOR EACH ROW EXECUTE FUNCTION fn_comments_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_document_permissions_set_guild_id BEFORE INSERT OR UPDATE OF document_id ON document_permissions FOR EACH ROW EXECUTE FUNCTION fn_document_permissions_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_documents_set_guild_id BEFORE INSERT OR UPDATE OF initiative_id ON documents FOR EACH ROW EXECUTE FUNCTION fn_documents_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_initiative_members_set_guild_id BEFORE INSERT OR UPDATE OF initiative_id ON initiative_members FOR EACH ROW EXECUTE FUNCTION fn_initiative_members_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_project_documents_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON project_documents FOR EACH ROW EXECUTE FUNCTION fn_project_documents_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_project_favorites_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON project_favorites FOR EACH ROW EXECUTE FUNCTION fn_project_favorites_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_project_orders_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON project_orders FOR EACH ROW EXECUTE FUNCTION fn_project_orders_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_project_permissions_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON project_permissions FOR EACH ROW EXECUTE FUNCTION fn_project_permissions_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_projects_set_guild_id BEFORE INSERT OR UPDATE OF initiative_id ON projects FOR EACH ROW EXECUTE FUNCTION fn_projects_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_recent_views_set_guild_id BEFORE INSERT OR UPDATE OF entity_type, entity_id ON recent_views FOR EACH ROW EXECUTE FUNCTION fn_recent_views_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_subtasks_set_guild_id BEFORE INSERT OR UPDATE OF task_id ON subtasks FOR EACH ROW EXECUTE FUNCTION fn_subtasks_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_task_assignees_set_guild_id BEFORE INSERT OR UPDATE OF task_id ON task_assignees FOR EACH ROW EXECUTE FUNCTION fn_task_assignees_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_task_statuses_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON task_statuses FOR EACH ROW EXECUTE FUNCTION fn_task_statuses_set_guild_id();
+CREATE OR REPLACE TRIGGER tr_tasks_set_guild_id BEFORE INSERT OR UPDATE OF project_id ON tasks FOR EACH ROW EXECUTE FUNCTION fn_tasks_set_guild_id();
