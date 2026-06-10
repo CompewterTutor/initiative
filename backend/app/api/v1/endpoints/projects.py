@@ -6,6 +6,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete as sa_delete
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import (
     RLSSessionDep,
@@ -16,6 +17,7 @@ from app.api.deps import (
     require_guild_roles,
 )
 from app.db.session import reapply_rls_context
+from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.models.project import Project, ProjectPermission, ProjectPermissionLevel, ProjectRolePermission
 from app.models.project_order import ProjectOrder
 from app.models.project_activity import ProjectFavorite
@@ -24,7 +26,7 @@ from app.models.task import Task, TaskAssignee, TaskStatus, TaskStatusCategory, 
 from app.models.comment import Comment
 from app.models.initiative import Initiative, InitiativeMember, InitiativeRoleModel, PermissionKey
 from app.models.user import User
-from app.models.guild import Guild, GuildMembership, GuildRole
+from app.models.guild import GuildRole
 from app.models.document import Document, ProjectDocument
 from app.models.tag import Tag, ProjectTag, TaskTag
 from app.services import notifications as notifications_service
@@ -748,6 +750,25 @@ def _apply_global_project_sort(statement, sort_by: Optional[str], sort_dir: Opti
     return statement
 
 
+def _sort_global_project_reads(
+    reads: list[ProjectRead], sort_by: Optional[str], sort_dir: Optional[str]
+) -> list[ProjectRead]:
+    """Order the merged cross-guild reads, mirroring _apply_global_project_sort.
+
+    ``id`` is always the (descending) tiebreak; applied as a separate stable pass
+    so it holds regardless of the primary direction. Manual per-user ordering is
+    intentionally not used here — its ids are per-guild, so it can't span guilds.
+    """
+    reads.sort(key=lambda r: r.id, reverse=True)
+    if sort_by == "name":
+        reads.sort(key=lambda r: (r.name or "").lower(), reverse=sort_dir == "desc")
+    elif sort_by == "updated_at":
+        reads.sort(key=lambda r: r.updated_at, reverse=sort_dir == "desc")
+    else:
+        reads.sort(key=lambda r: r.updated_at, reverse=True)
+    return reads
+
+
 async def _list_global_projects(
     session: SessionDep,
     current_user: User,
@@ -758,61 +779,52 @@ async def _list_global_projects(
     page_size: int = 20,
     sort_by: Optional[str] = None,
     sort_dir: Optional[str] = None,
-) -> tuple[list[Project], int]:
-    """List projects across all guilds the user belongs to.
+) -> tuple[list[ProjectRead], int]:
+    """List projects across every guild the user belongs to.
 
-    Joins through Initiative -> Guild -> GuildMembership to enforce that the
-    user is a member of the owning guild, and filters through the DAC
-    visible-project-ids subquery for permission checks.
+    Visits each guild's schema in turn (per-schema ids mean a single cross-guild
+    query isn't possible) and merges, filtering through the DAC
+    visible-project-ids subquery for permission checks. Membership is implied by
+    only iterating the user's own guilds.
     """
-    has_permission_subq = permissions_service.visible_project_ids_subquery(current_user.id)
+    target_guilds = await member_guild_ids(session, current_user.id, restrict_to=guild_ids)
 
+    has_permission_subq = permissions_service.visible_project_ids_subquery(current_user.id)
     conditions = [
-        GuildMembership.user_id == current_user.id,
         Project.is_archived.is_(False),
         Project.is_template.is_(False),
         Project.id.in_(has_permission_subq),
     ]
-    if guild_ids:
-        conditions.append(Initiative.guild_id.in_(tuple(guild_ids)))
     if search:
         conditions.append(func.lower(Project.name).contains(search.strip().lower()))
 
-    def _base_query(stmt):
-        return (
-            stmt
-            .join(Project.initiative)
-            .join(Initiative.guild)
-            .join(GuildMembership, GuildMembership.guild_id == Guild.id)
-            .where(*conditions)
+    async def _fetch(guild_session: AsyncSession, _guild_id: int) -> list[ProjectRead]:
+        statement = select(Project).where(*conditions).options(
+            selectinload(Project.permissions).selectinload(ProjectPermission.user),
+            selectinload(Project.role_permissions).selectinload(ProjectRolePermission.role),
+            selectinload(Project.owner),
+            selectinload(Project.initiative).selectinload(Initiative.memberships).options(
+                selectinload(InitiativeMember.user),
+                selectinload(InitiativeMember.role_ref).selectinload(InitiativeRoleModel.permissions),
+            ),
+            selectinload(Project.document_links).selectinload(ProjectDocument.document).options(
+                selectinload(Document.permissions),
+                selectinload(Document.role_permissions),
+            ),
+            selectinload(Project.tag_links).selectinload(ProjectTag.tag),
+        )
+        projects = list((await guild_session.exec(statement)).all())
+        # Convert inside the guild's routed context (relationships resolve in its
+        # schema); preserve order — the merged list is sorted below.
+        return await _project_reads_with_order(
+            guild_session, current_user, projects, preserve_order=True
         )
 
-    # Count query
-    count_subq = _base_query(select(Project.id)).subquery()
-    count_stmt = select(func.count()).select_from(count_subq)
-    total_count = (await session.exec(count_stmt)).one()
-
-    # Data query
-    statement = _base_query(select(Project)).options(
-        selectinload(Project.permissions).selectinload(ProjectPermission.user),
-        selectinload(Project.role_permissions).selectinload(ProjectRolePermission.role),
-        selectinload(Project.owner),
-        selectinload(Project.initiative).selectinload(Initiative.memberships).options(
-            selectinload(InitiativeMember.user),
-            selectinload(InitiativeMember.role_ref).selectinload(InitiativeRoleModel.permissions),
-        ),
-        selectinload(Project.document_links).selectinload(ProjectDocument.document).options(
-            selectinload(Document.permissions),
-            selectinload(Document.role_permissions),
-        ),
-        selectinload(Project.tag_links).selectinload(ProjectTag.tag),
-    )
-    statement = _apply_global_project_sort(statement, sort_by, sort_dir)
-
-    statement = statement.offset((page - 1) * page_size).limit(page_size)
-
-    result = await session.exec(statement)
-    return list(result.all()), total_count
+    reads = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
+    reads = _sort_global_project_reads(reads, sort_by, sort_dir)
+    total_count = len(reads)
+    start = (page - 1) * page_size
+    return reads[start : start + page_size], total_count
 
 
 @router.get("/", response_model=ProjectListResponse)
@@ -893,7 +905,7 @@ async def list_global_projects(
     archived and template projects. Supports optional guild and
     name-search filters.
     """
-    projects, total_count = await _list_global_projects(
+    project_reads, total_count = await _list_global_projects(
         session,
         current_user,
         guild_ids=guild_ids,
@@ -902,10 +914,6 @@ async def list_global_projects(
         page_size=page_size,
         sort_by=sort_by,
         sort_dir=sort_dir,
-    )
-    project_reads = await _project_reads_with_order(
-        session, current_user, projects,
-        preserve_order=sort_by is not None,
     )
     return ProjectListResponse(
         items=project_reads,
