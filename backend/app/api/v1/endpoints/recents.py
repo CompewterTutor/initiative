@@ -52,7 +52,6 @@ async def list_recents(
     rows = await recent_views_service.list_recent_views(
         session,
         user_id=current_user.id,
-        guild_id=guild_context.guild_id,
     )
     if not rows:
         return []
