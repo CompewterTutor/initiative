@@ -43,7 +43,14 @@ class PropertyDefinition(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    initiative_id: int = Field(foreign_key="initiatives.id", nullable=False, index=True)
+    initiative_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("initiatives.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
     name: str = Field(
         sa_column=Column(String(length=100), nullable=False),
     )
