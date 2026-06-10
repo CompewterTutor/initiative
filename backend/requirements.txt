@@ -14,7 +14,7 @@ google-auth>=2.23.0
 requests>=2.34.2  # Required by google-auth for requests transport
 alembic==1.18.4
 slowapi==0.1.9
-tzdata>=2024.1  # Required on Windows for timezone support
+tzdata>=2026.2  # Required on Windows for timezone support
 python-magic>=0.4.27  # MIME type detection for file uploads
 icalendar>=6.0.0  # iCal import/export
 nh3==0.3.5  # HTML sanitization for schema inputs
