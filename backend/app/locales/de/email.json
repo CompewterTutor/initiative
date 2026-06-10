@@ -1,0 +1,100 @@
+{
+  "layout": {
+    "footerDisclaimer": "Diese Nachricht wurde von Initiative gesendet. Wenn du sie nicht erwartet hast, kannst du diese E-Mail ignorieren.",
+    "updateNotifications": "Benachrichtigungseinstellungen anpassen"
+  },
+  "test": {
+    "subject": "Test der SMTP-Konfiguration",
+    "title": "SMTP-Test-E-Mail",
+    "body": "Dies ist eine Test-E-Mail, die bestätigt, dass die SMTP-Einstellungen korrekt konfiguriert sind."
+  },
+  "verification": {
+    "subject": "Bestätige dein Initiative-Konto",
+    "title": "Bestätige deine E-Mail-Adresse",
+    "greeting": "Hallo {{name}},",
+    "body": "Bestätige deine E-Mail-Adresse, um die Einrichtung deines Initiative-Kontos abzuschließen.",
+    "buttonLabel": "E-Mail bestätigen",
+    "fallbackText": "Falls die Schaltfläche nicht funktioniert, kopiere diesen Link und füge ihn in deinen Browser ein:",
+    "textBody": "Bestätige dein Initiative-Konto unter {{link}}"
+  },
+  "passwordReset": {
+    "subject": "Setze dein Initiative-Passwort zurück",
+    "title": "Passwort zurücksetzen",
+    "greeting": "Hallo {{name}},",
+    "body": "Wir haben eine Anfrage erhalten, dein Initiative-Passwort zurückzusetzen.",
+    "buttonLabel": "Passwort zurücksetzen",
+    "fallbackText": "Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren. Der Link läuft bald ab.",
+    "textBody": "Setze dein Initiative-Passwort unter {{link}} zurück"
+  },
+  "initiativeAdded": {
+    "subject": "Zur Initiative {{initiativeName}} hinzugefügt",
+    "title": "Du bist einer neuen Initiative beigetreten",
+    "greeting": "Hallo {{name}},",
+    "body": "Du wurdest zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
+    "buttonLabel": "Initiativen ansehen",
+    "textBody": "Du wurdest zur Initiative {{initiativeName}} hinzugefügt. Besuche {{link}}, um sie anzusehen."
+  },
+  "projectAdded": {
+    "subject": "Neues Projekt in {{initiativeName}}",
+    "title": "Neues Projekt in deiner Initiative",
+    "greeting": "Hallo {{name}},",
+    "body": "Ein neues Projekt, <strong>{{projectName}}</strong>, wurde zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
+    "buttonLabel": "Projekt öffnen",
+    "textBody": "Ein neues Projekt, {{projectName}}, wurde zur Initiative {{initiativeName}} hinzugefügt. Sieh es dir unter {{link}} an."
+  },
+  "taskAssignment": {
+    "subject": "Dir wurden neue Aufgaben zugewiesen",
+    "title": "Übersicht der Aufgabenzuweisungen",
+    "greeting": "Hallo {{name}},",
+    "body": "Hier ist deine stündliche Übersicht der dir zugewiesenen Aufgaben:",
+    "assignedBy": "zugewiesen von {{name}}",
+    "inProject": "in {{projectName}}",
+    "footer": "Besuche Initiative, um die Aufgaben zu prüfen.",
+    "textBody": "Hier ist deine stündliche Übersicht der dir zugewiesenen Aufgaben:"
+  },
+  "mention": {
+    "greeting": "Hallo {{name}},",
+    "buttonLabel": "Ansehen"
+  },
+  "overdue": {
+    "subject": "Erinnerung an überfällige Aufgaben",
+    "title": "Erinnerung an überfällige Aufgaben",
+    "greeting": "Hallo {{name}},",
+    "body_one": "Du hast {{count}} überfällige Aufgabe:",
+    "body_other": "Du hast {{count}} überfällige Aufgaben:",
+    "taskDetail": "Projekt: {{projectName}}, fällig am {{dueDate}}",
+    "footer": "Besuche Initiative, um wieder auf Kurs zu kommen.",
+    "textBody_one": "Du hast {{count}} überfällige Aufgabe:",
+    "textBody_other": "Du hast {{count}} überfällige Aufgaben:"
+  },
+  "accessGrant": {
+    "buttonLabel": "Zugriffs-Dashboard öffnen",
+    "greeting": "Hallo {{name}},",
+    "levelRead": "Lesezugriff",
+    "levelReadWrite": "Lese- und Schreibzugriff",
+    "requested": {
+      "subject": "Zugriffsanfrage für {{guildName}}",
+      "title": "Neue Zugriffsanfrage",
+      "body": "<strong>{{requester}}</strong> hat {{level}} auf <strong>{{guildName}}</strong> angefragt.",
+      "textBody": "{{requester}} hat {{level}} auf {{guildName}} angefragt. Prüfe die Anfrage unter {{link}}."
+    },
+    "approved": {
+      "subject": "Zugriff auf {{guildName}} genehmigt",
+      "title": "Zugriff genehmigt",
+      "body": "Dein {{level}} auf <strong>{{guildName}}</strong> wurde genehmigt.",
+      "textBody": "Dein {{level}} auf {{guildName}} wurde genehmigt. {{link}}"
+    },
+    "denied": {
+      "subject": "Zugriffsanfrage für {{guildName}} abgelehnt",
+      "title": "Zugriffsanfrage abgelehnt",
+      "body": "Deine Zugriffsanfrage für <strong>{{guildName}}</strong> wurde abgelehnt.",
+      "textBody": "Deine Zugriffsanfrage für {{guildName}} wurde abgelehnt. {{link}}"
+    },
+    "revoked": {
+      "subject": "Zugriff auf {{guildName}} entzogen",
+      "title": "Zugriff entzogen",
+      "body": "Dein Zugriff auf <strong>{{guildName}}</strong> wurde entzogen.",
+      "textBody": "Dein Zugriff auf {{guildName}} wurde entzogen. {{link}}"
+    }
+  }
+}
