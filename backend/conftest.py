@@ -30,6 +30,12 @@ from app.core.rate_limit import limiter
 from app.db.session import get_admin_session, get_session
 from app.main import app
 
+# Per-guild ROLES are cluster-global (Postgres has no per-database roles), so the
+# suite's guild_<id> roles would collide with a co-located seeded dev DB's. Prefix
+# the suite's roles (test_guild_<id>) so they're distinct catalog entries. Schemas
+# are per-database and stay unprefixed. Set at import — before any provisioning.
+settings.GUILD_ROLE_PREFIX = "test_"
+
 # Use a separate test database (replace only the database name at the end)
 _base_url = settings.DATABASE_URL.rsplit("/", 1)[0]
 TEST_DATABASE_URL = _base_url + "/initiative_test"
@@ -179,10 +185,14 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
             )
         ).all():
             await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        # Only the suite's own prefixed roles (test_guild_<id>) — never a
+        # co-located dev DB's unprefixed guild_<id> roles (they share this
+        # cluster-global catalog but belong to that database).
+        role_pattern = f"^{settings.GUILD_ROLE_PREFIX}guild_[0-9]+$"
         roles = [
             r for (r,) in (
                 await conn.execute(
-                    text("SELECT rolname FROM pg_roles WHERE rolname ~ '^guild_[0-9]+$'")
+                    text("SELECT rolname FROM pg_roles WHERE rolname ~ :pat"), {"pat": role_pattern}
                 )
             ).all()
         ]
@@ -192,10 +202,9 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
             await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
         await conn.execute(text("SET session_replication_role = 'origin'"))
 
-    # Drop the guild roles best-effort, each in its own transaction: guild roles
-    # are cluster-global, so one shared with a co-located dev DB owns objects in
-    # *that* database and can't be dropped. DROP OWNED clears this DB's grants
-    # regardless; a failure to drop the (shared) role must not abort the rest.
+    # Drop the suite's prefixed roles, each in its own transaction. Prefixing means
+    # they no longer collide with a co-located dev DB, so these should succeed — the
+    # suppress is belt-and-suspenders so one stuck role can't abort the rest.
     from contextlib import suppress
 
     for role in roles:

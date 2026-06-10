@@ -134,8 +134,13 @@ async def set_rls_context(
     # schema and inherits shared/public access from app_guild_base. int() makes
     # the schema/role name injection-safe.
     route_guild = guild_id if guild_id is not None else pam_guild_id
-    sp = f"guild_{int(route_guild)}, public" if route_guild is not None else "public"
-    role_target = f"guild_{int(route_guild)}" if route_guild is not None else "none"
+    # Schema names are per-database; role names are cluster-global and may carry a
+    # prefix (guild_role_name). Lazy import avoids a circular import —
+    # schema_provisioning imports this module.
+    from app.db.schema_provisioning import guild_role_name, guild_schema_name
+
+    sp = f"{guild_schema_name(route_guild)}, public" if route_guild is not None else "public"
+    role_target = guild_role_name(route_guild) if route_guild is not None else "none"
 
     # Reset to the login role first: a session already SET ROLE'd into guild A
     # cannot SET ROLE into guild B (it isn't a member). 'none' returns to the

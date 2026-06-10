@@ -36,8 +36,15 @@ def guild_schema_name(guild_id: int) -> str:
 
 
 def guild_role_name(guild_id: int) -> str:
-    """Role name for a guild, e.g. ``guild_42`` (separate namespace from the schema)."""
-    return f"guild_{int(guild_id)}"
+    """Cluster-global role name for a guild, e.g. ``guild_42``.
+
+    Carries ``settings.GUILD_ROLE_PREFIX`` (empty in prod/dev). Roles are
+    cluster-global — unlike schemas, which are per-database — so the test suite
+    sets a prefix (``test_``) to avoid colliding with a co-located dev DB's roles.
+    Deliberately a separate name from the schema: a role and a schema are
+    different objects with different collision scopes.
+    """
+    return f"{settings.GUILD_ROLE_PREFIX}guild_{int(guild_id)}"
 
 
 def _guild_scoped_tables() -> list:
@@ -120,8 +127,8 @@ def _guild_schema_ddl(schema: str) -> str:
     return ";\n".join(stmts) + ";"
 
 
-def _grant_statements(schema: str) -> list[str]:
-    """Fail-closed grants for a guild's schema.
+def _grant_statements(schema: str, role: str) -> list[str]:
+    """Fail-closed grants tying a guild ``role`` to its ``schema``.
 
     Only the per-guild role gets DML on the schema. It inherits shared/public
     access from ``app_guild_base``. The login roles are granted membership in the
@@ -129,7 +136,6 @@ def _grant_statements(schema: str) -> list[str]:
     standing access to the schema, so a guild's data is reachable only by
     assuming its role.
     """
-    role = schema  # the per-guild role shares the schema's name (guild_<id>)
     return [
         # The per-guild role owns DML on its schema...
         f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"',
@@ -181,7 +187,7 @@ async def provision_guild_schema(conn: AsyncConnection, guild_id: int) -> str:
     await conn.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     await _ensure_role(conn, role)
     # Tables (IF NOT EXISTS) + grants, in one round-trip.
-    await _exec_batch(conn, [_guild_schema_ddl(schema), *_grant_statements(schema)])
+    await _exec_batch(conn, [_guild_schema_ddl(schema), *_grant_statements(schema, role)])
     return schema
 
 

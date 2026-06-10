@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     DISABLE_GUILD_CREATION: bool = False
     ENABLE_PUBLIC_REGISTRATION: bool = True  # When False, requires invite code to register
 
+    # Prefix for per-guild Postgres ROLE names (not schemas). Roles are
+    # cluster-global, so a test suite sharing a cluster with a seeded dev DB would
+    # collide on guild_<id> roles. The suite sets this to "test_" so its roles
+    # (test_guild_<id>) are distinct; schemas are per-database and stay unprefixed.
+    GUILD_ROLE_PREFIX: str = ""
+
     # Privileged Access Management (PAM): time-bound, per-guild access grants.
     PAM_DEFAULT_DURATION_MINUTES: int = 240  # 4 hours
     PAM_MAX_DURATION_MINUTES: int = 1440  # 24 hours (absolute ceiling on any grant)
