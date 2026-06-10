@@ -1,13 +1,17 @@
 import asyncio
+from contextlib import suppress
 from urllib.parse import urlparse
 
 import asyncpg
+from sqlalchemy import delete as sql_delete
 from sqlmodel import select
 
 from app.core.config import settings
 from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL
 from app.core.security import get_password_hash
+from app.db.schema_provisioning import deprovision_guild
 from app.db.session import AdminSessionLocal, run_migrations, set_rls_context
+from app.models.guild import Guild
 from app.models.user import User, UserRole
 from app.services import app_settings as app_settings_service
 from app.services import guilds as guilds_service
@@ -47,8 +51,28 @@ async def init_superuser() -> None:
         # default initiative). No bespoke seeding path — it's a real guild.
         guild = await guilds_service.create_guild(session, name="Primary Guild", creator=user)
         await session.commit()
-        await guilds_service.seed_guild_content(session, guild_id=guild.id, creator=user)
-        await session.commit()
+        # Capture ids before the seed: the rollback in the failure path expires the
+        # ORM objects, so reading guild.id / user.id afterwards would reload.
+        guild_id = guild.id
+        user_id = user.id
+        try:
+            await guilds_service.seed_guild_content(session, guild_id=guild_id, creator=user)
+            await session.commit()
+        except Exception:
+            # Undo the whole first-boot seed so a restart re-initializes cleanly.
+            # Otherwise the committed user makes init_superuser short-circuit on
+            # every restart, stranding the primary guild without a schema. Mirrors
+            # the API/registration cleanup. Roll back FIRST (an aborted session
+            # would fault the cleanup queries, and it reverts the seed's SET ROLE
+            # so deprovision can DROP the role); this is an admin (BYPASSRLS)
+            # session, so the bulk DELETEs aren't RLS-filtered.
+            await session.rollback()
+            with suppress(Exception):
+                await deprovision_guild(guild_id)
+            await session.exec(sql_delete(Guild).where(Guild.id == guild_id))
+            await session.exec(sql_delete(User).where(User.id == user_id))
+            await session.commit()
+            raise
 
 
 async def check_pre_baseline_db() -> None:
