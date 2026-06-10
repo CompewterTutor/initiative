@@ -47,6 +47,15 @@ def guild_role_name(guild_id: int) -> str:
     return f"{settings.GUILD_ROLE_PREFIX}guild_{int(guild_id)}"
 
 
+def guild_readonly_role_name(guild_id: int) -> str:
+    """Read-only role for a guild, e.g. ``guild_42_ro``.
+
+    Assumed by PAM *read* grants: SELECT-only on the schema, so a write is denied
+    at the role level — unlike the full guild role used for membership/writes.
+    """
+    return f"{settings.GUILD_ROLE_PREFIX}guild_{int(guild_id)}_ro"
+
+
 def _guild_scoped_tables() -> list:
     return [t for t in SQLModel.metadata.sorted_tables if t.name in GUILD_SCOPED_TABLES]
 
@@ -127,27 +136,35 @@ def _guild_schema_ddl(schema: str) -> str:
     return ";\n".join(stmts) + ";"
 
 
-def _grant_statements(schema: str, role: str) -> list[str]:
-    """Fail-closed grants tying a guild ``role`` to its ``schema``.
+def _grant_statements(schema: str, role: str, ro_role: str) -> list[str]:
+    """Fail-closed grants tying a guild ``role`` (read/write) and ``ro_role``
+    (read-only) to its ``schema``.
 
-    Only the per-guild role gets DML on the schema. It inherits shared/public
-    access from ``app_guild_base``. The login roles are granted membership in the
-    guild role ``WITH INHERIT FALSE`` — they can ``SET ROLE`` into it but hold no
-    standing access to the schema, so a guild's data is reachable only by
-    assuming its role.
+    Each role inherits shared/public access from ``app_guild_base``. The login
+    roles are granted membership in both ``WITH INHERIT FALSE`` — they can
+    ``SET ROLE`` into either but hold no standing access to the schema, so a
+    guild's data is reachable only by assuming one of its roles. The read-only
+    role (assumed by PAM read grants) gets SELECT only, so a write is denied.
     """
     return [
-        # The per-guild role owns DML on its schema...
+        # Full role: DML on its schema.
         f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"',
         f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" '
         f'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "{role}"',
         f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT USAGE ON SEQUENCES TO "{role}"',
         f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "{schema}" TO "{role}"',
         f'GRANT USAGE ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{role}"',
-        # ...and inherits shared/public access (users, guilds, ...) from the base role.
         f'GRANT app_guild_base TO "{role}"',
-        # The login roles may assume the guild role but inherit nothing from it.
         f'GRANT "{role}" TO "{APP_LOGIN_ROLE}", "{ADMIN_LOGIN_ROLE}" WITH INHERIT FALSE',
+        # Read-only role: SELECT only on the schema (PAM read grants). Shared/public
+        # access still comes from app_guild_base; public writes stay RLS-gated.
+        f'GRANT USAGE ON SCHEMA "{schema}" TO "{ro_role}"',
+        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT SELECT ON TABLES TO "{ro_role}"',
+        f'ALTER DEFAULT PRIVILEGES IN SCHEMA "{schema}" GRANT SELECT ON SEQUENCES TO "{ro_role}"',
+        f'GRANT SELECT ON ALL TABLES IN SCHEMA "{schema}" TO "{ro_role}"',
+        f'GRANT SELECT ON ALL SEQUENCES IN SCHEMA "{schema}" TO "{ro_role}"',
+        f'GRANT app_guild_base TO "{ro_role}"',
+        f'GRANT "{ro_role}" TO "{APP_LOGIN_ROLE}", "{ADMIN_LOGIN_ROLE}" WITH INHERIT FALSE',
     ]
 
 
@@ -184,17 +201,18 @@ async def provision_guild_schema(conn: AsyncConnection, guild_id: int) -> str:
     schema = guild_schema_name(guild_id)
     role = guild_role_name(guild_id)
 
+    ro_role = guild_readonly_role_name(guild_id)
     await conn.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     await _ensure_role(conn, role)
+    await _ensure_role(conn, ro_role)
     # Tables (IF NOT EXISTS) + grants, in one round-trip.
-    await _exec_batch(conn, [_guild_schema_ddl(schema), *_grant_statements(schema, role)])
+    await _exec_batch(conn, [_guild_schema_ddl(schema), *_grant_statements(schema, role, ro_role)])
     return schema
 
 
 async def drop_guild_schema(conn: AsyncConnection, guild_id: int) -> None:
     """Drop ``guild_<id>`` (schema + role). Safe if either is already absent."""
     schema = guild_schema_name(guild_id)
-    role = guild_role_name(guild_id)
 
     # DROP SCHEMA needs an exclusive lock on the schema's tables (and on
     # public.guilds to drop their FKs); concurrent app sessions can hold it. Fail
@@ -202,9 +220,10 @@ async def drop_guild_schema(conn: AsyncConnection, guild_id: int) -> None:
     # this drop is idempotent so a retry recovers cleanly.
     await conn.exec_driver_sql("SET lock_timeout = '10s'")
     await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
-    if await _role_exists(conn, role):
-        await conn.exec_driver_sql(f'DROP OWNED BY "{role}"')  # clear grants first
-        await conn.exec_driver_sql(f'DROP ROLE "{role}"')
+    for role in (guild_role_name(guild_id), guild_readonly_role_name(guild_id)):
+        if await _role_exists(conn, role):
+            await conn.exec_driver_sql(f'DROP OWNED BY "{role}"')  # clear grants first
+            await conn.exec_driver_sql(f'DROP ROLE "{role}"')
 
 
 async def provision_guild(guild_id: int) -> str:

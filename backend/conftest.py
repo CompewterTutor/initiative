@@ -188,7 +188,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         # Only the suite's own prefixed roles (test_guild_<id>) — never a
         # co-located dev DB's unprefixed guild_<id> roles (they share this
         # cluster-global catalog but belong to that database).
-        role_pattern = f"^{settings.GUILD_ROLE_PREFIX}guild_[0-9]+$"
+        role_pattern = f"^{settings.GUILD_ROLE_PREFIX}guild_[0-9]+(_ro)?$"
         roles = [
             r for (r,) in (
                 await conn.execute(

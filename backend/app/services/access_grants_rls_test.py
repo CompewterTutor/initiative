@@ -55,7 +55,7 @@ async def test_pam_read_grant_sees_only_granted_guild(session: AsyncSession):
 
     guild_b = await create_guild(session, creator=owner)
     init_b = await create_initiative(session, guild_b, owner)
-    proj_b = await create_project(session, init_b, owner, name="Bravo")
+    await create_project(session, init_b, owner, name="Bravo")
 
     try:
         await _set_app_user(session)
@@ -96,17 +96,20 @@ async def test_pam_read_grant_sees_only_granted_guild(session: AsyncSession):
         ).all()
         assert len(visible_doc) == 1, "read grant should see the granted guild's documents"
 
-        # Cross-guild isolation: project in guild B is invisible.
+        # Cross-guild isolation: guild B's project lives in another schema, so it
+        # is invisible here. (Query by name — its per-schema id collides with A's.)
         visible_b = (
-            await session.execute(text("SELECT id FROM projects WHERE id = :p"), {"p": proj_b.id})
+            await session.execute(text("SELECT id FROM projects WHERE name = 'Bravo'"))
         ).all()
         assert len(visible_b) == 0, "read grant must NOT see other guilds"
 
-        # Read grant is read-only: UPDATE matches no writable row.
-        result = await session.execute(
-            text("UPDATE projects SET name = 'hacked' WHERE id = :p"), {"p": proj_a.id}
-        )
-        assert result.rowcount == 0, "read grant must not be able to write"
+        # Read grant is read-only: the read-only role has no write on the schema,
+        # so a write is denied at the role level (raises permission denied).
+        with pytest.raises(Exception):
+            await session.execute(
+                text("UPDATE projects SET name = 'hacked' WHERE name = 'Alpha'")
+            )
+        await session.rollback()
     finally:
         await _reset_role(session)
 

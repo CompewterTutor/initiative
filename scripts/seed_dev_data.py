@@ -3615,7 +3615,7 @@ async def clean() -> None:
         roles = [
             r for (r,) in (
                 await conn.exec_driver_sql(
-                    "SELECT rolname FROM pg_roles WHERE rolname ~ '^guild_[0-9]+$'"
+                    "SELECT rolname FROM pg_roles WHERE rolname ~ '^guild_[0-9]+(_ro)?$'"
                 )
             ).all()
         ]

@@ -133,14 +133,28 @@ async def set_rls_context(
     # (fail-closed) — it must SET ROLE into the per-guild role, which owns its
     # schema and inherits shared/public access from app_guild_base. int() makes
     # the schema/role name injection-safe.
-    route_guild = guild_id if guild_id is not None else pam_guild_id
-    # Schema names are per-database; role names are cluster-global and may carry a
-    # prefix (guild_role_name). Lazy import avoids a circular import —
-    # schema_provisioning imports this module.
-    from app.db.schema_provisioning import guild_role_name, guild_schema_name
+    # Route to a guild's schema for a full guild context, or for an ACTIVE PAM
+    # grant (read or write). A grant with neither flag (e.g. requested but not yet
+    # approved) routes nowhere, so the grantee sees nothing. Schema names are
+    # per-database; role names are cluster-global and may carry a prefix. Lazy
+    # import avoids a circular import — schema_provisioning imports this module.
+    from app.db.schema_provisioning import (
+        guild_readonly_role_name,
+        guild_role_name,
+        guild_schema_name,
+    )
 
-    sp = f"{guild_schema_name(route_guild)}, public" if route_guild is not None else "public"
-    role_target = guild_role_name(route_guild) if route_guild is not None else "none"
+    pam_active = pam_read or pam_write
+    route_guild = guild_id if guild_id is not None else (pam_guild_id if pam_active else None)
+    if route_guild is None:
+        sp, role_target = "public", "none"
+    else:
+        sp = f"{guild_schema_name(route_guild)}, public"
+        # A pure read grant (read, not write, no full membership) assumes the
+        # read-only role so writes to the schema are denied at the role level.
+        read_only_grant = guild_id is None and pam_read and not pam_write
+        name_fn = guild_readonly_role_name if read_only_grant else guild_role_name
+        role_target = name_fn(route_guild)
 
     # Reset to the login role first: a session already SET ROLE'd into guild A
     # cannot SET ROLE into guild B (it isn't a member). 'none' returns to the
