@@ -5,10 +5,11 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update as sa_update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.db.session import AdminSessionLocal
+from app.db.session import AdminSessionLocal, reapply_rls_context, set_rls_context
+from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.core.config import settings as app_config
 from app.models.initiative import Initiative
 from app.models.project import Project
@@ -72,23 +73,6 @@ def _initiative_target_path(initiative_id: int | None) -> str:
     if initiative_id is None:
         return "/initiatives"
     return f"/initiatives/{initiative_id}"
-
-
-async def _project_guild_map(session: AsyncSession, project_ids: set[int]) -> dict[int, int]:
-    if not project_ids:
-        return {}
-    stmt = (
-        select(Project.id, Initiative.guild_id)
-        .join(Project.initiative)
-        .where(Project.id.in_(tuple(project_ids)))
-    )
-    result = await session.exec(stmt)
-    rows = result.all()
-    mapping: dict[int, int] = {}
-    for project_id, guild_id in rows:
-        if project_id is not None and guild_id is not None:
-            mapping[int(project_id)] = int(guild_id)
-    return mapping
 
 
 async def enqueue_task_assignment_event(
@@ -982,84 +966,99 @@ async def notify_event_reminder(
     )
 
 
-async def _pending_assignment_user_ids(session: AsyncSession) -> list[int]:
-    stmt = (
-        select(TaskAssignmentDigestItem.user_id)
-        .where(TaskAssignmentDigestItem.processed_at.is_(None))
-        .distinct()
-    )
-    result = await session.exec(stmt)
-    return result.scalars().all()
+async def _run_assignment_digest_pass(session: AsyncSession, *, now: datetime) -> None:
+    """Send task-assignment digests to opted-in users as of ``now``.
 
+    Split out from ``process_task_assignment_digests`` so tests can drive it with
+    the test session. Each user's pending digest items live in their own guild
+    schemas, so they're gathered with the user's membership context (no
+    superadmin) and the items are marked processed back in each schema.
+    """
+    result = await session.exec(select(User).where(User.email_task_assignment.is_not(False)))
+    users = result.scalars().all()
+    if not users:
+        logger.debug("task-digest: no opted-in users")
+        return
+    # Capture before routing — the gather expunges the identity map.
+    candidates = [(u.id, u.email, u.last_task_assignment_digest_at) for u in users]
+    for user_id, email, last_at in candidates:
+        if last_at and last_at + timedelta(hours=1) > now:
+            continue  # rate-limited to one digest per hour
+        per_guild_items: dict[int, list[int]] = {}
 
-async def _load_user(session: AsyncSession, user_id: int) -> User | None:
-    result = await session.exec(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+        # Capture user_id / per_guild_items as defaults so this closure doesn't
+        # bind the loop variables by reference (B023) — safe even if the call
+        # site is ever refactored to defer the closures.
+        async def _fetch(routed: AsyncSession, gid: int, *, _uid=user_id, _items=per_guild_items) -> list[dict]:
+            items = (
+                await routed.exec(
+                    select(TaskAssignmentDigestItem)
+                    .where(
+                        TaskAssignmentDigestItem.user_id == _uid,
+                        TaskAssignmentDigestItem.processed_at.is_(None),
+                    )
+                    .order_by(TaskAssignmentDigestItem.created_at.asc())
+                )
+            ).scalars().all()
+            _items[gid] = [item.id for item in items]
+            return [
+                {
+                    "task_title": item.task_title,
+                    "project_name": item.project_name,
+                    "assigned_by_name": item.assigned_by_name,
+                    "link": _build_smart_link(
+                        target_path=_task_target_path(item.task_id, item.project_id),
+                        guild_id=gid,  # the item's guild IS the routed schema
+                    ),
+                }
+                for item in items
+            ]
+
+        guild_ids = await member_guild_ids(session, user_id)
+        assignments = await gather_across_guilds(session, user_id, guild_ids, _fetch)
+        if not assignments:
+            continue
+        # Send: re-load the user (gather expunged it) in a shared-table context.
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if user is None:  # deleted between the snapshot and now — skip, don't abort the pass
+            continue
+        try:
+            await email_service.send_task_assignment_digest_email(session, user, assignments)
+            logger.info("task-digest: sent %d assignment(s) to user %s", len(assignments), email)
+        except email_service.EmailNotConfiguredError:
+            logger.warning("SMTP not configured; skipping task digest for %s", email)
+            continue
+        except RuntimeError as exc:  # pragma: no cover
+            logger.error("Failed to send task digest: %s", exc)
+            continue
+        # Mark the gathered items processed, back in each guild's schema.
+        for gid, item_ids in per_guild_items.items():
+            if not item_ids:
+                continue
+            session.expunge_all()
+            await set_rls_context(session, user_id=user_id, guild_id=gid)
+            await session.exec(
+                sa_update(TaskAssignmentDigestItem)
+                .where(TaskAssignmentDigestItem.id.in_(item_ids))
+                .values(processed_at=now)
+            )
+            await session.commit()
+            await reapply_rls_context(session)  # commit may have dropped the connection's context
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if user is None:
+            continue
+        user.last_task_assignment_digest_at = now
+        session.add(user)
+        await session.commit()
 
 
 async def process_task_assignment_digests() -> None:
     async with AdminSessionLocal() as session:
-        user_ids = await _pending_assignment_user_ids(session)
-        if not user_ids:
-            logger.debug("task-digest: no pending assignment events")
-            return
-        logger.debug("task-digest: processing %d user(s)", len(user_ids))
-        now = datetime.now(timezone.utc)
-        for user_id in user_ids:
-            user = await _load_user(session, int(user_id))
-            if not user or user.email_task_assignment is False:
-                await clear_task_assignment_queue_for_user(session, user_id)
-                await session.commit()
-                continue
-            events_stmt = (
-                select(TaskAssignmentDigestItem)
-                .where(
-                    TaskAssignmentDigestItem.user_id == user_id,
-                    TaskAssignmentDigestItem.processed_at.is_(None),
-                )
-                .order_by(TaskAssignmentDigestItem.created_at.asc())
-            )
-            events_result = await session.exec(events_stmt)
-            events = events_result.scalars().all()
-            if not events:
-                continue
-            if user.last_task_assignment_digest_at and user.last_task_assignment_digest_at + timedelta(hours=1) > now:
-                continue
-            project_ids = {event.project_id for event in events if event.project_id is not None}
-            guild_map = await _project_guild_map(session, project_ids)
-            assignments = []
-            for event in events:
-                target_path = _task_target_path(event.task_id, event.project_id)
-                assignments.append(
-                    {
-                        "task_title": event.task_title,
-                        "project_name": event.project_name,
-                        "assigned_by_name": event.assigned_by_name,
-                        "link": _build_smart_link(
-                            target_path=target_path,
-                            guild_id=guild_map.get(event.project_id),
-                        ),
-                    }
-                )
-            try:
-                await email_service.send_task_assignment_digest_email(session, user, assignments)
-                logger.info(
-                    "task-digest: sent %d assignment(s) to user %s",
-                    len(assignments),
-                    user.email,
-                )
-            except email_service.EmailNotConfiguredError:
-                logger.warning("SMTP not configured; skipping task digest for %s", user.email)
-                continue
-            except RuntimeError as exc:  # pragma: no cover
-                logger.error("Failed to send task digest: %s", exc)
-                continue
-            for event in events:
-                event.processed_at = now
-                session.add(event)
-            user.last_task_assignment_digest_at = now
-            session.add(user)
-            await session.commit()
+        await _run_assignment_digest_pass(session, now=datetime.now(timezone.utc))
 
 
 def _resolve_timezone(value: str | None) -> ZoneInfo:
@@ -1070,7 +1069,12 @@ def _resolve_timezone(value: str | None) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
-async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dict]:
+async def _overdue_tasks_for_user(session: AsyncSession, user_id: int) -> list[dict]:
+    """Overdue tasks assigned to the user *in the currently routed guild schema*.
+
+    Run once per guild via ``gather_across_guilds`` (the session is routed into
+    each of the user's guilds in turn), so it only ever sees one guild's rows.
+    """
     stmt = (
         select(Task, Project.name, Project.id, Initiative.guild_id)
         .join(Project, Task.project_id == Project.id)
@@ -1078,7 +1082,7 @@ async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dic
         .join(TaskAssignee, TaskAssignee.task_id == Task.id)
         .join(TaskStatus, Task.task_status_id == TaskStatus.id)
         .where(
-            TaskAssignee.user_id == user.id,
+            TaskAssignee.user_id == user_id,
             Task.due_date.is_not(None),
             Task.due_date < datetime.now(timezone.utc),
             TaskStatus.category != TaskStatusCategory.done,
@@ -1102,107 +1106,150 @@ async def _overdue_tasks_for_user(session: AsyncSession, user: User) -> list[dic
     return tasks
 
 
+async def _run_overdue_pass(session: AsyncSession, *, now: datetime) -> None:
+    """Send overdue-task digests to opted-in users as of ``now``.
+
+    Split out from ``process_overdue_notifications`` so tests can drive it with
+    the test session (the worker opens its own ``AdminSessionLocal``). Each
+    user's overdue tasks are gathered from their own guild schemas with their
+    membership context — no superadmin / all-guild access.
+    """
+    result = await session.exec(select(User).where(User.email_overdue_tasks.is_(True)))
+    users = result.scalars().all()
+    if not users:
+        logger.debug("overdue-digest: no users opted in")
+        return
+    # Capture plain fields up front: gathering routes per guild and expunges the
+    # identity map, which would detach these ORM rows.
+    candidates = [
+        (u.id, u.email, u.timezone, u.overdue_notification_time, u.last_overdue_notification_at)
+        for u in users
+    ]
+    for user_id, email, user_tz, notify_time, last_at in candidates:
+        tz = _resolve_timezone(user_tz)
+        now_local = now.astimezone(tz)
+        try:
+            hour, minute = map(int, notify_time.split(":"))
+        except Exception:
+            hour, minute = 21, 0
+        target_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if now_local < target_local:
+            continue
+        if last_at and last_at.astimezone(tz).date() == now_local.date():
+            continue
+        # User-scoped: visit each of the user's guild schemas with their own
+        # membership context (no superadmin) and collect their overdue tasks.
+        guild_ids = await member_guild_ids(session, user_id)
+        tasks = await gather_across_guilds(
+            session, user_id, guild_ids,
+            # _uid default-binds user_id so the closure doesn't capture the loop
+            # variable by reference (B023).
+            lambda routed, _gid, _uid=user_id: _overdue_tasks_for_user(routed, _uid),
+        )
+        if not tasks:
+            continue
+        # Re-load the user (the gather expunged it) to send + stamp it. The
+        # email/stamp touch only shared tables, so the user-only context is fine.
+        session.expunge_all()
+        await set_rls_context(session, user_id=user_id)
+        user = (await session.exec(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if user is None:  # deleted between the snapshot and now — skip, don't abort the pass
+            continue
+        try:
+            await email_service.send_overdue_tasks_email(session, user, tasks)
+            logger.info("overdue-digest: sent %d overdue task(s) to user %s", len(tasks), email)
+        except email_service.EmailNotConfiguredError:
+            logger.warning("SMTP not configured; skipping overdue digest for %s", email)
+            continue
+        except RuntimeError as exc:  # pragma: no cover
+            logger.error("Failed to send overdue digest: %s", exc)
+            continue
+        user.last_overdue_notification_at = now
+        session.add(user)
+        await session.commit()
+
+
 async def process_overdue_notifications() -> None:
     async with AdminSessionLocal() as session:
-        stmt = select(User).where(User.email_overdue_tasks.is_(True))
-        result = await session.exec(stmt)
-        users = result.scalars().all()
-        if not users:
-            logger.debug("overdue-digest: no users opted in")
-            return
-        now_utc = datetime.now(timezone.utc)
-        for user in users:
-            tz = _resolve_timezone(user.timezone)
-            now_local = now_utc.astimezone(tz)
-            try:
-                hour, minute = map(int, user.overdue_notification_time.split(":"))
-            except Exception:
-                hour, minute = 21, 0
-            target_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if now_local < target_local:
-                continue
-            if user.last_overdue_notification_at:
-                last_local = user.last_overdue_notification_at.astimezone(tz)
-                if last_local.date() == now_local.date():
-                    continue
-            tasks = await _overdue_tasks_for_user(session, user)
-            if not tasks:
-                continue
-            try:
-                await email_service.send_overdue_tasks_email(session, user, tasks)
-                logger.info("overdue-digest: sent %d overdue task(s) to user %s", len(tasks), user.email)
-            except email_service.EmailNotConfiguredError:
-                logger.warning("SMTP not configured; skipping overdue digest for %s", user.email)
-                continue
-            except RuntimeError as exc:  # pragma: no cover
-                logger.error("Failed to send overdue digest: %s", exc)
-                continue
-            user.last_overdue_notification_at = now_utc
-            session.add(user)
-            await session.commit()
+        await _run_overdue_pass(session, now=datetime.now(timezone.utc))
 
 
 async def _run_event_reminder_pass(session: AsyncSession, *, now: datetime) -> None:
-    """Dispatch any reminders due as of ``now`` using the given session.
+    """Dispatch any reminders due as of ``now``.
 
-    Split out from ``process_event_reminders`` so tests can drive it with the
-    test session (the worker opens its own ``AdminSessionLocal``).
+    User-scoped: for each user who enabled reminders, visit their own guild
+    schemas with their membership context (no superadmin) and dispatch reminders
+    for the events they attend there. Split out from ``process_event_reminders``
+    so tests can drive it with the test session.
     """
     horizon = now + timedelta(days=1)
     # Allow events that started within the grace window so a 0-minute
-    # ("at the time of the event") reminder still fires on the next poll
-    # instead of being skipped the instant the event begins.
+    # ("at the time of the event") reminder still fires on the next poll.
     lower = now - EVENT_REMINDER_GRACE
-    stmt = (
-        select(CalendarEvent, User)
-        .join(
-            CalendarEventAttendee,
-            CalendarEventAttendee.calendar_event_id == CalendarEvent.id,
-        )
-        .join(User, User.id == CalendarEventAttendee.user_id)
-        .where(
-            CalendarEvent.deleted_at.is_(None),
-            CalendarEvent.start_at > lower,
-            CalendarEvent.start_at <= horizon,
-            CalendarEventAttendee.rsvp_status != RSVPStatus.declined,
-            User.event_reminder_minutes_before.is_not(None),
-        )
-    )
-    result = await session.exec(stmt)
-    rows = result.all()
-    for event, user in rows:
-        minutes = user.event_reminder_minutes_before
+    users = (
+        await session.exec(select(User).where(User.event_reminder_minutes_before.is_not(None)))
+    ).scalars().all()
+    candidates = [(u.id, u.event_reminder_minutes_before) for u in users]
+    for user_id, minutes in candidates:
         if minutes is None:
             continue
-        remind_at = event.start_at - timedelta(minutes=minutes)
-        if remind_at > now:
-            continue
-        existing = await session.exec(
-            select(EventReminderDispatch.id).where(
-                EventReminderDispatch.event_id == event.id,
-                EventReminderDispatch.user_id == user.id,
-                EventReminderDispatch.event_start_at == event.start_at,
-            )
-        )
-        if existing.first() is not None:
-            continue
-        # Reserve the dedup row and commit it *before* dispatching the external
-        # channels. This loop polls every 60s, so if email/push went out first
-        # and the ledger commit then failed, the next poll would resend. Writing
-        # the ledger first means a commit failure here simply retries cleanly,
-        # and a success guarantees at most one send.
-        session.add(
-            EventReminderDispatch(
-                event_id=event.id,
-                user_id=user.id,
-                event_start_at=event.start_at,
-            )
-        )
-        await session.commit()
-        await notify_event_reminder(
-            session, recipient=user, event=event, guild_id=event.guild_id
-        )
-        await session.commit()
+        for guild_id in await member_guild_ids(session, user_id):
+            session.expunge_all()
+            await set_rls_context(session, user_id=user_id, guild_id=guild_id)
+            events = (
+                await session.exec(
+                    select(CalendarEvent)
+                    .join(
+                        CalendarEventAttendee,
+                        CalendarEventAttendee.calendar_event_id == CalendarEvent.id,
+                    )
+                    .where(
+                        CalendarEventAttendee.user_id == user_id,
+                        CalendarEventAttendee.rsvp_status != RSVPStatus.declined,
+                        CalendarEvent.deleted_at.is_(None),
+                        CalendarEvent.start_at > lower,
+                        CalendarEvent.start_at <= horizon,
+                    )
+                )
+            ).scalars().all()
+            # Capture before the per-reminder commits expire/detach the rows.
+            due = [
+                (e.id, e.start_at, e.guild_id)
+                for e in events
+                if e.start_at - timedelta(minutes=minutes) <= now
+            ]
+            for event_id, start_at, ev_guild_id in due:
+                existing = await session.exec(
+                    select(EventReminderDispatch.id).where(
+                        EventReminderDispatch.event_id == event_id,
+                        EventReminderDispatch.user_id == user_id,
+                        EventReminderDispatch.event_start_at == start_at,
+                    )
+                )
+                if existing.first() is not None:
+                    continue
+                # Reserve the dedup row before dispatching (reserve-then-send), so
+                # a send that outlives a failed ledger commit can't double-fire.
+                session.add(
+                    EventReminderDispatch(
+                        event_id=event_id, user_id=user_id, event_start_at=start_at
+                    )
+                )
+                await session.commit()
+                await reapply_rls_context(session)
+                recipient = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).scalar_one_or_none()
+                event = (
+                    await session.exec(select(CalendarEvent).where(CalendarEvent.id == event_id))
+                ).scalar_one_or_none()
+                if recipient is None or event is None:
+                    continue  # deleted mid-run; dedup row stays so we don't retry
+                await notify_event_reminder(
+                    session, recipient=recipient, event=event, guild_id=ev_guild_id
+                )
+                await session.commit()
+                await reapply_rls_context(session)
 
 
 async def process_event_reminders() -> None:
