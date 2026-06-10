@@ -39,11 +39,11 @@
     "12": "Dezember"
   },
   "positions": {
-    "first": "erster",
-    "second": "zweiter",
-    "third": "dritter",
-    "fourth": "vierter",
-    "last": "letzter"
+    "first": "ersten",
+    "second": "zweiten",
+    "third": "dritten",
+    "fourth": "vierten",
+    "last": "letzten"
   },
   "recurrenceSummary": {
     "doesNotRepeat": "Wiederholt sich nicht",
