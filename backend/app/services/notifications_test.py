@@ -26,20 +26,23 @@ from app.services.notifications import (
     _run_overdue_pass,
     notify_initiative_membership,
 )
-from app.models.guild import GuildRole
+from app.models.guild import Guild, GuildRole
 from app.testing import (
     create_calendar_event,
     create_guild,
     create_guild_membership,
     create_initiative,
+    create_initiative_member,
     create_project,
     create_user,
 )
 
 
 async def _dispatch(session: AsyncSession) -> None:
-    """Drive the reminder pass with the test session (the worker opens its
-    own AdminSessionLocal pointed at the dev DB)."""
+    """Drive the reminder pass with the test session. The worker's
+    AdminSessionLocal (app_admin) sees the shared users table; mirror that so the
+    user-list read isn't RLS-filtered (the gather inside is still member-scoped)."""
+    await set_rls_context(session, is_superadmin=True)
     await _run_event_reminder_pass(session, now=datetime.now(timezone.utc))
 
 
@@ -53,7 +56,7 @@ async def _events_initiative(session: AsyncSession, creator):
     return guild, initiative
 
 
-async def _add_attendee(session, event, user, *, rsvp=RSVPStatus.pending):
+async def _add_attendee(session, initiative, event, user, *, rsvp=RSVPStatus.pending):
     attendee = CalendarEventAttendee(
         calendar_event_id=event.id,
         user_id=user.id,
@@ -62,6 +65,12 @@ async def _add_attendee(session, event, user, *, rsvp=RSVPStatus.pending):
     )
     session.add(attendee)
     await session.commit()
+    # Reminders are gathered in the attendee's own context, so they must be a
+    # guild + initiative member to see the event under RLS (as the real app
+    # enforces — you can only attend events in initiatives you belong to).
+    guild = await session.get(Guild, event.guild_id)
+    await create_guild_membership(session, user=user, guild=guild, role=GuildRole.member)
+    await create_initiative_member(session, initiative, user, role_name="member")
 
 
 async def _reminders_for(session: AsyncSession, user_id: int) -> list[Notification]:
@@ -124,14 +133,14 @@ async def test_event_reminder_fires_once_within_lead_window(
     attendee = await create_user(
         session, email="attendee@example.com", event_reminder_minutes_before=15
     )
-    _, initiative = await _events_initiative(session, creator)
+    guild, initiative = await _events_initiative(session, creator)
     # Starts in 10 min; with a 15-min lead the reminder is already due.
     start_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     event = await create_calendar_event(
         session, initiative, creator, title="Standup", start_at=start_at,
         end_at=start_at + timedelta(minutes=30),
     )
-    await _add_attendee(session, event, attendee)
+    await _add_attendee(session, initiative, event, attendee)
 
     await _dispatch(session)
     assert len(await _reminders_for(session, attendee.id)) == 1
@@ -140,6 +149,8 @@ async def test_event_reminder_fires_once_within_lead_window(
     await _dispatch(session)
     assert len(await _reminders_for(session, attendee.id)) == 1
 
+    # The dispatch ledger is guild-scoped; read it under the guild's context.
+    await set_rls_context(session, user_id=attendee.id, guild_id=guild.id)
     dispatches = await session.exec(
         select(EventReminderDispatch).where(EventReminderDispatch.user_id == attendee.id)
     )
@@ -161,7 +172,7 @@ async def test_event_reminder_skipped_when_lead_time_off(session: AsyncSession):
         session, initiative, creator, title="Sync", start_at=start_at,
         end_at=start_at + timedelta(minutes=30),
     )
-    await _add_attendee(session, event, attendee)
+    await _add_attendee(session, initiative, event, attendee)
 
     await _dispatch(session)
     assert await _reminders_for(session, attendee.id) == []
@@ -180,7 +191,7 @@ async def test_event_reminder_not_due_when_outside_lead_window(session: AsyncSes
         session, initiative, creator, title="Later", start_at=start_at,
         end_at=start_at + timedelta(minutes=30),
     )
-    await _add_attendee(session, event, attendee)
+    await _add_attendee(session, initiative, event, attendee)
 
     await _dispatch(session)
     assert await _reminders_for(session, attendee.id) == []
@@ -199,7 +210,7 @@ async def test_event_reminder_at_time_of_event_fires_at_start(session: AsyncSess
         session, initiative, creator, title="Now", start_at=start_at,
         end_at=start_at + timedelta(minutes=30),
     )
-    await _add_attendee(session, event, attendee)
+    await _add_attendee(session, initiative, event, attendee)
 
     await _dispatch(session)
     assert len(await _reminders_for(session, attendee.id)) == 1
@@ -217,7 +228,7 @@ async def test_event_reminder_skips_declined_attendees(session: AsyncSession):
         session, initiative, creator, title="Optional", start_at=start_at,
         end_at=start_at + timedelta(minutes=30),
     )
-    await _add_attendee(session, event, attendee, rsvp=RSVPStatus.declined)
+    await _add_attendee(session, initiative, event, attendee, rsvp=RSVPStatus.declined)
 
     await _dispatch(session)
     assert await _reminders_for(session, attendee.id) == []
@@ -386,3 +397,36 @@ async def test_assignment_digest_gathers_items_across_user_guilds(
             )
         ).all()
         assert pending == [], f"guild {guild_id} items not marked processed"
+
+
+@pytest.mark.integration
+async def test_event_reminders_fire_across_a_users_guilds(session: AsyncSession):
+    """A user attending due events in several guilds must get a reminder in each.
+    Under schema-per-guild the events live in different schemas, so the old
+    single public-scoped scan would only ever see the routed guild."""
+    attendee = await create_user(
+        session, email="multi-reminder@example.com", event_reminder_minutes_before=15
+    )
+    for label in ("Alpha", "Beta"):
+        await set_rls_context(session, is_superadmin=True)  # permissive for the guild INSERT
+        creator = await create_user(session, email=f"organizer-{label}@example.com")
+        guild = await create_guild(session, creator=creator)
+        initiative = await create_initiative(session, guild, creator, name=label)
+        initiative.events_enabled = True
+        session.add(initiative)
+        await session.commit()
+        await session.refresh(initiative)
+        # Starts in 10 min; with the attendee's 15-min lead the reminder is due.
+        start_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        event = await create_calendar_event(
+            session, initiative, creator, title=f"{label} Standup",
+            start_at=start_at, end_at=start_at + timedelta(minutes=30),
+        )
+        await _add_attendee(session, initiative, event, attendee)
+
+    await _dispatch(session)
+
+    # Count across guilds: notifications are shared, so view them as superadmin.
+    await set_rls_context(session, is_superadmin=True)
+    reminders = await _reminders_for(session, attendee.id)
+    assert len(reminders) == 2

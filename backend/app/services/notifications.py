@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select, delete, update as sa_update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.db.session import AdminSessionLocal, set_rls_context
+from app.db.session import AdminSessionLocal, reapply_rls_context, set_rls_context
 from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.core.config import settings as app_config
 from app.models.initiative import Initiative
@@ -1163,66 +1163,79 @@ async def process_overdue_notifications() -> None:
 
 
 async def _run_event_reminder_pass(session: AsyncSession, *, now: datetime) -> None:
-    """Dispatch any reminders due as of ``now`` using the given session.
+    """Dispatch any reminders due as of ``now``.
 
-    Split out from ``process_event_reminders`` so tests can drive it with the
-    test session (the worker opens its own ``AdminSessionLocal``).
+    User-scoped: for each user who enabled reminders, visit their own guild
+    schemas with their membership context (no superadmin) and dispatch reminders
+    for the events they attend there. Split out from ``process_event_reminders``
+    so tests can drive it with the test session.
     """
     horizon = now + timedelta(days=1)
     # Allow events that started within the grace window so a 0-minute
-    # ("at the time of the event") reminder still fires on the next poll
-    # instead of being skipped the instant the event begins.
+    # ("at the time of the event") reminder still fires on the next poll.
     lower = now - EVENT_REMINDER_GRACE
-    stmt = (
-        select(CalendarEvent, User)
-        .join(
-            CalendarEventAttendee,
-            CalendarEventAttendee.calendar_event_id == CalendarEvent.id,
-        )
-        .join(User, User.id == CalendarEventAttendee.user_id)
-        .where(
-            CalendarEvent.deleted_at.is_(None),
-            CalendarEvent.start_at > lower,
-            CalendarEvent.start_at <= horizon,
-            CalendarEventAttendee.rsvp_status != RSVPStatus.declined,
-            User.event_reminder_minutes_before.is_not(None),
-        )
-    )
-    result = await session.exec(stmt)
-    rows = result.all()
-    for event, user in rows:
-        minutes = user.event_reminder_minutes_before
+    users = (
+        await session.exec(select(User).where(User.event_reminder_minutes_before.is_not(None)))
+    ).scalars().all()
+    candidates = [(u.id, u.event_reminder_minutes_before) for u in users]
+    for user_id, minutes in candidates:
         if minutes is None:
             continue
-        remind_at = event.start_at - timedelta(minutes=minutes)
-        if remind_at > now:
-            continue
-        existing = await session.exec(
-            select(EventReminderDispatch.id).where(
-                EventReminderDispatch.event_id == event.id,
-                EventReminderDispatch.user_id == user.id,
-                EventReminderDispatch.event_start_at == event.start_at,
-            )
-        )
-        if existing.first() is not None:
-            continue
-        # Reserve the dedup row and commit it *before* dispatching the external
-        # channels. This loop polls every 60s, so if email/push went out first
-        # and the ledger commit then failed, the next poll would resend. Writing
-        # the ledger first means a commit failure here simply retries cleanly,
-        # and a success guarantees at most one send.
-        session.add(
-            EventReminderDispatch(
-                event_id=event.id,
-                user_id=user.id,
-                event_start_at=event.start_at,
-            )
-        )
-        await session.commit()
-        await notify_event_reminder(
-            session, recipient=user, event=event, guild_id=event.guild_id
-        )
-        await session.commit()
+        for guild_id in await member_guild_ids(session, user_id):
+            session.expunge_all()
+            await set_rls_context(session, user_id=user_id, guild_id=guild_id)
+            events = (
+                await session.exec(
+                    select(CalendarEvent)
+                    .join(
+                        CalendarEventAttendee,
+                        CalendarEventAttendee.calendar_event_id == CalendarEvent.id,
+                    )
+                    .where(
+                        CalendarEventAttendee.user_id == user_id,
+                        CalendarEventAttendee.rsvp_status != RSVPStatus.declined,
+                        CalendarEvent.deleted_at.is_(None),
+                        CalendarEvent.start_at > lower,
+                        CalendarEvent.start_at <= horizon,
+                    )
+                )
+            ).scalars().all()
+            # Capture before the per-reminder commits expire/detach the rows.
+            due = [
+                (e.id, e.start_at, e.guild_id)
+                for e in events
+                if e.start_at - timedelta(minutes=minutes) <= now
+            ]
+            for event_id, start_at, ev_guild_id in due:
+                existing = await session.exec(
+                    select(EventReminderDispatch.id).where(
+                        EventReminderDispatch.event_id == event_id,
+                        EventReminderDispatch.user_id == user_id,
+                        EventReminderDispatch.event_start_at == start_at,
+                    )
+                )
+                if existing.first() is not None:
+                    continue
+                # Reserve the dedup row before dispatching (reserve-then-send), so
+                # a send that outlives a failed ledger commit can't double-fire.
+                session.add(
+                    EventReminderDispatch(
+                        event_id=event_id, user_id=user_id, event_start_at=start_at
+                    )
+                )
+                await session.commit()
+                await reapply_rls_context(session)
+                recipient = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).scalar_one()
+                event = (
+                    await session.exec(select(CalendarEvent).where(CalendarEvent.id == event_id))
+                ).scalar_one()
+                await notify_event_reminder(
+                    session, recipient=recipient, event=event, guild_id=ev_guild_id
+                )
+                await session.commit()
+                await reapply_rls_context(session)
 
 
 async def process_event_reminders() -> None:
