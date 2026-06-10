@@ -73,3 +73,35 @@ async def test_convert_moves_public_data_into_guild_schemas(engine):
                 )
                 await conn.execute(text("DELETE FROM public.initiatives WHERE guild_id = :g"), {"g": gid})
                 await conn.execute(text("DELETE FROM public.guilds WHERE id = :g"), {"g": gid})
+
+
+async def test_convert_handles_guild_without_initiatives(engine):
+    """A guild with data but no initiatives must still convert (the old
+    sentinel-count skip would silently leave it behind)."""
+    gid = None
+    try:
+        async with engine.begin() as conn:
+            gid = await conn.scalar(
+                text("INSERT INTO public.guilds (name) VALUES ('No Inits') RETURNING id")
+            )
+            # guild-scoped data that doesn't hang off an initiative
+            await conn.execute(
+                text(
+                    "INSERT INTO public.tags (guild_id, name, created_at, updated_at) "
+                    "VALUES (:g, 'orphan', now(), now())"
+                ),
+                {"g": gid},
+            )
+
+        assert await convert_public_to_guild_schemas() == 1
+        async with engine.connect() as conn:
+            schema = guild_schema_name(gid)
+            tags = (await conn.execute(text(f'SELECT name FROM "{schema}".tags'))).scalars().all()
+            assert list(tags) == ["orphan"]
+        assert await convert_public_to_guild_schemas() == 0  # marker set -> skipped
+    finally:
+        if gid is not None:
+            async with engine.begin() as conn:
+                await drop_guild_schema(conn, gid)
+                await conn.execute(text("DELETE FROM public.tags WHERE guild_id = :g"), {"g": gid})
+                await conn.execute(text("DELETE FROM public.guilds WHERE id = :g"), {"g": gid})

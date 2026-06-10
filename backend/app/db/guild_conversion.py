@@ -4,7 +4,7 @@
 Runs automatically at app startup (``main.on_startup``, after migrations) so a
 packaged Docker deploy converts itself with no extra step. Idempotent and
 resumable: each guild is converted atomically and skipped on later boots, so a
-converted deployment's boot is a handful of cheap count checks.
+converted deployment's boot is a handful of cheap marker checks.
 
 Design:
   * Runs on the provisioning (superuser) engine, so a transaction-local
@@ -16,9 +16,13 @@ Design:
     parent that does (see ``_CHAIN_PREDICATES``). A guard asserts those 13 still
     match the schema, so a newly-added guild_id-less table fails loudly here
     rather than silently skipping its rows.
-  * ``INSERT … SELECT * … ON CONFLICT DO NOTHING`` — idempotent; a guild already
-    living in its schema (created post-cutover) has no public rows, so it's a
-    no-op. Sequences are reset to ``max(id)`` so new inserts don't collide.
+  * Columns are named explicitly (not ``SELECT *``) so a column-order difference
+    can't silently misassign data — a mismatch fails loudly instead.
+    ``ON CONFLICT DO NOTHING`` keeps it idempotent; a guild already living in its
+    schema (created post-cutover) has no public rows, so it's a no-op. Sequences
+    are reset to ``max(id)`` so new inserts don't collide. Each converted schema
+    is stamped with a marker comment in the same transaction, so the skip check
+    can't be fooled by a guild with unusual data.
   * The ``public`` copies are KEPT (a backup + the source for
     ``gen_guild_schema.py``/the drift-guard). A later phase introduces
     ``guild_template``, drops the public copies, and re-points that tooling.
@@ -37,9 +41,10 @@ from app.db.tenancy import GUILD_SCOPED_TABLES
 
 logger = logging.getLogger(__name__)
 
-# Every guild has at least the Default Initiative, so initiatives is a reliable
-# "has this guild been converted yet?" sentinel.
-_SENTINEL_TABLE = "initiatives"
+# A guild schema carries this comment once its conversion has fully committed —
+# a definitive, atomic marker, so a guild with unusual data (e.g. no initiatives)
+# can't be mistaken for "already converted" by a row-count heuristic.
+_CONVERSION_MARKER = "schema-per-guild-converted"
 
 # The 13 guild-scoped tables without a guild_id column: partition via a parent
 # (chained up to a guild_id-bearing ancestor). ``{gid}`` is an int, injected safely.
@@ -85,33 +90,52 @@ async def _assert_predicates_cover_schema(conn: AsyncConnection) -> None:
         )
 
 
-async def _needs_conversion(conn: AsyncConnection, gid: int, schema: str) -> bool:
-    """True if this guild still has public rows not yet in its schema. The copy is
-    atomic per guild, so the sentinel count is a reliable marker."""
-    schema_exists = await conn.scalar(
-        text("SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = :s)"), {"s": schema}
+async def _public_columns(conn: AsyncConnection) -> dict[str, list[str]]:
+    """Column lists (in order) for each guild-scoped public table, so the copy can
+    name columns explicitly instead of ``SELECT *`` — robust to any column-order
+    difference, and a loud failure (not a silent misassignment) on a mismatch."""
+    rows = await conn.execute(
+        text(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = ANY(:t) "
+            "ORDER BY table_name, ordinal_position"
+        ),
+        {"t": list(GUILD_SCOPED_TABLES)},
     )
-    public_rows = await conn.scalar(
-        text(f"SELECT count(*) FROM public.{_SENTINEL_TABLE} WHERE guild_id = :g"), {"g": gid}
-    )
-    if not schema_exists:
-        return bool(public_rows)
-    schema_rows = await conn.scalar(text(f'SELECT count(*) FROM "{schema}".{_SENTINEL_TABLE}'))
-    return public_rows > schema_rows
+    columns: dict[str, list[str]] = {}
+    for table, column in rows.all():
+        columns.setdefault(table, []).append(column)
+    return columns
 
 
-async def _copy_guild(conn: AsyncConnection, gid: int, schema: str) -> None:
+async def _needs_conversion(conn: AsyncConnection, schema: str) -> bool:
+    """True unless the schema exists and carries the conversion marker comment.
+    A new (post-cutover) guild with no public rows runs once as a harmless no-op
+    and then gets the marker."""
+    marker = await conn.scalar(
+        text("SELECT obj_description(n.oid) FROM pg_namespace n WHERE n.nspname = :s"),
+        {"s": schema},
+    )
+    return marker != _CONVERSION_MARKER
+
+
+async def _copy_guild(
+    conn: AsyncConnection, gid: int, schema: str, columns: dict[str, list[str]]
+) -> None:
     """Copy one guild's public rows into its schema. The caller provides the
     (atomic) transaction via ``engine.begin()``."""
     # Transaction-local: FK checks + guild_id triggers off for the bulk copy,
     # auto-reverted at commit/rollback (superuser-only; provisioning is super).
     await conn.execute(text("SELECT set_config('session_replication_role', 'replica', true)"))
     for table in sorted(GUILD_SCOPED_TABLES):
+        # Name columns explicitly (not SELECT *) so a column-order difference can't
+        # silently misassign data; a missing column fails loudly instead.
+        cols = ", ".join(f'"{c}"' for c in columns[table])
         predicate = _CHAIN_PREDICATES.get(table, "guild_id = {gid}").format(gid=gid)
         await conn.execute(
             text(
-                f'INSERT INTO "{schema}"."{table}" '
-                f'SELECT * FROM public."{table}" WHERE {predicate} '
+                f'INSERT INTO "{schema}"."{table}" ({cols}) '
+                f'SELECT {cols} FROM public."{table}" WHERE {predicate} '
                 "ON CONFLICT DO NOTHING"
             )
         )
@@ -136,6 +160,8 @@ async def _copy_guild(conn: AsyncConnection, gid: int, schema: str) -> None:
                 f'GREATEST((SELECT COALESCE(max("{col}"), 0) FROM "{schema}"."{tbl}"), 1))'
             )
         )
+    # Mark the guild converted in the same transaction (constant literal, safe).
+    await conn.execute(text(f"COMMENT ON SCHEMA \"{schema}\" IS '{_CONVERSION_MARKER}'"))
 
 
 async def convert_public_to_guild_schemas() -> int:
@@ -146,19 +172,20 @@ async def convert_public_to_guild_schemas() -> int:
     """
     engine = db_session.provisioning_engine  # superuser
     # One read connection decides what's left to do, so an already-converted
-    # deployment's boot is just a sweep of cheap count checks.
+    # deployment's boot is just a sweep of cheap marker checks.
     async with engine.connect() as conn:
         await _assert_predicates_cover_schema(conn)
+        columns = await _public_columns(conn)
         guild_ids = (await conn.execute(text("SELECT id FROM public.guilds ORDER BY id"))).scalars().all()
         to_convert = [
-            gid for gid in guild_ids if await _needs_conversion(conn, gid, guild_schema_name(gid))
+            gid for gid in guild_ids if await _needs_conversion(conn, guild_schema_name(gid))
         ]
 
     for gid in to_convert:
         schema = guild_schema_name(gid)
         await provision_guild(gid)  # idempotent: ensure schema + roles exist (own transaction)
         async with engine.begin() as conn:  # atomic per guild
-            await _copy_guild(conn, gid, schema)
+            await _copy_guild(conn, gid, schema, columns)
         logger.info("schema-per-guild conversion: migrated guild %s into %s", gid, schema)
     if to_convert:
         logger.info("schema-per-guild conversion: migrated %d guild(s)", len(to_convert))
