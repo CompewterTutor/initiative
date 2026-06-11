@@ -5,7 +5,7 @@ from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import ConfigDict, Field, model_validator
 
-from app.schemas.base import SanitizedBaseModel
+from app.schemas.base import RawTextStr, SanitizedBaseModel
 
 from app.models.calendar_event import RSVPStatus
 from app.schemas.property import PropertySummary
@@ -126,7 +126,7 @@ class CalendarEventAttendeePreview(SanitizedBaseModel):
     user_id: int
     name: str
     avatar_url: Optional[str] = None
-    avatar_base64: Optional[str] = None
+    avatar_base64: Optional[RawTextStr] = None
 
 
 class CalendarEventSummary(CalendarEventBase):

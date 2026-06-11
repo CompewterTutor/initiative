@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from slowapi import _rate_limit_exceeded_handler
@@ -53,12 +54,39 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Strip the echoed ``input`` (and the pydantic docs ``url``) from 422
+    bodies so a failed validation can't leak the submitted value — e.g. a
+    password or client secret on an auth/settings endpoint (pentest LOW-001).
+    Field locations and messages are kept: they're already public via the
+    OpenAPI schema and the SPA surfaces them.
+    """
+    safe_errors = [
+        {key: value for key, value in error.items() if key in ("type", "loc", "msg")}
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": safe_errors},
+    )
+
+
+# Computed once — Settings are fixed for the process lifetime (pentest MED-001).
+_CONTENT_SECURITY_POLICY = settings.content_security_policy
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        # setdefault: preserve any stricter per-response CSP (e.g. the upload
+        # route's `script-src 'none'`) instead of overriding it.
+        response.headers.setdefault("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
         return response
 
 
@@ -66,7 +94,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ALLOWED_ORIGINS,
+    # Explicit allowlist (never "*"): wildcard + allow_credentials reflects any
+    # origin and would let any site make authenticated requests (CRIT-001).
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -271,6 +301,10 @@ app.openapi = custom_openapi
 async def on_startup() -> None:
     from app.db.init_db import check_pre_baseline_db
     from app.db.soft_delete_filter import install_soft_delete_filter
+
+    # Surface the effective CORS allowlist so a misconfigured split-origin
+    # deployment (SPA served from a host other than APP_URL) is self-diagnosing.
+    logger.info("CORS allowed origins: %s", settings.cors_origins)
 
     install_soft_delete_filter()
     await check_pre_baseline_db()

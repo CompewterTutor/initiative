@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 from pydantic import EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,36 @@ CAPACITOR_NATIVE_ORIGINS = [
     "capacitor://com.morelitea.initiative",  # Capacitor default iOS scheme with custom hostname
     "capacitor://localhost",                 # Capacitor fallback (no custom hostname)
 ]
+
+# Third-party origins the built SPA legitimately embeds in iframes, used to build
+# the Content-Security-Policy (pentest MED-001). These are the document
+# "smart link" providers available in the editor (always present).
+CSP_EMBED_FRAME_ORIGINS = [
+    "https://www.youtube-nocookie.com",
+    "https://www.youtube.com",
+    "https://www.figma.com",
+    "https://www.loom.com",
+    "https://player.vimeo.com",
+    "https://docs.google.com",
+    "https://miro.com",
+    "https://airtable.com",
+]
+
+# Captcha providers → the extra origins each needs (script/frame/style/connect).
+# Only the configured provider's origins are added; the gate is off by default.
+CSP_CAPTCHA_ORIGINS = {
+    "hcaptcha": ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+    "turnstile": ["https://challenges.cloudflare.com"],
+    "recaptcha": ["https://www.google.com", "https://www.gstatic.com"],
+}
+
+
+def _origin_of(url: str) -> str | None:
+    """Return the ``scheme://host[:port]`` origin of a URL, or None if unparseable."""
+    parts = urlsplit(url.strip())
+    if parts.scheme and parts.netloc:
+        return f"{parts.scheme}://{parts.netloc}"
+    return None
 
 
 class Settings(BaseSettings):
@@ -38,7 +69,92 @@ class Settings(BaseSettings):
     AUTO_APPROVED_EMAIL_DOMAINS: list[str] = Field(default_factory=list)
     # APP_URL should point to the frontend entry so redirect URIs resolve correctly
     APP_URL: str = "http://localhost:5173"
-    CORS_ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
+    # Extra browser origins allowed to make credentialed cross-origin requests,
+    # beyond APP_URL and the native app (both always allowed — see `cors_origins`).
+    # A wildcard is intentionally unsupported.
+    CORS_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Effective CORS allowlist for credentialed requests — never ``*``.
+
+        ``allow_origins=["*"]`` together with ``allow_credentials=True`` makes
+        the server reflect any ``Origin`` and echo
+        ``Access-Control-Allow-Credentials: true``, letting any website make
+        authenticated cross-origin requests on a logged-in user's behalf
+        (pentest CRIT-001). We therefore build an explicit allowlist: the app's
+        own ``APP_URL`` and the native mobile origins are always included, plus
+        whatever operators add via ``CORS_ALLOWED_ORIGINS``.
+
+        Each value is reduced to its bare ``scheme://host[:port]`` origin: an
+        ``Origin`` header never carries a path, so an ``APP_URL`` like
+        ``https://host/app`` must match as ``https://host`` or every credentialed
+        cross-origin request is silently rejected.
+        """
+        origins: list[str] = []
+        for candidate in [self.APP_URL, *self.CORS_ALLOWED_ORIGINS, *CAPACITOR_NATIVE_ORIGINS]:
+            origin = _origin_of(candidate) if candidate else None
+            if origin and origin not in origins:
+                origins.append(origin)
+        return origins
+
+    @property
+    def content_security_policy(self) -> str:
+        """Enforced CSP for the served SPA (pentest MED-001).
+
+        Locks down the high-value vectors (``object-src``/``base-uri``/
+        ``frame-ancestors``/``form-action``) and confines scripts to
+        same-origin — scripts get NO ``'unsafe-inline'``/``'unsafe-eval'`` so
+        injected markup can't execute. ``style-src`` does allow
+        ``'unsafe-inline'`` because the charting component and some UI libraries
+        inject inline ``<style>``. Origins the app genuinely loads (Google
+        Fonts, document embeds, and — when configured — the captcha provider and
+        advanced-tool iframe) are listed explicitly rather than via a blanket
+        ``https:``.
+        """
+        ws = "wss:" if self.APP_URL.startswith("https") else "ws:"
+
+        script_src = ["'self'"]
+        style_src = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
+        font_src = ["'self'", "https://fonts.gstatic.com", "data:"]
+        img_src = ["'self'", "data:", "blob:", "https:"]
+        connect_src = ["'self'", ws]
+        frame_src = ["'self'", *CSP_EMBED_FRAME_ORIGINS]
+        worker_src = ["'self'", "blob:"]
+
+        provider = self.CAPTCHA_PROVIDER
+        if provider in CSP_CAPTCHA_ORIGINS:
+            extra = CSP_CAPTCHA_ORIGINS[provider]
+            script_src += extra
+            style_src += extra
+            frame_src += extra
+            connect_src += extra
+
+        if self.ADVANCED_TOOL_URL:
+            tool_origin = _origin_of(self.ADVANCED_TOOL_URL)
+            if tool_origin:
+                frame_src.append(tool_origin)
+                connect_src.append(tool_origin)
+
+        directives = {
+            "default-src": ["'self'"],
+            "script-src": script_src,
+            "style-src": style_src,
+            "font-src": font_src,
+            "img-src": img_src,
+            "connect-src": connect_src,
+            "frame-src": frame_src,
+            "worker-src": worker_src,
+            "object-src": ["'none'"],
+            "base-uri": ["'self'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
+        }
+        return "; ".join(
+            f"{name} {' '.join(dict.fromkeys(values))}"
+            for name, values in directives.items()
+        )
+
     OIDC_ENABLED: bool = False
     OIDC_ISSUER: str | None = None
     OIDC_CLIENT_ID: str | None = None
@@ -174,20 +290,20 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_allowed_origins(cls, value: str | list[str] | None) -> list[str]:
         if value is None:
-            return ["*"]
+            return []
         if isinstance(value, str):
-            if not value.strip():
-                return ["*"]
             items = value.split(",")
         else:
             items = value
-        origins = [item.strip() for item in items if item and item.strip()] or ["*"]
-        # Always include native mobile app origins when not using wildcard
-        if origins != ["*"]:
-            for origin in CAPACITOR_NATIVE_ORIGINS:
-                if origin not in origins:
-                    origins.append(origin)
-        return origins
+        # Drop blanks and any "*": a wildcard combined with credentialed CORS is
+        # the origin-reflection vuln (CRIT-001). APP_URL and the native origins
+        # are always allowed via the `cors_origins` property, so the effective
+        # allowlist is never empty even when this is.
+        return [
+            item.strip()
+            for item in items
+            if item and item.strip() and item.strip() != "*"
+        ]
 
     @field_validator("ADVANCED_TOOL_ALLOWED_ORIGINS", mode="before")
     @classmethod
