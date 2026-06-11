@@ -24,7 +24,7 @@ def test_email_namespace_holds_rich_email_copy():
             event="Raid Night",
             when="tonight",
         )
-        == "Ada invited you to Raid Night (tonight)."
+        == "<strong>Ada</strong> invited you to <strong>Raid Night</strong> (<strong>tonight</strong>)."
     )
 
 
@@ -104,5 +104,5 @@ def test_email_t_is_backward_compatible():
 def test_plural_selection_uses_count():
     one = translate("overdue.body", "en", count=1)
     other = translate("overdue.body", "en", count=3)
-    assert one == "You have 1 overdue task:"
-    assert other == "You have 3 overdue tasks:"
+    assert one == "You have <strong>1</strong> overdue task:"
+    assert other == "You have <strong>3</strong> overdue tasks:"
