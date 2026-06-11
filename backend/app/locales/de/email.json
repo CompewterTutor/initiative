@@ -30,7 +30,7 @@
     "subject": "Zur Initiative {{initiativeName}} hinzugefügt",
     "title": "Du bist einer neuen Initiative beigetreten",
     "greeting": "Hallo {{name}},",
-    "body": "Du wurdest zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
+    "body": "du wurdest zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
     "buttonLabel": "Initiativen ansehen",
     "textBody": "Du wurdest zur Initiative {{initiativeName}} hinzugefügt. Besuche {{link}}, um sie anzusehen."
   },
