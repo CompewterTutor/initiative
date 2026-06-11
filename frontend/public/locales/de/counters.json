@@ -38,7 +38,7 @@
   "viewMode": "Ansichtsmodus",
   "viewModeNumber": "Zahl",
   "viewModeProgressBar": "Fortschrittsbalken",
-  "viewModeSegmentedClock": "Segmentuhr",
+  "viewModeSegmentedClock": "Kreis (Uhr)",
   "viewModeRequiresBounds": "Fortschrittsbalken und Segmentuhr erfordern sowohl Min. als auch Max.",
   "increment": "Erhöhen",
   "decrement": "Verringern",
