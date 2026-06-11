@@ -71,10 +71,10 @@ def test_access_grant_level_word_is_localized():
 
 @pytest.mark.unit
 def test_translate_falls_back_to_english_for_untranslated_locale():
-    # ``de`` has no notifications.json yet, so it must fall back to English
+    # ``zz`` has no locale files at all, so it must fall back to English
     # rather than surfacing the raw key.
     assert (
-        translate("event.reminder.title", "de", namespace="notifications")
+        translate("event.reminder.title", "zz", namespace="notifications")
         == "Upcoming event"
     )
 
