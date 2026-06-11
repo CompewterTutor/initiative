@@ -29,13 +29,26 @@ def _strip_to_plain_text(value: str) -> str:
 
     For these fields we want dangerous markup gone (``<img onerror>``,
     ``<script>``) but the benign characters the user actually typed (``&``,
-    ``<``, ``>``, ``"``) preserved verbatim. So we strip every tag (empty
-    allowlist) and then ``html.unescape`` the entities nh3 introduced, leaving
-    the literal characters intact across the round trip. Stripping with an empty
-    allowlist also removes tags nh3's default allowlist would keep (e.g. it
-    leaves ``<img src="x">`` behind), which is what a plain-text field wants.
+    ``<``, ``>``, ``"``) preserved verbatim.
+
+    The subtlety: a naive ``html.unescape(nh3.clean(value))`` unescapes *after*
+    stripping, so an already-entity-encoded payload (``&lt;img onerror&gt;``)
+    sails past ``nh3.clean`` as inert text and is then revived into live markup
+    by the unescape. So we fully decode the input *first* — to a fixpoint, so
+    markup encoded to any depth (``&amp;lt;…``) is exposed — and only then strip.
+    Stripping with an empty allowlist also removes tags nh3's default allowlist
+    would keep (e.g. ``<img src="x">``), which is what a plain-text field wants.
     """
-    return html.unescape(nh3.clean(value, tags=set(), attributes={}))
+    # Decode to a fixpoint before stripping. html.unescape returns a strictly
+    # shorter string whenever it changes anything, so this terminates on its own
+    # (no arbitrary iteration cap): worst case is one pass per entity.
+    decoded = value
+    while (once := html.unescape(decoded)) != decoded:
+        decoded = once
+    # Strip every tag, then undo the encoding nh3 applies to the surviving benign
+    # characters. The final unescape is tag-free: ``decoded`` holds no entities,
+    # so nh3 only ``&``-encodes lone </>/& that were never part of a tag.
+    return html.unescape(nh3.clean(decoded, tags=set(), attributes={}))
 
 
 def _is_rich_text(field_info) -> bool:

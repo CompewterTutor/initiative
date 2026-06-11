@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 from pydantic import EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,36 @@ CAPACITOR_NATIVE_ORIGINS = [
     "capacitor://com.morelitea.initiative",  # Capacitor default iOS scheme with custom hostname
     "capacitor://localhost",                 # Capacitor fallback (no custom hostname)
 ]
+
+# Third-party origins the built SPA legitimately embeds in iframes, used to build
+# the Content-Security-Policy (pentest MED-001). These are the document
+# "smart link" providers available in the editor (always present).
+CSP_EMBED_FRAME_ORIGINS = [
+    "https://www.youtube-nocookie.com",
+    "https://www.youtube.com",
+    "https://www.figma.com",
+    "https://www.loom.com",
+    "https://player.vimeo.com",
+    "https://docs.google.com",
+    "https://miro.com",
+    "https://airtable.com",
+]
+
+# Captcha providers → the extra origins each needs (script/frame/style/connect).
+# Only the configured provider's origins are added; the gate is off by default.
+CSP_CAPTCHA_ORIGINS = {
+    "hcaptcha": ["https://hcaptcha.com", "https://*.hcaptcha.com"],
+    "turnstile": ["https://challenges.cloudflare.com"],
+    "recaptcha": ["https://www.google.com", "https://www.gstatic.com"],
+}
+
+
+def _origin_of(url: str) -> str | None:
+    """Return the ``scheme://host[:port]`` origin of a URL, or None if unparseable."""
+    parts = urlsplit(url.strip())
+    if parts.scheme and parts.netloc:
+        return f"{parts.scheme}://{parts.netloc}"
+    return None
 
 
 class Settings(BaseSettings):
@@ -61,6 +92,64 @@ class Settings(BaseSettings):
             if cleaned and cleaned != "*" and cleaned not in origins:
                 origins.append(cleaned)
         return origins
+
+    @property
+    def content_security_policy(self) -> str:
+        """Enforced CSP for the served SPA (pentest MED-001).
+
+        Locks down the high-value vectors (``object-src``/``base-uri``/
+        ``frame-ancestors``/``form-action``) and confines scripts to
+        same-origin — scripts get NO ``'unsafe-inline'``/``'unsafe-eval'`` so
+        injected markup can't execute. ``style-src`` does allow
+        ``'unsafe-inline'`` because the charting component and some UI libraries
+        inject inline ``<style>``. Origins the app genuinely loads (Google
+        Fonts, document embeds, and — when configured — the captcha provider and
+        advanced-tool iframe) are listed explicitly rather than via a blanket
+        ``https:``.
+        """
+        ws = "wss:" if self.APP_URL.startswith("https") else "ws:"
+
+        script_src = ["'self'"]
+        style_src = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
+        font_src = ["'self'", "https://fonts.gstatic.com", "data:"]
+        img_src = ["'self'", "data:", "blob:", "https:"]
+        connect_src = ["'self'", ws]
+        frame_src = ["'self'", *CSP_EMBED_FRAME_ORIGINS]
+        worker_src = ["'self'", "blob:"]
+
+        provider = self.CAPTCHA_PROVIDER
+        if provider in CSP_CAPTCHA_ORIGINS:
+            extra = CSP_CAPTCHA_ORIGINS[provider]
+            script_src += extra
+            style_src += extra
+            frame_src += extra
+            connect_src += extra
+
+        if self.ADVANCED_TOOL_URL:
+            tool_origin = _origin_of(self.ADVANCED_TOOL_URL)
+            if tool_origin:
+                frame_src.append(tool_origin)
+                connect_src.append(tool_origin)
+
+        directives = {
+            "default-src": ["'self'"],
+            "script-src": script_src,
+            "style-src": style_src,
+            "font-src": font_src,
+            "img-src": img_src,
+            "connect-src": connect_src,
+            "frame-src": frame_src,
+            "worker-src": worker_src,
+            "object-src": ["'none'"],
+            "base-uri": ["'self'"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'none'"],
+        }
+        return "; ".join(
+            f"{name} {' '.join(dict.fromkeys(values))}"
+            for name, values in directives.items()
+        )
+
     OIDC_ENABLED: bool = False
     OIDC_ISSUER: str | None = None
     OIDC_CLIENT_ID: str | None = None

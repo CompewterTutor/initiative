@@ -68,6 +68,31 @@ def test_img_onerror_payload_fully_stripped() -> None:
 
 
 @pytest.mark.unit
+def test_entity_encoded_img_payload_is_not_revived() -> None:
+    # Regression: an *entity-encoded* payload must not be unescaped back into
+    # live markup. A naive unescape-after-strip stored a raw "<img onerror=...>"
+    # because nh3.clean saw the entities as inert text and skipped them.
+    m = _Model(name="before &lt;img src=x onerror=alert(1)&gt; after")
+    assert "<img" not in m.name
+    assert "onerror" not in m.name
+
+
+@pytest.mark.unit
+def test_double_entity_encoded_payload_is_not_revived() -> None:
+    # Even markup encoded twice (&amp;lt;) must be collapsed and stripped.
+    m = _Model(name="&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;")
+    assert "<script" not in m.name
+    assert "alert(1)" not in m.name
+
+
+@pytest.mark.unit
+def test_entity_encoded_benign_text_round_trips() -> None:
+    # Decoding must still leave benign characters literal, not re-mangled.
+    m = _Model(name="5 &lt; 3 &amp; 2 &gt; 1")
+    assert m.name == "5 < 3 & 2 > 1"
+
+
+@pytest.mark.unit
 def test_rich_text_preserves_script() -> None:
     raw = "<script>alert(1)</script>hello"
     m = _Model(name="x", rich=raw)
