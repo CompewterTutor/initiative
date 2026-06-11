@@ -702,6 +702,12 @@ async def oidc_callback(
         profile = userinfo_resp.json()
 
     email = profile.get("email")
+    # Track whether the email came from a real ``email`` claim vs. the synthetic
+    # ``{sub}@oidc.local`` fallback. The fallback address is keyed off the IdP's
+    # opaque ``sub`` (not an attacker-choosable value), so it is not part of the
+    # pre-registration account-takeover vector that the email_verified gate below
+    # defends against.
+    email_from_claim = bool(email)
     if not email:
         sub = profile.get("sub")
         if not sub:
@@ -709,6 +715,10 @@ async def oidc_callback(
             return _error_redirect(is_mobile, "profile_missing_identity")
         email = f"{sub}@oidc.local"
     normalized_email = email.lower().strip()
+    # Trust the IdP's ``email_verified`` claim only as an explicit ``true``;
+    # a missing/false claim is treated as unverified. (Some IdPs, e.g. Azure
+    # AD, omit the claim entirely — see the existing-account branch.)
+    email_verified_claim = profile.get("email_verified") is True
     full_name = (
         profile.get("name") or profile.get("preferred_username") or normalized_email
     )
@@ -761,8 +771,33 @@ async def oidc_callback(
         if user.status != UserStatus.active:
             return _error_redirect(is_mobile, "account_inactive")
 
+        # Account-takeover guard: when linking an OIDC login to an EXISTING
+        # local account that was matched purely on email, require the IdP to
+        # assert the email is verified. Otherwise an attacker who can mint an
+        # unverified token for a victim's email at a trusted IdP could log
+        # into / link a pre-registered local account they don't own. The
+        # synthetic ``{sub}@oidc.local`` fallback is exempt because it is
+        # keyed off the IdP-controlled ``sub`` rather than an
+        # attacker-choosable email.
+        #
+        # Trusted-IdP assumption: we do not verify the id_token signature
+        # here (identity is read from the userinfo endpoint over TLS after a
+        # PKCE exchange), so we trust the ``email_verified`` claim the IdP
+        # returns. A missing claim is treated as unverified and refused —
+        # fail closed — to protect existing local accounts.
+        if email_from_claim and not email_verified_claim:
+            logger.warning(
+                "OIDC login refused: email_verified not asserted for existing "
+                "account (user_id=%s)",
+                user.id,
+            )
+            return _error_redirect(is_mobile, OidcMessages.EMAIL_UNVERIFIED)
+
         updated = False
-        if not user.email_verified:
+        # Only promote a local account to verified when the IdP asserted the
+        # email is verified; the synthetic fallback path never promotes
+        # verification off an absent claim.
+        if email_verified_claim and not user.email_verified:
             user.email_verified = True
             updated = True
         if full_name and user.full_name != full_name:
