@@ -449,6 +449,8 @@ async def sync_document_content(
         logger.info(f"Sync content: Updated content for document {document_id} by {user.email}")
         return {"status": "ok"}
     except Exception as e:
+        # Log the full error server-side; return a generic message so internal
+        # detail (e.g. DB error text) isn't exposed to the caller.
         logger.error(f"Sync content: Failed to update document {document_id}: {e}")
         await session.rollback()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Failed to sync content"}
