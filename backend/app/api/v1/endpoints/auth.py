@@ -528,10 +528,16 @@ async def oidc_login(
     # The authorization endpoint comes from the IdP's remote discovery
     # document. Require an absolute https URL before redirecting the user
     # there, so a malformed or tampered discovery doc can't send them to a
-    # non-TLS or non-http(s) location (CodeQL py/url-redirection).
+    # non-TLS or non-http(s) location (CodeQL py/url-redirection). Guard the
+    # value type too: a non-string (e.g. null) endpoint must surface the clean
+    # OIDC_METADATA_INCOMPLETE error rather than a urlsplit TypeError.
     authorization_endpoint = metadata["authorization_endpoint"]
-    parsed_endpoint = urlsplit(authorization_endpoint)
-    if parsed_endpoint.scheme != "https" or not parsed_endpoint.hostname:
+    parsed_endpoint = (
+        urlsplit(authorization_endpoint)
+        if isinstance(authorization_endpoint, str)
+        else None
+    )
+    if parsed_endpoint is None or parsed_endpoint.scheme != "https" or not parsed_endpoint.hostname:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=OidcMessages.OIDC_METADATA_INCOMPLETE,

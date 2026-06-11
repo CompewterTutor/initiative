@@ -741,6 +741,36 @@ async def test_oidc_login_rejects_non_https_authorization_endpoint(
 
 @pytest.mark.integration
 @pytest.mark.auth
+async def test_oidc_login_rejects_null_authorization_endpoint(
+    client: AsyncClient,
+    monkeypatch,
+):
+    """A non-string (e.g. null) authorization_endpoint must surface the clean
+    OIDC_METADATA_INCOMPLETE error, not an uncaught urlsplit TypeError."""
+    import app.api.v1.endpoints.auth as auth_module
+
+    async def _fake_runtime_config(s):
+        settings_obj = type("S", (), {
+            "oidc_enabled": True, "oidc_issuer": "https://id.example.com",
+            "oidc_client_id": "cid", "oidc_client_secret_encrypted": None,
+            "oidc_scopes": ["openid"], "oidc_provider_name": "Test",
+        })()
+        metadata = {
+            "authorization_endpoint": None,
+            "token_endpoint": "https://id.example.com/token",
+        }
+        return settings_obj, metadata
+
+    monkeypatch.setattr(auth_module, "_get_oidc_runtime_config", _fake_runtime_config)
+
+    response = await client.get("/api/v1/auth/oidc/login", follow_redirects=False)
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "OIDC_METADATA_INCOMPLETE"
+
+
+@pytest.mark.integration
+@pytest.mark.auth
 async def test_oidc_login_redirects_to_https_authorization_endpoint(
     client: AsyncClient,
     monkeypatch,
