@@ -38,7 +38,7 @@
     "subject": "Neues Projekt in {{initiativeName}}",
     "title": "Neues Projekt in deiner Initiative",
     "greeting": "Hallo {{name}},",
-    "body": "Ein neues Projekt, <strong>{{projectName}}</strong>, wurde zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
+    "body": "ein neues Projekt, <strong>{{projectName}}</strong>, wurde zur Initiative <strong>{{initiativeName}}</strong> hinzugefügt.",
     "buttonLabel": "Projekt öffnen",
     "textBody": "Ein neues Projekt, {{projectName}}, wurde zur Initiative {{initiativeName}} hinzugefügt. Sieh es dir unter {{link}} an."
   },
