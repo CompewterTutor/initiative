@@ -93,7 +93,7 @@
   "deleteEventConfirm": "Der Termin wird in den Papierkorb verschoben. Du kannst ihn unter Einstellungen → Papierkorb wiederherstellen, bevor der Aufbewahrungszeitraum endet.",
   "dangerZoneDescription": "Destruktive Aktionen. Gelöschte Termine landen im Papierkorb und können wiederhergestellt werden, bevor der Aufbewahrungszeitraum endet.",
   "settingsDescription": "Verwalte Details, Zugriff und erweiterte Optionen des Termins.",
-  "rolePermissionsDescription": "Gewähre Zugriff auf diesen Termin basierend auf Initiative-Rollen.",
+  "rolePermissionsDescription": "Gewähre Zugriff auf diesen Termin basierend auf den Rollen der jeweiligen Initiative.",
   "userPermissionsDescription": "Gewähre einzelnen Mitgliedern Zugriff.",
   "adding": "Wird hinzugefügt...",
   "createFirst": "Erstelle deinen ersten Termin",
