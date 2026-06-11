@@ -53,8 +53,72 @@
     "textBody": "Aquí está tu resumen por hora de tareas asignadas a ti:"
   },
   "mention": {
+    "document": {
+      "subject": "Te mencionaron en {{document}}",
+      "title": "Te mencionaron",
+      "body": "{{actor}} te mencionó en {{document}}"
+    },
+    "comment": {
+      "subject": "Te mencionaron en un comentario",
+      "title": "Te mencionaron",
+      "body": "{{actor}} te mencionó en un comentario en {{context}}"
+    },
+    "task": {
+      "subject": "Tu tarea fue mencionada",
+      "title": "Tu tarea fue mencionada",
+      "body": "{{actor}} mencionó {{task}} en {{context}}"
+    },
     "greeting": "Hola {{name}},",
     "buttonLabel": "Ver"
+  },
+  "comment": {
+    "onTask": {
+      "subject": "Nuevo comentario en {{task}}",
+      "title": "Nuevo comentario en tu tarea",
+      "body": "{{actor}} comentó en {{task}}"
+    },
+    "onDocument": {
+      "subject": "Nuevo comentario en {{document}}",
+      "title": "Nuevo comentario en tu documento",
+      "body": "{{actor}} comentó en {{document}}"
+    },
+    "reply": {
+      "subject": "Respuesta a tu comentario",
+      "title": "Respuesta a tu comentario",
+      "body": "{{actor}} respondió a tu comentario en {{context}}"
+    }
+  },
+  "event": {
+    "invitation": {
+      "subject": "Tienes una invitación: {{event}}",
+      "title": "Nueva invitación a un evento",
+      "body": "{{organizer}} te invitó a {{event}} ({{when}})."
+    },
+    "rescheduled": {
+      "subject": "Evento reprogramado: {{event}}",
+      "title": "Evento reprogramado",
+      "body": "{{editor}} reprogramó {{event}} para {{when}}."
+    },
+    "updated": {
+      "subject": "Evento actualizado: {{event}}",
+      "title": "Evento actualizado",
+      "body": "{{editor}} actualizó {{event}} ({{when}})."
+    },
+    "cancelled": {
+      "subject": "Evento cancelado: {{event}}",
+      "title": "Evento cancelado",
+      "body": "{{canceller}} canceló {{event}} ({{when}})."
+    },
+    "rsvp": {
+      "subject": "Actualización de confirmación: {{event}}",
+      "title": "Actualización de confirmación",
+      "body": "{{responder}} respondió “{{status}}” a {{event}}."
+    },
+    "reminder": {
+      "subject": "Recordatorio: {{event}}",
+      "title": "Próximo evento",
+      "body": "{{event}} comienza el {{when}}."
+    }
   },
   "overdue": {
     "subject": "Recordatorio de tareas vencidas",

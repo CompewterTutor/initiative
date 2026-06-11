@@ -154,6 +154,12 @@ async def check_pre_baseline_db() -> None:
 async def init() -> None:
     await check_pre_baseline_db()
     await run_migrations()
+    # Provision + migrate any pre-cutover guilds from public into their schemas
+    # BEFORE anything below routes into a guild's role/schema — an existing guild
+    # has no guild_<id> role until it's provisioned, so set_rls_context would fail.
+    from app.db.guild_conversion import convert_public_to_guild_schemas
+
+    await convert_public_to_guild_schemas()
     await init_superuser()
     async with AdminSessionLocal() as session:
         # guild_settings is guild-scoped; route into the primary guild's schema so

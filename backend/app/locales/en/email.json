@@ -53,8 +53,72 @@
     "textBody": "Here is your hourly summary of tasks assigned to you:"
   },
   "mention": {
+    "document": {
+      "subject": "You were mentioned in {{document}}",
+      "title": "You were mentioned",
+      "body": "{{actor}} mentioned you in {{document}}"
+    },
+    "comment": {
+      "subject": "You were mentioned in a comment",
+      "title": "You were mentioned",
+      "body": "{{actor}} mentioned you in a comment on {{context}}"
+    },
+    "task": {
+      "subject": "Your task was mentioned",
+      "title": "Your task was mentioned",
+      "body": "{{actor}} mentioned {{task}} in {{context}}"
+    },
     "greeting": "Hi {{name}},",
     "buttonLabel": "View"
+  },
+  "comment": {
+    "onTask": {
+      "subject": "New comment on {{task}}",
+      "title": "New comment on your task",
+      "body": "{{actor}} commented on {{task}}"
+    },
+    "onDocument": {
+      "subject": "New comment on {{document}}",
+      "title": "New comment on your document",
+      "body": "{{actor}} commented on {{document}}"
+    },
+    "reply": {
+      "subject": "Reply to your comment",
+      "title": "Reply to your comment",
+      "body": "{{actor}} replied to your comment on {{context}}"
+    }
+  },
+  "event": {
+    "invitation": {
+      "subject": "You're invited: {{event}}",
+      "title": "New event invitation",
+      "body": "{{organizer}} invited you to {{event}} ({{when}})."
+    },
+    "rescheduled": {
+      "subject": "Event rescheduled: {{event}}",
+      "title": "Event rescheduled",
+      "body": "{{editor}} rescheduled {{event}} to {{when}}."
+    },
+    "updated": {
+      "subject": "Event updated: {{event}}",
+      "title": "Event updated",
+      "body": "{{editor}} updated {{event}} ({{when}})."
+    },
+    "cancelled": {
+      "subject": "Event cancelled: {{event}}",
+      "title": "Event cancelled",
+      "body": "{{canceller}} cancelled {{event}} ({{when}})."
+    },
+    "rsvp": {
+      "subject": "RSVP update: {{event}}",
+      "title": "RSVP update",
+      "body": "{{responder}} responded “{{status}}” to {{event}}."
+    },
+    "reminder": {
+      "subject": "Reminder: {{event}}",
+      "title": "Upcoming event",
+      "body": "{{event}} starts at {{when}}."
+    }
   },
   "overdue": {
     "subject": "Overdue tasks reminder",

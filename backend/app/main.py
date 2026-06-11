@@ -275,6 +275,11 @@ async def on_startup() -> None:
     install_soft_delete_filter()
     await check_pre_baseline_db()
     await run_migrations()
+    # Move any pre-cutover guild data from public into per-guild schemas. Idempotent
+    # — a no-op once converted — so packaged deploys convert themselves on boot.
+    from app.db.guild_conversion import convert_public_to_guild_schemas
+
+    await convert_public_to_guild_schemas()
     async with AdminSessionLocal() as session:
         await app_settings_service.ensure_defaults(session)
     app.state.notification_tasks = background_tasks_service.start_background_tasks()

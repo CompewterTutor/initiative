@@ -53,8 +53,72 @@
     "textBody": "Voici votre récapitulatif horaire des tâches qui vous sont assignées :"
   },
   "mention": {
+    "document": {
+      "subject": "Vous avez été mentionné(e) dans {{document}}",
+      "title": "Vous avez été mentionné(e)",
+      "body": "{{actor}} vous a mentionné(e) dans {{document}}"
+    },
+    "comment": {
+      "subject": "Vous avez été mentionné(e) dans un commentaire",
+      "title": "Vous avez été mentionné(e)",
+      "body": "{{actor}} vous a mentionné(e) dans un commentaire sur {{context}}"
+    },
+    "task": {
+      "subject": "Votre tâche a été mentionnée",
+      "title": "Votre tâche a été mentionnée",
+      "body": "{{actor}} a mentionné {{task}} dans {{context}}"
+    },
     "greeting": "Bonjour {{name}},",
     "buttonLabel": "Voir"
+  },
+  "comment": {
+    "onTask": {
+      "subject": "Nouveau commentaire sur {{task}}",
+      "title": "Nouveau commentaire sur votre tâche",
+      "body": "{{actor}} a commenté {{task}}"
+    },
+    "onDocument": {
+      "subject": "Nouveau commentaire sur {{document}}",
+      "title": "Nouveau commentaire sur votre document",
+      "body": "{{actor}} a commenté {{document}}"
+    },
+    "reply": {
+      "subject": "Réponse à votre commentaire",
+      "title": "Réponse à votre commentaire",
+      "body": "{{actor}} a répondu à votre commentaire sur {{context}}"
+    }
+  },
+  "event": {
+    "invitation": {
+      "subject": "Vous êtes invité(e) : {{event}}",
+      "title": "Nouvelle invitation à un événement",
+      "body": "{{organizer}} vous a invité(e) à {{event}} ({{when}})."
+    },
+    "rescheduled": {
+      "subject": "Événement reprogrammé : {{event}}",
+      "title": "Événement reprogrammé",
+      "body": "{{editor}} a reprogrammé {{event}} pour {{when}}."
+    },
+    "updated": {
+      "subject": "Événement mis à jour : {{event}}",
+      "title": "Événement mis à jour",
+      "body": "{{editor}} a mis à jour {{event}} ({{when}})."
+    },
+    "cancelled": {
+      "subject": "Événement annulé : {{event}}",
+      "title": "Événement annulé",
+      "body": "{{canceller}} a annulé {{event}} ({{when}})."
+    },
+    "rsvp": {
+      "subject": "Mise à jour de participation : {{event}}",
+      "title": "Mise à jour de participation",
+      "body": "{{responder}} a répondu « {{status}} » à {{event}}."
+    },
+    "reminder": {
+      "subject": "Rappel : {{event}}",
+      "title": "Événement à venir",
+      "body": "{{event}} commence le {{when}}."
+    }
   },
   "overdue": {
     "subject": "Rappel de tâches en retard",

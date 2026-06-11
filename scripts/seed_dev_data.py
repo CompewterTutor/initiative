@@ -36,6 +36,7 @@ from app.core.encryption import encrypt_field, hash_email, SALT_EMAIL  # noqa: E
 from app.core.security import get_password_hash  # noqa: E402
 from app.db.schema_provisioning import provision_guild  # noqa: E402
 from app.db.session import AdminSessionLocal, set_rls_context  # noqa: E402
+from app.db.tenancy import GUILD_SCOPED_TABLES  # noqa: E402
 from app.models.calendar_event import (  # noqa: E402
     CalendarEvent,
     CalendarEventAttendee,
@@ -330,6 +331,20 @@ async def _create_users(
         ids.add("users", user.id)
         users[ud["full_name"]] = user
     return users
+
+
+def _expunge_guild_scoped(session: AsyncSession) -> None:
+    """Drop guild-scoped objects from the session's identity map between guilds.
+
+    Under schema-per-guild, ids restart per schema (every guild has Initiative
+    id=1, Project id=1, ...). Reusing one session across guilds collides those
+    ids in the identity map (the noisy SAWarnings). Shared rows (users, guilds)
+    have global ids and are left attached — only guild-scoped objects are dropped.
+    """
+    sync = session.sync_session
+    for obj in list(sync.identity_map.values()):
+        if getattr(obj, "__tablename__", None) in GUILD_SCOPED_TABLES:
+            sync.expunge(obj)
 
 
 async def _create_guild(
@@ -2221,6 +2236,7 @@ async def seed() -> None:
         # Commit the new guild's shared rows (also flushes guild 1's data), then
         # provision its schema and route into it before creating its content.
         await session.commit()
+        _expunge_guild_scoped(session)  # clear guild 1's per-schema ids from the identity map
         await provision_guild(g2_id)
         await set_rls_context(
             session, user_id=admin_user.id, guild_id=g2_id, guild_role="admin", is_superadmin=True
@@ -2856,6 +2872,7 @@ async def seed() -> None:
 
         # Commit guild 2's data + guild 3's shared rows, then provision + route.
         await session.commit()
+        _expunge_guild_scoped(session)  # clear guild 2's per-schema ids from the identity map
         await provision_guild(g3_id)
         await set_rls_context(
             session, user_id=admin_user.id, guild_id=g3_id, guild_role="admin", is_superadmin=True
