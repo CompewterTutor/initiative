@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **German (Deutsch) interface language.** Added a full German translation across all 24 i18n namespaces, registered `de` as a supported language, wired up the German date-fns locale for date formatting, and added "Deutsch" to the language picker in user interface settings.
 - table classification manifest (`app/db/tenancy.py`) marking every table as shared or guild-scoped, with a test guarding completeness — the first step toward schema-per-guild tenancy.
 - per-guild schema provisioning (`app/db/schema_provisioning.py`): creates a `guild_<id>` schema with every guild-scoped table and a Postgres role scoped to just that schema — the next step toward schema-per-guild tenancy.
 - guild creation/deletion now provisions/drops that per-guild schema and role (via a superuser provisioning connection); creating a guild rolls back if provisioning fails.

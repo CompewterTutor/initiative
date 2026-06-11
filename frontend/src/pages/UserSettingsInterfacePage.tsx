@@ -40,6 +40,7 @@ const LANGUAGE_OPTIONS = [
   { label: "English", value: "en" },
   { label: "Español", value: "es" },
   { label: "Français", value: "fr" },
+  { label: "Deutsch", value: "de" },
 ];
 
 function MiniMockup({ colors }: { colors: ThemeColors }) {
