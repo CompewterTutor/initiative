@@ -49,7 +49,7 @@
   "allQueues": "Alle Abläufe (Queues)",
   "createQueue": "Neuer Ablauf (Queue)",
   "counters": "Zähler",
-  "allCounters": "Alle Zähler",
+  "allCounters": "Alle Zählergruppen",
   "createCounterGroup": "Neue Zählergruppe",
   "events": "Kalender",
   "allEvents": "Alle Termine",
