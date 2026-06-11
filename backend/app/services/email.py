@@ -224,9 +224,15 @@ def _embed_logo(message: EmailMessage) -> None:
     if not logo:
         return
     payload = message.get_payload()
-    if not isinstance(payload, list) or not payload:
+    if not isinstance(payload, list):
         return
-    html_part = payload[-1]
+    # Locate the text/html alternative explicitly rather than assuming a
+    # position, so this stays correct regardless of how the message was built.
+    html_part = next(
+        (part for part in payload if part.get_content_type() == "text/html"), None
+    )
+    if html_part is None:
+        return
     html_part.add_related(logo, "image", "png", cid=f"<{LOGO_CID}>")
 
 
