@@ -116,14 +116,22 @@ async def _push_and_email(
     a delivery failure break the request. ``push_key`` selects the
     ``accessGrant.<key>`` entry in the ``notifications`` namespace, localized to
     the recipient.
+
+    ``access_level`` and ``requester`` populate the ``{{level}}`` / ``{{requester}}``
+    placeholders that only some body templates contain — ``requester`` is used by
+    the ``requested`` event only and is intentionally ``None`` for approve/deny/
+    revoke. Each is passed to the interpolator only when present, so it maps to
+    exactly the placeholders its template declares.
     """
     locale = getattr(recipient, "locale", None) or "en"
-    level = None
+    body_vars: dict[str, str] = {"guild": guild_name or "a guild"}
     if access_level is not None:
         level_key = (
             "accessGrant.levelReadWrite" if access_level == "read_write" else "accessGrant.levelRead"
         )
-        level = translate(level_key, locale, namespace="notifications")
+        body_vars["level"] = translate(level_key, locale, namespace="notifications")
+    if requester is not None:
+        body_vars["requester"] = requester
     try:
         await push_notifications.send_push_to_user(
             session=session,
@@ -131,12 +139,7 @@ async def _push_and_email(
             notification_type=notification_type,
             title=translate(f"accessGrant.{push_key}.title", locale, namespace="notifications"),
             body=translate(
-                f"accessGrant.{push_key}.body",
-                locale,
-                namespace="notifications",
-                requester=requester or "",
-                guild=guild_name or "a guild",
-                level=level or "",
+                f"accessGrant.{push_key}.body", locale, namespace="notifications", **body_vars
             ),
             data={"type": notification_type.value, "target_path": "/settings/admin/access"},
         )
