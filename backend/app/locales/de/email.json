@@ -124,7 +124,7 @@
     "subject": "Erinnerung an überfällige Aufgaben",
     "title": "Erinnerung an überfällige Aufgaben",
     "greeting": "Hallo {{name}},",
-    "body_one": "Du hast {{count}} überfällige Aufgabe:",
+    "body_one": "du hast {{count}} überfällige Aufgabe:",
     "body_other": "Du hast {{count}} überfällige Aufgaben:",
     "taskDetail": "Projekt: {{projectName}}, fällig am {{dueDate}}",
     "footer": "Besuche Initiative, um wieder auf Kurs zu kommen.",
