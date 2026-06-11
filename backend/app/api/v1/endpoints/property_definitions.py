@@ -1,7 +1,7 @@
 """CRUD endpoints for initiative-scoped custom property definitions."""
 
 from datetime import datetime, timezone
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -164,7 +164,7 @@ async def list_property_definitions(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     initiative_id: Optional[int] = Query(default=None),
-) -> List[PropertyDefinition]:
+) -> Sequence[PropertyDefinition]:
     """List property definitions.
 
     With ``initiative_id``, returns definitions for that initiative only

@@ -49,7 +49,7 @@ async def mark_notification_read(
     )
     if not notification:
         raise HTTPException(status_code=404, detail=NotificationMessages.NOT_FOUND)
-    return notification
+    return NotificationRead.model_validate(notification)
 
 
 @router.post("/read-all", response_model=NotificationCountResponse)

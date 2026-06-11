@@ -109,7 +109,7 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov ruff
+          pip install pytest pytest-asyncio pytest-cov ruff pyright
 
       - name: Run Alembic migrations
         # conftest.py auto-applies migrations before tests run, so this
@@ -125,6 +125,15 @@ jobs:
         run: |
           cd backend
           ruff check app
+
+      - name: Type-check with Pyright
+        # Scoped gate: pyrightconfig.json enforces only reportReturnType
+        # (the SQLModel-noisy rules are off), so this fails on return-type
+        # regressions without drowning in ORM-expression false positives.
+        if: steps.changes.outputs.skip != 'true'
+        run: |
+          cd backend
+          pyright app
 
       - name: Run tests
         if: steps.changes.outputs.skip != 'true'

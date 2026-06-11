@@ -43,7 +43,7 @@ def _sorted(statuses: Iterable[TaskStatus]) -> list[TaskStatus]:
     return sorted(statuses, key=lambda status: (status.position, status.id or 0))
 
 
-async def list_statuses(session: AsyncSession, project_id: int) -> list[TaskStatus]:
+async def list_statuses(session: AsyncSession, project_id: int) -> Sequence[TaskStatus]:
     stmt = (
         select(TaskStatus)
         .where(TaskStatus.project_id == project_id)

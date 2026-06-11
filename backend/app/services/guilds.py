@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 import secrets
 
@@ -380,7 +381,7 @@ async def _generate_unique_invite_code(session: AsyncSession) -> str:
     raise RuntimeError("Unable to generate unique invite code")
 
 
-async def list_guild_invites(session: AsyncSession, *, guild_id: int) -> list[GuildInvite]:
+async def list_guild_invites(session: AsyncSession, *, guild_id: int) -> Sequence[GuildInvite]:
     stmt = select(GuildInvite).where(GuildInvite.guild_id == guild_id).order_by(GuildInvite.created_at.desc())
     result = await session.exec(stmt)
     return result.all()
