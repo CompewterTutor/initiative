@@ -7,6 +7,8 @@ import smtplib
 import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
+from functools import lru_cache
+from pathlib import Path
 from typing import Sequence
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,6 +19,11 @@ from app.core.encryption import decrypt_field, SALT_SMTP_PASSWORD
 from app.models.app_setting import AppSetting
 from app.models.user import User
 from app.services import app_settings as app_settings_service
+
+try:  # premailer inlines our <style> rules so they survive Gmail/Outlook stripping <style>
+    from premailer import transform as _premailer_transform
+except Exception:  # pragma: no cover - optional dependency guard
+    _premailer_transform = None
 
 logger = logging.getLogger(__name__)
 
@@ -50,28 +57,20 @@ async def _email_context(session: AsyncSession) -> tuple[AppSetting, str]:
     return settings_obj, _accent_color(settings_obj)
 
 
-BRAND_LOGO_SVG = """
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 438 471' width='32' height='34' fill='currentColor'>
-  <path
-      d="M218.82 470.128a20.242 20.242 0 0 1-8.27-1.639L14.387 384.823C5.724 381.128 0 371.834 0 361.464v-238.72c0-.652.023-1.3.067-1.943.298-4.21 1.546-8.282 3.62-11.81 1.54-2.615 3.524-4.918 5.884-6.758a21.969 21.969 0 0 1 2.994-1.966l196.161-97.74C211.98.753 215.431-.054 218.82.002c3.39-.057 6.84.751 10.094 2.523l196.161 97.741a21.969 21.969 0 0 1 2.994 1.966c2.36 1.84 4.345 4.143 5.885 6.757 2.073 3.53 3.321 7.601 3.62 11.811.043.643.066 1.291.066 1.942v238.721c0 10.37-5.724 19.664-14.388 23.36l-196.16 83.665a20.242 20.242 0 0 1-8.272 1.64ZM137.623 188.27a24.668 24.668 0 0 1-22.62 1.39l-70.298-31.046v185.628l120.247 51.288V243.097a53.369 53.369 0 0 1 27.81-46.853 53.367 53.367 0 0 1 52.116 0l.5.28a53.369 53.369 0 0 1 27.31 46.573V395.53l120.247-51.288V158.613l-70.648 31.25a24.67 24.67 0 0 1-22.634-1.383l-.186-.112a24.669 24.669 0 0 1 2.616-43.713l56.324-25.09L218.82 52.643 79.233 119.565l55.934 24.884a24.668 24.668 0 0 1 2.626 43.718l-.17.102Z"
-      fill="currentColor"
-    />
-    <ellipse
-      cx="257.233"
-      cy="209.745"
-      rx="52.118"
-      ry="36.171"
-      transform="matrix(.76806 0 0 1.13407 21.073 -109.942)"
-      fill="currentColor"
-    />
-    <path
-      d="m137.623 188.27.17-.103a24.669 24.669 0 0 0-2.626-43.718l-55.934-24.884L218.82 52.643l139.587 66.922-56.324 25.09a24.67 24.67 0 0 0-2.616 43.713l.186.112a24.67 24.67 0 0 0 22.634 1.383l70.648-31.25v185.628L272.688 395.53V243.097a53.369 53.369 0 0 0-27.31-46.574l-.5-.279a53.367 53.367 0 0 0-52.116 0l-.5.28a53.369 53.369 0 0 0-27.31 46.573V395.53L44.705 344.241V158.613l70.298 31.045a24.668 24.668 0 0 0 22.62-1.389Zm81.02-101.366c-22.093 0-40.03 18.381-40.03 41.021s17.937 41.021 40.03 41.021c22.092 0 40.028-18.38 40.028-41.02 0-22.64-17.936-41.022-40.029-41.022Z"
-      opacity=".25"
-      fill="currentColor"
-    />
-  </svg>
-</svg>
-""".strip()
+# Email clients (Gmail, Outlook, Yahoo) strip inline <svg>, so the brand mark is
+# shipped as a raster PNG and embedded inline via a Content-ID reference. This
+# displays without an external fetch — no "show images" prompt, no broken icon.
+_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "email-logo.png"
+LOGO_CID = "initiative-logo"
+
+
+@lru_cache(maxsize=1)
+def _logo_bytes() -> bytes | None:
+    try:
+        return _LOGO_PATH.read_bytes()
+    except OSError:  # pragma: no cover - asset is committed; guard against odd packaging
+        logger.warning("Email logo asset missing at %s", _LOGO_PATH)
+        return None
 
 
 def _build_html_layout(title: str, body: str, accent_color: str, locale: str = "en") -> str:
@@ -89,9 +88,9 @@ def _build_html_layout(title: str, body: str, accent_color: str, locale: str = "
         }}
       </style>
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
-        <div style="width:48px;height:48px;border-radius:14px;color:{accent_color};display:flex;align-items:center;justify-content:center;">
-          <a href="{app_config.APP_URL}">{BRAND_LOGO_SVG}</a>
-        </div>
+        <a href="{app_config.APP_URL}" style="display:inline-block;">
+          <img src="cid:{LOGO_CID}" width="44" height="44" alt="Initiative" style="display:block;width:44px;height:44px;border:0;border-radius:12px;" />
+        </a>
         <div>
           <p style="margin:0;font-size:18px;font-weight:700;color:{accent_color};"><a href="{app_config.APP_URL}">initiative</a></p>
         </div>
@@ -102,7 +101,7 @@ def _build_html_layout(title: str, body: str, accent_color: str, locale: str = "
         {footer_disclaimer}
       </p>
       <p>
-        <a href="{app_config.APP_URL}/profile/notifications">{update_link_text}</a>.
+        <a href="{app_config.APP_URL}/profile/notifications">{update_link_text}</a>
       </p>
     </div>
   </body>
@@ -170,12 +169,51 @@ def _display_name(user: User) -> str:
     return user.full_name or user.email
 
 
+def _inline_css(html: str) -> str:
+    """Inline <style> rules into element style attributes via premailer.
+
+    Gmail's mobile app and several clients strip <style> blocks, which would
+    drop our link colours/weights. Inlining makes them survive. Failures here
+    must never block an email, so we fall back to the original HTML.
+    """
+    if _premailer_transform is None:
+        return html
+    try:
+        return _premailer_transform(
+            html,
+            keep_style_tags=False,
+            remove_classes=True,
+            disable_validation=True,
+            cssutils_logging_level=logging.CRITICAL,
+        )
+    except Exception:  # pragma: no cover - defensive: never fail send over styling
+        logger.warning("premailer CSS inlining failed; sending un-inlined HTML", exc_info=True)
+        return html
+
+
 def _cta_button(label: str, link: str, accent: str) -> str:
     return (
         f'<a href="{link}" style="background-color:{accent};color:#ffffff;'
         f'padding:12px 18px;border-radius:8px;text-decoration:none;'
         f'font-weight:600;display:inline-block;">{label}</a>'
     )
+
+
+def _embed_logo(message: EmailMessage) -> None:
+    """Attach the brand logo as an inline image referenced by ``cid:LOGO_CID``.
+
+    The HTML alternative is wrapped in a multipart/related part holding the PNG,
+    so the logo renders inline without an external fetch. No-op when the asset
+    is missing (the <img> alt text shows instead).
+    """
+    logo = _logo_bytes()
+    if not logo:
+        return
+    payload = message.get_payload()
+    if not isinstance(payload, list) or not payload:
+        return
+    html_part = payload[-1]
+    html_part.add_related(logo, "image", "png", cid=f"<{LOGO_CID}>")
 
 
 async def send_email(
@@ -198,7 +236,8 @@ async def send_email(
     message["To"] = ", ".join(recipients)
     plain = text_body or _strip_html(html_body)
     message.set_content(plain)
-    message.add_alternative(html_body, subtype="html")
+    message.add_alternative(_inline_css(html_body), subtype="html")
+    _embed_logo(message)
     try:
         await asyncio.to_thread(_deliver, config, message)
     except EmailNotConfiguredError:
@@ -427,9 +466,11 @@ async def send_task_assignment_digest_email(
         project_name = item.get("project_name") or "a project"
         assigned_by = item.get("assigned_by_name")
         link = item.get("link")
-        line = f"- {title} {email_t('taskAssignment.inProject', locale=locale, projectName=project_name)}"
+        in_project = _strip_html(email_t("taskAssignment.inProject", locale=locale, projectName=project_name))
+        line = f"- {title} {in_project}"
         if assigned_by:
-            line += f" ({email_t('taskAssignment.assignedBy', locale=locale, name=assigned_by)})"
+            assigned = _strip_html(email_t("taskAssignment.assignedBy", locale=locale, name=assigned_by))
+            line += f" ({assigned})"
         if link:
             line += f" -> {link}"
         return line
@@ -485,7 +526,9 @@ async def send_mention_email(
     <p>{body_text}</p>
     """
     html_body = _build_html_layout(headline, body, accent, locale=locale)
-    plain = f"{body_text}"
+    # body_text is an HTML fragment (locale strings bold {{vars}} via <strong>);
+    # strip tags for the plain-text alternative.
+    plain = _strip_html(body_text)
     if link:
         plain += f"\n\nView: {link}"
     await send_email(
@@ -523,7 +566,7 @@ async def send_overdue_tasks_email(
         project_name = item.get("project_name") or "a project"
         due_date = item.get("due_date") or "N/A"
         link = item.get("link")
-        detail = email_t("overdue.taskDetail", locale=locale, projectName=project_name, dueDate=due_date)
+        detail = _strip_html(email_t("overdue.taskDetail", locale=locale, projectName=project_name, dueDate=due_date))
         line = f"- {title} ({detail})"
         if link:
             line += f" -> {link}"

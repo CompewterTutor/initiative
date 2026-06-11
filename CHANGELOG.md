@@ -22,11 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reworked the assignee selector to match the tag picker.** Members are now picked from a single searchable dropdown where every entry has a checkbox and avatar, and toggling it adds or removes the person. Selected members sort to the top, followed by yourself (tagged "You") ahead of everyone else, and current selections appear as removable avatar chips on the trigger.
 - Sidebars and the kanban board now show a slim, styled scrollbar instead of the browser default — the app sidebar uses a proper scroll area, while the guild rail and kanban (column and horizontal board) scrollers keep their native scrolling and drag behavior with just restyled scrollbars.
 - OIDC claim mappings no longer use database foreign keys for their initiative/role references — those tables move into per-guild schemas under schema-per-guild, which a shared-table FK can't span. Validity is enforced in the app (the create endpoint already validates) and the login sync skips stale references; the trade-off is documented in the model.
+- **Transactional emails read more clearly.** Names and key details (recipient and actor names, project/initiative/guild names, due dates, counts) are now bolded in the HTML body, while the plain-text copies stay tag-free. Email CSS is also inlined before sending (via `premailer`) so link styling survives clients that strip `<style>` blocks, like the Gmail mobile app.
 
 ### Fixed
 
 - Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
 - The "added to initiative" notification now carries its guild (id + guild-qualified deep link), like every other guild-scoped notification — so it resolves correctly in the cross-guild inbox under schema-per-guild tenancy.
+- **The Initiative logo now appears in emails.** It was an inline SVG, which Gmail, Outlook, and Yahoo strip from email bodies; it's now shipped as a raster PNG embedded inline (via a Content-ID reference) so it renders without an external image fetch. Also removed a stray period that trailed the "Update notification settings" footer link.
 
 ### Security
 
