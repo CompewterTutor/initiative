@@ -110,7 +110,7 @@
   "permissionWrite": "Kann bearbeiten",
   "permissionOwner": "Eigentümer",
   "rolePermissions": "Rollenberechtigungen",
-  "rolePermissionsDescription": "Gewähre Zugriff auf diese Warteschlange basierend auf Initiative-Rollen.",
+  "rolePermissionsDescription": "Gewähre Zugriff auf diesen Ablauf (Queue) basierend auf den Rollen der jeweiligen Initiative.",
   "userPermissions": "Benutzerberechtigungen",
   "userPermissionsDescription": "Gewähre einzelnen Mitgliedern Zugriff.",
   "addMember": "Mitglied hinzufügen",
