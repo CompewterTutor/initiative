@@ -5,7 +5,7 @@
   },
   "test": {
     "subject": "Test der SMTP-Konfiguration",
-    "title": "SMTP-Test-E-Mail",
+    "title": "SMTP-Testnachricht",
     "body": "Dies ist eine Test-E-Mail, die bestätigt, dass die SMTP-Einstellungen korrekt konfiguriert sind."
   },
   "verification": {
