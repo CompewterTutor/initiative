@@ -12,7 +12,7 @@
     "subject": "Bestätige dein Initiative-Konto",
     "title": "Bestätige deine E-Mail-Adresse",
     "greeting": "Hallo {{name}},",
-    "body": "Bestätige deine E-Mail-Adresse, um die Einrichtung deines Initiative-Kontos abzuschließen.",
+    "body": "bestätige deine E-Mail-Adresse, um die Einrichtung deines Initiative-Kontos abzuschließen.",
     "buttonLabel": "E-Mail bestätigen",
     "fallbackText": "Falls die Schaltfläche nicht funktioniert, kopiere diesen Link und füge ihn in deinen Browser ein:",
     "textBody": "Bestätige dein Initiative-Konto unter {{link}}"
