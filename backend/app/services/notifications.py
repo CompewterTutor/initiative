@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select, delete, update as sa_update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.email_i18n import email_t, translate
 from app.db.session import AdminSessionLocal, reapply_rls_context, set_rls_context
 from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.core.config import settings as app_config
@@ -75,6 +76,20 @@ def _initiative_target_path(initiative_id: int | None) -> str:
     return f"/initiatives/{initiative_id}"
 
 
+def _recipient_locale(user: User) -> str:
+    return getattr(user, "locale", None) or "en"
+
+
+def _nt(key: str, locale: str, **kwargs: str | int) -> str:
+    """Translate a push string from the ``notifications`` namespace.
+
+    Push notifications carry only a ``title`` and ``body``. Email copy for the
+    same events lives in the ``email`` namespace (``email_t``); the two are kept
+    separate because their wording differs (push is terse, email is richer).
+    """
+    return translate(key, locale, namespace="notifications", **kwargs)
+
+
 async def enqueue_task_assignment_event(
     session: AsyncSession,
     *,
@@ -118,13 +133,14 @@ async def enqueue_task_assignment_event(
         session.add(event)
     # Push notification
     if assignee.push_task_assignment is not False:
+        locale = _recipient_locale(assignee)
         try:
             await push_notifications.send_push_to_user(
                 session=session,
                 user_id=assignee.id,
                 notification_type=NotificationType.task_assignment,
-                title="New Task Assignment",
-                body=f"{task.title} in {project_name}",
+                title=_nt("task.assignment.title", locale),
+                body=_nt("task.assignment.body", locale, title=task.title, project=project_name),
                 data={
                     "type": "task_assignment",
                     "task_id": str(task.id),
@@ -175,13 +191,14 @@ async def notify_initiative_membership(
             logger.error("Failed to send initiative notification: %s", exc)
     # Push notification
     if user.push_initiative_addition is not False:
+        locale = _recipient_locale(user)
         try:
             await push_notifications.send_push_to_user(
                 session=session,
                 user_id=user.id,
                 notification_type=NotificationType.initiative_added,
-                title="Added to Initiative",
-                body=f"You've been added to {initiative_name}",
+                title=_nt("initiative.added.title", locale),
+                body=_nt("initiative.added.body", locale, initiative=initiative_name),
                 data={
                     "type": "initiative_added",
                     "initiative_id": str(initiative_id),
@@ -239,13 +256,14 @@ async def notify_project_added(
             logger.error("Failed to send project notification: %s", exc)
     # Push notification
     if user.push_project_added is not False:
+        locale = _recipient_locale(user)
         try:
             await push_notifications.send_push_to_user(
                 session=session,
                 user_id=user.id,
                 notification_type=NotificationType.project_added,
-                title="New Project Added",
-                body=f"{project_name} in {initiative_name}",
+                title=_nt("project.added.title", locale),
+                body=_nt("project.added.body", locale, project=project_name, initiative=initiative_name),
                 data={
                     "type": "project_added",
                     "project_id": str(project_id),
@@ -290,6 +308,7 @@ async def notify_document_mention(
     target_path = f"/documents/{document_id}"
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     mentioned_by_name = mentioned_by.full_name or mentioned_by.email
+    locale = _recipient_locale(mentioned_user)
     # Always create in-app notification
     await user_notifications.create_notification(
         session,
@@ -311,9 +330,11 @@ async def notify_document_mention(
             await email_service.send_mention_email(
                 session,
                 mentioned_user,
-                subject=f"You were mentioned in {document_title}",
-                headline="You were mentioned",
-                body_text=f"{mentioned_by_name} mentioned you in {document_title}",
+                subject=email_t("mention.document.subject", locale, document=document_title),
+                headline=email_t("mention.document.title", locale),
+                body_text=email_t(
+                    "mention.document.body", locale, actor=mentioned_by_name, document=document_title
+                ),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -327,8 +348,10 @@ async def notify_document_mention(
                 session=session,
                 user_id=mentioned_user.id,
                 notification_type=NotificationType.mention,
-                title="You were mentioned",
-                body=f"{mentioned_by_name} mentioned you in {document_title}",
+                title=_nt("mention.document.title", locale),
+                body=_nt(
+                    "mention.document.body", locale, actor=mentioned_by_name, document=document_title
+                ),
                 data={
                     "type": "mention",
                     "document_id": str(document_id),
@@ -364,6 +387,7 @@ async def notify_comment_mention(
 
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     mentioned_by_name = mentioned_by.full_name or mentioned_by.email
+    locale = _recipient_locale(mentioned_user)
 
     # Always create in-app notification
     await user_notifications.create_notification(
@@ -388,9 +412,11 @@ async def notify_comment_mention(
             await email_service.send_mention_email(
                 session,
                 mentioned_user,
-                subject="You were mentioned in a comment",
-                headline="You were mentioned",
-                body_text=f"{mentioned_by_name} mentioned you in a comment on {context_title}",
+                subject=email_t("mention.comment.subject", locale),
+                headline=email_t("mention.comment.title", locale),
+                body_text=email_t(
+                    "mention.comment.body", locale, actor=mentioned_by_name, context=context_title
+                ),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -404,8 +430,10 @@ async def notify_comment_mention(
                 session=session,
                 user_id=mentioned_user.id,
                 notification_type=NotificationType.mention,
-                title="You were mentioned",
-                body=f"{mentioned_by_name} mentioned you in a comment on {context_title}",
+                title=_nt("mention.comment.title", locale),
+                body=_nt(
+                    "mention.comment.body", locale, actor=mentioned_by_name, context=context_title
+                ),
                 data={
                     "type": "mention",
                     "comment_id": str(comment_id),
@@ -445,6 +473,7 @@ async def notify_task_mentioned_in_comment(
 
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     mentioned_by_name = mentioned_by.full_name or mentioned_by.email
+    locale = _recipient_locale(assignee)
 
     # Always create in-app notification
     await user_notifications.create_notification(
@@ -471,9 +500,15 @@ async def notify_task_mentioned_in_comment(
             await email_service.send_mention_email(
                 session,
                 assignee,
-                subject="Your task was mentioned",
-                headline="Your task was mentioned",
-                body_text=f"{mentioned_by_name} mentioned {mentioned_task_title} in {context_title}",
+                subject=email_t("mention.task.subject", locale),
+                headline=email_t("mention.task.title", locale),
+                body_text=email_t(
+                    "mention.task.body",
+                    locale,
+                    actor=mentioned_by_name,
+                    task=mentioned_task_title,
+                    context=context_title,
+                ),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -487,8 +522,14 @@ async def notify_task_mentioned_in_comment(
                 session=session,
                 user_id=assignee.id,
                 notification_type=NotificationType.mention,
-                title="Your task was mentioned",
-                body=f"{mentioned_by_name} mentioned {mentioned_task_title} in {context_title}",
+                title=_nt("mention.task.title", locale),
+                body=_nt(
+                    "mention.task.body",
+                    locale,
+                    actor=mentioned_by_name,
+                    task=mentioned_task_title,
+                    context=context_title,
+                ),
                 data={
                     "type": "mention",
                     "comment_id": str(comment_id),
@@ -519,6 +560,7 @@ async def notify_comment_on_task(
     target_path = f"/tasks/{task_id}"
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     commenter_name = commenter.full_name or commenter.email
+    locale = _recipient_locale(assignee)
 
     # Always create in-app notification
     await user_notifications.create_notification(
@@ -543,9 +585,9 @@ async def notify_comment_on_task(
             await email_service.send_mention_email(
                 session,
                 assignee,
-                subject=f"New comment on {task_title}",
-                headline="New comment on your task",
-                body_text=f"{commenter_name} commented on {task_title}",
+                subject=email_t("comment.onTask.subject", locale, task=task_title),
+                headline=email_t("comment.onTask.title", locale),
+                body_text=email_t("comment.onTask.body", locale, actor=commenter_name, task=task_title),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -559,8 +601,8 @@ async def notify_comment_on_task(
                 session=session,
                 user_id=assignee.id,
                 notification_type=NotificationType.comment_on_task,
-                title="New comment on your task",
-                body=f"{commenter_name} commented on {task_title}",
+                title=_nt("comment.onTask.title", locale),
+                body=_nt("comment.onTask.body", locale, actor=commenter_name, task=task_title),
                 data={
                     "type": "comment_on_task",
                     "comment_id": str(comment_id),
@@ -590,6 +632,7 @@ async def notify_comment_on_document(
     target_path = f"/documents/{document_id}"
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     commenter_name = commenter.full_name or commenter.email
+    locale = _recipient_locale(author)
 
     # Always create in-app notification
     await user_notifications.create_notification(
@@ -613,9 +656,11 @@ async def notify_comment_on_document(
             await email_service.send_mention_email(
                 session,
                 author,
-                subject=f"New comment on {document_title}",
-                headline="New comment on your document",
-                body_text=f"{commenter_name} commented on {document_title}",
+                subject=email_t("comment.onDocument.subject", locale, document=document_title),
+                headline=email_t("comment.onDocument.title", locale),
+                body_text=email_t(
+                    "comment.onDocument.body", locale, actor=commenter_name, document=document_title
+                ),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -629,8 +674,10 @@ async def notify_comment_on_document(
                 session=session,
                 user_id=author.id,
                 notification_type=NotificationType.comment_on_document,
-                title="New comment on your document",
-                body=f"{commenter_name} commented on {document_title}",
+                title=_nt("comment.onDocument.title", locale),
+                body=_nt(
+                    "comment.onDocument.body", locale, actor=commenter_name, document=document_title
+                ),
                 data={
                     "type": "comment_on_document",
                     "comment_id": str(comment_id),
@@ -667,6 +714,7 @@ async def notify_comment_reply(
 
     smart_link = _build_smart_link(target_path=target_path, guild_id=guild_id)
     replier_name = replier.full_name or replier.email
+    locale = _recipient_locale(parent_author)
 
     # Always create in-app notification
     await user_notifications.create_notification(
@@ -691,9 +739,11 @@ async def notify_comment_reply(
             await email_service.send_mention_email(
                 session,
                 parent_author,
-                subject="Reply to your comment",
-                headline="Reply to your comment",
-                body_text=f"{replier_name} replied to your comment on {context_title}",
+                subject=email_t("comment.reply.subject", locale),
+                headline=email_t("comment.reply.title", locale),
+                body_text=email_t(
+                    "comment.reply.body", locale, actor=replier_name, context=context_title
+                ),
                 link=smart_link,
             )
         except email_service.EmailNotConfiguredError:
@@ -707,8 +757,8 @@ async def notify_comment_reply(
                 session=session,
                 user_id=parent_author.id,
                 notification_type=NotificationType.comment_reply,
-                title="Reply to your comment",
-                body=f"{replier_name} replied to your comment on {context_title}",
+                title=_nt("comment.reply.title", locale),
+                body=_nt("comment.reply.body", locale, actor=replier_name, context=context_title),
                 data={
                     "type": "comment_reply",
                     "comment_id": str(comment_id),
@@ -828,6 +878,7 @@ async def notify_event_invitation(
         return
     organizer_name = organizer.full_name or organizer.email
     when = _format_event_when(event, attendee)
+    locale = _recipient_locale(attendee)
     await _deliver_event_notification(
         session,
         recipient=attendee,
@@ -835,11 +886,13 @@ async def notify_event_invitation(
         data=_event_data(event, guild_id, organizer_name=organizer_name),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=f"You're invited: {event.title}",
-        email_headline="New event invitation",
-        email_body=f"{organizer_name} invited you to {event.title} ({when}).",
-        push_title="New event invitation",
-        push_body=f"{event.title} ({when})",
+        email_subject=email_t("event.invitation.subject", locale, event=event.title),
+        email_headline=email_t("event.invitation.title", locale),
+        email_body=email_t(
+            "event.invitation.body", locale, organizer=organizer_name, event=event.title, when=when
+        ),
+        push_title=_nt("event.invitation.title", locale),
+        push_body=_nt("event.invitation.body", locale, event=event.title, when=when),
     )
 
 
@@ -857,12 +910,8 @@ async def notify_event_updated(
         return
     editor_name = editor.full_name or editor.email
     when = _format_event_when(event, attendee)
-    if time_changed:
-        headline = "Event rescheduled"
-        body = f"{editor_name} rescheduled {event.title} to {when}."
-    else:
-        headline = "Event updated"
-        body = f"{editor_name} updated {event.title} ({when})."
+    locale = _recipient_locale(attendee)
+    key = "event.rescheduled" if time_changed else "event.updated"
     await _deliver_event_notification(
         session,
         recipient=attendee,
@@ -872,11 +921,11 @@ async def notify_event_updated(
         ),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=f"{headline}: {event.title}",
-        email_headline=headline,
-        email_body=body,
-        push_title=headline,
-        push_body=f"{event.title} ({when})",
+        email_subject=email_t(f"{key}.subject", locale, event=event.title),
+        email_headline=email_t(f"{key}.title", locale),
+        email_body=email_t(f"{key}.body", locale, editor=editor_name, event=event.title, when=when),
+        push_title=_nt(f"{key}.title", locale),
+        push_body=_nt(f"{key}.body", locale, event=event.title, when=when),
     )
 
 
@@ -893,6 +942,7 @@ async def notify_event_cancelled(
         return
     canceller_name = canceller.full_name or canceller.email
     when = _format_event_when(event, attendee)
+    locale = _recipient_locale(attendee)
     await _deliver_event_notification(
         session,
         recipient=attendee,
@@ -900,11 +950,13 @@ async def notify_event_cancelled(
         data=_event_data(event, guild_id, canceller_name=canceller_name),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=f"Event cancelled: {event.title}",
-        email_headline="Event cancelled",
-        email_body=f"{canceller_name} cancelled {event.title} ({when}).",
-        push_title="Event cancelled",
-        push_body=f"{event.title} ({when})",
+        email_subject=email_t("event.cancelled.subject", locale, event=event.title),
+        email_headline=email_t("event.cancelled.title", locale),
+        email_body=email_t(
+            "event.cancelled.body", locale, canceller=canceller_name, event=event.title, when=when
+        ),
+        push_title=_nt("event.cancelled.title", locale),
+        push_body=_nt("event.cancelled.body", locale, event=event.title, when=when),
     )
 
 
@@ -922,6 +974,7 @@ async def notify_event_rsvp(
         return
     responder_name = responder.full_name or responder.email
     status_value = rsvp_status.value if isinstance(rsvp_status, RSVPStatus) else str(rsvp_status)
+    locale = _recipient_locale(organizer)
     await _deliver_event_notification(
         session,
         recipient=organizer,
@@ -934,11 +987,15 @@ async def notify_event_rsvp(
         ),
         email_enabled=organizer.email_events is not False,
         push_enabled=organizer.push_events is not False,
-        email_subject=f"RSVP update: {event.title}",
-        email_headline="RSVP update",
-        email_body=f"{responder_name} responded “{status_value}” to {event.title}.",
-        push_title="RSVP update",
-        push_body=f"{responder_name} responded {status_value} to {event.title}",
+        email_subject=email_t("event.rsvp.subject", locale, event=event.title),
+        email_headline=email_t("event.rsvp.title", locale),
+        email_body=email_t(
+            "event.rsvp.body", locale, responder=responder_name, status=status_value, event=event.title
+        ),
+        push_title=_nt("event.rsvp.title", locale),
+        push_body=_nt(
+            "event.rsvp.body", locale, responder=responder_name, status=status_value, event=event.title
+        ),
     )
 
 
@@ -951,6 +1008,7 @@ async def notify_event_reminder(
 ) -> None:
     """Send a scheduled lead-time reminder for an upcoming event."""
     when = _format_event_when(event, recipient)
+    locale = _recipient_locale(recipient)
     await _deliver_event_notification(
         session,
         recipient=recipient,
@@ -958,11 +1016,11 @@ async def notify_event_reminder(
         data=_event_data(event, guild_id),
         email_enabled=recipient.email_event_reminders is not False,
         push_enabled=recipient.push_event_reminders is not False,
-        email_subject=f"Reminder: {event.title}",
-        email_headline="Upcoming event",
-        email_body=f"{event.title} starts at {when}.",
-        push_title="Upcoming event",
-        push_body=f"{event.title} ({when})",
+        email_subject=email_t("event.reminder.subject", locale, event=event.title),
+        email_headline=email_t("event.reminder.title", locale),
+        email_body=email_t("event.reminder.body", locale, event=event.title, when=when),
+        push_title=_nt("event.reminder.title", locale),
+        push_body=_nt("event.reminder.body", locale, event=event.title, when=when),
     )
 
 
