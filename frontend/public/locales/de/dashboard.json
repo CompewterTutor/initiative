@@ -1,7 +1,7 @@
 {
   "title": "Gildenübersicht",
   "subtitle": "Gildenübersicht und Aktivität",
-  "loading": "Dashboard wird geladen…",
+  "loading": "Dashboard wird geladen\u2026",
   "error": "Dashboard-Daten konnten nicht geladen werden. Bitte versuche es später erneut.",
   "quickActions": {
     "projects": "Projekte",
@@ -9,7 +9,7 @@
     "documents": "Dokumente"
   },
   "metrics": {
-    "tasksThisWeek": "Aufgaben diese Woche",
+    "tasksThisWeek": "Aufgaben (diese Woche)",
     "onTimeRate": "Pünktlichkeitsrate",
     "currentStreak": "Aktuelle Serie",
     "backlogTrend": "Backlog-Trend",
