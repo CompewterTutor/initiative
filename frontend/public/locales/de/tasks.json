@@ -131,7 +131,7 @@
     "typeTasks": "Aufgaben"
   },
   "createdTasks": {
-    "title": "Von mir erstellte Aufgaben",
+    "title": "Meine erstellten Aufgaben",
     "subtitle": "Aufgaben, die du über alle deine Gilden hinweg erstellt hast.",
     "addTask": "Aufgabe hinzufügen",
     "empty": "Du hast noch keine Aufgaben erstellt.",
