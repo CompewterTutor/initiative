@@ -84,6 +84,22 @@ def test_cors_origins_strips_trailing_slash():
     assert "https://app.example.com/" not in settings.cors_origins
 
 
+def test_cors_origins_strips_path_component():
+    # An Origin header is scheme+host only; a path on APP_URL (or an operator
+    # origin) must be dropped or every credentialed cross-origin request fails.
+    settings = _settings(
+        APP_URL="https://app.example.com/initiative",
+        CORS_ALLOWED_ORIGINS="https://admin.example.com/console",
+    )
+
+    assert "https://app.example.com" in settings.cors_origins
+    assert "https://admin.example.com" in settings.cors_origins
+    assert all(
+        "/initiative" not in origin and "/console" not in origin
+        for origin in settings.cors_origins
+    )
+
+
 def _directive(policy: str, name: str) -> str:
     """Return one directive segment (e.g. "script-src 'self'") from a CSP string."""
     for part in policy.split(";"):

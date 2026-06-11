@@ -3,18 +3,37 @@ from __future__ import annotations
 
 import html
 from enum import Enum
-from typing import Annotated, Any
+from functools import lru_cache
+from typing import Annotated, Any, get_args, get_origin, get_type_hints
 
 import nh3
 from pydantic import BaseModel, model_validator
 
+# Hard ceiling on any plain-text field. Generous for names/titles/labels/tokens
+# while bounding both the stored size (DoS) and the entity-decode loop in
+# _strip_to_plain_text. Fields that legitimately hold large data (base64 images,
+# import payloads, AI output) opt out via RawTextStr; rich text via RichTextStr.
+MAX_PLAIN_TEXT_LENGTH = 8192
 
-class _RichTextMarker:
-    """Marker metadata: this field opts out of HTML sanitization."""
+
+class _SanitizeOptOut:
+    """Base for markers that exempt a field from plain-text sanitization."""
+
+
+class _RichTextMarker(_SanitizeOptOut):
+    """Marker: field holds rich text rendered as markup — keep raw input."""
+
+
+class _RawTextMarker(_SanitizeOptOut):
+    """Marker: field holds raw/opaque data validated elsewhere (base64, import
+    payloads, tokens) — keep raw input and skip the length cap."""
 
 
 RichTextStr = Annotated[str, _RichTextMarker()]
-"""Type alias for str fields that must NOT be sanitized (raw input preserved)."""
+"""str that opts out of plain-text sanitization (rich text kept verbatim)."""
+
+RawTextStr = Annotated[str, _RawTextMarker()]
+"""str that opts out of sanitization AND the length cap (large/opaque data)."""
 
 
 def _strip_to_plain_text(value: str) -> str:
@@ -51,8 +70,39 @@ def _strip_to_plain_text(value: str) -> str:
     return html.unescape(nh3.clean(decoded, tags=set(), attributes={}))
 
 
-def _is_rich_text(field_info) -> bool:
-    return any(isinstance(m, _RichTextMarker) for m in field_info.metadata)
+def _annotation_has_opt_out(annotation: Any) -> bool:
+    """True if a sanitization opt-out marker appears anywhere in the annotation,
+    including nested inside ``Optional[...]`` / ``Union[...]``."""
+    if get_origin(annotation) is Annotated:
+        args = get_args(annotation)
+        if any(isinstance(m, _SanitizeOptOut) for m in args[1:]):
+            return True
+        return _annotation_has_opt_out(args[0])
+    if get_origin(annotation) is not None:
+        return any(_annotation_has_opt_out(a) for a in get_args(annotation))
+    return False
+
+
+@lru_cache(maxsize=None)
+def _opt_out_fields(cls: type) -> frozenset[str]:
+    """Field names exempt from sanitization (RichTextStr/RawTextStr), resolved
+    once per model. ``field_info.metadata`` only carries *top-level* Annotated
+    metadata, so a marker nested in ``Optional[...]`` is invisible there — we
+    walk the resolved annotations instead. Falls back to the top-level metadata
+    if the annotations can't be introspected (e.g. an unresolved forward ref)."""
+    try:
+        hints = get_type_hints(cls, include_extras=True)
+    except Exception:
+        return frozenset(
+            name
+            for name, fi in cls.model_fields.items()
+            if any(isinstance(m, _SanitizeOptOut) for m in fi.metadata)
+        )
+    return frozenset(
+        name
+        for name in cls.model_fields
+        if name in hints and _annotation_has_opt_out(hints[name])
+    )
 
 
 def _is_enum_type(annotation: Any) -> bool:
@@ -73,8 +123,10 @@ class SanitizedBaseModel(BaseModel):
     Plain-text fields have all tags removed without HTML-encoding the surviving
     characters, so ``Foo & Bar`` stays ``Foo & Bar`` (not ``Foo &amp; Bar``)
     while ``<img onerror>``/``<script>`` payloads are stripped — see
-    :func:`_strip_to_plain_text`. Fields typed as :data:`RichTextStr` opt out
-    entirely and keep raw input. Enum-typed fields are skipped.
+    :func:`_strip_to_plain_text` — and are rejected past
+    :data:`MAX_PLAIN_TEXT_LENGTH` characters. Fields typed :data:`RichTextStr`
+    (rich text) or :data:`RawTextStr` (large or opaque data) opt out of both,
+    even when wrapped in ``Optional[...]``. Enum-typed fields are skipped.
     """
 
     @model_validator(mode="before")
@@ -82,12 +134,18 @@ class SanitizedBaseModel(BaseModel):
     def _sanitize_strings(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
+        exempt = _opt_out_fields(cls)
         for field_name, field_info in cls.model_fields.items():
-            if _is_rich_text(field_info):
+            if field_name in exempt:
                 continue
             if _is_enum_type(field_info.annotation):
                 continue
             value = data.get(field_name)
             if isinstance(value, str):
+                if len(value) > MAX_PLAIN_TEXT_LENGTH:
+                    raise ValueError(
+                        f"{field_name} exceeds the maximum length of "
+                        f"{MAX_PLAIN_TEXT_LENGTH} characters"
+                    )
                 data[field_name] = _strip_to_plain_text(value)
         return data

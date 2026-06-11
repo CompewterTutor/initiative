@@ -2,14 +2,14 @@ from typing import Dict, List
 
 from pydantic import Field
 
-from app.schemas.base import SanitizedBaseModel
+from app.schemas.base import RawTextStr, SanitizedBaseModel
 
 
 class TodoistImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from Todoist CSV export."""
 
     project_id: int = Field(..., description="Target project to import tasks into")
-    csv_content: str = Field(..., description="Raw CSV content from Todoist export")
+    csv_content: RawTextStr = Field(..., description="Raw CSV content from Todoist export")
     section_mapping: Dict[str, int] = Field(
         ..., description="Mapping of Todoist section names to task_status_id"
     )
@@ -48,7 +48,7 @@ class VikunjaImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from Vikunja JSON export."""
 
     project_id: int = Field(..., description="Target Initiative project to import into")
-    json_content: str = Field(..., description="Raw JSON content from Vikunja export")
+    json_content: RawTextStr = Field(..., description="Raw JSON content from Vikunja export")
     source_project_id: int = Field(..., description="Vikunja project ID to import from")
     bucket_mapping: Dict[int, int] = Field(
         ..., description="Mapping of Vikunja bucket IDs to task_status_id"
@@ -88,7 +88,7 @@ class TickTickImportRequest(SanitizedBaseModel):
     """Request body for importing tasks from TickTick CSV export."""
 
     project_id: int = Field(..., description="Target Initiative project to import into")
-    csv_content: str = Field(..., description="Raw CSV content from TickTick export")
+    csv_content: RawTextStr = Field(..., description="Raw CSV content from TickTick export")
     source_list_name: str = Field(..., description="TickTick list name to import from")
     column_mapping: Dict[str, int] = Field(
         ..., description="Mapping of TickTick column names to task_status_id"

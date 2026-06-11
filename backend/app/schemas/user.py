@@ -3,7 +3,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import ConfigDict, EmailStr, Field, computed_field
 
-from app.schemas.base import SanitizedBaseModel
+from app.schemas.base import RawTextStr, SanitizedBaseModel
 
 from app.core.capabilities import Capability, capabilities_for
 from app.models.initiative import InitiativeRole
@@ -41,7 +41,7 @@ class UserUpdate(SanitizedBaseModel):
     role: Optional[UserRole] = None
     password: Optional[str] = Field(default=None, max_length=256)
     status: Optional[UserStatus] = None
-    avatar_base64: Optional[str] = None
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     week_starts_on: Optional[int] = None
     timezone: Optional[str] = None
@@ -80,7 +80,7 @@ class UserPublic(SanitizedBaseModel):
     id: int
     email: EmailStr
     full_name: Optional[str] = None
-    avatar_base64: Optional[str] = None
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     status: UserStatus = UserStatus.active
 
@@ -105,7 +105,7 @@ class UserRead(UserBase):
     email_verified: bool
     created_at: datetime
     updated_at: datetime
-    avatar_base64: Optional[str] = None
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     week_starts_on: int = 0
     timezone: str = "UTC"
@@ -170,7 +170,7 @@ class UserInitiativeRole(SanitizedBaseModel):
 class UserSelfUpdate(SanitizedBaseModel):
     full_name: Optional[str] = None
     password: Optional[str] = Field(default=None, max_length=256)
-    avatar_base64: Optional[str] = None
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     week_starts_on: Optional[int] = None
     timezone: Optional[str] = None

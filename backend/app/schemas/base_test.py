@@ -7,10 +7,15 @@ from enum import Enum
 from typing import Optional
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import app.schemas as schemas_pkg
-from app.schemas.base import RichTextStr, SanitizedBaseModel
+from app.schemas.base import (
+    MAX_PLAIN_TEXT_LENGTH,
+    RawTextStr,
+    RichTextStr,
+    SanitizedBaseModel,
+)
 
 
 class _Color(str, Enum):
@@ -22,6 +27,9 @@ class _Model(SanitizedBaseModel):
     name: str
     bio: Optional[str] = None
     rich: RichTextStr = ""
+    rich_opt: Optional[RichTextStr] = None
+    raw: RawTextStr = ""
+    raw_opt: Optional[RawTextStr] = None
     count: int = 0
     enabled: bool = False
     color: _Color = _Color.red
@@ -139,6 +147,49 @@ def test_optional_str_none_passes_through() -> None:
 def test_javascript_url_stripped() -> None:
     m = _Model(name='<a href="javascript:bad()">link</a>')
     assert "javascript:" not in m.name
+
+
+@pytest.mark.unit
+def test_raw_text_field_preserves_markup() -> None:
+    raw = "<script>alert(1)</script><b>x</b> & < >"
+    m = _Model(name="x", raw=raw)
+    assert m.raw == raw
+
+
+@pytest.mark.unit
+def test_optional_raw_text_opts_out() -> None:
+    # The opt-out marker must be detected even nested inside Optional[...].
+    raw = "<img src=x onerror=alert(1)> & data"
+    m = _Model(name="x", raw_opt=raw)
+    assert m.raw_opt == raw
+
+
+@pytest.mark.unit
+def test_optional_rich_text_opts_out() -> None:
+    # Regression: Optional[RichTextStr] used to be silently stripped because the
+    # marker was nested in the Optional union and invisible to field metadata.
+    raw = "<script>alert(1)</script>hello"
+    m = _Model(name="x", rich_opt=raw)
+    assert m.rich_opt == raw
+
+
+@pytest.mark.unit
+def test_plain_text_over_max_length_rejected() -> None:
+    with pytest.raises(ValidationError):
+        _Model(name="x" * (MAX_PLAIN_TEXT_LENGTH + 1))
+
+
+@pytest.mark.unit
+def test_plain_text_at_max_length_allowed() -> None:
+    m = _Model(name="x" * MAX_PLAIN_TEXT_LENGTH)
+    assert len(m.name) == MAX_PLAIN_TEXT_LENGTH
+
+
+@pytest.mark.unit
+def test_raw_text_field_exempt_from_length_cap() -> None:
+    big = "A" * (MAX_PLAIN_TEXT_LENGTH + 5000)
+    m = _Model(name="ok", raw=big)
+    assert m.raw == big
 
 
 @pytest.mark.unit

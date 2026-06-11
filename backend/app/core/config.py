@@ -85,12 +85,17 @@ class Settings(BaseSettings):
         (pentest CRIT-001). We therefore build an explicit allowlist: the app's
         own ``APP_URL`` and the native mobile origins are always included, plus
         whatever operators add via ``CORS_ALLOWED_ORIGINS``.
+
+        Each value is reduced to its bare ``scheme://host[:port]`` origin: an
+        ``Origin`` header never carries a path, so an ``APP_URL`` like
+        ``https://host/app`` must match as ``https://host`` or every credentialed
+        cross-origin request is silently rejected.
         """
         origins: list[str] = []
         for candidate in [self.APP_URL, *self.CORS_ALLOWED_ORIGINS, *CAPACITOR_NATIVE_ORIGINS]:
-            cleaned = candidate.strip().rstrip("/") if candidate else ""
-            if cleaned and cleaned != "*" and cleaned not in origins:
-                origins.append(cleaned)
+            origin = _origin_of(candidate) if candidate else None
+            if origin and origin not in origins:
+                origins.append(origin)
         return origins
 
     @property
