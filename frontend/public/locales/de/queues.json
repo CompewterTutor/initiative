@@ -103,9 +103,9 @@
   "details": "Details",
   "access": "Zugriff",
   "advanced": "Erweitert",
-  "accessDescription": "Lege fest, wer diese Warteschlange anzeigen und bearbeiten kann.",
+  "accessDescription": "Lege fest, wer diesen Ablauf (Queue) anzeigen und bearbeiten kann.",
   "dangerZone": "Gefahrenzone",
-  "dangerZoneDescription": "Destruktive Aktionen. Gelöschte Warteschlangen landen im Papierkorb und können wiederhergestellt werden, bevor der Aufbewahrungszeitraum endet.",
+  "dangerZoneDescription": "Destruktive Aktionen. Gelöschte Abläufe (Queues) landen im Papierkorb und können wiederhergestellt werden, bevor der Aufbewahrungszeitraum endet.",
   "permissionRead": "Kann ansehen",
   "permissionWrite": "Kann bearbeiten",
   "permissionOwner": "Eigentümer",
@@ -127,7 +127,7 @@
   "userPermissionAdded": "Benutzerberechtigung hinzugefügt",
   "userPermissionRemoved": "Benutzerberechtigung entfernt",
   "permissionsUpdated": "Berechtigungen aktualisiert",
-  "detailsUpdated": "Warteschlangendetails aktualisiert",
+  "detailsUpdated": "Details zum Ablauf (Queue) aktualisiert",
   "filterByName": "Nach Namen filtern...",
   "selectedCount": "{{count}} ausgewählt",
   "changeAccess": "Zugriff ändern...",
@@ -136,13 +136,13 @@
 
   "viewLabel": "Ansicht",
   "viewList": "Listenansicht",
-  "viewOnDeck": "Bereitschaft",
+  "viewOnDeck": "On Deck",
 
   "filters": {
     "heading": "Filter",
     "show": "Anzeigen",
     "hide": "Ausblenden",
-    "searchQueues": "Warteschlangen suchen...",
+    "searchQueues": "Abläufe (Queues) suchen...",
     "filterByName": "Nach Namen filtern",
     "filterByInitiative": "Initiative",
     "allInitiatives": "Alle Initiativen",
@@ -150,6 +150,6 @@
     "allStatuses": "Alle",
     "activeOnly": "Aktiv",
     "inactiveOnly": "Inaktiv",
-    "noMatchingQueues": "Keine Warteschlangen entsprechen deinen Filtern."
+    "noMatchingQueues": "Keine Abläufe (Queues) entsprechen deinen Filtern."
   }
 }

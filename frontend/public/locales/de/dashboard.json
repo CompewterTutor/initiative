@@ -19,7 +19,7 @@
   },
   "projectHealth": {
     "title": "Projektzustand",
-    "description": "Fortschritt der Aufgabenerledigung nach Projekt",
+    "description": "Aufgaben-Fortschritt nach Projekt",
     "noProjects": "Noch keine Projekte",
     "viewAll": "Alle anzeigen",
     "tasks_one": "{{count}} Aufgabe",
