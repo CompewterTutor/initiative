@@ -53,8 +53,72 @@
     "textBody": "Hier ist deine stündliche Übersicht der dir zugewiesenen Aufgaben:"
   },
   "mention": {
+    "document": {
+      "subject": "Du wurdest in {{document}} erwähnt",
+      "title": "Du wurdest erwähnt",
+      "body": "{{actor}} hat dich in {{document}} erwähnt"
+    },
+    "comment": {
+      "subject": "Du wurdest in einem Kommentar erwähnt",
+      "title": "Du wurdest erwähnt",
+      "body": "{{actor}} hat dich in einem Kommentar zu {{context}} erwähnt"
+    },
+    "task": {
+      "subject": "Deine Aufgabe wurde erwähnt",
+      "title": "Deine Aufgabe wurde erwähnt",
+      "body": "{{actor}} hat {{task}} in {{context}} erwähnt"
+    },
     "greeting": "Hallo {{name}},",
     "buttonLabel": "Ansehen"
+  },
+  "comment": {
+    "onTask": {
+      "subject": "Neuer Kommentar zu {{task}}",
+      "title": "Neuer Kommentar zu deiner Aufgabe",
+      "body": "{{actor}} hat {{task}} kommentiert"
+    },
+    "onDocument": {
+      "subject": "Neuer Kommentar zu {{document}}",
+      "title": "Neuer Kommentar zu deinem Dokument",
+      "body": "{{actor}} hat {{document}} kommentiert"
+    },
+    "reply": {
+      "subject": "Antwort auf deinen Kommentar",
+      "title": "Antwort auf deinen Kommentar",
+      "body": "{{actor}} hat auf deinen Kommentar zu {{context}} geantwortet"
+    }
+  },
+  "event": {
+    "invitation": {
+      "subject": "Du bist eingeladen: {{event}}",
+      "title": "Neue Termineinladung",
+      "body": "{{organizer}} hat dich zu {{event}} ({{when}}) eingeladen."
+    },
+    "rescheduled": {
+      "subject": "Termin verschoben: {{event}}",
+      "title": "Termin verschoben",
+      "body": "{{editor}} hat {{event}} auf {{when}} verschoben."
+    },
+    "updated": {
+      "subject": "Termin aktualisiert: {{event}}",
+      "title": "Termin aktualisiert",
+      "body": "{{editor}} hat {{event}} ({{when}}) aktualisiert."
+    },
+    "cancelled": {
+      "subject": "Termin abgesagt: {{event}}",
+      "title": "Termin abgesagt",
+      "body": "{{canceller}} hat {{event}} ({{when}}) abgesagt."
+    },
+    "rsvp": {
+      "subject": "Teilnahme-Update: {{event}}",
+      "title": "Teilnahme-Update",
+      "body": "{{responder}} hat mit „{{status}}“ auf {{event}} geantwortet."
+    },
+    "reminder": {
+      "subject": "Erinnerung: {{event}}",
+      "title": "Anstehender Termin",
+      "body": "{{event}} beginnt am {{when}}."
+    }
   },
   "overdue": {
     "subject": "Erinnerung an überfällige Aufgaben",
