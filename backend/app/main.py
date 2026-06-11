@@ -66,7 +66,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ALLOWED_ORIGINS,
+    # Explicit allowlist (never "*"): wildcard + allow_credentials reflects any
+    # origin and would let any site make authenticated requests (CRIT-001).
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -271,6 +273,10 @@ app.openapi = custom_openapi
 async def on_startup() -> None:
     from app.db.init_db import check_pre_baseline_db
     from app.db.soft_delete_filter import install_soft_delete_filter
+
+    # Surface the effective CORS allowlist so a misconfigured split-origin
+    # deployment (SPA served from a host other than APP_URL) is self-diagnosing.
+    logger.info("CORS allowed origins: %s", settings.cors_origins)
 
     install_soft_delete_filter()
     await check_pre_baseline_db()

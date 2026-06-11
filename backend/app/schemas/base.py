@@ -1,6 +1,7 @@
 """Base schema with automatic HTML sanitization for str fields."""
 from __future__ import annotations
 
+import html
 from enum import Enum
 from typing import Annotated, Any
 
@@ -14,6 +15,27 @@ class _RichTextMarker:
 
 RichTextStr = Annotated[str, _RichTextMarker()]
 """Type alias for str fields that must NOT be sanitized (raw input preserved)."""
+
+
+def _strip_to_plain_text(value: str) -> str:
+    """Strip all HTML markup from a plain-text field WITHOUT HTML-encoding it.
+
+    ``nh3.clean()`` is an HTML *output encoder*: it turns ``&`` into ``&amp;``,
+    ``<`` into ``&lt;`` and so on, producing a string that is safe to drop into
+    raw HTML. That is wrong for plain-text fields (names, titles, labels): the
+    frontend renders them as React text nodes, which escape for the DOM at
+    render time, so a stored ``&amp;`` shows up literally on screen as the four
+    characters ``&amp;`` instead of ``&``.
+
+    For these fields we want dangerous markup gone (``<img onerror>``,
+    ``<script>``) but the benign characters the user actually typed (``&``,
+    ``<``, ``>``, ``"``) preserved verbatim. So we strip every tag (empty
+    allowlist) and then ``html.unescape`` the entities nh3 introduced, leaving
+    the literal characters intact across the round trip. Stripping with an empty
+    allowlist also removes tags nh3's default allowlist would keep (e.g. it
+    leaves ``<img src="x">`` behind), which is what a plain-text field wants.
+    """
+    return html.unescape(nh3.clean(value, tags=set(), attributes={}))
 
 
 def _is_rich_text(field_info) -> bool:
@@ -33,9 +55,13 @@ def _is_enum_type(annotation: Any) -> bool:
 
 
 class SanitizedBaseModel(BaseModel):
-    """BaseModel that runs nh3.clean() on every str field by default.
+    """BaseModel that strips HTML markup from every str field by default.
 
-    Fields typed as RichTextStr opt out. Enum-typed fields are skipped.
+    Plain-text fields have all tags removed without HTML-encoding the surviving
+    characters, so ``Foo & Bar`` stays ``Foo & Bar`` (not ``Foo &amp; Bar``)
+    while ``<img onerror>``/``<script>`` payloads are stripped — see
+    :func:`_strip_to_plain_text`. Fields typed as :data:`RichTextStr` opt out
+    entirely and keep raw input. Enum-typed fields are skipped.
     """
 
     @model_validator(mode="before")
@@ -50,5 +76,5 @@ class SanitizedBaseModel(BaseModel):
                 continue
             value = data.get(field_name)
             if isinstance(value, str):
-                data[field_name] = nh3.clean(value)
+                data[field_name] = _strip_to_plain_text(value)
         return data

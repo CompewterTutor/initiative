@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
 - The "added to initiative" notification now carries its guild (id + guild-qualified deep link), like every other guild-scoped notification — so it resolves correctly in the cross-guild inbox under schema-per-guild tenancy.
 
+### Security
+
+- **Plain-text fields are no longer HTML-encoded when saved.** The schema-level sanitizer ran an HTML *output encoder* (`nh3.clean`) on every string field, storing benign characters as their HTML entities — a name typed as "Foo & Bar" was saved (and shown) as "Foo &amp; Bar". Plain-text fields are now stripped of markup *without* entity-encoding, so user input round-trips exactly while `<img onerror>`/`<script>` payloads are still removed (and stray `<img>` tags the old allowlist kept are now dropped too).
+- **CORS no longer reflects arbitrary origins on credentialed requests (CRIT-001).** The allowlist defaulted to `*`, which combined with `allow_credentials=True` let any website make authenticated cross-origin requests on a logged-in user's behalf. The effective allowlist is now explicit — always including `APP_URL` and the native app origins, plus any `CORS_ALLOWED_ORIGINS` — and a wildcard is dropped. Bundled (same-origin) and local-dev deployments need no config; the effective allowlist is logged at startup.
+
 ## [0.50.2] - 2026-06-08
 
 ### Added

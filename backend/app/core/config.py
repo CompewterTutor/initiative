@@ -38,7 +38,29 @@ class Settings(BaseSettings):
     AUTO_APPROVED_EMAIL_DOMAINS: list[str] = Field(default_factory=list)
     # APP_URL should point to the frontend entry so redirect URIs resolve correctly
     APP_URL: str = "http://localhost:5173"
-    CORS_ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
+    # Extra browser origins allowed to make credentialed cross-origin requests,
+    # beyond APP_URL and the native app (both always allowed — see `cors_origins`).
+    # A wildcard is intentionally unsupported.
+    CORS_ALLOWED_ORIGINS: list[str] = Field(default_factory=list)
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Effective CORS allowlist for credentialed requests — never ``*``.
+
+        ``allow_origins=["*"]`` together with ``allow_credentials=True`` makes
+        the server reflect any ``Origin`` and echo
+        ``Access-Control-Allow-Credentials: true``, letting any website make
+        authenticated cross-origin requests on a logged-in user's behalf
+        (pentest CRIT-001). We therefore build an explicit allowlist: the app's
+        own ``APP_URL`` and the native mobile origins are always included, plus
+        whatever operators add via ``CORS_ALLOWED_ORIGINS``.
+        """
+        origins: list[str] = []
+        for candidate in [self.APP_URL, *self.CORS_ALLOWED_ORIGINS, *CAPACITOR_NATIVE_ORIGINS]:
+            cleaned = candidate.strip().rstrip("/") if candidate else ""
+            if cleaned and cleaned != "*" and cleaned not in origins:
+                origins.append(cleaned)
+        return origins
     OIDC_ENABLED: bool = False
     OIDC_ISSUER: str | None = None
     OIDC_CLIENT_ID: str | None = None
@@ -174,20 +196,20 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_allowed_origins(cls, value: str | list[str] | None) -> list[str]:
         if value is None:
-            return ["*"]
+            return []
         if isinstance(value, str):
-            if not value.strip():
-                return ["*"]
             items = value.split(",")
         else:
             items = value
-        origins = [item.strip() for item in items if item and item.strip()] or ["*"]
-        # Always include native mobile app origins when not using wildcard
-        if origins != ["*"]:
-            for origin in CAPACITOR_NATIVE_ORIGINS:
-                if origin not in origins:
-                    origins.append(origin)
-        return origins
+        # Drop blanks and any "*": a wildcard combined with credentialed CORS is
+        # the origin-reflection vuln (CRIT-001). APP_URL and the native origins
+        # are always allowed via the `cors_origins` property, so the effective
+        # allowlist is never empty even when this is.
+        return [
+            item.strip()
+            for item in items
+            if item and item.strip() and item.strip() != "*"
+        ]
 
     @field_validator("ADVANCED_TOOL_ALLOWED_ORIGINS", mode="before")
     @classmethod

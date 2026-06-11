@@ -36,9 +36,35 @@ def test_strips_script_tags() -> None:
 
 
 @pytest.mark.unit
-def test_preserves_safe_html() -> None:
+def test_strips_tags_from_plain_text() -> None:
+    # Plain-text fields keep no markup at all: tags are removed, inner text kept.
     m = _Model(name="<b>bold</b>")
-    assert m.name == "<b>bold</b>"
+    assert m.name == "bold"
+
+
+@pytest.mark.unit
+def test_ampersand_not_html_encoded() -> None:
+    # Regression: the HTML *encoder* (nh3.clean) used to store "Foo &amp; Bar",
+    # which then rendered literally on screen. Benign chars must survive verbatim.
+    m = _Model(name="Death House Encounter & Planning")
+    assert m.name == "Death House Encounter & Planning"
+
+
+@pytest.mark.unit
+def test_angle_brackets_and_quotes_in_text_preserved() -> None:
+    # Lone < / > / " that aren't part of a tag are real text, not markup.
+    m = _Model(name='5 < 3 is false; she said "hi"')
+    assert m.name == '5 < 3 is false; she said "hi"'
+
+
+@pytest.mark.unit
+def test_img_onerror_payload_fully_stripped() -> None:
+    # The original CRIT-002 demonstrator. nh3's default allowlist would KEEP
+    # <img src="x"> (dropping only onerror); an empty allowlist removes it wholly.
+    m = _Model(name='before <img src=x onerror=alert(1)> after')
+    assert "onerror" not in m.name
+    assert "<img" not in m.name
+    assert m.name == "before  after"
 
 
 @pytest.mark.unit
