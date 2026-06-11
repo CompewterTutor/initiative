@@ -21,7 +21,7 @@ _VAR_RE = re.compile(r"\{\{(\w+)\}\}")
 
 
 @lru_cache(maxsize=32)
-def _load_locale(locale: str, namespace: str = "email") -> dict:
+def _load_locale(locale: str, namespace: str) -> dict:
     path = (_LOCALES_DIR / locale / f"{namespace}.json").resolve()
     if not path.is_relative_to(_LOCALES_DIR.resolve()):
         return {}
