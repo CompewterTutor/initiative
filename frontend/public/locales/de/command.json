@@ -9,7 +9,7 @@
     "tasks": "Aufgaben",
     "documents": "Dokumente",
     "queues": "Abläufe (Queues)",
-    "counterGroups": "Zählergruppen"
+    "counterGroups": "Zähler"
   },
   "actions": {
     "addTask": "Aufgabe hinzufügen",
