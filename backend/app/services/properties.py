@@ -320,7 +320,7 @@ async def _load_definitions(
         return {}
     stmt = select(PropertyDefinition).where(PropertyDefinition.id.in_(ids))
     result = await session.exec(stmt)
-    return {defn.id: defn for defn in result.all()}
+    return {defn.id: defn for defn in result.all() if defn.id is not None}
 
 
 async def _set_property_values(
@@ -973,4 +973,4 @@ async def load_definitions_by_ids(
         return {}
     stmt = select(PropertyDefinition).where(PropertyDefinition.id.in_(ids))
     result = await session.exec(stmt)
-    return {defn.id: defn for defn in result.all()}
+    return {defn.id: defn for defn in result.all() if defn.id is not None}

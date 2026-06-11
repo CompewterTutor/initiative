@@ -179,7 +179,7 @@ async def _initiative_member_ids(
         .where(User.status == UserStatus.active)
     )
     result = await session.exec(stmt)
-    return list(result.all())
+    return [uid for uid in result.all() if uid is not None]
 
 
 async def _resolve_initiative_scope(

@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -80,7 +80,7 @@ async def list_task_statuses(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[TaskStatus]:
+) -> Sequence[TaskStatus]:
     await _get_project_with_access(
         session,
         project_id,
@@ -192,7 +192,7 @@ async def reorder_task_statuses(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[TaskStatus]:
+) -> Sequence[TaskStatus]:
     project = await _ensure_can_manage(
         session,
         project_id,

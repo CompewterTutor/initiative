@@ -343,7 +343,10 @@ def _expunge_guild_scoped(session: AsyncSession) -> None:
     """
     sync = session.sync_session
     for obj in list(sync.identity_map.values()):
-        if getattr(obj, "__tablename__", None) in GUILD_SCOPED_TABLES:
+        # expunge cascades along relationships, so a guild-scoped object from the
+        # snapshot may already be detached (e.g. an Initiative's members went with
+        # it) — skip anything no longer in the session.
+        if obj in sync and getattr(obj, "__tablename__", None) in GUILD_SCOPED_TABLES:
             sync.expunge(obj)
 
 
