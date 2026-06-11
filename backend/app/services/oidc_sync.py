@@ -37,7 +37,7 @@ def extract_claim_values(
 ) -> set[str]:
     """Extract claim values from userinfo or id_token using dot-notation path."""
 
-    def _traverse(data: dict, path_parts: list[str]) -> list | str | None:
+    def _traverse(data: dict, path_parts: list[str]) -> list | str | dict | None:
         current = data
         for part in path_parts:
             if not isinstance(current, dict):

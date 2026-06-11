@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, List
+from typing import Annotated, List, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -68,7 +68,7 @@ async def list_tags(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[Tag]:
+) -> Sequence[Tag]:
     """List all tags in the current guild."""
     stmt = (
         select(Tag)

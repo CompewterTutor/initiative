@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlmodel import select, update as sql_update
@@ -518,7 +518,7 @@ async def get_my_initiative_members(
     initiative_id: int,
     session: AdminSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
-) -> List[User]:
+) -> Sequence[User]:
     """List members of an initiative the current user belongs to.
 
     Uses AdminSession to bypass RLS so users can see members across guilds

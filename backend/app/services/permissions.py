@@ -16,7 +16,7 @@ initiative membership, initiative RBAC) lives in ``rls.py``.
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, TypeVar
 
 from fastapi import HTTPException, status
 from sqlalchemy import inspect
@@ -45,6 +45,12 @@ from app.core.messages import ProjectMessages, DocumentMessages
 # Generic helpers (work with both project and document permission enums)
 # ---------------------------------------------------------------------------
 
+# Permission-level enum the generic helpers operate on. Bound to Enum so each
+# caller's concrete level type (ProjectPermissionLevel, DocumentPermissionLevel,
+# QueuePermissionLevel) flows through to the return type.
+PermLevel = TypeVar("PermLevel", bound=Enum)
+
+
 def _get_user_role_ids(
     memberships: list[Any] | None,
     user_id: int,
@@ -63,8 +69,8 @@ def role_permission_level(
     role_permissions: list[Any] | None,
     memberships: list[Any] | None,
     user_id: int,
-    level_order: dict[Enum, int],
-) -> Enum | None:
+    level_order: dict[PermLevel, int],
+) -> PermLevel | None:
     """Get the highest role-based permission level for a user.
 
     Works with both ProjectPermissionLevel and DocumentPermissionLevel enums.
@@ -86,7 +92,7 @@ def role_permission_level(
     if not user_role_ids:
         return None
 
-    best: Enum | None = None
+    best: PermLevel | None = None
     for rp in role_permissions:
         if rp.initiative_role_id in user_role_ids:
             if best is None or level_order.get(rp.level, 0) > level_order.get(best, 0):
@@ -95,10 +101,10 @@ def role_permission_level(
 
 
 def effective_permission_level(
-    user_level: Enum | None,
-    role_level: Enum | None,
-    level_order: dict[Enum, int],
-) -> Enum | None:
+    user_level: PermLevel | None,
+    role_level: PermLevel | None,
+    level_order: dict[PermLevel, int],
+) -> PermLevel | None:
     """Return the higher of two permission levels (MAX behaviour).
 
     Args:

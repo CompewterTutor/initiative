@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Sequence
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
@@ -55,7 +55,7 @@ AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 async def list_all_users(
     session: AdminSessionDep,
     _current_user: UsersReadDep,
-) -> List[User]:
+) -> Sequence[User]:
     """List all users in the platform (admin only)."""
     from app.services.users import SYSTEM_USER_EMAIL
 
@@ -630,7 +630,7 @@ async def admin_get_initiative_members(
     initiative_id: int,
     session: AdminSessionDep,
     _current_user: GuildsManageDep,
-) -> List[User]:
+) -> Sequence[User]:
     """List members of any initiative (platform admin only).
 
     Bypasses RLS so admins can see members across guilds,

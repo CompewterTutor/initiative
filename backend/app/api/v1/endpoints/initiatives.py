@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -675,7 +675,7 @@ async def get_initiative_members(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: Annotated[GuildContext, Depends(get_guild_membership)],
-) -> List[User]:
+) -> Sequence[User]:
     """Get all members of an initiative."""
     await _get_initiative_or_404(initiative_id, session, guild_context.guild_id)
 

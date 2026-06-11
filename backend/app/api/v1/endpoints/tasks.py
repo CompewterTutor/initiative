@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, List, Optional, Literal
+from typing import Annotated, List, Optional, Literal, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import selectinload
@@ -473,7 +473,7 @@ def _task_to_list_read(task: Task) -> TaskListRead:
     )
 
 
-async def _list_subtasks_for_task(session: SessionDep, task_id: int) -> list[Subtask]:
+async def _list_subtasks_for_task(session: SessionDep, task_id: int) -> Sequence[Subtask]:
     stmt = (
         select(Subtask)
         .where(Subtask.task_id == task_id)
@@ -1652,7 +1652,7 @@ async def reorder_tasks(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[Task]:
+) -> Sequence[Task]:
     if not reorder_in.items:
         return []
 
@@ -1810,7 +1810,7 @@ async def list_subtasks(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[Subtask]:
+) -> Sequence[Subtask]:
     task = await _fetch_task(session, task_id, guild_context.guild_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=TaskMessages.NOT_FOUND)
@@ -1929,7 +1929,7 @@ async def reorder_subtasks(
     session: RLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: GuildContextDep,
-) -> List[Subtask]:
+) -> Sequence[Subtask]:
     task = await _fetch_task(session, task_id, guild_context.guild_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=TaskMessages.NOT_FOUND)

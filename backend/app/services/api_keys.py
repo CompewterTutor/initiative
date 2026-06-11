@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from hashlib import sha256
 from secrets import token_urlsafe
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 from sqlmodel import select
 from app.db.session import reapply_rls_context
@@ -24,7 +24,7 @@ def _generate_secret() -> str:
     return f"{API_KEY_PREFIX}{token_urlsafe(32)}"
 
 
-async def list_api_keys(session: AsyncSession, *, user: User) -> list[UserApiKey]:
+async def list_api_keys(session: AsyncSession, *, user: User) -> Sequence[UserApiKey]:
     statement = select(UserApiKey).where(UserApiKey.user_id == user.id).order_by(UserApiKey.created_at.desc())
     result = await session.exec(statement)
     return result.all()
