@@ -488,6 +488,10 @@ async def _list_global_documents(
     if page_size > 0:
         start = (page - 1) * page_size
         items = items[start : start + page_size]
+    else:
+        # "all rows" is still capped server-side (SEC-14): never return an
+        # unbounded merged list across every guild.
+        items = items[: settings.MAX_UNBOUNDED_PAGE_SIZE]
     return items, total_count
 
 
@@ -685,6 +689,10 @@ async def list_documents(
 
     if page_size > 0:
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+    else:
+        # "all rows" is still capped server-side (SEC-14) so the query can't
+        # dump an entire guild's document table in one response.
+        stmt = stmt.limit(settings.MAX_UNBOUNDED_PAGE_SIZE)
 
     result = await session.exec(stmt)
     documents = result.unique().all()

@@ -302,14 +302,31 @@ def _resolve_sort_fields(
     return result
 
 
+def unbounded_page_limit() -> int:
+    """Absolute row ceiling applied to an "all rows" (``page_size<=0``) request.
+
+    Reads ``MAX_UNBOUNDED_PAGE_SIZE`` at call time so the cap is configurable per
+    deployment (and overridable in tests) without rebinding this module.
+    """
+    from app.core.config import settings
+
+    return settings.MAX_UNBOUNDED_PAGE_SIZE
+
+
 def apply_pagination(
     statement: Select,
     page: int = 1,
     page_size: int = 20,
 ) -> Select:
-    """Apply OFFSET/LIMIT. ``page_size=0`` means no pagination (all rows)."""
+    """Apply OFFSET/LIMIT.
+
+    ``page_size<=0`` means "all rows" — but never truly unbounded: a hard
+    server-side ceiling (``MAX_UNBOUNDED_PAGE_SIZE``) is applied so a single
+    request can't dump an entire table (SEC-14). The "0 = all" convention is
+    preserved for the caller; only the row count is capped.
+    """
     if page_size <= 0:
-        return statement
+        return statement.limit(unbounded_page_limit())
     return statement.offset((page - 1) * page_size).limit(page_size)
 
 

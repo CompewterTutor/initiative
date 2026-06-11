@@ -281,6 +281,31 @@ class Settings(BaseSettings):
         False  # Set True when behind nginx/load balancer to trust X-Forwarded-For
     )
 
+    # Global per-client default rate limit applied (via SlowAPIMiddleware) to
+    # every route that lacks its own ``@limiter.limit(...)`` decorator. Uses the
+    # slowapi/limits string syntax (e.g. ``"100/minute"``, or
+    # ``"200/minute;2000/hour"`` for several windows). Set to an empty string to
+    # turn the global default off entirely — per-route decorated limits still
+    # apply. The test suite sets ``limiter.enabled = False`` so this never
+    # throttles the hundreds of rapid requests a test makes from one client IP.
+    RATE_LIMIT_DEFAULT: str = "100/minute"
+    # Storage backend for rate-limit counters. Defaults to in-process memory
+    # (``memory://``), which is per-worker — fine for a single process. For a
+    # multi-worker / multi-replica deployment that needs a shared, accurate
+    # counter, point this at Redis (``redis://host:6379/0``) or Memcached
+    # (``memcached://host:11211``) WITHOUT any code change. See the slowapi /
+    # limits "storage" docs for the full URI scheme list.
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
+
+    # Absolute server-side ceiling on how many rows a single list request may
+    # return when it asks for "all" (``page_size=0``/unbounded). Without this an
+    # unauthenticated-by-count query could dump an entire guild's table in one
+    # response (SEC-14). The "0 = all" convention is preserved for callers (the
+    # SPA fetches all tasks for drag-and-drop, all documents for pickers) — the
+    # result set is simply capped here. Raise it if a single guild legitimately
+    # has more than this many tasks/documents on one board.
+    MAX_UNBOUNDED_PAGE_SIZE: int = 1000
+
     # Reject passwords that appear in the HaveIBeenPwned breach corpus
     # when a user sets one (registration, reset, change). Uses the
     # k-anonymity API — only the first 5 hex chars of the SHA-1 hash

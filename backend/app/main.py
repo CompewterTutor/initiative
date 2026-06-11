@@ -14,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -52,6 +53,12 @@ app = FastAPI(
 # Initialize rate limiter (uses shared limiter from app.core.rate_limit)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Register the middleware so the limiter's `default_limits` actually apply to
+# *every* route, not just the handful with an explicit `@limiter.limit(...)`
+# decorator (SEC-14). Without this the global default was inert. The middleware
+# short-circuits when `limiter.enabled` is False (the test suite sets that), and
+# routes that already carry a decorator are exempted from the default here.
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(RequestValidationError)

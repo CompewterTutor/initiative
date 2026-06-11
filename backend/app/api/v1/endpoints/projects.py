@@ -928,8 +928,11 @@ async def _list_global_projects(
     reads = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
     reads = _sort_global_project_reads(reads, sort_by, sort_dir)
     total_count = len(reads)
-    start = (page - 1) * page_size
-    return reads[start : start + page_size], total_count
+    if page_size > 0:
+        start = (page - 1) * page_size
+        return reads[start : start + page_size], total_count
+    # "all rows" is still capped server-side (SEC-14).
+    return reads[: app_settings.MAX_UNBOUNDED_PAGE_SIZE], total_count
 
 
 @router.get("/", response_model=ProjectListResponse)
@@ -960,8 +963,10 @@ async def list_projects(
         items = all_reads[start : start + page_size]
         has_next = page * page_size < total_count
     else:
-        items = all_reads
-        has_next = False
+        # "all rows" is still capped server-side (SEC-14) so a single request
+        # can't dump every project in the guild.
+        items = all_reads[: app_settings.MAX_UNBOUNDED_PAGE_SIZE]
+        has_next = total_count > len(items)
     return ProjectListResponse(
         items=items,
         total_count=total_count,
