@@ -338,7 +338,10 @@ const MobileSidebar = ({
       if (!engaged) return;
       const dx = e.changedTouches[0].clientX - startX;
       setDrag(null);
-      if (Math.abs(dx) > SIDEBAR_SWIPE_THRESHOLD) {
+      // Directional, mirroring the swipe-to-close handler (only commit on a
+      // swipe in the opening direction).
+      const shouldOpen = isLeft ? dx > SIDEBAR_SWIPE_THRESHOLD : dx < -SIDEBAR_SWIPE_THRESHOLD;
+      if (shouldOpen) {
         setAtOpen(true);
         setOpenMobile(true);
       } else {
