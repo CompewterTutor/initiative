@@ -107,7 +107,7 @@
   "permissionWrite": "Kann bearbeiten",
   "permissionOwner": "Eigentümer",
   "rolePermissions": "Rollenberechtigungen",
-  "rolePermissionsDescription": "Gewähre Zugriff auf diese Zählergruppe basierend auf Initiative-Rollen.",
+  "rolePermissionsDescription": "Gewähre Zugriff auf diese Zählergruppe basierend auf den Rollen der jeweiligen Initiative.",
   "userPermissions": "Benutzerberechtigungen",
   "userPermissionsDescription": "Gewähre einzelnen Mitgliedern Zugriff.",
   "filterByName": "Nach Namen filtern...",
