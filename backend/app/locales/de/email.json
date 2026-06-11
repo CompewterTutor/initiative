@@ -46,7 +46,7 @@
     "subject": "Dir wurden neue Aufgaben zugewiesen",
     "title": "Übersicht der Aufgabenzuweisungen",
     "greeting": "Hallo {{name}},",
-    "body": "Hier ist deine stündliche Übersicht der dir zugewiesenen Aufgaben:",
+    "body": "hier ist deine stündliche Übersicht der dir zugewiesenen Aufgaben:",
     "assignedBy": "zugewiesen von {{name}}",
     "inProject": "in {{projectName}}",
     "footer": "Besuche Initiative, um die Aufgaben zu prüfen.",
