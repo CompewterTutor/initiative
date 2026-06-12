@@ -1,4 +1,6 @@
 {
+  "ATTACHMENT_TOO_LARGE": "L'image est trop volumineuse (max. 10 Mo)",
+  "DOCUMENT_FILE_TOO_LARGE": "Le fichier est trop volumineux (max. 50 Mo)",
   "EMAIL_ALREADY_REGISTERED": "Adresse e-mail déjà enregistrée",
   "REGISTRATION_REQUIRES_INVITE": "L'inscription nécessite un code d'invitation",
   "CAPTCHA_REQUIRED": "Veuillez compléter le captcha et réessayer.",
