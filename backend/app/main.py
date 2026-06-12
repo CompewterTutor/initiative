@@ -395,6 +395,19 @@ async def on_startup() -> None:
     from app.db.guild_conversion import convert_public_to_guild_schemas
 
     await convert_public_to_guild_schemas()
+    # Re-run the idempotent per-guild provisioning for every guild so any
+    # table/column/index/grant added to guild_schema.sql since a guild was
+    # provisioned is back-filled, and any guild left without a schema (e.g. a
+    # crash mid-provision) is healed. One broken guild is logged and skipped.
+    from app.db.schema_provisioning import backfill_guild_schemas
+
+    backfill = await backfill_guild_schemas()
+    logger.info(
+        "guild schema back-fill: %d provisioned, %d failed (of %d)",
+        backfill.provisioned,
+        backfill.failed,
+        backfill.total,
+    )
     async with AdminSessionLocal() as session:
         await app_settings_service.ensure_defaults(session)
     app.state.notification_tasks = background_tasks_service.start_background_tasks()
