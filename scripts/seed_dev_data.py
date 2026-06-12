@@ -99,6 +99,7 @@ from app.models.task import (  # noqa: E402
     TaskStatusCategory,
 )
 from app.models.user import User, UserRole  # noqa: E402
+from app.services.app_settings import get_or_create_guild_settings  # noqa: E402
 from app.services.guilds import get_primary_guild  # noqa: E402
 from app.services.initiatives import (  # noqa: E402
     create_builtin_roles,
@@ -1406,14 +1407,25 @@ async def seed() -> None:
             admin_users=[dm],
         )
 
-        # Find default initiative
-        result = await session.exec(
-            select(Initiative).where(
-                Initiative.guild_id == g1_id,
-                Initiative.is_default == True,  # noqa: E712
-            )
+        # Look up the primary guild's "Default Initiative", creating it if it
+        # doesn't exist (same approach as the guild 2/3 sections below).
+        #
+        # Why it can be missing: a dev database can end up with a
+        # "Primary Guild" row in public.guilds but NO matching guild_1
+        # schema (for example, the row was created before per-guild schemas
+        # existed, or a cleanup was interrupted partway). On the next backend
+        # startup, backfill_guild_schemas() creates the missing guild_1
+        # schema — but it only creates the empty tables, it never inserts
+        # rows. The result: guild_1.initiatives exists with zero rows, and
+        # the previous code here (a SELECT followed by .one()) crashed with
+        # NoResultFound.
+        g1_default_init = await ensure_default_initiative(
+            session, admin_user, guild_id=g1_id
         )
-        g1_default_init = result.one()
+        # guild_1.guild_settings has the same gap: normally one row is
+        # inserted when a guild is created, but a startup back-fill leaves
+        # the table empty — create the row if it isn't there.
+        await get_or_create_guild_settings(session, g1_id)
 
         # Add admin + DM as PM to default initiative
         for user in [dm]:
@@ -1914,7 +1926,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 1 queues...")
-        g1_queues = await _create_queues(session, ids, g1, all_users, g1_tags, [
+        await _create_queues(session, ids, g1, all_users, g1_tags, [
             {
                 "initiative_id": g1_strahd.id,
                 "name": "Death House Encounter",
@@ -2635,7 +2647,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 2 queues...")
-        g2_queues = await _create_queues(session, ids, g2, all_users, g2_tags, [
+        await _create_queues(session, ids, g2, all_users, g2_tags, [
             {
                 "initiative_id": g2_main.id,
                 "name": "Bridge Standoff: Krellix Boarding Party",
@@ -3309,7 +3321,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 3 queues...")
-        g3_queues = await _create_queues(session, ids, g3, all_users, g3_tags, [
+        await _create_queues(session, ids, g3, all_users, g3_tags, [
             {
                 "initiative_id": g3_main.id,
                 "name": "Kraken Attack on the Crimson Maiden",
