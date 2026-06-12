@@ -46,8 +46,11 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 /**
  * List calendar events across all guilds the user belongs to.
  *
- * Uses AdminSessionDep (bypasses RLS) because this endpoint manually
- * filters by the user's guild memberships — same pattern as global tasks.
+ * Uses AdminSessionDep + ``gather_across_guilds`` (schema-per-guild): events
+ * live in per-guild schemas, so a single cross-guild query would read the
+ * frozen ``public`` backup. Instead we visit each of the user's guild schemas
+ * in turn (routed to the user's own RLS context, so guild isolation still
+ * holds) and merge, then sort + paginate the merged set in Python.
  * @summary List Global Calendar Events
  */
 export const listGlobalCalendarEventsApiV1CalendarEventsGlobalGet = (
@@ -370,6 +373,9 @@ export function useExportCalendarEventsIcsApiV1CalendarEventsExportIcsGet<
 
 /**
  * Export cross-guild calendar events as an .ics file.
+ *
+ * Schema-per-guild: aggregate per guild schema via ``gather_across_guilds``
+ * (the unrouted public query would read the frozen backup).
  * @summary Export Global Calendar Events Ics
  */
 export const exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet = (
