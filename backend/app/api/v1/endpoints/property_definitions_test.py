@@ -35,6 +35,7 @@ from app.testing import (
     create_guild,
     create_guild_membership,
     create_initiative,
+    create_initiative_member,
     create_project,
     create_property_definition,
     create_task_property_value,
@@ -254,6 +255,115 @@ async def test_create_rejected_when_not_initiative_member(
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "PROPERTY_NOT_INITIATIVE_MEMBER"
+
+
+@pytest.mark.integration
+async def test_create_allowed_for_initiative_member(
+    client: AsyncClient, session: AsyncSession
+):
+    """A plain (non-admin) guild member who belongs to the initiative can
+    create a definition on it.
+
+    This is the schema-per-guild regression case: the membership check now
+    runs on the routed request session against the active guild's schema,
+    so a legitimate member is no longer false-403'd by a lookup against the
+    frozen ``public`` backup.
+    """
+    admin = await create_user(session, email="admin@example.com")
+    member = await create_user(session, email="member@example.com")
+    guild = await create_guild(session, creator=admin)
+    await create_guild_membership(
+        session, user=admin, guild=guild, role=GuildRole.admin
+    )
+    await create_guild_membership(
+        session, user=member, guild=guild, role=GuildRole.member
+    )
+
+    initiative = await create_initiative(session, guild, admin, name="Init")
+    await create_initiative_member(session, initiative, member)
+
+    headers = get_guild_headers(guild, member)
+    payload = {
+        "name": "Owner Tag",
+        "type": "text",
+        "initiative_id": initiative.id,
+    }
+    response = await client.post(
+        "/api/v1/property-definitions/", headers=headers, json=payload
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Owner Tag"
+    assert data["initiative_id"] == initiative.id
+
+
+@pytest.mark.integration
+async def test_create_rejected_for_guild_member_not_in_initiative(
+    client: AsyncClient, session: AsyncSession
+):
+    """A guild member who is NOT in the target initiative is rejected with
+    the canonical NOT_INITIATIVE_MEMBER code."""
+    admin = await create_user(session, email="admin@example.com")
+    outsider = await create_user(session, email="outsider@example.com")
+    guild = await create_guild(session, creator=admin)
+    await create_guild_membership(
+        session, user=admin, guild=guild, role=GuildRole.admin
+    )
+    await create_guild_membership(
+        session, user=outsider, guild=guild, role=GuildRole.member
+    )
+
+    # Admin's initiative; outsider is a guild member but not an initiative member.
+    initiative = await create_initiative(session, guild, admin, name="Init")
+
+    headers = get_guild_headers(guild, outsider)
+    payload = {
+        "name": "Foo",
+        "type": "text",
+        "initiative_id": initiative.id,
+    }
+    response = await client.post(
+        "/api/v1/property-definitions/", headers=headers, json=payload
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "PROPERTY_NOT_INITIATIVE_MEMBER"
+
+
+@pytest.mark.integration
+async def test_create_allowed_for_guild_admin_not_in_initiative(
+    client: AsyncClient, session: AsyncSession
+):
+    """A guild admin can create a definition on any initiative in their
+    guild even without an explicit initiative-member row — mirroring the
+    restrictive RLS policy's admin bypass, now resolved off
+    ``GuildContext.role``."""
+    creator = await create_user(session, email="creator@example.com")
+    guild_admin = await create_user(session, email="gadmin@example.com")
+    guild = await create_guild(session, creator=creator)
+    await create_guild_membership(
+        session, user=creator, guild=guild, role=GuildRole.member
+    )
+    await create_guild_membership(
+        session, user=guild_admin, guild=guild, role=GuildRole.admin
+    )
+
+    # The creator owns the initiative; the guild admin is not a member of it.
+    initiative = await create_initiative(session, guild, creator, name="Init")
+
+    headers = get_guild_headers(guild, guild_admin)
+    payload = {
+        "name": "Admin Field",
+        "type": "text",
+        "initiative_id": initiative.id,
+    }
+    response = await client.post(
+        "/api/v1/property-definitions/", headers=headers, json=payload
+    )
+
+    assert response.status_code == 201
+    assert response.json()["initiative_id"] == initiative.id
 
 
 @pytest.mark.integration
