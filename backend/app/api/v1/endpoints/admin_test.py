@@ -226,9 +226,9 @@ async def test_admin_delete_rejects_surplus_project_transfers(
         json={
             "action": "soft_delete",
             "project_transfers": {
-                str(target_project.id): admin.id,
+                f"{guild.id}:{target_project.id}": admin.id,
                 # Surplus: bystander_project doesn't belong to target.
-                str(bystander_project.id): admin.id,
+                f"{guild.id}:{bystander_project.id}": admin.id,
             },
         },
     )

@@ -721,26 +721,29 @@ async def transfer_project_ownership(
 async def transfer_owned_projects(
     session: AsyncSession,
     user_id: int,
-    project_transfers: Dict[int, int],
+    project_transfers: Dict[str, int],
 ) -> None:
     """Transfer every project the user owns to its mapped recipient, routed
     per guild.
 
     Projects live in per-guild schemas, so this fans out across the user's
     guilds (routed as superadmin) and transfers the owned projects found in
-    each. Running the transfer on the unrouted public default would target the
-    frozen backup and leave the live project still owned by the departing user.
-    Propagates :class:`InvalidTransferRecipient` so the caller can surface a
-    400. Resets to the public baseline on the way out.
+    each. ``project_transfers`` is keyed by ``"guild_id:project_id"`` because a
+    bare project id is ambiguous across guild schemas. Running the transfer on
+    the unrouted public default would target the frozen backup and leave the
+    live project still owned by the departing user. Propagates
+    :class:`InvalidTransferRecipient` so the caller can surface a 400. Resets to
+    the public baseline on the way out.
     """
     for gid in await _user_guild_ids(session, user_id):
         session.expunge_all()
         await set_rls_context(session, guild_id=gid, is_superadmin=True)
         for project in await get_owned_projects(session, user_id):
-            if project.id not in project_transfers:
+            key = f"{gid}:{project.id}"
+            if key not in project_transfers:
                 continue
             await transfer_project_ownership(
-                session, project.id, project_transfers[project.id]
+                session, project.id, project_transfers[key]
             )
     session.expunge_all()
     await set_rls_context(session, is_superadmin=True)
@@ -924,7 +927,7 @@ async def is_last_platform_admin(
 async def hard_delete_user(
     session: AsyncSession,
     user_id: int,
-    project_transfers: Dict[int, int],
+    project_transfers: Dict[str, int],
 ) -> None:
     """
     Permanently delete a user account.
@@ -932,7 +935,8 @@ async def hard_delete_user(
     Args:
         session: Database session
         user_id: ID of user to delete
-        project_transfers: Dict mapping project_id to new_owner_id
+        project_transfers: Dict mapping "guild_id:project_id" to new_owner_id
+            (composite key, since project ids repeat across per-guild schemas)
     """
     from app.services import initiatives as initiatives_service
     from app.models.queue import QueueItem, QueuePermission
@@ -974,14 +978,17 @@ async def hard_delete_user(
 
         # Transfer projects this user owns in THIS guild before their
         # permission rows are wiped. get_owned_projects is now guild-scoped by
-        # the routed search_path.
+        # the routed search_path; the transfer map is keyed by
+        # "guild_id:project_id" to disambiguate ids that repeat across schemas.
         for project in await get_owned_projects(session, user_id):
-            if project.id not in project_transfers:
+            key = f"{gid}:{project.id}"
+            if key not in project_transfers:
                 raise ValueError(
-                    f"No transfer recipient specified for project {project.id}"
+                    f"No transfer recipient specified for project {project.id} "
+                    f"in guild {gid}"
                 )
             await transfer_project_ownership(
-                session, project.id, project_transfers[project.id]
+                session, project.id, project_transfers[key]
             )
 
         # Initiative removal hands owned documents off to PMs before the

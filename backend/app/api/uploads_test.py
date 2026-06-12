@@ -361,3 +361,53 @@ async def test_upload_row_in_guild_schema_is_served(
         assert response.status_code == 404
     finally:
         test_file.unlink(missing_ok=True)
+
+
+@pytest.mark.integration
+async def test_app_admin_needs_set_role_for_guild_schema(session, role_session):
+    """Regression for the uploads 500 (schema-per-guild grant boundary).
+
+    The serve route runs as ``app_admin``, which has NO grants on a guild
+    schema — reading it requires ``SET ROLE`` into the guild role (what
+    ``set_rls_context`` does). A raw cross-schema ``SELECT`` as ``app_admin``
+    is permission-denied. The default superuser-backed ``session`` fixture
+    hides this (it bypasses grants), so this test runs as the REAL role via
+    ``role_session``.
+    """
+    from sqlalchemy import text
+
+    from app.db.schema_provisioning import guild_schema_name
+    from app.db.session import set_rls_context
+    from app.models.upload import Upload
+
+    user = await create_user(session)
+    guild = await create_guild(session, creator=user)
+    session.add(
+        Upload(
+            filename="grant_probe.jpg",
+            guild_id=guild.id,
+            uploader_user_id=user.id,
+            size_bytes=1,
+        )
+    )
+    await session.commit()
+
+    admin = await role_session("app_admin")
+    schema = guild_schema_name(guild.id)
+
+    # Raw cross-schema read as app_admin → permission denied (the old bug).
+    with pytest.raises(Exception) as exc:  # asyncpg InsufficientPrivilegeError
+        await admin.execute(
+            text(f'SELECT 1 FROM "{schema}".uploads LIMIT 1')  # noqa: S608
+        )
+    assert "permission denied" in str(exc.value).lower()
+    await admin.rollback()
+
+    # The production pattern (SET ROLE via set_rls_context) succeeds.
+    await set_rls_context(admin, guild_id=guild.id, is_superadmin=True)
+    row = (
+        await admin.execute(
+            text("SELECT filename FROM uploads WHERE filename = 'grant_probe.jpg'")
+        )
+    ).first()
+    assert row is not None

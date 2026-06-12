@@ -1075,7 +1075,7 @@ async def test_self_delete_rejects_anonymized_transfer_target(
             "action": "soft_delete",
             "password": "testpassword123",
             "confirmation_text": "DELETE MY ACCOUNT",
-            "project_transfers": {str(project.id): husk.id},
+            "project_transfers": {f"{guild.id}:{project.id}": husk.id},
         },
     )
     assert response.status_code == 400

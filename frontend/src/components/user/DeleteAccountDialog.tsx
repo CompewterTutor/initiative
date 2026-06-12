@@ -80,7 +80,7 @@ export function DeleteAccountDialog({
   const [step, setStep] = useState<DeletionStep>(initialAction ? "check-blockers" : "choose-type");
   const [action, setAction] = useState<SelfAction>(initialAction ?? "deactivate");
   const [eligibility, setEligibility] = useState<DeletionEligibilityResponse | null>(null);
-  const [projectTransfers, setProjectTransfers] = useState<Record<number, number>>({});
+  const [projectTransfers, setProjectTransfers] = useState<Record<string, number>>({});
   const [password, setPassword] = useState("");
   const [confirmationText, setConfirmationText] = useState("");
 
@@ -243,7 +243,9 @@ export function DeleteAccountDialog({
   const canProceedFromBlockers = eligibility?.can_delete === true;
   const canProceedFromTransfers =
     !eligibility?.owned_projects.length ||
-    eligibility.owned_projects.every((project) => !!projectTransfers[project.id]);
+    eligibility.owned_projects.every(
+      (project) => !!projectTransfers[`${project.guild_id}:${project.id}`]
+    );
   const canConfirm =
     (isOidcUser || password.length > 0) && confirmationText === expectedConfirmation;
 
@@ -391,16 +393,19 @@ export function DeleteAccountDialog({
               </p>
 
               {eligibility.owned_projects.map((project) => (
-                <div key={project.id} className="space-y-2 rounded-lg border p-4">
+                <div
+                  key={`${project.guild_id}:${project.id}`}
+                  className="space-y-2 rounded-lg border p-4"
+                >
                   <Label htmlFor={`project-${project.id}`} className="font-medium">
                     {project.name}
                   </Label>
                   <Select
-                    value={projectTransfers[project.id]?.toString()}
+                    value={projectTransfers[`${project.guild_id}:${project.id}`]?.toString()}
                     onValueChange={(value) =>
                       setProjectTransfers((prev) => ({
                         ...prev,
-                        [project.id]: parseInt(value, 10),
+                        [`${project.guild_id}:${project.id}`]: parseInt(value, 10),
                       }))
                     }
                   >

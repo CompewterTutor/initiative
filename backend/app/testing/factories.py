@@ -25,7 +25,13 @@ from app.models.property import (
     TaskPropertyValue,
 )
 from app.models.queue import Queue, QueueItem
-from app.models.task import Task
+from app.models.task import (
+    Task,
+    TaskAssignee,
+    TaskPriority,
+    TaskStatus,
+    TaskStatusCategory,
+)
 from app.models.user import User, UserRole, UserStatus
 from app.services.initiatives import create_builtin_roles
 
@@ -363,6 +369,70 @@ async def create_project(
         await session.commit()
 
     return project
+
+
+async def create_task(
+    session: AsyncSession,
+    project: Project,
+    *,
+    title: str | None = None,
+    status_category: TaskStatusCategory = TaskStatusCategory.todo,
+    assignees: list[User] | None = None,
+    commit: bool = True,
+    **overrides: Any,
+) -> Task:
+    """Create a test task (guild-scoped), with a status of the requested
+    category and optional assignees.
+
+    Reuses an existing project status of the same category if one exists,
+    otherwise creates one. Pass ``status_category=TaskStatusCategory.done`` and
+    ``assignees=[user]`` to build a completed, assigned task (e.g. for stats).
+    """
+    from sqlmodel import select as _select
+
+    status = (
+        await session.exec(
+            _select(TaskStatus)
+            .where(
+                TaskStatus.project_id == project.id,
+                TaskStatus.category == status_category,
+            )
+            .limit(1)
+        )
+    ).first()
+    if status is None:
+        status = TaskStatus(
+            guild_id=project.guild_id,
+            project_id=project.id,
+            name=status_category.value.replace("_", " ").title(),
+            category=status_category,
+            position=0,
+            is_default=status_category == TaskStatusCategory.todo,
+        )
+        session.add(status)
+        await session.flush()
+
+    defaults: dict[str, Any] = {
+        "title": title or f"Test Task {datetime.now(timezone.utc).timestamp()}",
+        "project_id": project.id,
+        "guild_id": project.guild_id,
+        "task_status_id": status.id,
+        "priority": TaskPriority.medium,
+    }
+    task = Task(**{**defaults, **overrides})
+    session.add(task)
+    if commit:
+        await session.commit()
+        await session.refresh(task)
+
+    for user in assignees or []:
+        session.add(
+            TaskAssignee(task_id=task.id, user_id=user.id, guild_id=project.guild_id)
+        )
+    if commit and assignees:
+        await session.commit()
+
+    return task
 
 
 async def create_queue(

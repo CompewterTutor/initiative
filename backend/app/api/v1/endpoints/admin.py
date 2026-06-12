@@ -495,10 +495,13 @@ async def delete_user(
                 detail=AdminMessages.PROJECT_TRANSFERS_REQUIRED,
             )
 
-        owned_ids = {p.id for p in owned_projects}
-        transfer_ids = set(payload.project_transfers.keys())
+        # Keys are "guild_id:project_id" — a bare project id repeats across
+        # per-guild schemas, so two distinct projects could otherwise share one
+        # mapping and both transfer to the same recipient.
+        owned_keys = {f"{p.guild_id}:{p.id}" for p in owned_projects}
+        transfer_keys = set(payload.project_transfers.keys())
 
-        missing = sorted(owned_ids - transfer_ids)
+        missing = sorted(owned_keys - transfer_keys)
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -509,7 +512,7 @@ async def delete_user(
         # isn't actually owned by the target user. Without this guard,
         # an admin POSTing extra IDs (deliberately or by client bug)
         # would silently transfer ownership of unrelated projects.
-        extra = sorted(transfer_ids - owned_ids)
+        extra = sorted(transfer_keys - owned_keys)
         if extra:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

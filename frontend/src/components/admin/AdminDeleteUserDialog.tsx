@@ -111,7 +111,7 @@ export function AdminDeleteUserDialog({
   const [step, setStep] = useState<DeletionStep>("choose-type");
   const [action, setAction] = useState<AdminAction>(validActions[0]);
   const [eligibility, setEligibility] = useState<AdminDeletionEligibilityResponse | null>(null);
-  const [projectTransfers, setProjectTransfers] = useState<Record<number, number>>({});
+  const [projectTransfers, setProjectTransfers] = useState<Record<string, number>>({});
   const [confirmationText, setConfirmationText] = useState("");
   const [agreedToConsequences, setAgreedToConsequences] = useState(false);
 
@@ -346,7 +346,9 @@ export function AdminDeleteUserDialog({
   const canProceedFromBlockers = eligibility?.can_delete === true;
   const canProceedFromTransfers =
     !eligibility?.owned_projects.length ||
-    eligibility.owned_projects.every((project) => !!projectTransfers[project.id]);
+    eligibility.owned_projects.every(
+      (project) => !!projectTransfers[`${project.guild_id}:${project.id}`]
+    );
   const confirmationRequired = targetUser.email.split("@")[0].toUpperCase();
   const canConfirm =
     confirmationText === confirmationRequired && (action !== "hard_delete" || agreedToConsequences);
@@ -660,7 +662,10 @@ export function AdminDeleteUserDialog({
               </p>
 
               {eligibility.owned_projects.map((project) => (
-                <div key={project.id} className="space-y-2 rounded-lg border p-4">
+                <div
+                  key={`${project.guild_id}:${project.id}`}
+                  className="space-y-2 rounded-lg border p-4"
+                >
                   <Label className="font-medium">{project.name}</Label>
                   <SearchableCombobox
                     items={
@@ -669,11 +674,11 @@ export function AdminDeleteUserDialog({
                         label: formatMemberLabel(member),
                       })) ?? []
                     }
-                    value={projectTransfers[project.id]?.toString()}
+                    value={projectTransfers[`${project.guild_id}:${project.id}`]?.toString()}
                     onValueChange={(value) =>
                       setProjectTransfers((prev) => ({
                         ...prev,
-                        [project.id]: parseInt(value, 10),
+                        [`${project.guild_id}:${project.id}`]: parseInt(value, 10),
                       }))
                     }
                     placeholder={t("adminDeleteUser.transferSelectPlaceholder")}

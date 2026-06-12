@@ -659,10 +659,13 @@ async def delete_own_account(
                 detail=UserMessages.PROJECT_TRANSFERS_REQUIRED,
             )
 
-        owned_project_ids = {project.id for project in owned_projects}
-        transfer_ids = set(request.project_transfers.keys())
+        # Keys are "guild_id:project_id" — a bare project id repeats across
+        # per-guild schemas, so two owned projects could otherwise collide on
+        # one mapping and both transfer to the same recipient.
+        owned_keys = {f"{project.guild_id}:{project.id}" for project in owned_projects}
+        transfer_keys = set(request.project_transfers.keys())
 
-        missing = sorted(owned_project_ids - transfer_ids)
+        missing = sorted(owned_keys - transfer_keys)
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -673,7 +676,7 @@ async def delete_own_account(
         # isn't actually owned by the requester. Without this guard,
         # a crafted request with extra IDs would silently transfer
         # ownership of unrelated projects.
-        extra = sorted(transfer_ids - owned_project_ids)
+        extra = sorted(transfer_keys - owned_keys)
         if extra:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
