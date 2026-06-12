@@ -120,6 +120,13 @@ def _strip_html(html: str) -> str:
     Strips trusted template tags, then unescapes entities so values that were
     HTML-escaped for the HTML part (see ``email_i18n``) read as the user's
     literal text in the text/plain part.
+
+    Deliberate consequence: a user-supplied value that itself looks like markup
+    (e.g. a display name of ``<a href="https://x">…</a>``) appears verbatim in
+    the text part — including any URL, which a client's auto-linkification may
+    make clickable. That is acceptable for text/plain (no styling or trust
+    cues, unlike the brand-styled HTML part), and the alternative — leaving
+    entities encoded — would corrupt legitimate names like ``Tom & Jerry``.
     """
     return _html.unescape(re.sub(r"<[^>]+>", "", html))
 
