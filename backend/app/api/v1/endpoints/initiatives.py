@@ -18,6 +18,7 @@ from app.core.security import create_advanced_tool_handoff_token
 from app.core.config import settings
 from app.db.session import reapply_rls_context
 from app.models.access_grant import AccessLevel
+from app.models.document import Document, DocumentPermission
 from app.models.project import Project, ProjectPermission, ProjectPermissionLevel
 from app.models.initiative import (
     Initiative,
@@ -1054,6 +1055,20 @@ async def remove_initiative_member(
                     .where(TaskAssignee.task_id.in_(tuple(task_ids)))
                 )
                 await session.exec(delete_stmt)
+
+        # Remove the user's document permissions in this initiative. With the
+        # DB-level initiative-scope policies gone (schema-per-guild), a stale
+        # row would otherwise remain a live grant after removal.
+        await session.exec(
+            delete(DocumentPermission).where(
+                DocumentPermission.user_id == user_id,
+                DocumentPermission.document_id.in_(
+                    select(Document.id).where(
+                        Document.initiative_id == initiative_id
+                    )
+                ),
+            )
+        )
 
         await session.commit()
         await reapply_rls_context(session)

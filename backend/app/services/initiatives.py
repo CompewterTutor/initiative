@@ -454,6 +454,24 @@ async def remove_user_from_guild_initiatives(
             user_id=user_id,
         )
 
+    # Remove the user's remaining document permissions in those initiatives
+    # (one statement for the whole batch). With the DB-level initiative-scope
+    # policies gone (schema-per-guild), a stale row would otherwise remain a
+    # live grant after removal.
+    if initiative_ids:
+        from app.models.document import Document, DocumentPermission
+
+        await session.exec(
+            delete(DocumentPermission).where(
+                DocumentPermission.user_id == user_id,
+                DocumentPermission.document_id.in_(
+                    select(Document.id).where(
+                        Document.initiative_id.in_(tuple(initiative_ids))
+                    )
+                ),
+            )
+        )
+
     # Remove initiative memberships
     stmt = delete(InitiativeMember).where(
         InitiativeMember.user_id == user_id,

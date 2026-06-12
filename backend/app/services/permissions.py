@@ -22,8 +22,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlmodel import select
 
-from app.core.pam_context import active_grant_level, grant_satisfies
+from app.core.capabilities import Capability, user_has_capability
+from app.core.pam_context import active_grant_level, grant_satisfies, has_active_grant
+from app.core.role_context import active_guild_role
+from app.services.membership import initiative_scope_clause
 
+from app.models.guild import GuildRole
 from app.models.project import (
     Project,
     ProjectPermission,
@@ -176,9 +180,20 @@ def visible_project_ids_subquery(user_id: int):
 
     Combines user-specific ``ProjectPermission`` rows with role-based
     ``ProjectRolePermission`` rows matched via ``InitiativeMember``.
+
+    The explicit-permission branch is additionally gated on initiative scope
+    (member / guild admin / platform bypass): a permission row left behind
+    after the user was removed from the initiative must not grant access.
+    The DB-level RESTRICTIVE policies used to enforce this; under
+    schema-per-guild this subquery is the enforcement point.
     """
-    user_perm_subq = select(ProjectPermission.project_id).where(
-        ProjectPermission.user_id == user_id
+    user_perm_subq = (
+        select(ProjectPermission.project_id)
+        .join(Project, Project.id == ProjectPermission.project_id)
+        .where(
+            ProjectPermission.user_id == user_id,
+            initiative_scope_clause(user_id, Project.initiative_id, Project.guild_id),
+        )
     )
     role_perm_subq = select(ProjectRolePermission.project_id).join(
         InitiativeMember,
@@ -193,9 +208,18 @@ def visible_document_ids_subquery(user_id: int):
 
     Combines user-specific ``DocumentPermission`` rows with role-based
     ``DocumentRolePermission`` rows matched via ``InitiativeMember``.
+
+    The explicit-permission branch is additionally gated on initiative scope
+    (member / guild admin / platform bypass) — see
+    ``visible_project_ids_subquery`` for why.
     """
-    user_perm_subq = select(DocumentPermission.document_id).where(
-        DocumentPermission.user_id == user_id
+    user_perm_subq = (
+        select(DocumentPermission.document_id)
+        .join(Document, Document.id == DocumentPermission.document_id)
+        .where(
+            DocumentPermission.user_id == user_id,
+            initiative_scope_clause(user_id, Document.initiative_id, Document.guild_id),
+        )
     )
     role_perm_subq = select(DocumentRolePermission.document_id).join(
         InitiativeMember,
@@ -203,6 +227,40 @@ def visible_document_ids_subquery(user_id: int):
         & (InitiativeMember.user_id == user_id),
     )
     return user_perm_subq.union(role_perm_subq)
+
+
+# ── Initiative-scope gate (loaded-data variant) ──────────────────
+
+
+def initiative_scope_ok(
+    entity: Any,
+    user: User,
+    *,
+    guild_role: GuildRole | str | None = None,
+) -> bool:
+    """Sync counterpart of ``initiative_scope_clause`` for single entities
+    whose ``initiative.memberships`` are already eagerly loaded.
+
+    Mirrors the old RESTRICTIVE policy expression: initiative member, OR
+    admin of the entity's guild (from ``guild_role`` if the caller has it,
+    else the request's role context), OR ``data.bypass`` holder, OR a live
+    PAM grant covering the guild (a grantee acts as a member of every
+    initiative in scope).
+    """
+    initiative = getattr(entity, "initiative", None)
+    memberships = (
+        getattr(initiative, "memberships", None) if initiative is not None else None
+    ) or []
+    if any(m.user_id == user.id for m in memberships):
+        return True
+    if user_has_capability(user, Capability.DATA_BYPASS):
+        return True
+    guild_id = getattr(entity, "guild_id", None)
+    if guild_id is not None and has_active_grant(guild_id):
+        return True
+    role = guild_role if guild_role is not None else active_guild_role(guild_id)
+    role_value = role.value if isinstance(role, GuildRole) else role
+    return role_value == GuildRole.admin.value
 
 
 # ── High-level helpers for projects ─────────────────────────────
@@ -281,15 +339,24 @@ def require_project_access(
     *,
     access: str = "read",
     require_owner: bool = False,
+    guild_role: GuildRole | str | None = None,
 ) -> None:
     """Raise HTTPException if user lacks required project access.
 
     DAC: Access granted through explicit ProjectPermission or role-based
     permission.  Effective level = MAX(user-specific, role-based).
     A live PAM grant covering the project's guild also satisfies read/write.
+
+    Access additionally requires initiative scope (member / guild admin /
+    platform bypass) — a stale permission row alone never grants access.
     """
     if grant_satisfies(project.guild_id, access=access, require_owner=require_owner):
         return
+    if not initiative_scope_ok(project, user, guild_role=guild_role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ProjectMessages.NO_ACCESS,
+        )
     effective = _effective_project_level(project, user.id)
 
     if require_owner:
@@ -407,15 +474,24 @@ def require_document_access(
     *,
     access: str = "read",
     require_owner: bool = False,
+    guild_role: GuildRole | str | None = None,
 ) -> None:
     """Raise HTTPException if user lacks required document access.
 
     DAC: Access granted through explicit DocumentPermission or role-based
     permission.  Effective level = MAX(user-specific, role-based).
     A live PAM grant covering the document's guild also satisfies read/write.
+
+    Access additionally requires initiative scope (member / guild admin /
+    platform bypass) — a stale permission row alone never grants access.
     """
     if grant_satisfies(document.guild_id, access=access, require_owner=require_owner):
         return
+    if not initiative_scope_ok(document, user, guild_role=guild_role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=DocumentMessages.NO_ACCESS,
+        )
     effective = _effective_document_level(document, user)
 
     if require_owner:
