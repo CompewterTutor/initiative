@@ -2308,7 +2308,9 @@ async def _load_download_document(
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
 
-    member_guild_ids = [
+    # Sorted so the probe order — and therefore the no-readable-candidate
+    # fallback — is deterministic across requests.
+    member_guild_ids = sorted(
         int(g)
         for g in (
             await session.exec(
@@ -2317,7 +2319,7 @@ async def _load_download_document(
                 )
             )
         ).all()
-    ]
+    )
     if guild_id is not None:
         # Explicit disambiguation: fail closed if the user isn't a member.
         if guild_id not in member_guild_ids:
@@ -2447,10 +2449,15 @@ async def download_document_file_version(
 
     _require_document_access(document, current_user, access="read")
 
+    # Same guild predicate as the document probe: if the winner guild's schema
+    # were ever missing this table, search_path would fall through to the
+    # frozen public copy — the guild_id match makes a cross-guild row
+    # impossible to serve.
     version_result = await session.exec(
         select(DocumentFileVersion).where(
             DocumentFileVersion.id == version_id,
             DocumentFileVersion.document_id == document_id,
+            DocumentFileVersion.guild_id == document.guild_id,
         )
     )
     version = version_result.one_or_none()
