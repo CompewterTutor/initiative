@@ -2266,34 +2266,65 @@ def _download_document_options():
 
 
 async def _load_download_document(
-    session: AsyncSession, current_user, document_id: int
+    session: AsyncSession,
+    current_user,
+    document_id: int,
+    *,
+    guild_id: Optional[int] = None,
 ):
     """Load a file ``Document`` by id from whichever of the REQUESTER'S OWN guild
     schemas holds it (schema-per-guild), with the eager loads the access check
     needs.
 
     Served via iframe/window.open with no X-Guild-ID header, so we can't route
-    by request context. Documents live in per-guild schemas, so we probe each of
-    the user's guild schemas (membership is shared/public) — never the frozen
-    ``public`` backup, which would 404 new docs and could serve stale ones.
-    Probing only the user's own guilds enforces guild isolation by construction;
-    document-level read permission is still checked by the caller. Leaves the
-    session routed into the found document's guild so a follow-up version query
-    runs in the same schema. Returns the Document or ``None``.
+    by request context. Documents live in per-guild schemas, so we probe the
+    user's guild schemas (membership is shared/public) — never the frozen
+    ``public`` backup, which holds every guild's documents and would 404 new docs
+    or serve stale ones. The probe pins ``Document.guild_id == gid`` so that even
+    if a probed schema is missing the ``documents`` table (provisioning drift)
+    and ``search_path`` falls through to ``public``, a cross-guild row can never
+    match.
+
+    Per-schema serial ids COLLIDE across guilds (document id 42 can exist in
+    several schemas at once), so we cannot stop at the first schema that holds the
+    id — a user in guilds A and B both holding that id could be served/blocked on
+    the wrong one. Instead we probe ALL of the requester's member guild schemas,
+    collect every ``(guild_id, Document)`` candidate, and pick the first one the
+    user can actually READ. The identity map is expunged between schemas because a
+    cached object with this id (from a prior guild) would otherwise shadow the next
+    guild's row (see ``gather_across_guilds`` in ``app/services/cross_guild.py``).
+    If none is readable we fall back to the first candidate so the caller still
+    raises its normal 403 (we never convert a permission failure into a 404).
+
+    When ``guild_id`` is provided we probe ONLY that guild, and only if it is one
+    of the requester's member guilds — a non-member guild fails closed (returns
+    ``None`` → 404). This lets the frontend disambiguate explicitly; absent, the
+    multi-probe behaviour above applies.
+
+    Leaves the session routed (superadmin) into the chosen document's guild so a
+    follow-up version query on the same session runs in the right schema. Returns
+    the Document or ``None``.
     """
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
 
-    member_guild_ids = list(
-        (
+    member_guild_ids = [
+        int(g)
+        for g in (
             await session.exec(
                 select(GuildMembership.guild_id).where(
                     GuildMembership.user_id == current_user.id
                 )
             )
         ).all()
-    )
-    schema_by_gid = {int(g): guild_schema_name(int(g)) for g in member_guild_ids}
+    ]
+    if guild_id is not None:
+        # Explicit disambiguation: fail closed if the user isn't a member.
+        if guild_id not in member_guild_ids:
+            return None
+        member_guild_ids = [guild_id]
+
+    schema_by_gid = {gid: guild_schema_name(gid) for gid in member_guild_ids}
     existing = {
         row.nspname
         for row in (
@@ -2303,20 +2334,46 @@ async def _load_download_document(
             )
         ).all()
     }
+
+    candidates: list[tuple[int, Document]] = []
     for gid, schema in schema_by_gid.items():
         if schema not in existing:
             continue
+        # Expunge BEFORE each probe: ids collide across schemas, so an object
+        # cached from a prior guild would be returned by the identity map instead
+        # of this guild's row.
+        session.expunge_all()
         await set_rls_context(session, guild_id=gid, is_superadmin=True)
         doc = (
             await session.exec(
                 select(Document)
-                .where(Document.id == document_id)
+                .where(Document.id == document_id, Document.guild_id == gid)
                 .options(*_download_document_options())
             )
         ).one_or_none()
         if doc is not None:
-            return doc
-    return None
+            candidates.append((gid, doc))
+
+    if not candidates:
+        return None
+
+    # Pick the first candidate the user can actually read. Fall back to the first
+    # candidate (not None) so the caller still raises its normal 403 — a
+    # permission failure must stay a 403, not become a 404.
+    winner_gid, winner_doc = candidates[0]
+    for gid, doc in candidates:
+        try:
+            _require_document_access(doc, current_user, access="read")
+        except HTTPException:
+            continue
+        winner_gid, winner_doc = gid, doc
+        break
+
+    # Re-route the session into the winner's guild so a follow-up version query
+    # (download_document_file_version) hits the right schema. The winner may not be
+    # the last guild probed.
+    await set_rls_context(session, guild_id=winner_gid, is_superadmin=True)
+    return winner_doc
 
 
 @router.get("/{document_id}/download", include_in_schema=False)
@@ -2330,9 +2387,14 @@ async def download_document_file(
     # isolation is enforced by probing only the requester's own guild schemas.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
+    # Optional explicit disambiguation when the same document id exists in
+    # multiple of the user's guild schemas. A non-member guild fails closed (404).
+    guild_id: Optional[int] = Query(None),
 ) -> FileResponse:
     """Download a file-type document — requires read permission on the document."""
-    document = await _load_download_document(session, current_user, document_id)
+    document = await _load_download_document(
+        session, current_user, document_id, guild_id=guild_id
+    )
     if (
         document is None
         or document.document_type != DocumentType.file
@@ -2370,9 +2432,14 @@ async def download_document_file_version(
     # guild isolation directly in the query.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
+    # Optional explicit disambiguation when the same document id exists in
+    # multiple of the user's guild schemas. A non-member guild fails closed (404).
+    guild_id: Optional[int] = Query(None),
 ) -> FileResponse:
     """Download a specific stored version of a file document — read permission."""
-    document = await _load_download_document(session, current_user, document_id)
+    document = await _load_download_document(
+        session, current_user, document_id, guild_id=guild_id
+    )
     if document is None or document.document_type != DocumentType.file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND

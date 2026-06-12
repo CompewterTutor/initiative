@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document downloads resolve the right document for users in multiple guilds: document ids repeat across per-guild schemas, and the download probe (which can't see a guild header from iframes) used to stop at the first guild whose schema contained the id — wrongly 403ing or serving another guild's file. It now collects all candidates, serves the one the user can actually read, supports an explicit `?guild_id=` disambiguator, and re-anchors the probe query with a guild predicate so it can never match a frozen `public` backup row.
 - Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
 - The "added to initiative" notification now carries its guild (id + guild-qualified deep link), like every other guild-scoped notification — so it resolves correctly in the cross-guild inbox under schema-per-guild tenancy.
 - **The Initiative logo now appears in emails.** It was an inline SVG, which Gmail, Outlook, and Yahoo strip from email bodies; it's now shipped as a raster PNG embedded inline (via a Content-ID reference) so it renders without an external image fetch. Also removed a stray period that trailed the "Update notification settings" footer link.
