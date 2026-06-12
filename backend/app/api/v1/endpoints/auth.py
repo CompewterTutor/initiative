@@ -14,7 +14,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import delete as sql_delete, select, update as sql_update
+from sqlmodel import delete as sql_delete, select
 
 from app.api.deps import SessionDep, get_current_active_user, get_current_user_optional
 from app.db.session import get_admin_session
@@ -58,7 +58,7 @@ from app.services import user_tokens
 from app.services import initiatives as initiatives_service
 from app.services import guilds as guilds_service
 from app.services.oidc_sync import extract_claim_values, sync_oidc_assignments
-from app.models.user_token import UserToken, UserTokenPurpose
+from app.models.user_token import UserTokenPurpose
 
 router = APIRouter()
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
@@ -974,21 +974,13 @@ async def reset_password(
             status_code=status.HTTP_404_NOT_FOUND, detail=AuthMessages.USER_NOT_FOUND
         )
     user.hashed_password = get_password_hash(payload.password)
-    user.token_version += 1
+    # Bump token_version and revoke active device tokens so a stale
+    # JWT/device token can't survive the reset.
+    await user_tokens.revoke_user_sessions(session, user=user)
     if not user.email_verified:
         user.email_verified = True
     user.updated_at = datetime.now(timezone.utc)
     session.add(user)
-    # Bulk-revoke all active device tokens
-    await session.exec(
-        sql_update(UserToken)
-        .where(
-            UserToken.user_id == user.id,
-            UserToken.purpose == UserTokenPurpose.device_auth,
-            UserToken.consumed_at.is_(None),
-        )
-        .values(consumed_at=datetime.now(timezone.utc))
-    )
     await session.commit()
     await session.refresh(user)
     return VerificationSendResponse(status="reset")
