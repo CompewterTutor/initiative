@@ -41,12 +41,26 @@ async def test_upload_accessible_with_auth_header(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """GET /uploads/<file> with Authorization Bearer header returns 200."""
+    from app.models.upload import Upload
+
     uploads_dir = _uploads_dir()
     test_file = uploads_dir / "test_auth_header.txt"
     test_file.write_text("hello")
     try:
         user = await create_user(session)
-        headers = get_auth_headers(user)
+        guild = await create_guild(session, creator=user)
+        await create_guild_membership(session, user=user, guild=guild)
+        session.add(
+            Upload(
+                filename="test_auth_header.txt",
+                guild_id=guild.id,
+                uploader_user_id=user.id,
+                size_bytes=5,
+            )
+        )
+        await session.commit()
+
+        headers = {**get_auth_headers(user), "X-Guild-ID": str(guild.id)}
         response = await client.get("/uploads/test_auth_header.txt", headers=headers)
         assert response.status_code == 200
     finally:
@@ -78,14 +92,30 @@ async def test_upload_accessible_with_scoped_upload_token(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """A short-lived, uploads-scoped token IS accepted via ?token=. SEC-12."""
+    from app.models.upload import Upload
+
     uploads_dir = _uploads_dir()
     test_file = uploads_dir / "test_query_upload_token.txt"
     test_file.write_text("hello")
     try:
         user = await create_user(session)
+        # SEC-6 (merged): files are only served with a matching Upload row and
+        # guild membership — the scoped token answers "who", not "may".
+        guild = await create_guild(session, creator=user)
+        await create_guild_membership(session, user=user, guild=guild)
+        session.add(
+            Upload(
+                filename="test_query_upload_token.txt",
+                guild_id=guild.id,
+                uploader_user_id=user.id,
+                size_bytes=5,
+            )
+        )
+        await session.commit()
         token, _ = create_upload_token(user_id=user.id)
         response = await client.get(
-            f"/uploads/test_query_upload_token.txt?token={token}"
+            f"/uploads/test_query_upload_token.txt?token={token}",
+            headers={"X-Guild-ID": str(guild.id)},
         )
         assert response.status_code == 200
     finally:
@@ -110,11 +140,25 @@ async def test_issue_upload_token_endpoint(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """POST /auth/upload-token mints a token that opens /uploads. SEC-12."""
+    from app.models.upload import Upload
+
     uploads_dir = _uploads_dir()
     test_file = uploads_dir / "test_minted_token.txt"
     test_file.write_text("hello")
     try:
         user = await create_user(session)
+        # SEC-6 (merged): serving requires a matching Upload row + membership.
+        guild = await create_guild(session, creator=user)
+        await create_guild_membership(session, user=user, guild=guild)
+        session.add(
+            Upload(
+                filename="test_minted_token.txt",
+                guild_id=guild.id,
+                uploader_user_id=user.id,
+                size_bytes=5,
+            )
+        )
+        await session.commit()
         mint = await client.post(
             "/api/v1/auth/upload-token", headers=get_auth_headers(user)
         )
@@ -225,18 +269,23 @@ async def test_upload_non_member_cannot_access_file(
 
 
 @pytest.mark.integration
-async def test_upload_legacy_file_accessible_to_any_authenticated_user(
+async def test_upload_without_db_record_returns_404(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """A file with no DB record (legacy) is accessible to any authenticated user."""
+    """A blob on disk with no Upload row fails closed (404), not the bytes.
+
+    Without an Upload row there is no owning guild to authorize against, so
+    serving the file would leak it to any authenticated user cross-guild.
+    """
     uploads_dir = _uploads_dir()
-    test_file = uploads_dir / "test_legacy_file.txt"
-    test_file.write_text("legacy content")
+    test_file = uploads_dir / "test_orphan_file.txt"
+    test_file.write_text("orphan content")
     try:
         user = await create_user(session)
         headers = get_auth_headers(user)
-        response = await client.get("/uploads/test_legacy_file.txt", headers=headers)
-        assert response.status_code == 200
+        response = await client.get("/uploads/test_orphan_file.txt", headers=headers)
+        assert response.status_code == 404
+        assert b"orphan content" not in response.content
     finally:
         test_file.unlink(missing_ok=True)
 
