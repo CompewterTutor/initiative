@@ -178,3 +178,32 @@ async def test_device_token_no_refresh_when_far_from_expiry(session: AsyncSessio
     refreshed = await user_tokens.get_device_token(session, token=raw)
     assert refreshed is not None
     assert refreshed.expires_at == original_expiry
+
+
+@pytest.mark.integration
+async def test_device_token_slides_after_a_day_of_no_refresh(session: AsyncSession):
+    """A token whose last slide is over a day old is re-slid on use — expiry
+    tracks last use to within a day, not just within the final day of the cap."""
+    user = await create_user(session)
+    raw = await user_tokens.create_device_token(
+        session, user_id=user.id, device_name="Phone"
+    )
+    row = (
+        await session.exec(
+            select(UserToken).where(
+                UserToken.user_id == user.id,
+                UserToken.purpose == UserTokenPurpose.device_auth,
+            )
+        )
+    ).one()
+    # Simulate a token last refreshed two days ago (88 days remaining).
+    two_days_in = datetime.now(timezone.utc) + timedelta(
+        days=user_tokens.DEVICE_TOKEN_TTL_DAYS - 2
+    )
+    row.expires_at = two_days_in
+    session.add(row)
+    await session.commit()
+
+    refreshed = await user_tokens.get_device_token(session, token=raw)
+    assert refreshed is not None
+    assert refreshed.expires_at > two_days_in + timedelta(days=1)

@@ -17,9 +17,11 @@ DEFAULT_TOKEN_TTL_MINUTES = 60
 # dies within the cap.
 DEVICE_TOKEN_TTL_DAYS = 90
 # Refreshing expiry on every single request would write to the DB on every
-# authenticated call. Only slide the window when the remaining lifetime has
-# dropped below this threshold, so the write happens at most ~once/day.
-DEVICE_TOKEN_SLIDING_REFRESH_THRESHOLD = timedelta(days=1)
+# authenticated call. The window is only re-slid once the previous slide is
+# more than a day old — i.e. when the remaining lifetime has dropped below
+# ``TTL - 1 day`` — so an active device writes at most ~once/day while its
+# expiry still tracks last use to within a day.
+DEVICE_TOKEN_SLIDING_REFRESH_THRESHOLD = timedelta(days=DEVICE_TOKEN_TTL_DAYS - 1)
 
 
 def _hash_token(token: str) -> str:
@@ -148,8 +150,9 @@ async def get_device_token(
     Device tokens use a sliding 90-day window: each successful presentation
     pushes ``expires_at`` to now + ``DEVICE_TOKEN_TTL_DAYS`` so an actively-used
     device never has to re-authenticate, while an abandoned token expires within
-    the cap. The write is throttled (only when the remaining lifetime falls below
-    ``DEVICE_TOKEN_SLIDING_REFRESH_THRESHOLD``) to avoid a DB write on every call.
+    the cap. The write is throttled (only once the remaining lifetime falls below
+    ``DEVICE_TOKEN_SLIDING_REFRESH_THRESHOLD``, i.e. at most ~once/day) to avoid
+    a DB write on every call.
     """
     record = await get_valid_token(
         session, token=token, purpose=UserTokenPurpose.device_auth

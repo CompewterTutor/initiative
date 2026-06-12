@@ -13,7 +13,7 @@ in-flight verification/reset links keep working:
 
 1. Hash every existing plaintext ``token`` in place. SHA-256 is deterministic,
    so the same lookup the service now performs (``sha256(presented_token)``)
-   matches the migrated row. Postgres 17's built-in ``sha256(bytea)`` is used —
+   matches the migrated row. PostgreSQL 11+'s built-in ``sha256(bytea)`` is used —
    no ``pgcrypto`` extension required.
 2. Cap any device-token ``expires_at`` that exceeds now + 90 days down to that
    cap, so the legacy ~100-year tokens expire within the new window.
