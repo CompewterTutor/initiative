@@ -69,7 +69,7 @@ async def test_create_task_sets_created_by_id(
     await task_statuses_service.ensure_default_statuses(session, project.id)
     status = await task_statuses_service.get_default_status(session, project.id)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "title": "Created via API",
         "project_id": project.id,
@@ -91,7 +91,7 @@ async def test_list_global_created_tasks(client: AsyncClient, session: AsyncSess
     task1 = await _create_task(session, project, "My Task 1", created_by_id=creator.id)
     task2 = await _create_task(session, project, "My Task 2", created_by_id=creator.id)
 
-    headers = get_guild_headers(guild, creator)
+    headers = await get_guild_headers(session, guild, creator)
     response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
 
     assert response.status_code == 200
@@ -117,7 +117,7 @@ async def test_list_global_created_tasks_excludes_others(
         session, project, "Other Task", created_by_id=other.id
     )
 
-    headers = get_guild_headers(guild, creator)
+    headers = await get_guild_headers(session, guild, creator)
     response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
 
     assert response.status_code == 200
@@ -138,7 +138,7 @@ async def test_list_global_created_tasks_excludes_null_created_by(
     legacy_task = await _create_task(session, project, "Legacy Task")
     my_task = await _create_task(session, project, "My Task", created_by_id=user.id)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
 
     assert response.status_code == 200
@@ -168,7 +168,7 @@ async def test_list_global_created_tasks_priority_filter(
     session.add(low_task)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     conditions = json.dumps([{"field": "priority", "op": "in_", "value": ["high"]}])
     response = await client.get(
         f"/api/v1/tasks/?scope=global_created&conditions={conditions}", headers=headers
@@ -196,7 +196,7 @@ async def test_list_global_created_tasks_guild_filter(
     task1 = await _create_task(session, project1, "Guild 1 Task", created_by_id=user.id)
     task2 = await _create_task(session, project2, "Guild 2 Task", created_by_id=user.id)
 
-    headers = get_guild_headers(guild1, user)
+    headers = await get_guild_headers(session, guild1, user)
 
     def keyed(resp):
         # Task ids are per-guild (per-schema); key by (guild_id, id).
@@ -233,7 +233,7 @@ async def test_list_global_created_tasks_pagination(
     for i in range(3):
         await _create_task(session, project, f"Task {i}", created_by_id=user.id)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     # Page 1 with page_size=2
     response = await client.get(

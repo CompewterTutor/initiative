@@ -39,6 +39,7 @@ import type {
   TaskRead,
   TaskReorderRequest,
   TaskUpdate,
+  UpdateTaskApiV1TasksTaskIdPatchParams,
 } from "../initiativeAPI.schemas";
 
 import { apiMutator } from "../../mutator";
@@ -400,6 +401,7 @@ export function useReadTaskApiV1TasksTaskIdGet<
 export const updateTaskApiV1TasksTaskIdPatch = (
   taskId: number,
   taskUpdate: BodyType<TaskUpdate>,
+  params?: UpdateTaskApiV1TasksTaskIdPatchParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
@@ -409,6 +411,7 @@ export const updateTaskApiV1TasksTaskIdPatch = (
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       data: taskUpdate,
+      params,
       signal,
     },
     options
@@ -422,14 +425,14 @@ export const getUpdateTaskApiV1TasksTaskIdPatchMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateTaskApiV1TasksTaskIdPatch>>,
     TError,
-    { taskId: number; data: BodyType<TaskUpdate> },
+    { taskId: number; data: BodyType<TaskUpdate>; params?: UpdateTaskApiV1TasksTaskIdPatchParams },
     TContext
   >;
   request?: SecondParameter<typeof apiMutator>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof updateTaskApiV1TasksTaskIdPatch>>,
   TError,
-  { taskId: number; data: BodyType<TaskUpdate> },
+  { taskId: number; data: BodyType<TaskUpdate>; params?: UpdateTaskApiV1TasksTaskIdPatchParams },
   TContext
 > => {
   const mutationKey = ["updateTaskApiV1TasksTaskIdPatch"];
@@ -441,11 +444,11 @@ export const getUpdateTaskApiV1TasksTaskIdPatchMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof updateTaskApiV1TasksTaskIdPatch>>,
-    { taskId: number; data: BodyType<TaskUpdate> }
+    { taskId: number; data: BodyType<TaskUpdate>; params?: UpdateTaskApiV1TasksTaskIdPatchParams }
   > = (props) => {
-    const { taskId, data } = props ?? {};
+    const { taskId, data, params } = props ?? {};
 
-    return updateTaskApiV1TasksTaskIdPatch(taskId, data, requestOptions);
+    return updateTaskApiV1TasksTaskIdPatch(taskId, data, params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -468,7 +471,11 @@ export const useUpdateTaskApiV1TasksTaskIdPatch = <
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof updateTaskApiV1TasksTaskIdPatch>>,
       TError,
-      { taskId: number; data: BodyType<TaskUpdate> },
+      {
+        taskId: number;
+        data: BodyType<TaskUpdate>;
+        params?: UpdateTaskApiV1TasksTaskIdPatchParams;
+      },
       TContext
     >;
     request?: SecondParameter<typeof apiMutator>;
@@ -477,7 +484,7 @@ export const useUpdateTaskApiV1TasksTaskIdPatch = <
 ): UseMutationResult<
   Awaited<ReturnType<typeof updateTaskApiV1TasksTaskIdPatch>>,
   TError,
-  { taskId: number; data: BodyType<TaskUpdate> },
+  { taskId: number; data: BodyType<TaskUpdate>; params?: UpdateTaskApiV1TasksTaskIdPatchParams },
   TContext
 > => {
   return useMutation(getUpdateTaskApiV1TasksTaskIdPatchMutationOptions(options), queryClient);

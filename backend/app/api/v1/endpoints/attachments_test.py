@@ -21,7 +21,7 @@ async def test_upload_image_too_large(client: AsyncClient, session: AsyncSession
     user = await create_user(session)
     guild = await create_guild(session, creator=user)
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     oversized = b"\x89PNG\r\n\x1a\n" + b"X" * (11 * 1024 * 1024)
     response = await client.post(
@@ -40,7 +40,7 @@ async def test_upload_image_within_limit(client: AsyncClient, session: AsyncSess
     user = await create_user(session)
     guild = await create_guild(session, creator=user)
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     tiny_png = (
         b"\x89PNG\r\n\x1a\n"

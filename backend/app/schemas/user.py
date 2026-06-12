@@ -171,6 +171,10 @@ class UserRead(UserBase):
     # self-deletion dialog so it can hide the password gate, since
     # OIDC-only accounts have no usable password to type in.
     oidc_sub: Optional[str] = None
+    # Server-held guild context (NULL = personal / cross-guild mode). Set via
+    # PUT /users/me/guild-context; every guild-scoped request resolves its
+    # guild from this flag.
+    active_guild_id: Optional[int] = None
     initiative_roles: List["UserInitiativeRole"] = Field(default_factory=list)
 
     @computed_field(return_type=bool)  # type: ignore[misc]
@@ -200,6 +204,16 @@ class UserInitiativeRole(SanitizedBaseModel):
     initiative_id: int
     initiative_name: str
     role: InitiativeRole
+
+
+class GuildContextUpdate(SanitizedBaseModel):
+    """Body for ``PUT /users/me/guild-context``.
+
+    ``guild_id`` is the guild the user is entering; ``null`` enters personal
+    (cross-guild) mode.
+    """
+
+    guild_id: Optional[int] = None
 
 
 class UserSelfUpdate(SanitizedBaseModel):

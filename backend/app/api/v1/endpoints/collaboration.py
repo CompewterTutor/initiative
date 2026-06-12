@@ -149,7 +149,8 @@ async def websocket_collaborate(
     WebSocket endpoint for collaborative document editing.
 
     Protocol:
-    1. Client connects and sends MSG_AUTH with {token, guild_id} as first message
+    1. Client connects and sends MSG_AUTH with {token} as first message; the
+       guild comes from the user's server-held context (users.active_guild_id)
     2. Server validates auth and sends current Yjs state (SYNC_STEP2)
     3. Client sends incremental updates (UPDATE)
     4. Server broadcasts updates to other clients
@@ -182,13 +183,11 @@ async def websocket_collaborate(
         try:
             auth_payload = json.loads(auth_data[1:].decode())
             token = auth_payload.get("token")
-            guild_id = auth_payload.get("guild_id")
             if not token:
                 # Fall back to session cookie (web sessions after page refresh)
                 token = websocket.cookies.get(settings.COOKIE_NAME)
-            if not token or guild_id is None:
-                raise ValueError("Missing token or guild_id")
-            guild_id = int(guild_id)
+            if not token:
+                raise ValueError("Missing token")
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(
                 f"Collaboration: Invalid auth payload for document {document_id}: {e}"
@@ -207,6 +206,19 @@ async def websocket_collaborate(
         user = await _get_user_from_token(token, session)
         if not user:
             logger.warning(f"Collaboration: Auth failed for document {document_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # The document lives in the user's server-held guild context — a
+        # collaboration socket is only ever opened from the document's page,
+        # which required entering its guild first. Personal mode → no guild to
+        # collaborate in.
+        guild_id = user.active_guild_id
+        if guild_id is None:
+            logger.warning(
+                f"Collaboration: user {user.id} has no guild context "
+                f"for document {document_id}"
+            )
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 

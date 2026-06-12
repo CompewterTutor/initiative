@@ -42,7 +42,9 @@ async def env(session: AsyncSession) -> _SpreadsheetEnv:
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
     initiative = await create_initiative(session, guild, user, name="Init")
     return _SpreadsheetEnv(
-        user=user, initiative=initiative, headers=get_guild_headers(guild, user)
+        user=user,
+        initiative=initiative,
+        headers=await get_guild_headers(session, guild, user),
     )
 
 

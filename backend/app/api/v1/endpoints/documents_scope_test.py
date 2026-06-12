@@ -42,8 +42,8 @@ async def test_initiative_removal_ends_document_access(
     client: AsyncClient, session: AsyncSession
 ):
     admin, member, guild, initiative = await _setup(session)
-    admin_headers = get_guild_headers(guild, admin)
-    member_headers = get_guild_headers(guild, member)
+    admin_headers = await get_guild_headers(session, guild, admin)
+    member_headers = await get_guild_headers(session, guild, member)
 
     # Admin creates a document and shares it with the member.
     response = await client.post(

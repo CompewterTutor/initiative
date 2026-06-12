@@ -692,7 +692,7 @@ async def test_guild_advanced_tool_handoff_returns_404_when_url_unset(
         session, user=admin, guild=guild, role=GuildRole.admin
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.post(
         f"/api/v1/guilds/{guild.id}/advanced-tool/handoff", headers=headers
     )
@@ -719,7 +719,7 @@ async def test_guild_advanced_tool_handoff_rejects_non_admin(
         session, user=member, guild=guild, role=GuildRole.member
     )
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     response = await client.post(
         f"/api/v1/guilds/{guild.id}/advanced-tool/handoff", headers=headers
     )
@@ -746,7 +746,7 @@ async def test_guild_advanced_tool_handoff_rejects_non_member(
     target_guild = await create_guild(session, name="Target guild")
 
     # Use the outsider's auth but reference the target guild they aren't in
-    headers = get_guild_headers(target_guild, outsider)
+    headers = await get_guild_headers(session, target_guild, outsider)
     response = await client.post(
         f"/api/v1/guilds/{target_guild.id}/advanced-tool/handoff", headers=headers
     )
@@ -773,7 +773,7 @@ async def test_guild_advanced_tool_handoff_succeeds_for_admin(
         session, user=admin, guild=guild, role=GuildRole.admin
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.post(
         f"/api/v1/guilds/{guild.id}/advanced-tool/handoff", headers=headers
     )

@@ -14,6 +14,7 @@ from app.testing.factories import (
     create_user,
     get_auth_headers,
     get_auth_token,
+    get_guild_headers,
 )
 
 
@@ -60,7 +61,7 @@ async def test_upload_accessible_with_auth_header(
         )
         await session.commit()
 
-        headers = {**get_auth_headers(user), "X-Guild-ID": str(guild.id)}
+        headers = await get_guild_headers(session, guild, user)
         response = await client.get("/uploads/test_auth_header.txt", headers=headers)
         assert response.status_code == 200
     finally:
@@ -112,10 +113,12 @@ async def test_upload_accessible_with_scoped_upload_token(
             )
         )
         await session.commit()
+        # Media URLs carry no guild context — serving resolves the guild from
+        # the user's server-held flag, so enter the guild first.
+        await get_guild_headers(session, guild, user)
         token, _ = create_upload_token(user_id=user.id)
         response = await client.get(
             f"/uploads/test_query_upload_token.txt?token={token}",
-            headers={"X-Guild-ID": str(guild.id)},
         )
         assert response.status_code == 200
     finally:
@@ -159,6 +162,8 @@ async def test_issue_upload_token_endpoint(
             )
         )
         await session.commit()
+        # Serving resolves the guild from the user's server-held context.
+        await get_guild_headers(session, guild, user)
         mint = await client.post(
             "/api/v1/auth/upload-token", headers=get_auth_headers(user)
         )
@@ -226,7 +231,7 @@ async def test_upload_guild_member_can_access_file(
         session.add(upload)
         await session.commit()
 
-        headers = {**get_auth_headers(user), "X-Guild-ID": str(guild.id)}
+        headers = await get_guild_headers(session, guild, user)
         response = await client.get("/uploads/test_guild_access.png", headers=headers)
         assert response.status_code == 200
     finally:
@@ -257,9 +262,11 @@ async def test_upload_non_member_cannot_access_file(
         session.add(upload)
         await session.commit()
 
-        # A second user not in that guild
+        # A second user not in that guild — even with their server-held
+        # context pointed at it (the flag write is unvalidated in the test
+        # factory precisely so this per-request check is exercised).
         outsider = await create_user(session)
-        headers = get_auth_headers(outsider)
+        headers = await get_guild_headers(session, guild, outsider)
         response = await client.get(
             "/uploads/test_guild_forbidden.png", headers=headers
         )
@@ -284,7 +291,9 @@ async def test_upload_without_db_record_returns_404(
     test_file.write_text("orphan content")
     try:
         user = await create_user(session)
-        headers = get_auth_headers(user)
+        guild = await create_guild(session, creator=user)
+        await create_guild_membership(session, user=user, guild=guild)
+        headers = await get_guild_headers(session, guild, user)
         response = await client.get("/uploads/test_orphan_file.txt", headers=headers)
         assert response.status_code == 404
         assert b"orphan content" not in response.content
@@ -309,9 +318,9 @@ async def test_upload_row_in_guild_schema_is_served(
     """Regression: under schema-per-guild, Upload rows written through a guild
     request live in guild_<id>.uploads — NOT public.uploads. The serve route
     runs on the admin session (search_path=public) and must still find the row
-    by probing the requester's own guild schemas, otherwise every newly
-    uploaded image 404s (fail-closed SEC-6 turned the old silent fail-open
-    into a visible regression)."""
+    by routing into the requester's ACTIVE guild schema (server-held context),
+    otherwise every newly uploaded image 404s (fail-closed SEC-6 turned the
+    old silent fail-open into a visible regression)."""
     from sqlalchemy import text
 
     from app.db.schema_provisioning import guild_schema_name
@@ -346,17 +355,18 @@ async def test_upload_row_in_guild_schema_is_served(
 
         response = await client.get(
             "/uploads/test_guild_schema_row.txt",
-            headers=get_auth_headers(user),
+            headers=await get_guild_headers(session, guild, user),
         )
         assert response.status_code == 200
         assert response.text == "hello"
 
-        # A user outside the guild never has that schema probed → 404
-        # (existence not confirmed), not the file.
+        # A user outside the guild fails membership validation → 404
+        # (existence not confirmed), not the file — even with their flag
+        # pointed at the guild.
         outsider = await create_user(session, email="outsider-schema@example.com")
         response = await client.get(
             "/uploads/test_guild_schema_row.txt",
-            headers=get_auth_headers(outsider),
+            headers=await get_guild_headers(session, guild, outsider),
         )
         assert response.status_code == 404
     finally:

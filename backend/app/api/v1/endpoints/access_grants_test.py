@@ -344,7 +344,7 @@ async def test_grant_cannot_manage_project_members(
         session, user=support, guild=guild, owner=owner, level="read_write"
     )
 
-    headers = get_guild_headers(guild, support)
+    headers = await get_guild_headers(session, guild, support)
     resp = await client.post(
         f"/api/v1/projects/{project.id}/members",
         json={"user_id": target.id, "level": "write"},
@@ -380,7 +380,7 @@ async def test_grant_cannot_manage_counter_group_access(
         session, user=support, guild=guild, owner=owner, level="read_write"
     )
 
-    headers = get_guild_headers(guild, support)
+    headers = await get_guild_headers(session, guild, support)
     resp = await client.put(
         f"/api/v1/counter-groups/{cg.id}/permissions",
         json=[],
@@ -406,7 +406,7 @@ async def test_grantee_sees_guild_content(client: AsyncClient, session: AsyncSes
     project = await create_project(session, init, owner, name="Alpha Site")
     await _approved_read_grant(session, user=support, guild=guild, owner=owner)
 
-    headers = get_guild_headers(guild, support)
+    headers = await get_guild_headers(session, guild, support)
 
     resp = await client.get("/api/v1/initiatives/", headers=headers)
     assert resp.status_code == 200, resp.text

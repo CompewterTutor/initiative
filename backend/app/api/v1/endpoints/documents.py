@@ -23,11 +23,14 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import (
+    FlexSessionDep,
     RLSSessionDep,
     SessionDep,
     UploadUserDep,
+    ensure_guild_context,
     get_current_active_user,
     get_guild_membership,
+    get_optional_guild_membership,
     GuildContext,
 )
 from app.core.config import settings
@@ -56,7 +59,7 @@ from app.models.initiative import (
 from app.models.property import DocumentPropertyValue
 from app.models.tag import Tag, DocumentTag
 from app.models.user import User
-from app.models.guild import GuildMembership, GuildRole
+from app.models.guild import GuildRole
 from app.schemas.document import (
     DocumentAutocomplete,
     DocumentBacklink,
@@ -88,7 +91,6 @@ from app.schemas.tag import TagSetRequest
 from app.services import attachments as attachments_service
 from app.services import documents as documents_service
 from app.services import initiatives as initiatives_service
-from app.services import membership as membership_service
 from app.services import notifications as notifications_service
 from app.services import permissions as permissions_service
 from app.services import properties as properties_service
@@ -103,6 +105,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
+# Optional context: the list endpoint also serves personal mode (scope=global
+# aggregates across the user's guilds); its single-guild path 409s on None.
+OptionalGuildContextDep = Annotated[
+    Optional[GuildContext], Depends(get_optional_guild_membership)
+]
 
 DOCUMENT_SORT_FIELDS = {
     "title": Document.title,
@@ -568,9 +575,9 @@ async def get_document_counts(
 
 @router.get("/", response_model=DocumentListResponse)
 async def list_documents(
-    session: RLSSessionDep,
+    session: FlexSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    guild_context: GuildContextDep,
+    guild_context: OptionalGuildContextDep,
     initiative_id: Optional[int] = Query(default=None),
     scope: Annotated[Literal["global"] | None, Query()] = None,
     guild_ids: Optional[List[int]] = Query(default=None),
@@ -627,6 +634,10 @@ async def list_documents(
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
+
+    # Non-global (guild-scoped) path — requires a guild context (409 in
+    # personal mode; scope=global above is the personal-mode path).
+    guild_context = ensure_guild_context(guild_context)
 
     if initiative_id is not None:
         await _get_initiative_or_404(
@@ -2271,55 +2282,58 @@ def _download_document_options():
 async def _load_download_document(
     session: AsyncSession, current_user, document_id: int
 ):
-    """Load a file ``Document`` by id from whichever of the REQUESTER'S OWN guild
-    schemas holds it (schema-per-guild), with the eager loads the access check
-    needs.
+    """Load a file ``Document`` by id from the requester's ACTIVE guild schema
+    (server-held context), with the eager loads the access check needs.
 
-    Served via iframe/window.open with no X-Guild-ID header, so we can't route
-    by request context. Documents live in per-guild schemas, so we probe each of
-    the user's guild schemas (membership is shared/public) — never the frozen
-    ``public`` backup, which would 404 new docs and could serve stale ones.
-    Probing only the user's own guilds enforces guild isolation by construction;
-    document-level read permission is still checked by the caller. Leaves the
-    session routed into the found document's guild so a follow-up version query
-    runs in the same schema. Returns the Document or ``None``.
+    Downloads are served via iframe/window.open while the user is viewing the
+    document inside its guild, so ``users.active_guild_id`` (loaded with the
+    user during auth) names exactly the schema to read. Access is re-validated
+    here (membership or live PAM grant — defense in depth on top of the
+    validated context PUT); the frozen ``public`` backup is never read. Leaves
+    the session routed into the guild so a follow-up version query runs in the
+    same schema.
+
+    Returns ``(document, guild_role)`` — role ``None`` for PAM grantees — or
+    ``(None, None)`` when there's no context, no access, no schema, or no such
+    document in the active guild. All of those are an indistinguishable 404 to
+    the caller, so existence is never confirmed across guilds.
     """
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
+    from app.services import access_grants as access_grants_service
+    from app.services import guilds as guilds_service
 
-    member_guild_ids = list(
-        (
-            await session.exec(
-                select(GuildMembership.guild_id).where(
-                    GuildMembership.user_id == current_user.id
-                )
-            )
-        ).all()
+    guild_id = current_user.active_guild_id
+    if guild_id is None:
+        return None, None
+    membership = await guilds_service.get_membership(
+        session, guild_id=guild_id, user_id=current_user.id
     )
-    schema_by_gid = {int(g): guild_schema_name(int(g)) for g in member_guild_ids}
-    existing = {
-        row.nspname
-        for row in (
-            await session.execute(
-                text("SELECT nspname FROM pg_namespace WHERE nspname = ANY(:ns)"),
-                {"ns": list(schema_by_gid.values())},
-            )
-        ).all()
-    }
-    for gid, schema in schema_by_gid.items():
-        if schema not in existing:
-            continue
-        await set_rls_context(session, guild_id=gid, is_superadmin=True)
-        doc = (
-            await session.exec(
-                select(Document)
-                .where(Document.id == document_id)
-                .options(*_download_document_options())
-            )
-        ).one_or_none()
-        if doc is not None:
-            return doc
-    return None
+    guild_role = membership.role if membership is not None else None
+    if membership is None:
+        grant = await access_grants_service.get_live_grant(
+            session, user_id=current_user.id, guild_id=guild_id
+        )
+        if grant is None:
+            return None, None
+
+    schema_exists = (
+        await session.execute(
+            text("SELECT 1 FROM pg_namespace WHERE nspname = :ns"),
+            {"ns": guild_schema_name(int(guild_id))},
+        )
+    ).first()
+    if schema_exists is None:
+        return None, None
+    await set_rls_context(session, guild_id=int(guild_id), is_superadmin=True)
+    doc = (
+        await session.exec(
+            select(Document)
+            .where(Document.id == document_id, Document.guild_id == guild_id)
+            .options(*_download_document_options())
+        )
+    ).one_or_none()
+    return doc, guild_role
 
 
 @router.get("/{document_id}/download", include_in_schema=False)
@@ -2328,14 +2342,15 @@ async def download_document_file(
     request: Request,
     document_id: int,
     current_user: UploadUserDep,
-    # Use AdminSessionDep (not RLSSessionDep) because this endpoint is accessed
-    # via iframe and window.open(), which can't send X-Guild-ID headers. Guild
-    # isolation is enforced by probing only the requester's own guild schemas.
+    # AdminSessionDep (not RLSSessionDep) because the loader routes the
+    # session into the active guild's schema itself after validating access.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
 ) -> FileResponse:
     """Download a file-type document — requires read permission on the document."""
-    document = await _load_download_document(session, current_user, document_id)
+    document, guild_role = await _load_download_document(
+        session, current_user, document_id
+    )
     if (
         document is None
         or document.document_type != DocumentType.file
@@ -2345,14 +2360,8 @@ async def download_document_file(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND
         )
 
-    # Iframe downloads carry no X-Guild-ID, so the request role context is
-    # unset — resolve the user's role in the document's guild explicitly for
-    # the initiative-scope gate's guild-admin leg.
-    guild_role = (
-        await membership_service.guild_role_map(
-            session, document.guild_id, (current_user.id,)
-        )
-    ).get(current_user.id)
+    # ``guild_role`` feeds the initiative-scope gate's guild-admin leg — the
+    # routed session has no request role context of its own here.
     _require_document_access(
         document, current_user, access="read", guild_role=guild_role
     )
@@ -2378,25 +2387,20 @@ async def download_document_file_version(
     document_id: int,
     version_id: int,
     current_user: UploadUserDep,
-    # Same rationale as download_document_file: served via iframe/window.open
-    # which can't send X-Guild-ID, so we use the admin session and enforce
-    # guild isolation directly in the query.
+    # Same rationale as download_document_file: the loader validates access
+    # and routes the admin session into the active guild's schema itself.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
 ) -> FileResponse:
     """Download a specific stored version of a file document — read permission."""
-    document = await _load_download_document(session, current_user, document_id)
+    document, guild_role = await _load_download_document(
+        session, current_user, document_id
+    )
     if document is None or document.document_type != DocumentType.file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND
         )
 
-    # Same rationale as download_document_file: no request role context here.
-    guild_role = (
-        await membership_service.guild_role_map(
-            session, document.guild_id, (current_user.id,)
-        )
-    ).get(current_user.id)
     _require_document_access(
         document, current_user, access="read", guild_role=guild_role
     )

@@ -54,7 +54,7 @@ async def test_list_initiatives_as_admin_shows_all(
     await create_initiative(session, guild, admin, name="Initiative 1")
     await create_initiative(session, guild, admin, name="Initiative 2")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get("/api/v1/initiatives/", headers=headers)
 
     assert response.status_code == 200
@@ -91,7 +91,7 @@ async def test_list_initiatives_as_member_shows_only_membership(
     # Add member to only initiative1
     await create_initiative_member(session, initiative1, member, role_name="member")
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     response = await client.get("/api/v1/initiatives/", headers=headers)
 
     assert response.status_code == 200
@@ -110,7 +110,7 @@ async def test_create_initiative_as_admin(client: AsyncClient, session: AsyncSes
         session, user=admin, guild=guild, role=GuildRole.admin
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "New Initiative",
         "description": "A test initiative",
@@ -137,7 +137,7 @@ async def test_create_initiative_as_member_forbidden(
         session, user=member, guild=guild, role=GuildRole.member
     )
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     payload = {"name": "New Initiative"}
 
     response = await client.post("/api/v1/initiatives/", headers=headers, json=payload)
@@ -161,7 +161,7 @@ async def test_create_initiative_duplicate_name_fails(
     # Create first initiative
     await create_initiative(session, guild, admin, name="Existing Initiative")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"name": "Existing Initiative"}
 
     response = await client.post("/api/v1/initiatives/", headers=headers, json=payload)
@@ -181,7 +181,7 @@ async def test_create_initiative_makes_creator_manager(
         session, user=admin, guild=guild, role=GuildRole.admin
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"name": "New Initiative"}
 
     response = await client.post("/api/v1/initiatives/", headers=headers, json=payload)
@@ -208,7 +208,7 @@ async def test_update_initiative_as_manager(client: AsyncClient, session: AsyncS
         session, guild, manager, name="Test Initiative"
     )
 
-    headers = get_guild_headers(guild, manager)
+    headers = await get_guild_headers(session, guild, manager)
     payload = {"name": "Updated Initiative", "description": "Updated description"}
 
     response = await client.patch(
@@ -240,7 +240,7 @@ async def test_update_initiative_as_admin(client: AsyncClient, session: AsyncSes
         session, guild, manager, name="Manager's Initiative"
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"name": "Admin Updated"}
 
     response = await client.patch(
@@ -272,7 +272,7 @@ async def test_update_initiative_as_regular_member_forbidden(
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     payload = {"name": "Hacked Name"}
 
     response = await client.patch(
@@ -298,7 +298,7 @@ async def test_update_initiative_duplicate_name_fails(
     initiative1 = await create_initiative(session, guild, admin, name="Initiative 1")
     await create_initiative(session, guild, admin, name="Initiative 2")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"name": "Initiative 2"}
 
     response = await client.patch(
@@ -321,7 +321,7 @@ async def test_delete_initiative_as_admin(client: AsyncClient, session: AsyncSes
 
     initiative = await create_initiative(session, guild, admin, name="To Delete")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.delete(
         f"/api/v1/initiatives/{initiative.id}", headers=headers
     )
@@ -346,7 +346,7 @@ async def test_delete_initiative_as_manager_forbidden(
         session, guild, manager, name="Test Initiative"
     )
 
-    headers = get_guild_headers(guild, manager)
+    headers = await get_guild_headers(session, guild, manager)
     response = await client.delete(
         f"/api/v1/initiatives/{initiative.id}", headers=headers
     )
@@ -372,7 +372,7 @@ async def test_delete_default_initiative_forbidden(
         session, guild, admin, name="Default Initiative", is_default=True
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.delete(
         f"/api/v1/initiatives/{initiative.id}", headers=headers
     )
@@ -404,7 +404,7 @@ async def test_get_initiative_members(client: AsyncClient, session: AsyncSession
     await create_initiative_member(session, initiative, member1, role_name="member")
     await create_initiative_member(session, initiative, member2, role_name="member")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get(
         f"/api/v1/initiatives/{initiative.id}/members", headers=headers
     )
@@ -437,7 +437,7 @@ async def test_add_initiative_member_as_manager(
         session, guild, manager, name="Test Initiative"
     )
 
-    headers = get_guild_headers(guild, manager)
+    headers = await get_guild_headers(session, guild, manager)
     payload = {"user_id": new_member.id, "role": "member"}
 
     response = await client.post(
@@ -470,7 +470,7 @@ async def test_add_initiative_member_as_regular_member_forbidden(
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     payload = {"user_id": new_member.id, "role": "member"}
 
     response = await client.post(
@@ -494,7 +494,7 @@ async def test_add_user_not_in_guild_fails(client: AsyncClient, session: AsyncSe
 
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"user_id": outsider.id, "role": "member"}
 
     response = await client.post(
@@ -533,7 +533,7 @@ async def test_update_initiative_member_role(
     )
     pm_role = (await session.exec(pm_role_stmt)).one()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"role_id": pm_role.id}
 
     response = await client.patch(
@@ -564,7 +564,7 @@ async def test_remove_initiative_member(client: AsyncClient, session: AsyncSessi
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.delete(
         f"/api/v1/initiatives/{initiative.id}/members/{member.id}", headers=headers
     )
@@ -590,7 +590,7 @@ async def test_cannot_remove_last_manager(client: AsyncClient, session: AsyncSes
         session, guild, manager, name="Test Initiative"
     )
 
-    headers = get_guild_headers(guild, manager)
+    headers = await get_guild_headers(session, guild, manager)
     response = await client.delete(
         f"/api/v1/initiatives/{initiative.id}/members/{manager.id}", headers=headers
     )
@@ -624,7 +624,7 @@ async def test_cannot_demote_last_manager(client: AsyncClient, session: AsyncSes
     )
     member_role = (await session.exec(member_role_stmt)).one()
 
-    headers = get_guild_headers(guild, manager)
+    headers = await get_guild_headers(session, guild, manager)
     payload = {"role_id": member_role.id}
 
     response = await client.patch(
@@ -658,7 +658,7 @@ async def test_initiative_guild_isolation(client: AsyncClient, session: AsyncSes
     await create_initiative(session, guild2, user, name="Guild 2 Initiative")
 
     # Request with guild1 context
-    headers1 = get_guild_headers(guild1, user)
+    headers1 = await get_guild_headers(session, guild1, user)
     response1 = await client.get("/api/v1/initiatives/", headers=headers1)
 
     assert response1.status_code == 200
@@ -670,7 +670,7 @@ async def test_initiative_guild_isolation(client: AsyncClient, session: AsyncSes
     # Cannot access guild1's initiative with guild2 context. Under schema-per-guild
     # ids are per-schema (not globally unique), so initiative1.id may collide with
     # a guild2 initiative — but it must never resolve to guild1's initiative.
-    headers2 = get_guild_headers(guild2, user)
+    headers2 = await get_guild_headers(session, guild2, user)
     response2 = await client.get(
         f"/api/v1/initiatives/{initiative1.id}", headers=headers2
     )
@@ -714,7 +714,7 @@ async def test_advanced_tool_handoff_returns_404_when_url_unset(
         session, guild, admin, name="Init", advanced_tool_enabled=True
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -744,7 +744,7 @@ async def test_advanced_tool_handoff_returns_403_when_master_switch_off(
         session, guild, admin, name="Init", advanced_tool_enabled=False
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -778,7 +778,7 @@ async def test_advanced_tool_handoff_returns_403_for_non_member(
         session, guild, admin, name="Init", advanced_tool_enabled=True
     )
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -814,7 +814,7 @@ async def test_advanced_tool_handoff_returns_403_when_role_lacks_view_permission
     # default member role (which has advanced_tool_enabled=False)
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -844,7 +844,7 @@ async def test_advanced_tool_handoff_succeeds_for_initiative_manager(
         session, guild, pm, name="Init", advanced_tool_enabled=True
     )
 
-    headers = get_guild_headers(guild, pm)
+    headers = await get_guild_headers(session, guild, pm)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -932,7 +932,7 @@ async def test_advanced_tool_handoff_can_create_false_for_view_only_role(
 
     await create_initiative_member(session, initiative, viewer, role_name="member")
 
-    headers = get_guild_headers(guild, viewer)
+    headers = await get_guild_headers(session, guild, viewer)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )
@@ -977,7 +977,7 @@ async def test_advanced_tool_handoff_succeeds_for_guild_admin_non_member(
     )
     # Admin is intentionally NOT added as an initiative member
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.post(
         f"/api/v1/initiatives/{initiative.id}/advanced-tool/handoff", headers=headers
     )

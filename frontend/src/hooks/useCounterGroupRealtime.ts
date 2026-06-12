@@ -31,7 +31,7 @@ export function useCounterGroupRealtime(groupId: number | null): void {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ token: token ?? null, guild_id: activeGuildId }));
+      ws.send(JSON.stringify({ token: token ?? null }));
     };
 
     ws.onmessage = () => {

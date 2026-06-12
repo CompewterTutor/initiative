@@ -29,6 +29,7 @@ from app.models.initiative import InitiativeMember
 from app.core.capabilities import Capability, user_has_capability
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.user import (
+    GuildContextUpdate,
     UserCreate,
     UserGuildMember,
     UserRead,
@@ -49,6 +50,7 @@ from app.schemas.api_key import (
 )
 from app.schemas.stats import UserStatsResponse
 from app.core.messages import AuthMessages, GuildMessages, UserMessages
+from app.services import access_grants as access_grants_service
 from app.services import notifications as notifications_service
 from app.services import initiatives as initiatives_service
 from app.services import guilds as guilds_service
@@ -79,6 +81,44 @@ async def read_users_me(
     session: UserSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
+    await initiatives_service.load_user_initiative_roles(session, [current_user])
+    return current_user
+
+
+@router.put("/me/guild-context", response_model=UserRead)
+async def set_guild_context(
+    payload: GuildContextUpdate,
+    session: UserSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> User:
+    """Set the server-held guild context for the current user.
+
+    Called by the client exactly when the user clicks a guild (``guild_id``)
+    or the personal page (``null``). Every subsequent request — REST,
+    websocket, download, media load — resolves its guild from this flag, so
+    no per-request guild context exists anywhere else.
+
+    Fail-closed: a guild the user neither belongs to nor holds a live PAM
+    grant for is rejected with 403 without confirming the guild exists.
+    """
+    if payload.guild_id is not None:
+        membership = await guilds_service.get_membership(
+            session, guild_id=payload.guild_id, user_id=current_user.id
+        )
+        if membership is None:
+            grant = await access_grants_service.get_live_grant(
+                session, user_id=current_user.id, guild_id=payload.guild_id
+            )
+            if grant is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=GuildMessages.GUILD_ACCESS_DENIED,
+                )
+    current_user.active_guild_id = payload.guild_id
+    session.add(current_user)
+    await session.commit()
+    await reapply_rls_context(session)
+    await session.refresh(current_user)
     await initiatives_service.load_user_initiative_roles(session, [current_user])
     return current_user
 
@@ -941,4 +981,9 @@ async def delete_user(
     )
 
     await session.delete(membership)
+    # If the removed user was in this guild, drop them to personal mode —
+    # their server-held context must not outlive the membership.
+    await guilds_service.clear_active_guild_context(
+        session, user_id=user_id, guild_id=guild_context.guild_id
+    )
     await session.commit()

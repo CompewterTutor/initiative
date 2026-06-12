@@ -48,16 +48,13 @@ const buildWebsocketUrl = () => {
  * Send authentication message over WebSocket.
  * Must be sent immediately after connection opens.
  *
- * The guild id scopes the socket: the backend only streams events for the
- * declared guild (which the user must belong to), so events never cross the
- * tenancy boundary.
+ * The socket is scoped server-side to the user's server-held guild context
+ * (the backend only streams that guild's events), so the payload carries the
+ * token only. The hook reconnects on guild switch — after the context PUT —
+ * so the subscription always tracks the active guild.
  */
-const sendAuthMessage = (
-  websocket: WebSocket,
-  token: string | null,
-  guildId: number,
-) => {
-  const payload = JSON.stringify({ token, guild_id: guildId });
+const sendAuthMessage = (websocket: WebSocket, token: string | null) => {
+  const payload = JSON.stringify({ token });
   const payloadBytes = new TextEncoder().encode(payload);
   const message = new Uint8Array(1 + payloadBytes.length);
   message[0] = MSG_AUTH;
@@ -147,7 +144,7 @@ export const useRealtimeUpdates = () => {
       websocket.onopen = () => {
         // Send auth message immediately after connection (token not in URL for
         // security). The guild id scopes the stream to the active guild.
-        sendAuthMessage(websocket, token, activeGuildId);
+        sendAuthMessage(websocket, token);
         // Reset failure count on successful connection
         authFailureCountRef.current = 0;
       };

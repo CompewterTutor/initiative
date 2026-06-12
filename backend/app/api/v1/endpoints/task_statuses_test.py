@@ -27,7 +27,7 @@ async def _setup_project(session: AsyncSession):
     await create_guild_membership(session, user=user, guild=guild)
     initiative = await create_initiative(session, guild, user, name="Test Initiative")
     project = await create_project(session, initiative, user, name="Test Project")
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     return project, headers
 
 

@@ -22,6 +22,7 @@ import type {
 
 import type {
   HTTPValidationError,
+  ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   TaskStatusCreate,
   TaskStatusDeleteRequest,
   TaskStatusRead,
@@ -39,19 +40,21 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  */
 export const listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet = (
   projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
   return apiMutator<TaskStatusRead[]>(
-    { url: `/api/v1/projects/${projectId}/task-statuses/`, method: "GET", signal },
+    { url: `/api/v1/projects/${projectId}/task-statuses/`, method: "GET", params, signal },
     options
   );
 };
 
 export const getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey = (
-  projectId: number
+  projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams
 ) => {
-  return [`/api/v1/projects/${projectId}/task-statuses/`] as const;
+  return [`/api/v1/projects/${projectId}/task-statuses/`, ...(params ? [params] : [])] as const;
 };
 
 export const getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryOptions = <
@@ -59,6 +62,7 @@ export const getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryOption
   TError = ErrorType<HTTPValidationError>,
 >(
   projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -74,12 +78,17 @@ export const getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryOption
 
   const queryKey =
     queryOptions?.queryKey ??
-    getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey(projectId);
+    getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryKey(projectId, params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet>>
   > = ({ signal }) =>
-    listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet(projectId, requestOptions, signal);
+    listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet(
+      projectId,
+      params,
+      requestOptions,
+      signal
+    );
 
   return {
     queryKey,
@@ -104,6 +113,7 @@ export function useListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet<
   TError = ErrorType<HTTPValidationError>,
 >(
   projectId: number,
+  params: undefined | ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -129,6 +139,7 @@ export function useListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet<
   TError = ErrorType<HTTPValidationError>,
 >(
   projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -154,6 +165,7 @@ export function useListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet<
   TError = ErrorType<HTTPValidationError>,
 >(
   projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -175,6 +187,7 @@ export function useListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet<
   TError = ErrorType<HTTPValidationError>,
 >(
   projectId: number,
+  params?: ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -189,6 +202,7 @@ export function useListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet<
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetQueryOptions(
     projectId,
+    params,
     options
   );
 

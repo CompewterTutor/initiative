@@ -36,7 +36,7 @@ export function useQueueRealtime(queueId: number | null): void {
 
     ws.onopen = () => {
       // Send auth payload; token may be null for cookie-based web sessions
-      ws.send(JSON.stringify({ token: token ?? null, guild_id: activeGuildId }));
+      ws.send(JSON.stringify({ token: token ?? null }));
     };
 
     ws.onmessage = () => {

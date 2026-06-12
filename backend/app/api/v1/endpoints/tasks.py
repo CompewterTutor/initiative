@@ -23,10 +23,15 @@ from app.schemas.query import FilterOp
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import (
+    AddressedRLSSessionDep,
+    FlexSessionDep,
     RLSSessionDep,
     SessionDep,
+    ensure_guild_context,
+    get_addressed_guild_membership,
     get_current_active_user,
     get_guild_membership,
+    get_optional_guild_membership,
     GuildContext,
 )
 from app.db.session import reapply_rls_context
@@ -272,6 +277,16 @@ def _build_task_filter_fields(
 
 subtasks_router = APIRouter()
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
+# Optional context: the list endpoint also serves personal mode (scope=global
+# aggregates across the user's guilds); its single-guild path 409s on None.
+OptionalGuildContextDep = Annotated[
+    Optional[GuildContext], Depends(get_optional_guild_membership)
+]
+# Addressed context: PATCH is callable from personal-mode surfaces (My Tasks)
+# with an explicit, validated ?guild_id= (guild-context design doc §3.5b).
+AddressedGuildContextDep = Annotated[
+    GuildContext, Depends(get_addressed_guild_membership)
+]
 
 
 async def _next_position(session: SessionDep, project_id: int) -> float:
@@ -1127,9 +1142,9 @@ async def _list_global_created_tasks(
 
 @router.get("/", response_model=TaskListResponse)
 async def list_tasks(
-    session: RLSSessionDep,
+    session: FlexSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    guild_context: GuildContextDep,
+    guild_context: OptionalGuildContextDep,
     scope: Annotated[Literal["global", "global_created"] | None, Query()] = None,
     conditions: Optional[str] = Query(
         default=None,
@@ -1254,7 +1269,9 @@ async def list_tasks(
             )
         )
 
-    # Non-global (guild-scoped) path
+    # Non-global (guild-scoped) path — requires a guild context (409 in
+    # personal mode; the global scopes above are the personal-mode paths).
+    guild_context = ensure_guild_context(guild_context)
     access_conditions = [Initiative.guild_id == guild_context.guild_id]
 
     if not include_archived:
@@ -1452,9 +1469,9 @@ async def read_task(
 async def update_task(
     task_id: int,
     task_in: TaskUpdate,
-    session: RLSSessionDep,
+    session: AddressedRLSSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    guild_context: GuildContextDep,
+    guild_context: AddressedGuildContextDep,
 ) -> Task:
     task = await _fetch_task(session, task_id, guild_context.guild_id)
     if not task:

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, Text, Boolean, String, Integer
+from sqlalchemy import Column, DateTime, ForeignKey, Text, Boolean, String, Integer
 from sqlmodel import Enum as SQLEnum, Field, SQLModel, Relationship
 from pydantic import ConfigDict
 
@@ -76,6 +76,18 @@ class User(SQLModel, table=True):
     token_version: int = Field(
         default=1,
         sa_column=Column(Integer, nullable=False, server_default="1"),
+    )
+    # Server-held guild context: the guild the user is currently in, set by
+    # PUT /users/me/guild-context when they click a guild. NULL = personal
+    # (cross-guild) mode. The FK is ON DELETE SET NULL so deleting a guild
+    # drops its members back to personal mode automatically.
+    active_guild_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("guilds.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
     week_starts_on: int = Field(
         default=0,

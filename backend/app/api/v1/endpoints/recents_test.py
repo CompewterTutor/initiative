@@ -36,7 +36,7 @@ async def test_record_and_list_recent_project(
     user, guild, initiative = await _make_user_with_guild_and_initiative(session)
     project = await create_project(session, initiative, user, name="P1")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     r = await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
     assert r.status_code == 200, r.text
@@ -60,7 +60,7 @@ async def test_record_and_list_recent_queue(client: AsyncClient, session: AsyncS
     )
     queue = await create_queue(session, initiative, user, name="Q1")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     r = await client.post(f"/api/v1/queues/{queue.id}/view", headers=headers)
     assert r.status_code == 200, r.text
@@ -85,7 +85,7 @@ async def test_recents_mixed_ordering(client: AsyncClient, session: AsyncSession
     project = await create_project(session, initiative, user, name="Older project")
     queue = await create_queue(session, initiative, user, name="Newer queue")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     r1 = await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
     assert r1.status_code == 200
@@ -109,7 +109,7 @@ async def test_clear_view_removes_item(client: AsyncClient, session: AsyncSessio
         session, email="clear@example.com"
     )
     project = await create_project(session, initiative, user, name="P")
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
     r = await client.delete(f"/api/v1/projects/{project.id}/view", headers=headers)
@@ -120,8 +120,12 @@ async def test_clear_view_removes_item(client: AsyncClient, session: AsyncSessio
 
 
 @pytest.mark.integration
-async def test_recents_scoped_to_guild(client: AsyncClient, session: AsyncSession):
-    """A recent view in one guild must not surface for a different guild."""
+async def test_recents_are_cross_guild_names_only(
+    client: AsyncClient, session: AsyncSession
+):
+    """The tabs bar shows entities from ANY of the user's guilds, from any
+    context — render metadata only, tagged with the owning guild. Another
+    user never sees them."""
     user = await create_user(session, email="multi@example.com")
 
     guild_a = await create_guild(session)
@@ -132,13 +136,55 @@ async def test_recents_scoped_to_guild(client: AsyncClient, session: AsyncSessio
     guild_b = await create_guild(session)
     await create_guild_membership(session, user=user, guild=guild_b)
 
-    headers_a = get_guild_headers(guild_a, user)
-    headers_b = get_guild_headers(guild_b, user)
+    other = await create_user(session, email="other-multi@example.com")
+    await create_guild_membership(session, user=other, guild=guild_a)
 
-    r = await client.post(f"/api/v1/projects/{project_a.id}/view", headers=headers_a)
+    # Record the view while in guild A...
+    headers = await get_guild_headers(session, guild_a, user)
+    r = await client.post(f"/api/v1/projects/{project_a.id}/view", headers=headers)
     assert r.status_code == 200
 
-    # Guild B should not see the entry recorded under Guild A.
-    r = await client.get("/api/v1/recents/", headers=headers_b)
+    # ...then enter guild B: the tab still renders (name + owning guild).
+    headers = await get_guild_headers(session, guild_b, user)
+    r = await client.get("/api/v1/recents/", headers=headers)
+    assert r.status_code == 200
+    items = r.json()
+    assert [(i["entity_type"], i["entity_id"], i["guild_id"]) for i in items] == [
+        ("project", project_a.id, guild_a.id)
+    ]
+    assert items[0]["name"] == "A's project"
+
+    # The list is the user's own: another member of guild A sees nothing.
+    other_headers = await get_guild_headers(session, guild_a, other)
+    r = await client.get("/api/v1/recents/", headers=other_headers)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+@pytest.mark.integration
+async def test_clear_recent_is_guild_addressed(
+    client: AsyncClient, session: AsyncSession
+):
+    """Closing a tab works from any context via explicit ?guild_id=."""
+    user, guild, initiative = await _make_user_with_guild_and_initiative(
+        session, email="close-tab@example.com"
+    )
+    project = await create_project(session, initiative, user, name="P")
+    other_guild = await create_guild(session)
+    await create_guild_membership(session, user=user, guild=other_guild)
+
+    headers = await get_guild_headers(session, guild, user)
+    await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
+
+    headers = await get_guild_headers(session, other_guild, user)
+
+    # Close guild A's tab while in guild B.
+    r = await client.delete(
+        f"/api/v1/recents/project/{project.id}?guild_id={guild.id}",
+        headers=headers,
+    )
+    assert r.status_code == 204
+
+    r = await client.get("/api/v1/recents/", headers=headers)
     assert r.status_code == 200
     assert r.json() == []

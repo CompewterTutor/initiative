@@ -103,7 +103,7 @@ async def test_put_sets_multiple_property_values(
         session, initiative, name="Count", type=PropertyType.number
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "values": [
             {"property_id": text_defn.id, "value": "alpha"},
@@ -137,7 +137,7 @@ async def test_put_empty_values_clears_existing_values(
         session, initiative, name="Tag", type=PropertyType.text
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     # Populate first
     await client.put(
         f"/api/v1/documents/{doc.id}/properties",
@@ -185,7 +185,7 @@ async def test_put_cross_initiative_definition_rejected(
 
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
         json={"values": [{"property_id": defn_b.id, "value": "x"}]},
     )
     assert response.status_code == 404
@@ -212,7 +212,7 @@ async def test_put_properties_on_foreign_guild_document_returns_404(
 
     response = await client.put(
         f"/api/v1/documents/{doc_b.id}/properties",
-        headers=get_guild_headers(guild_a, user),
+        headers=await get_guild_headers(session, guild_a, user),
         json={"values": []},
     )
 
@@ -241,7 +241,7 @@ async def test_put_text_value_against_number_type_rejected(
 
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
         json={"values": [{"property_id": defn.id, "value": "not a number"}]},
     )
     assert response.status_code == 400
@@ -268,7 +268,7 @@ async def test_put_select_unknown_option_rejected(
 
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
         json={"values": [{"property_id": defn.id, "value": "nope"}]},
     )
     assert response.status_code == 400
@@ -295,7 +295,7 @@ async def test_put_multi_select_unknown_option_rejected(
 
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
         json={"values": [{"property_id": defn.id, "value": ["one", "ghost"]}]},
     )
     assert response.status_code == 400
@@ -324,7 +324,7 @@ async def test_put_user_reference_non_initiative_member_rejected(
 
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
         json={"values": [{"property_id": defn.id, "value": outsider.id}]},
     )
     assert response.status_code == 400
@@ -345,7 +345,7 @@ async def test_put_url_accepts_valid_url_and_rejects_invalid(
         session, initiative, name="Site", type=PropertyType.url
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     # Valid URL
     response = await client.put(
         f"/api/v1/documents/{doc.id}/properties",
@@ -391,7 +391,7 @@ async def test_list_documents_property_filter_text_eq(
         session, initiative=initiative, owner=user, title="Other"
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     await client.put(
         f"/api/v1/documents/{doc_match.id}/properties",
         headers=headers,
@@ -433,7 +433,7 @@ async def test_list_documents_property_filter_number_eq(
         await _create_document(session, initiative=initiative, owner=user, title="D3"),
     ]
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     for doc, score in zip(docs, [10, 20, 30]):
         await client.put(
             f"/api/v1/documents/{doc.id}/properties",
@@ -482,7 +482,7 @@ async def test_list_documents_property_filter_multi_select_contains(
         session, initiative=initiative, owner=user, title="N"
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     await client.put(
         f"/api/v1/documents/{doc_with_alpha.id}/properties",
         headers=headers,
@@ -516,7 +516,7 @@ async def test_list_documents_invalid_property_filters_json_returns_400(
 
     response = await client.get(
         f"/api/v1/documents/?initiative_id={initiative.id}&property_filters=not-json",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "QUERY_INVALID_CONDITIONS"
@@ -537,7 +537,7 @@ async def test_list_documents_too_many_property_filters_returns_400(
     )
     response = await client.get(
         f"/api/v1/documents/?initiative_id={initiative.id}&property_filters={filt}",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "QUERY_INVALID_CONDITIONS"
@@ -565,7 +565,7 @@ async def test_duplicate_document_same_initiative_carries_property_values(
         session, initiative, name="Tag", type=PropertyType.text
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     await client.put(
         f"/api/v1/documents/{doc.id}/properties",
         headers=headers,
@@ -609,7 +609,7 @@ async def test_copy_document_cross_initiative_drops_property_values(
         session, init_a, name="Tag", type=PropertyType.text
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     await client.put(
         f"/api/v1/documents/{doc.id}/properties",
         headers=headers,

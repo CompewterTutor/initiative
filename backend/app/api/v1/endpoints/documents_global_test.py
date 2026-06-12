@@ -19,9 +19,9 @@ from app.testing.factories import (
 )
 
 
-async def _create_document(client, guild, user, initiative, title="Test Doc"):
+async def _create_document(client, session, guild, user, initiative, title="Test Doc"):
     """Create a document via the API (sets created_by_id automatically)."""
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "title": title,
         "initiative_id": initiative.id,
@@ -45,9 +45,9 @@ async def test_list_global_documents(client: AsyncClient, session: AsyncSession)
     user = await create_user(session, email="user@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
-    doc = await _create_document(client, guild, user, initiative, "My Doc")
+    doc = await _create_document(client, session, guild, user, initiative, "My Doc")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/documents/?scope=global", headers=headers)
 
     assert response.status_code == 200
@@ -68,10 +68,12 @@ async def test_list_global_documents_excludes_others(
     await create_guild_membership(session, user=other, guild=guild)
 
     # Admin creates a doc (via API, so created_by_id is set)
-    admin_doc = await _create_document(client, guild, admin, initiative, "Admin's Doc")
+    admin_doc = await _create_document(
+        client, session, guild, admin, initiative, "Admin's Doc"
+    )
 
     # Other user queries global docs — should not see admin's doc
-    headers = get_guild_headers(guild, other)
+    headers = await get_guild_headers(session, guild, other)
     response = await client.get("/api/v1/documents/?scope=global", headers=headers)
 
     assert response.status_code == 200
@@ -92,10 +94,14 @@ async def test_list_global_documents_guild_filter(
         session, user, guild_name="Guild 2"
     )
 
-    doc1 = await _create_document(client, guild1, user, init1, "Doc in Guild 1")
-    doc2 = await _create_document(client, guild2, user, init2, "Doc in Guild 2")
+    doc1 = await _create_document(
+        client, session, guild1, user, init1, "Doc in Guild 1"
+    )
+    doc2 = await _create_document(
+        client, session, guild2, user, init2, "Doc in Guild 2"
+    )
 
-    headers = get_guild_headers(guild1, user)
+    headers = await get_guild_headers(session, guild1, user)
 
     def keyed(resp):
         return {(d["initiative"]["guild_id"], d["id"]) for d in resp.json()["items"]}
@@ -124,10 +130,12 @@ async def test_list_global_documents_search(client: AsyncClient, session: AsyncS
     user = await create_user(session, email="user@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
-    await _create_document(client, guild, user, initiative, "Architecture Notes")
-    await _create_document(client, guild, user, initiative, "Meeting Summary")
+    await _create_document(
+        client, session, guild, user, initiative, "Architecture Notes"
+    )
+    await _create_document(client, session, guild, user, initiative, "Meeting Summary")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get(
         "/api/v1/documents/?scope=global&search=architecture", headers=headers
     )
@@ -147,9 +155,9 @@ async def test_list_global_documents_pagination(
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
     for i in range(3):
-        await _create_document(client, guild, user, initiative, f"Doc {i}")
+        await _create_document(client, session, guild, user, initiative, f"Doc {i}")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     # Page 1 with page_size=2
     response = await client.get(

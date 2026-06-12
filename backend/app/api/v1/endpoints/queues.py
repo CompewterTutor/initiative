@@ -1269,7 +1269,8 @@ async def websocket_queue(
     """WebSocket for real-time queue updates (server-to-client broadcast).
 
     Protocol:
-    1. Client connects and sends JSON: {"token": "...", "guild_id": 123}
+    1. Client connects and sends JSON: {"token": "..."} — the guild comes
+       from the user's server-held context (users.active_guild_id)
     2. Server validates auth and initiative membership
     3. Server broadcasts JSON events as queue state changes
     4. Client keeps connection alive; no client-to-server data expected
@@ -1287,13 +1288,11 @@ async def websocket_queue(
         raw = await websocket.receive_text()
         auth_payload = json.loads(raw)
         token = auth_payload.get("token")
-        guild_id = auth_payload.get("guild_id")
         if not token:
             token = websocket.cookies.get(settings.COOKIE_NAME)
-        if not token or guild_id is None:
+        if not token:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-        guild_id = int(guild_id)
     except (json.JSONDecodeError, ValueError, WebSocketDisconnect):
         try:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -1306,6 +1305,14 @@ async def websocket_queue(
         user = await _ws_authenticate(token, session)
         if not user:
             logger.warning(f"Queue WS: auth failed for queue {queue_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # The queue lives in the user's server-held guild context (the page
+        # opening this socket required entering its guild first).
+        guild_id = user.active_guild_id
+        if guild_id is None:
+            logger.warning(f"Queue WS: user {user.id} has no guild context")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 

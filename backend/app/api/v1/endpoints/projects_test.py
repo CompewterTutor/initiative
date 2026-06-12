@@ -80,7 +80,7 @@ async def test_list_projects_as_admin_shows_all(
     session.add(project2)
     await session.commit()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get("/api/v1/projects/", headers=headers)
 
     assert response.status_code == 200
@@ -127,7 +127,7 @@ async def test_list_projects_member_sees_initiative_projects(
     session.add(member_permission)
     await session.commit()
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     response = await client.get("/api/v1/projects/", headers=headers)
 
     assert response.status_code == 200
@@ -155,7 +155,7 @@ async def test_list_projects_excludes_archived_by_default(
     session.add(project)
     await session.commit()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get("/api/v1/projects/", headers=headers)
 
     assert response.status_code == 200
@@ -181,7 +181,7 @@ async def test_list_projects_with_archived_filter(
     session.add(project)
     await session.commit()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get("/api/v1/projects/?archived=true", headers=headers)
 
     assert response.status_code == 200
@@ -201,7 +201,7 @@ async def test_create_project(client: AsyncClient, session: AsyncSession):
 
     initiative = await _create_initiative_with_member(session, guild, admin)
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "New Project",
         "description": "Project description",
@@ -226,7 +226,7 @@ async def test_create_project_as_member(client: AsyncClient, session: AsyncSessi
 
     initiative = await _create_initiative_with_member(session, guild, member)
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     payload = {
         "name": "Member Project",
         "initiative_id": initiative.id,
@@ -254,7 +254,7 @@ async def test_create_project_not_in_initiative_forbidden(
 
     initiative = await _create_initiative_with_member(session, guild, admin)
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     payload = {
         "name": "Forbidden Project",
         "initiative_id": initiative.id,
@@ -277,7 +277,7 @@ async def test_get_project_by_id(client: AsyncClient, session: AsyncSession):
     initiative = await _create_initiative_with_member(session, guild, admin)
     project = await _create_project(session, initiative, admin)
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get(f"/api/v1/projects/{project.id}", headers=headers)
 
     assert response.status_code == 200
@@ -295,7 +295,7 @@ async def test_get_project_not_found(client: AsyncClient, session: AsyncSession)
         session, user=admin, guild=guild, role=GuildRole.admin
     )
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.get("/api/v1/projects/99999", headers=headers)
 
     assert response.status_code == 404
@@ -311,7 +311,7 @@ async def test_update_project_as_owner(client: AsyncClient, session: AsyncSessio
     initiative = await _create_initiative_with_member(session, guild, owner)
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     payload = {"name": "Updated Name", "description": "Updated description"}
 
     response = await client.patch(
@@ -350,7 +350,7 @@ async def test_update_project_as_admin(client: AsyncClient, session: AsyncSessio
     session.add(admin_permission)
     await session.commit()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {"name": "Admin Updated"}
 
     response = await client.patch(
@@ -376,7 +376,7 @@ async def test_update_project_without_permission_forbidden(
     initiative = await _create_initiative_with_member(session, guild, owner)
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     payload = {"name": "Hacked Name"}
 
     response = await client.patch(
@@ -396,7 +396,7 @@ async def test_delete_project_as_owner(client: AsyncClient, session: AsyncSessio
     initiative = await _create_initiative_with_member(session, guild, owner)
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.delete(f"/api/v1/projects/{project.id}", headers=headers)
 
     assert response.status_code == 204
@@ -428,7 +428,7 @@ async def test_delete_project_as_admin(client: AsyncClient, session: AsyncSessio
     session.add(admin_permission)
     await session.commit()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     response = await client.delete(f"/api/v1/projects/{project.id}", headers=headers)
 
     assert response.status_code == 204
@@ -448,7 +448,7 @@ async def test_delete_project_without_permission_forbidden(
     initiative = await _create_initiative_with_member(session, guild, owner)
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     response = await client.delete(f"/api/v1/projects/{project.id}", headers=headers)
 
     assert response.status_code == 403
@@ -464,7 +464,7 @@ async def test_archive_project(client: AsyncClient, session: AsyncSession):
     initiative = await _create_initiative_with_member(session, guild, owner)
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         f"/api/v1/projects/{project.id}/archive", headers=headers
     )
@@ -487,7 +487,7 @@ async def test_unarchive_project(client: AsyncClient, session: AsyncSession):
     session.add(project)
     await session.commit()
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         f"/api/v1/projects/{project.id}/unarchive", headers=headers
     )
@@ -507,7 +507,7 @@ async def test_add_project_favorite(client: AsyncClient, session: AsyncSession):
     initiative = await _create_initiative_with_member(session, guild, user)
     project = await _create_project(session, initiative, user)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.post(
         f"/api/v1/projects/{project.id}/favorite", headers=headers
     )
@@ -534,7 +534,7 @@ async def test_remove_project_favorite(client: AsyncClient, session: AsyncSessio
     session.add(favorite)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.delete(
         f"/api/v1/projects/{project.id}/favorite", headers=headers
     )
@@ -561,7 +561,7 @@ async def test_list_favorite_projects(client: AsyncClient, session: AsyncSession
     session.add(favorite)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/projects/favorites", headers=headers)
 
     assert response.status_code == 200
@@ -580,7 +580,7 @@ async def test_mark_project_as_viewed(client: AsyncClient, session: AsyncSession
     initiative = await _create_initiative_with_member(session, guild, user)
     project = await _create_project(session, initiative, user)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.post(f"/api/v1/projects/{project.id}/view", headers=headers)
 
     assert response.status_code == 200
@@ -608,7 +608,7 @@ async def test_add_project_member(client: AsyncClient, session: AsyncSession):
 
     project = await _create_project(session, initiative, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     payload = {"user_id": new_member.id, "level": "write"}
 
     response = await client.post(
@@ -644,7 +644,7 @@ async def test_remove_project_member(client: AsyncClient, session: AsyncSession)
     session.add(permission)
     await session.commit()
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.delete(
         f"/api/v1/projects/{project.id}/members/{member.id}", headers=headers
     )
@@ -678,7 +678,7 @@ async def test_project_guild_isolation(client: AsyncClient, session: AsyncSessio
     await factory_create_project(session, initiative2, user, name="Guild 2 Project")
 
     # Request with guild1 context
-    headers1 = get_guild_headers(guild1, user)
+    headers1 = await get_guild_headers(session, guild1, user)
     response1 = await client.get("/api/v1/projects/", headers=headers1)
 
     assert response1.status_code == 200
@@ -690,7 +690,7 @@ async def test_project_guild_isolation(client: AsyncClient, session: AsyncSessio
     # Cannot access guild1's project with guild2 context. Under schema-per-guild
     # ids are per-schema (not globally unique), so project1.id may collide with a
     # guild2 project — but it must never resolve to guild1's project.
-    headers2 = get_guild_headers(guild2, user)
+    headers2 = await get_guild_headers(session, guild2, user)
     response2 = await client.get(f"/api/v1/projects/{project1.id}", headers=headers2)
 
     if response2.status_code == 200:
@@ -717,7 +717,7 @@ async def test_create_project_with_user_permissions(
     initiative = await _create_initiative_with_member(session, guild, admin)
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "Project With Permissions",
         "initiative_id": initiative.id,
@@ -764,7 +764,7 @@ async def test_create_project_with_role_permissions(
     )
     member_role = result.one()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "Project With Role Perms",
         "initiative_id": initiative.id,
@@ -795,7 +795,7 @@ async def test_create_project_without_permissions(
 
     initiative = await _create_initiative_with_member(session, guild, admin)
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "Project No Extra Perms",
         "initiative_id": initiative.id,
@@ -830,7 +830,7 @@ async def test_create_project_skips_owner_level_grants(
     initiative = await _create_initiative_with_member(session, guild, admin)
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "Project Owner Skip",
         "initiative_id": initiative.id,
@@ -877,7 +877,7 @@ async def test_create_project_rejects_foreign_initiative_role(
     )
     foreign_role = result.one()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "name": "Project Cross Initiative",
         "initiative_id": initiative_a.id,

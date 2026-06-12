@@ -5,10 +5,11 @@ import {
   Outlet,
   redirect,
   useLocation,
+  useNavigate,
   useSearch,
 } from "@tanstack/react-router";
 import { Loader2, LogOut, Menu, Plus, Search, Settings, Ticket, UserCog } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { RecentItemRead } from "@/api/generated/initiativeAPI.schemas";
@@ -27,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { VersionDialog } from "@/components/VersionDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useBackButton } from "@/hooks/useBackButton";
-import { useGuilds } from "@/hooks/useGuilds";
+import { GUILD_CONTEXT_CONVERGED_EVENT, useGuilds } from "@/hooks/useGuilds";
 import { useLegacyFilterStorageMigration } from "@/hooks/useLegacyFilterStorageMigration";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
@@ -83,13 +84,14 @@ function AppLayout() {
   );
   const shortcutLabel = isMac ? "\u2318K" : "Ctrl+K";
   const {
-    activeGuildId,
     guilds,
     loading: guildsLoading,
     canCreateGuilds,
     createGuild,
+    syncPersonalContext,
   } = useGuilds();
   const location = useLocation();
+  const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { authenticated?: string };
   // Check if we just authenticated (search param passed via navigation)
   const justAuthenticated = search?.authenticated === "1";
@@ -100,8 +102,33 @@ function AppLayout() {
   useBackButton();
   useLegacyFilterStorageMigration();
 
+  // Landing on the personal home page enters personal (cross-guild) mode
+  // server-side; guild routes set their context in the /g/$guildId layout.
+  useEffect(() => {
+    if (user && location.pathname === "/") {
+      void syncPersonalContext();
+    }
+  }, [user, location.pathname, syncPersonalContext]);
+
+  // Cross-tab convergence: when another tab switched guilds and this tab is
+  // sitting on a guild URL that no longer matches, follow the switch instead
+  // of repainting the old URL with the new guild's data.
+  useEffect(() => {
+    const onConverged = (event: Event) => {
+      const guildId = (event as CustomEvent<{ guildId: number }>).detail?.guildId;
+      const match = window.location.pathname.match(/^\/g\/(\d+)/);
+      if (guildId && match && Number(match[1]) !== guildId) {
+        void navigate({ to: "/g/$guildId", params: { guildId: String(guildId) } });
+      }
+    };
+    window.addEventListener(GUILD_CONTEXT_CONVERGED_EVENT, onConverged);
+    return () => window.removeEventListener(GUILD_CONTEXT_CONVERGED_EVENT, onConverged);
+  }, [navigate]);
+
+  // The tabs bar is cross-guild by design (names only): one user-context
+  // query, valid in any guild and in personal mode.
   const recentQuery = useRecents({
-    enabled: activeGuildId !== null && !loading && !!user,
+    enabled: !loading && !!user,
     staleTime: 30_000,
   });
 
@@ -121,8 +148,8 @@ function AppLayout() {
 
   // No-guild empty-state branch. The user-scoped settings routes
   // (``/profile/*``) and platform-admin settings (``/settings/admin/*``
-  // for an admin) don't need guild context — the APIs they call don't
-  // require an ``X-Guild-ID`` header — and a user with zero
+  // for an admin) don't need guild context — the APIs they call work
+  // without a server-held guild — and a user with zero
   // memberships would otherwise have no path to delete their account
   // or, for platform admins, configure system-wide settings. The
   // path-based decision lives in ``chooseNoGuildLayout`` so it can be
@@ -151,7 +178,11 @@ function AppLayout() {
   }
 
   const handleClearRecent = (item: RecentItemRead) => {
-    clearRecent.mutate({ entityType: item.entity_type, entityId: item.entity_id });
+    clearRecent.mutate({
+      entityType: item.entity_type,
+      entityId: item.entity_id,
+      guildId: item.guild_id,
+    });
   };
 
   const activeRecentKey = getActiveRecentKey(location.pathname);

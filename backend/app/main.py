@@ -119,6 +119,28 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+
+class ResolvedGuildHeaderMiddleware(BaseHTTPMiddleware):
+    """Echo the guild a request actually resolved to.
+
+    Guild context is server-held (``users.active_guild_id``); the resolver
+    stamps ``request.state.resolved_guild_id`` whenever a request bound to a
+    guild. Echoing it as ``X-Resolved-Guild`` lets the client discard any
+    in-flight response that resolved under a context it has since switched
+    away from — the race becomes a dropped-and-refetched response instead of
+    stale-guild data painting into the new context.
+    """
+
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
+        response = await call_next(request)
+        resolved = getattr(request.state, "resolved_guild_id", None)
+        if resolved is not None:
+            response.headers["X-Resolved-Guild"] = str(resolved)
+        return response
+
+
+app.add_middleware(ResolvedGuildHeaderMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     # Explicit allowlist (never "*"): wildcard + allow_credentials reflects any
@@ -127,6 +149,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Cross-origin (native) clients need to read the context echo.
+    expose_headers=["X-Resolved-Guild"],
 )
 
 
@@ -138,13 +162,11 @@ async def serve_upload_file(
     current_user: Annotated[User, Depends(get_upload_user)],
     session: Annotated[AsyncSession, Depends(get_admin_session)],
 ) -> FileResponse:
-    """Serve an uploaded file — requires authentication and guild membership."""
+    """Serve an uploaded file — requires authentication and an Upload row in
+    the requester's ACTIVE guild."""
     from pathlib import Path as FilePath
 
     from sqlalchemy import text
-    from sqlmodel import select
-
-    from app.models.guild import GuildMembership
 
     try:
         file_path = (uploads_path / filename).resolve()
@@ -154,66 +176,54 @@ async def serve_upload_file(
     if not file_path.is_file():
         raise HTTPException(status_code=404)
 
-    # Guild authorization: look up the Upload record and verify membership.
-    # Fail closed: a blob on disk without a matching Upload row in a guild the
-    # requester belongs to has no owning guild to authorize against, so we 404
-    # (don't confirm existence) rather than serve it cross-guild.
-    #
-    # ``uploads`` is guild-scoped under schema-per-guild: every live row lives
-    # in ``guild_<id>.uploads``. This route runs on the admin session
-    # (``search_path=public``), and the ``public.uploads`` copy is a frozen
-    # pre-conversion BACKUP — never read it, or new uploads 404 and old ones
-    # serve stale. Instead, resolve membership → schema: enumerate the
-    # requester's guilds (``guild_memberships`` is a shared/public table — the
-    # correct place to read it), then probe each of THEIR OWN guild schemas for
-    # the filename. A row in a guild the user doesn't belong to is never looked
-    # at, so an outsider always 404s without existence being confirmed, and a
-    # hit in one of the requester's schemas establishes membership by
-    # construction.
+    # Guild authorization via the server-held context: media is referenced by
+    # pages inside a guild, and the user row (loaded during auth) carries the
+    # guild they're in (``users.active_guild_id``). Resolve → validate access
+    # (membership or live PAM grant — defense in depth on top of the validated
+    # context PUT) → route into that ONE guild schema and look the filename up
+    # there. Fail closed: no context, no access, no schema, or no Upload row in
+    # the active guild all 404 without confirming the blob exists. The frozen
+    # ``public.uploads`` backup is never read.
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
+    from app.services import access_grants as access_grants_service
+    from app.services import guilds as guilds_service
 
+    guild_id = current_user.active_guild_id
+    if guild_id is None:
+        raise HTTPException(status_code=404)
+    membership = await guilds_service.get_membership(
+        session, guild_id=guild_id, user_id=current_user.id
+    )
+    if membership is None:
+        grant = await access_grants_service.get_live_grant(
+            session, user_id=current_user.id, guild_id=guild_id
+        )
+        if grant is None:
+            raise HTTPException(status_code=404)
+
+    # The admin login role has NO table grants on a guild schema, so SET ROLE
+    # into the guild role (``set_rls_context``) before reading its ``uploads``
+    # — and only if the schema actually exists (pg_namespace is readable by
+    # any role; SET ROLE into a missing role would error).
     fname = FilePath(filename).name
-    member_guild_ids = [
-        row.guild_id
-        for row in (
-            await session.execute(
-                select(GuildMembership.guild_id).where(
-                    GuildMembership.user_id == current_user.id
-                )
-            )
-        ).all()
-    ]
-    # Only probe guilds whose schema actually exists (pg_namespace is a system
-    # catalog readable by any role). The admin login role has NO table grants on
-    # a guild schema, so we must SET ROLE into the guild role to read it —
-    # ``set_rls_context`` does that. A bare ``SELECT FROM "guild_<id>".uploads``
-    # as the admin role fails with "permission denied for schema".
-    schema_by_gid = {int(gid): guild_schema_name(int(gid)) for gid in member_guild_ids}
-    existing = {
-        row.nspname
-        for row in (
-            await session.execute(
-                text("SELECT nspname FROM pg_namespace WHERE nspname = ANY(:ns)"),
-                {"ns": list(schema_by_gid.values())},
-            )
-        ).all()
-    }
-    found = False
-    for gid, schema in schema_by_gid.items():
-        if schema not in existing:
-            continue
-        await set_rls_context(session, guild_id=gid, is_superadmin=True)
-        hit = (
-            await session.execute(
-                text("SELECT 1 FROM uploads WHERE filename = :fn LIMIT 1"),
-                {"fn": fname},
-            )
-        ).first()
-        if hit is not None:
-            found = True
-            break
-    if not found:
+    schema = guild_schema_name(int(guild_id))
+    exists = (
+        await session.execute(
+            text("SELECT 1 FROM pg_namespace WHERE nspname = :ns"),
+            {"ns": schema},
+        )
+    ).first()
+    if exists is None:
+        raise HTTPException(status_code=404)
+    await set_rls_context(session, guild_id=int(guild_id), is_superadmin=True)
+    hit = (
+        await session.execute(
+            text("SELECT 1 FROM uploads WHERE filename = :fn LIMIT 1"),
+            {"fn": fname},
+        )
+    ).first()
+    if hit is None:
         raise HTTPException(status_code=404)
 
     headers: dict[str, str] = {}

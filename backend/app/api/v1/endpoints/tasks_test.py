@@ -95,7 +95,7 @@ async def test_list_tasks_in_project(client: AsyncClient, session: AsyncSession)
     task1 = await _create_task(session, project, "Task 1")
     task2 = await _create_task(session, project, "Task 2")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     conditions = json.dumps([{"field": "project_id", "op": "eq", "value": project.id}])
     response = await client.get(
         f"/api/v1/tasks/?conditions={conditions}", headers=headers
@@ -125,7 +125,7 @@ async def test_create_task(client: AsyncClient, session: AsyncSession):
     status = await task_statuses_service.get_default_status(session, project.id)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "title": "New Task",
         "description": "Task description",
@@ -163,7 +163,7 @@ async def test_create_task_requires_project_access(
     status = await task_statuses_service.get_default_status(session, project.id)
     await session.commit()
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     payload = {
         "title": "Forbidden Task",
         "project_id": project.id,
@@ -186,7 +186,7 @@ async def test_get_task_by_id(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get(f"/api/v1/tasks/{task.id}", headers=headers)
 
     assert response.status_code == 200
@@ -202,7 +202,7 @@ async def test_get_task_not_found(client: AsyncClient, session: AsyncSession):
     guild = await create_guild(session)
     await create_guild_membership(session, user=user, guild=guild)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/tasks/99999", headers=headers)
 
     assert response.status_code == 404
@@ -219,7 +219,7 @@ async def test_update_task(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"title": "Updated Title", "description": "Updated description"}
 
     response = await client.patch(
@@ -247,7 +247,7 @@ async def test_update_task_without_permission_forbidden(
     project = await _create_project(session, initiative, owner)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     payload = {"title": "Hacked Title"}
 
     response = await client.patch(
@@ -268,7 +268,7 @@ async def test_delete_task(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.delete(f"/api/v1/tasks/{task.id}", headers=headers)
 
     assert response.status_code == 204
@@ -289,7 +289,7 @@ async def test_delete_task_without_permission_forbidden(
     project = await _create_project(session, initiative, owner)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     response = await client.delete(f"/api/v1/tasks/{task.id}", headers=headers)
 
     assert response.status_code == 403
@@ -314,7 +314,7 @@ async def test_assign_user_to_task(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"assignee_ids": [assignee.id]}
 
     response = await client.patch(
@@ -351,7 +351,7 @@ async def test_move_task_to_different_project(
     target_status = await task_statuses_service.get_default_status(session, project2.id)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "target_project_id": project2.id,
         "target_status_id": target_status.id,
@@ -377,7 +377,7 @@ async def test_duplicate_task(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project, "Original Task")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.post(
         f"/api/v1/tasks/{task.id}/duplicate", headers=headers, json={}
     )
@@ -400,7 +400,7 @@ async def test_create_subtask(client: AsyncClient, session: AsyncSession):
     project = await _create_project(session, initiative, user)
     task = await _create_task(session, project)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"content": "Subtask content"}
 
     response = await client.post(
@@ -434,7 +434,7 @@ async def test_list_subtasks(client: AsyncClient, session: AsyncSession):
     session.add(subtask2)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get(f"/api/v1/tasks/{task.id}/subtasks", headers=headers)
 
     assert response.status_code == 200
@@ -467,7 +467,7 @@ async def test_reorder_subtasks(client: AsyncClient, session: AsyncSession):
     await session.refresh(subtask1)
     await session.refresh(subtask2)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "items": [
             {"id": subtask2.id, "position": 0},
@@ -498,7 +498,7 @@ async def test_reorder_tasks(client: AsyncClient, session: AsyncSession):
     task2 = await _create_task(session, project, "Task 2")
     task3 = await _create_task(session, project, "Task 3")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "project_id": project.id,
         "items": [
@@ -557,7 +557,7 @@ async def test_reorder_single_task_returns_only_affected(
     session.add_all([task1, task2, task3])
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "project_id": project.id,
         "items": [
@@ -601,7 +601,7 @@ async def test_reorder_rebalances_on_precision_exhaustion(
     await session.commit()
     task2_updated_before = task2.updated_at
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "project_id": project.id,
         # Drop task3 into the exhausted gap (its position collides with task2),
@@ -651,7 +651,7 @@ async def test_task_guild_isolation(client: AsyncClient, session: AsyncSession):
     task1 = await _create_task(session, project1)
 
     # Cannot access guild1 task with guild2 context
-    headers2 = get_guild_headers(guild2, user)
+    headers2 = await get_guild_headers(session, guild2, user)
     response2 = await client.get(f"/api/v1/tasks/{task1.id}", headers=headers2)
 
     assert response2.status_code == 404
@@ -680,7 +680,7 @@ async def test_list_my_tasks(client: AsyncClient, session: AsyncSession):
     session.add(TaskAssignee(task_id=other_task.id, user_id=other_user.id))
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     conditions = json.dumps([{"field": "assignee_ids", "op": "in_", "value": ["me"]}])
     response = await client.get(
         f"/api/v1/tasks/?conditions={conditions}", headers=headers
@@ -730,7 +730,7 @@ async def test_list_global_tasks_guild_ids_filter(
     session.add(TaskAssignee(task_id=task_in_guild2.id, user_id=user.id))
     await session.commit()
 
-    headers = get_guild_headers(guild1, user)
+    headers = await get_guild_headers(session, guild1, user)
 
     def keyed(resp):
         # Task ids are per-guild (per-schema); key by (guild_id, id).
@@ -792,7 +792,7 @@ async def test_filter_tasks_by_status(client: AsyncClient, session: AsyncSession
     session.add(task2)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     conditions = json.dumps(
         [
             {"field": "project_id", "op": "eq", "value": project.id},
@@ -855,7 +855,7 @@ async def test_rolling_recurrence_preserves_due_time(
     await session.refresh(task)
 
     # Mark the task as done (simulating completion at a different time like 12:34)
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.patch(
         f"/api/v1/tasks/{task.id}",
         headers=headers,
@@ -931,7 +931,7 @@ async def test_fixed_recurrence_uses_original_due_date(
     await session.refresh(task)
 
     # Mark the task as done
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.patch(
         f"/api/v1/tasks/{task.id}",
         headers=headers,
@@ -1006,7 +1006,7 @@ async def test_rolling_recurrence_with_midnight_time(
     await session.refresh(task)
 
     # Mark the task as done
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.patch(
         f"/api/v1/tasks/{task.id}",
         headers=headers,

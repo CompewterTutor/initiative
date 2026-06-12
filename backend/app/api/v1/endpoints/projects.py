@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import (
     RLSSessionDep,
     SessionDep,
+    UserSessionDep,
     get_current_active_user,
     get_guild_membership,
     GuildContext,
@@ -1004,9 +1005,10 @@ async def list_writable_projects(
 
 @router.get("/global", response_model=ProjectListResponse)
 async def list_global_projects(
-    session: RLSSessionDep,
+    # No guild context: this aggregate works identically in a guild and in
+    # personal mode — it routes per member guild itself.
+    session: UserSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
-    guild_context: GuildContextDep,
     guild_ids: Optional[List[int]] = Query(default=None),
     search: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),

@@ -5,8 +5,9 @@ JWTs minted by initiative-auto:
 
 * signature, audience, issuer (negative tests against tampered tokens)
 * one-shot replay rejection via the jti blocklist
-* guild_id JWT claim must match the X-Guild-ID request header when both
-  are present
+* the guild_id JWT claim pins the request's guild context (it takes
+  precedence over the named user's server-held ``active_guild_id`` flag
+  and is validated against the user's memberships like any context)
 * deactivated users can't be impersonated even with a valid token
 
 These don't repeat the unit tests on token issuance — those live next
@@ -28,7 +29,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import config as config_module
 from app.models.user import UserStatus
-from app.testing.factories import create_user
+from app.testing.factories import (
+    create_guild,
+    create_guild_membership,
+    create_user,
+    get_guild_headers,
+)
 
 
 # A fresh keypair per test session — keeps signatures from leaking between
@@ -111,50 +117,57 @@ async def test_delegation_token_is_one_shot(client: AsyncClient, session: AsyncS
 
 
 @pytest.mark.integration
-async def test_delegation_rejects_guild_mismatch(
+async def test_delegation_token_guild_claim_pins_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """A token issued for guild 42 must not authenticate a request that
-    sets X-Guild-ID: 99 — even if the user is a member of both. Stops
+    """The token's guild_id claim IS the request's guild context — it takes
+    precedence over whatever guild the human happens to be in, and it is
+    validated against the user's memberships like any other context. A token
+    minted for a guild the user can't access must not reach guild data even
+    while the user's own flag points at a guild they CAN access. Stops
     cross-guild lateral movement using a single delegation."""
     user = await create_user(session, email="cross-guild@example.com")
-    token = _mint_delegation(user_id=user.id, guild_id=42)
+    guild = await create_guild(session, creator=user)
+    await create_guild_membership(session, user=user, guild=guild)
+    # The human is legitimately in their own guild...
+    await get_guild_headers(session, guild, user)
+    # ...but the workflow's token names a guild they have no access to.
+    token = _mint_delegation(user_id=user.id, guild_id=guild.id + 999)
 
     response = await client.get(
-        "/api/v1/users/me",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-Guild-ID": "99",
-        },
+        "/api/v1/initiatives/",
+        headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 401
+    assert response.status_code == 403
+    assert response.json()["detail"] == "GUILD_ACCESS_DENIED"
 
 
 @pytest.mark.integration
-async def test_delegation_allows_matching_guild_header(
+async def test_delegation_token_guild_claim_provides_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """The header check is permissive when JWT.guild_id == X-Guild-ID —
-    the typical happy path with a guild-scoped endpoint."""
+    """A machine caller has no server-held context of its own: the token's
+    guild_id claim supplies it, so a guild-scoped endpoint works even while
+    the named user is in personal mode (flag NULL)."""
     user = await create_user(session, email="happy-path@example.com")
-    token = _mint_delegation(user_id=user.id, guild_id=42)
+    guild = await create_guild(session, creator=user)
+    await create_guild_membership(session, user=user, guild=guild)
+    assert user.active_guild_id is None  # personal mode
+    token = _mint_delegation(user_id=user.id, guild_id=guild.id)
 
     response = await client.get(
-        "/api/v1/users/me",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-Guild-ID": "42",
-        },
+        "/api/v1/initiatives/",
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
 
 
 @pytest.mark.integration
-async def test_delegation_allows_missing_guild_header(
+async def test_delegation_works_on_cross_guild_endpoints(
     client: AsyncClient, session: AsyncSession
 ):
-    """``/users/me`` is cross-guild; no X-Guild-ID required. The guild
-    consistency check must allow the call when the header is absent."""
+    """``/users/me`` is cross-guild; the pinned guild context is simply
+    unused there and the call succeeds."""
     user = await create_user(session, email="cross-guild-allowed@example.com")
     token = _mint_delegation(user_id=user.id, guild_id=42)
 
