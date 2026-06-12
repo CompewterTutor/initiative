@@ -7,10 +7,21 @@ re-running back-fills any guild-scoped table a later migration added. The model
 is never used to build the DB: Alembic is the single source, applied per schema.
 Per-request routing (search_path + SET ROLE in `set_rls_context`) sends
 guild-scoped queries into the schema.
+
+`backfill_guild_schemas` re-runs that idempotent provisioning for *every*
+existing guild on every boot (`main.on_startup`, after the legacy conversion).
+This closes two drift gaps the one-time conversion leaves open: a guild
+provisioned before `guild_schema.sql` gained a table/column/index never receives
+it (and `search_path = guild_<id>, public` silently falls through to the frozen
+public backup rather than erroring), and a crash mid-provision can leave a guild
+row whose schema doesn't exist. Provisioning is ~0.2s/guild and idempotent, so a
+plain sequential loop heals both with no extra bookkeeping.
 """
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from sqlalchemy import text
@@ -19,6 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.config import settings
 from app.db import session as db_session
+
+logger = logging.getLogger(__name__)
 
 # The roles the app connects as must reach the guild schema, since per-request
 # routing (search_path) sends guild-scoped queries there: app_user for the RLS
@@ -187,3 +200,55 @@ async def deprovision_guild(guild_id: int) -> None:
     """Drop a guild's schema + role on the superuser engine."""
     async with db_session.provisioning_engine.begin() as conn:
         await drop_guild_schema(conn, guild_id)
+
+
+@dataclass
+class BackfillSummary:
+    """Outcome of a `backfill_guild_schemas` sweep, for a one-line boot log."""
+
+    total: int
+    provisioned: int
+    failed: int
+    failed_guild_ids: list[int] = field(default_factory=list)
+
+
+async def backfill_guild_schemas() -> BackfillSummary:
+    """Re-provision every existing guild's schema + roles on boot. Idempotent.
+
+    Enumerates guild ids from the shared ``public.guilds`` table on the
+    provisioning (superuser) engine, then runs the idempotent
+    ``provision_guild`` for each. Because provisioning re-runs the canonical
+    ``guild_schema.sql`` DDL (``CREATE ... IF NOT EXISTS``) and re-applies grants,
+    this back-fills any table/column/index/grant added since a guild was first
+    provisioned and (re-)creates a schema that is missing entirely — healing both
+    the silent-drift gap and a crash that left a guild row without its schema.
+
+    Per-guild failures are logged with the guild id and skipped so one broken
+    guild can't take down boot for the rest; ``provision_guild`` runs each guild
+    in its own transaction, so a failure rolls back only that guild. Returns a
+    summary for the caller to log.
+    """
+    engine = db_session.provisioning_engine  # superuser
+    async with engine.connect() as conn:
+        guild_ids = (
+            (await conn.execute(text("SELECT id FROM public.guilds ORDER BY id")))
+            .scalars()
+            .all()
+        )
+
+    provisioned = 0
+    failed_guild_ids: list[int] = []
+    for gid in guild_ids:
+        try:
+            await provision_guild(gid)
+            provisioned += 1
+        except Exception:  # noqa: BLE001 — one broken guild must not block boot
+            failed_guild_ids.append(gid)
+            logger.exception("guild schema back-fill failed for guild %s", gid)
+
+    return BackfillSummary(
+        total=len(guild_ids),
+        provisioned=provisioned,
+        failed=len(failed_guild_ids),
+        failed_guild_ids=failed_guild_ids,
+    )

@@ -11,7 +11,9 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
+import app.db.schema_provisioning as schema_provisioning
 from app.db.schema_provisioning import (
+    backfill_guild_schemas,
     drop_guild_schema,
     guild_role_name,
     guild_schema_name,
@@ -32,6 +34,13 @@ _GID_ROLE_WRITE = 990_107
 _GID_BACKFILL = 990_108
 _GID_REPROVISION = 990_109
 _GID_DROP_ABSENT = 990_110
+# Back-fill sweep (each pair: one provisioned, one only a public row).
+_GID_BACKFILL_DONE = 990_111
+_GID_BACKFILL_MISSING = 990_112
+_GID_BACKFILL_DRIFT = 990_113
+_GID_BACKFILL_OK_A = 990_114
+_GID_BACKFILL_OK_B = 990_115
+_GID_BACKFILL_FAIL = 990_116
 
 
 async def _insert_public_guild(conn, gid: int, name: str) -> None:
@@ -397,3 +406,153 @@ async def test_guild_schema_matches_alembic_public(engine):
     finally:
         async with engine.begin() as conn:
             await drop_guild_schema(conn, _GID_DRIFT)
+
+
+# --- back-fill sweep: heal half-states and drift for existing guilds -----------
+
+
+async def test_backfill_provisions_a_guild_missing_its_schema(engine):
+    """A guild row whose schema was never created (e.g. a crash mid-provision)
+    gets its schema + tables on the next back-fill sweep."""
+    done, missing = _GID_BACKFILL_DONE, _GID_BACKFILL_MISSING
+    missing_schema = guild_schema_name(missing)
+    try:
+        async with engine.begin() as conn:
+            await _insert_public_guild(conn, done, "backfill-done")
+            await _insert_public_guild(conn, missing, "backfill-missing")
+            await provision_guild_schema(conn, done)  # only `done` is provisioned
+
+        async with engine.connect() as conn:
+            before = await conn.scalar(
+                text(
+                    "SELECT 1 FROM information_schema.schemata WHERE schema_name = :s"
+                ),
+                {"s": missing_schema},
+            )
+        assert before is None, "precondition: missing guild has no schema yet"
+
+        summary = await backfill_guild_schemas()
+        # Assert about OUR guilds only — the sweep covers every guild row in the
+        # shared test DB, and an unrelated broken guild must not fail this test.
+        assert done not in summary.failed_guild_ids
+        assert missing not in summary.failed_guild_ids
+        assert summary.provisioned >= 2
+
+        async with engine.connect() as conn:
+            tables = await conn.scalar(
+                text(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_schema = :s"
+                ),
+                {"s": missing_schema},
+            )
+        assert tables == len(GUILD_SCOPED_TABLES), "schema should be fully back-filled"
+    finally:
+        async with engine.begin() as conn:
+            await drop_guild_schema(conn, done)
+            await drop_guild_schema(conn, missing)
+            await conn.execute(
+                text("DELETE FROM public.guilds WHERE id = ANY(:ids)"),
+                {"ids": [done, missing]},
+            )
+
+
+async def test_backfill_repairs_a_dropped_table(engine):
+    """A table missing from an already-provisioned schema (drift: a table added to
+    guild_schema.sql after the guild was made) is recreated by the back-fill."""
+    gid = _GID_BACKFILL_DRIFT
+    schema = guild_schema_name(gid)
+    try:
+        async with engine.begin() as conn:
+            await _insert_public_guild(conn, gid, "backfill-drift")
+            await provision_guild_schema(conn, gid)
+            # Simulate a table that didn't exist when the schema was provisioned.
+            await conn.exec_driver_sql(f'DROP TABLE "{schema}".subtasks CASCADE')
+
+        async with engine.connect() as conn:
+            gone = await conn.scalar(text(f"SELECT to_regclass('{schema}.subtasks')"))
+        assert gone is None, "precondition: subtasks dropped"
+
+        summary = await backfill_guild_schemas()
+        # Scoped to our guild — unrelated broken guilds in the shared test DB
+        # must not fail this test.
+        assert gid not in summary.failed_guild_ids
+        assert summary.provisioned >= 1
+
+        async with engine.connect() as conn:
+            recreated = await conn.scalar(
+                text(f"SELECT to_regclass('{schema}.subtasks')")
+            )
+        assert recreated is not None, "back-fill should recreate the dropped table"
+    finally:
+        async with engine.begin() as conn:
+            await drop_guild_schema(conn, gid)
+            await conn.execute(
+                text("DELETE FROM public.guilds WHERE id = :id"), {"id": gid}
+            )
+
+
+async def test_backfill_continues_past_a_failing_guild(engine, monkeypatch):
+    """One guild that fails to provision is logged and skipped — the others in the
+    same sweep are still processed."""
+    ok_a, ok_b, bad = _GID_BACKFILL_OK_A, _GID_BACKFILL_OK_B, _GID_BACKFILL_FAIL
+    try:
+        async with engine.begin() as conn:
+            for gid, name in (
+                (ok_a, "backfill-ok-a"),
+                (ok_b, "backfill-ok-b"),
+                (bad, "backfill-bad"),
+            ):
+                await _insert_public_guild(conn, gid, name)
+
+        # Force exactly one guild's provisioning to blow up; the real function
+        # handles every other id. backfill_guild_schemas calls provision_guild as
+        # a module-level name, so patching it here is enough.
+        real_provision_guild = schema_provisioning.provision_guild
+
+        async def _flaky_provision_guild(guild_id: int) -> str:
+            if guild_id == bad:
+                raise RuntimeError("forced provisioning failure")
+            return await real_provision_guild(guild_id)
+
+        monkeypatch.setattr(
+            schema_provisioning, "provision_guild", _flaky_provision_guild
+        )
+
+        summary = await backfill_guild_schemas()
+
+        # The bad guild is counted as failed but doesn't abort the sweep; both
+        # healthy guilds (plus any other real guild rows) still get provisioned.
+        assert bad in summary.failed_guild_ids
+        assert ok_a not in summary.failed_guild_ids
+        assert ok_b not in summary.failed_guild_ids
+        assert summary.provisioned >= 2
+
+        async with engine.connect() as conn:
+            for gid in (ok_a, ok_b):
+                tables = await conn.scalar(
+                    text(
+                        "SELECT count(*) FROM information_schema.tables "
+                        "WHERE table_schema = :s"
+                    ),
+                    {"s": guild_schema_name(gid)},
+                )
+                assert tables == len(GUILD_SCOPED_TABLES), (
+                    f"healthy guild {gid} should be provisioned despite a sibling failure"
+                )
+            bad_exists = await conn.scalar(
+                text(
+                    "SELECT 1 FROM information_schema.schemata WHERE schema_name = :s"
+                ),
+                {"s": guild_schema_name(bad)},
+            )
+        assert bad_exists is None, "the forced-failure guild's schema must not exist"
+    finally:
+        async with engine.begin() as conn:
+            await drop_guild_schema(conn, ok_a)
+            await drop_guild_schema(conn, ok_b)
+            await drop_guild_schema(conn, bad)
+            await conn.execute(
+                text("DELETE FROM public.guilds WHERE id = ANY(:ids)"),
+                {"ids": [ok_a, ok_b, bad]},
+            )

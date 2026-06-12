@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Reinstated the initiative permission layer dropped by the schema-per-guild cutover.** The old database-level "must be a member of the owning initiative" check (`is_initiative_member` RESTRICTIVE policies) didn't carry over into per-guild schemas, so a document/project permission row left behind after someone was removed from an initiative quietly became a live grant. Access checks and the visibility queries now require initiative scope (member, guild admin, or platform `data.bypass`) on top of an explicit permission row, removing a member from an initiative also deletes their document permission rows (project permissions already were), and a live PAM grant still acts as membership of every initiative it covers. New shared helpers in `app/services/membership.py` provide batch-efficient guild/initiative membership checks for future use.
+
 ### Added
+
+- Guild schemas are now re-provisioned (idempotently) on every boot: when a release adds tables to the per-guild schema layout, existing guilds pick them up automatically instead of silently falling through to the frozen pre-migration `public` copies — and a guild whose schema provisioning was interrupted mid-creation is healed at the next startup.
 
 - **Expandable guild sidebar.** The icon-only guild rail can now expand into a "Guilds" flyout that shows each guild's full name and member count. Open it with the chevron toggle (or swipe in from the rail), collapse it with the header button, click-away (desktop), or by swiping it closed. On mobile the flyout fills the drawer; on desktop it floats over the sidebar. Member counts are exposed via a new `member_count` field on the guild list response. Drag-to-reorder still works (press-and-hold on touch so it doesn't fight the swipe gestures).
 - **German (Deutsch) interface language.** Added a full German translation across all 24 i18n namespaces, registered `de` as a supported language, wired up the German date-fns locale for date formatting, and added "Deutsch" to the language picker in user interface settings.
@@ -27,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Document downloads resolve the right document for users in multiple guilds: document ids repeat across per-guild schemas, and the download probe (which can't see a guild header from iframes) used to stop at the first guild whose schema contained the id — wrongly 403ing or serving another guild's file. It now collects all candidates, serves the one the user can actually read, supports an explicit `?guild_id=` disambiguator, and re-anchors the probe query with a guild predicate so it can never match a frozen `public` backup row.
+- Property definitions can be created again by initiative members: the membership check ran on an unrouted admin session and read the frozen pre-migration `public` tables under schema-per-guild, falsely rejecting members of any initiative created (or joined) since the cutover — and conversely still honoring memberships that had been removed. The check now runs on the request's guild-routed session.
 - Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
 - The "added to initiative" notification now carries its guild (id + guild-qualified deep link), like every other guild-scoped notification — so it resolves correctly in the cross-guild inbox under schema-per-guild tenancy.
 - **The Initiative logo now appears in emails.** It was an inline SVG, which Gmail, Outlook, and Yahoo strip from email bodies; it's now shipped as a raster PNG embedded inline (via a Content-ID reference) so it renders without an external image fetch. Also removed a stray period that trailed the "Update notification settings" footer link.

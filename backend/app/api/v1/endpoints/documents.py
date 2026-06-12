@@ -88,6 +88,7 @@ from app.schemas.tag import TagSetRequest
 from app.services import attachments as attachments_service
 from app.services import documents as documents_service
 from app.services import initiatives as initiatives_service
+from app.services import membership as membership_service
 from app.services import notifications as notifications_service
 from app.services import permissions as permissions_service
 from app.services import properties as properties_service
@@ -243,6 +244,7 @@ def _require_document_access(
     access: str = "read",
     require_owner: bool = False,
     manage_access: bool = False,
+    guild_role: GuildRole | str | None = None,
 ) -> None:
     """Check if user has required access to a document.
 
@@ -262,6 +264,7 @@ def _require_document_access(
         user,
         access=access,
         require_owner=require_owner,
+        guild_role=guild_role,
     )
 
 
@@ -2406,7 +2409,17 @@ async def download_document_file(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND
         )
 
-    _require_document_access(document, current_user, access="read")
+    # Iframe downloads carry no X-Guild-ID, so the request role context is
+    # unset — resolve the user's role in the document's guild explicitly for
+    # the initiative-scope gate's guild-admin leg.
+    guild_role = (
+        await membership_service.guild_role_map(
+            session, document.guild_id, (current_user.id,)
+        )
+    ).get(current_user.id)
+    _require_document_access(
+        document, current_user, access="read", guild_role=guild_role
+    )
 
     logger.info(
         "document_download document_id=%d user=%d inline=%s",
@@ -2447,7 +2460,15 @@ async def download_document_file_version(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND
         )
 
-    _require_document_access(document, current_user, access="read")
+    # Same rationale as download_document_file: no request role context here.
+    guild_role = (
+        await membership_service.guild_role_map(
+            session, document.guild_id, (current_user.id,)
+        )
+    ).get(current_user.id)
+    _require_document_access(
+        document, current_user, access="read", guild_role=guild_role
+    )
 
     # Same guild predicate as the document probe: if the winner guild's schema
     # were ever missing this table, search_path would fall through to the
