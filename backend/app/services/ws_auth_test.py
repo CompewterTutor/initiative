@@ -45,19 +45,15 @@ async def test_token_version_bump_revokes_token(session: AsyncSession):
     assert await authenticate_ws_token(token, session) is None
 
 
-async def test_token_without_version_claim_rejected(session: AsyncSession):
-    """A token whose ``ver`` claim is absent must never authenticate, even
-    if the signature is otherwise valid."""
+async def test_token_with_stale_version_claim_rejected(session: AsyncSession):
+    """A token carrying an out-of-date ``ver`` (here 0 vs the user's 5) must
+    never authenticate, even if the signature is otherwise valid."""
     user = await create_user(session)
-    # Mint a token the way the app does but strip the version by signing a
-    # payload that omits ``ver``. create_access_token always sets ver, so we
-    # bump the user's version above 0 to guarantee a mismatch with ver=None.
     user.token_version = 5
     session.add(user)
     await session.commit()
     await session.refresh(user)
 
-    # A token carrying ver=0 against a user now at version 5 is a mismatch.
     stale_token = create_access_token(subject=str(user.id), token_version=0)
 
     assert await authenticate_ws_token(stale_token, session) is None
@@ -86,3 +82,54 @@ async def test_device_token_still_authenticates(session: AsyncSession):
 
     assert result is not None
     assert result.id == user.id
+
+
+async def test_token_without_version_claim_rejected(session: AsyncSession):
+    """A valid-signature JWT with NO ``ver`` claim at all (e.g. a legacy token
+    minted before versioning existed) exercises the ``ver is not None`` guard
+    and must be rejected."""
+    from datetime import datetime, timedelta, timezone
+
+    import jwt as pyjwt
+
+    from app.core.config import settings
+
+    user = await create_user(session)
+    legacy_token = pyjwt.encode(
+        {
+            "sub": str(user.id),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+        },
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    assert await authenticate_ws_token(legacy_token, session) is None
+
+
+async def test_jwt_without_sub_does_not_fall_through_to_device_lookup(
+    session: AsyncSession, monkeypatch
+):
+    """A valid-signature JWT carrying no ``sub`` is still a session token: it
+    must be rejected outright, never re-interpreted as a device credential."""
+    from datetime import datetime, timedelta, timezone
+
+    import jwt as pyjwt
+
+    from app.core.config import settings
+    from app.services import ws_auth as ws_auth_module
+
+    async def _must_not_be_called(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("device-token lookup must not run for a JWT bearer")
+
+    monkeypatch.setattr(
+        ws_auth_module.user_tokens, "get_device_token", _must_not_be_called
+    )
+
+    subless_token = pyjwt.encode(
+        {"exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+
+    assert await authenticate_ws_token(subless_token, session) is None

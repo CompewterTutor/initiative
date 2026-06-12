@@ -60,10 +60,12 @@ async def authenticate_ws_token(token: str, session: AsyncSession) -> Optional[U
                 and token_data.ver == user.token_version
             ):
                 return user
-            # A valid signature with a stale/absent version (revoked token)
-            # must not silently fall through to the device-token path — the
-            # bearer here is a session JWT, not a device token.
-            return None
+        # Any string that decodes as one of our JWTs is a session token. A
+        # revoked one (stale/absent ``ver``), an unknown/inactive user, or a
+        # payload with no ``sub`` at all must not silently fall through to the
+        # device-token path below — the bearer here is a session JWT, not a
+        # device token.
+        return None
     except jwt.PyJWTError:
         pass
 
