@@ -138,7 +138,12 @@ async def _ensure_initiative_member(
         return
 
     # The initiative id must resolve in the active guild's schema. Ids are
-    # unique per-guild, so a foreign or deleted id has no row here.
+    # unique per-guild, so a foreign or deleted id has no row here. This runs
+    # before the guild-admin bypass on purpose — admins need the FK guard too.
+    # Constraint: it assumes the routed session can see every initiative row in
+    # the schema; if per-schema initiative-scoped RLS policies are ever
+    # reintroduced, this lookup must use a policy-exempt path or guild admins
+    # outside the initiative will false-403 here.
     init_stmt = select(Initiative.id).where(Initiative.id == initiative_id)
     if (await session.exec(init_stmt)).one_or_none() is None:
         raise HTTPException(
