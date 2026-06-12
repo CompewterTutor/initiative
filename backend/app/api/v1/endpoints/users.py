@@ -959,7 +959,6 @@ async def delete_user(
             # to discard rather than transfer — the escape hatch for
             # the "no eligible project manager left" case.
             from app.services import soft_delete as soft_delete_service
-            from app.services import guilds as guilds_service
 
             retention_days = await guilds_service.get_guild_retention_days(
                 session, guild_context.guild_id

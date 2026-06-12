@@ -398,7 +398,7 @@ async def test_download_owner_can_download(
         session, initiative=initiative, owner=owner, filename="dl_owner.pdf"
     )
     try:
-        headers = get_auth_headers(owner)
+        headers = await get_guild_headers(session, guild, owner)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download", headers=headers
         )
@@ -446,7 +446,7 @@ async def test_download_guild_member_without_permission_returns_403(
         session, initiative=initiative, owner=owner, filename="dl_no_perm.pdf"
     )
     try:
-        headers = get_auth_headers(other)
+        headers = await get_guild_headers(session, guild, other)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download", headers=headers
         )
@@ -505,7 +505,7 @@ async def test_download_read_permission_grants_access(
     await session.commit()
 
     try:
-        headers = get_auth_headers(reader)
+        headers = await get_guild_headers(session, guild, reader)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download", headers=headers
         )
@@ -528,7 +528,7 @@ async def test_download_inline_returns_no_attachment_header(
         session, initiative=initiative, owner=owner, filename="dl_inline.pdf"
     )
     try:
-        headers = get_auth_headers(owner)
+        headers = await get_guild_headers(session, guild, owner)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download?inline=1", headers=headers
         )
@@ -553,7 +553,7 @@ async def test_download_inline_html_svg_is_same_origin_framable_but_scriptless(
         session, initiative=initiative, owner=owner, filename=filename
     )
     try:
-        headers = get_auth_headers(owner)
+        headers = await get_guild_headers(session, guild, owner)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download?inline=1", headers=headers
         )
@@ -584,7 +584,7 @@ async def test_download_non_inline_html_svg_keeps_global_deny(
         session, initiative=initiative, owner=owner, filename=filename
     )
     try:
-        headers = get_auth_headers(owner)
+        headers = await get_guild_headers(session, guild, owner)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download", headers=headers
         )
@@ -614,6 +614,9 @@ async def test_download_scoped_upload_token_auth(
         session, initiative=initiative, owner=owner, filename="dl_token.pdf"
     )
     try:
+        # Download URLs carry no guild context — the server resolves it from
+        # the owner's flag, so enter the guild first.
+        await get_guild_headers(session, guild, owner)
         token, _ = create_upload_token(user_id=owner.id)
         response = await client.get(
             f"/api/v1/documents/{doc.id}/download?token={token}"

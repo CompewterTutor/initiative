@@ -8,7 +8,7 @@ import { StatusMessage } from "@/components/StatusMessage";
 import { useGuilds } from "@/hooks/useGuilds";
 
 export const Route = createFileRoute("/_serverRequired/_authenticated/g/$guildId")({
-  beforeLoad: ({ context, params }) => {
+  beforeLoad: async ({ context, params }) => {
     const guildId = Number(params.guildId);
     const { guilds } = context;
 
@@ -33,9 +33,16 @@ export const Route = createFileRoute("/_serverRequired/_authenticated/g/$guildId
       return { urlGuildId: guildId, urlGuild: null };
     }
 
-    // Sync the SPA's local guild state; the layout effect below pushes the
-    // server-held context (which is what actually scopes requests).
     setCurrentGuildId(guildId);
+
+    // Push the server-held guild context BEFORE child routes render and
+    // fetch. The backend resolves every request's guild from this flag, so
+    // a query fired before the PUT lands would resolve in whatever guild
+    // the user was in previously — with per-guild entity ids that means
+    // the WRONG entity, surfacing as no-access/not-found errors when
+    // opening cross-guild links (e.g. recent tabs). Idempotent and instant
+    // when the server already holds this guild.
+    await guilds?.syncGuildFromUrl(guildId);
 
     // Provide validated guild info to child routes via route context
     return { urlGuildId: guildId, urlGuild: guild };
