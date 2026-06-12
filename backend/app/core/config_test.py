@@ -30,6 +30,9 @@ def _settings(**overrides) -> Settings:
         "changeme",
         "secret",
         "tooshort1234567890",  # < 32 chars
+        # Padded otherwise-valid key: rejected rather than silently stripped,
+        # since normalizing would rotate the effective HMAC/Fernet key.
+        " f2d8a1c4b7e90365d4a2f8c1b6e3079a5c8d2e4f6a1b3c5d7e9f0a2b4c6d8e1f ",
     ],
 )
 def test_secret_key_rejects_weak_values(bad_key):

@@ -81,6 +81,15 @@ class Settings(BaseSettings):
                 "SECRET_KEY is unset or a known placeholder. Generate a real "
                 "key with: openssl rand -hex 32"
             )
+        # Reject (rather than silently strip) surrounding whitespace: every
+        # byte of this value feeds HMAC/Fernet key derivation, so quietly
+        # normalizing it would rotate the effective key out from under a
+        # deployment whose env var carried stray whitespace.
+        if normalized != value:
+            raise ValueError(
+                "SECRET_KEY has leading or trailing whitespace. Remove it — "
+                "the exact value is used for key derivation."
+            )
         if len(normalized) < 32:
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters. Generate one "
