@@ -1,4 +1,6 @@
 {
+  "ATTACHMENT_TOO_LARGE": "L'image est trop volumineuse (max. 10 Mo)",
+  "DOCUMENT_FILE_TOO_LARGE": "Le fichier est trop volumineux (max. 50 Mo)",
   "EMAIL_ALREADY_REGISTERED": "Adresse e-mail déjà enregistrée",
   "INVITE_EMAIL_MISMATCH": "Cette invitation a été émise pour une autre adresse e-mail",
   "REGISTRATION_REQUIRES_INVITE": "L'inscription nécessite un code d'invitation",

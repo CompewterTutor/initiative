@@ -1,4 +1,6 @@
 {
+  "ATTACHMENT_TOO_LARGE": "Das Bild ist zu groß (max. 10 MB)",
+  "DOCUMENT_FILE_TOO_LARGE": "Die Datei ist zu groß (max. 50 MB)",
   "EMAIL_ALREADY_REGISTERED": "E-Mail-Adresse bereits registriert",
   "INVITE_EMAIL_MISMATCH": "Diese Einladung wurde für eine andere E-Mail-Adresse ausgestellt",
   "REGISTRATION_REQUIRES_INVITE": "Für die Registrierung ist ein Einladungscode erforderlich",
