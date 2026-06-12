@@ -106,3 +106,52 @@ def test_plural_selection_uses_count():
     other = translate("overdue.body", "en", count=3)
     assert one == "You have <strong>1</strong> overdue task:"
     assert other == "You have <strong>3</strong> overdue tasks:"
+
+
+# --- HTML escaping of interpolated values (SEC-5) -------------------------
+
+
+@pytest.mark.unit
+def test_email_namespace_escapes_interpolated_values_by_default():
+    # An attacker-controlled display name containing markup must render as
+    # literal text inside the HTML email body — the template's own <strong>
+    # tags stay intact, only the substituted VALUE is escaped.
+    body = translate(
+        "event.invitation.body",
+        "en",
+        organizer='<a href="https://phish.example">Reset your password</a>',
+        event="Raid Night",
+        when="tonight",
+    )
+    assert (
+        "&lt;a href=&quot;https://phish.example&quot;&gt;Reset your password&lt;/a&gt;"
+        in body
+    )
+    assert '<a href="https://phish.example">' not in body
+    assert body.startswith("<strong>")  # template markup untouched
+
+
+@pytest.mark.unit
+def test_email_namespace_escape_false_keeps_values_raw():
+    # Plain-text contexts (subjects, textBody) opt out per call.
+    assert (
+        translate(
+            "event.invitation.subject", "en", event="Tom & Jerry <night>", escape=False
+        )
+        == "You're invited: Tom & Jerry <night>"
+    )
+
+
+@pytest.mark.unit
+def test_notifications_namespace_is_not_escaped_by_default():
+    # Push copy is plain text rendered by the OS, never HTML.
+    assert (
+        translate(
+            "event.invitation.body",
+            "en",
+            namespace="notifications",
+            event="Tom & Jerry",
+            when="8pm",
+        )
+        == "Tom & Jerry (8pm)"
+    )
