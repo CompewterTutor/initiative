@@ -104,9 +104,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # route's `script-src 'none'`) instead of overriding it.
         response.headers.setdefault("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
         if _STRICT_TRANSPORT_SECURITY is not None:
-            response.headers.setdefault(
-                "Strict-Transport-Security", _STRICT_TRANSPORT_SECURITY
-            )
+            # Unconditional (not setdefault): unlike CSP there is no legitimate
+            # per-route reason to weaken HSTS, so the middleware always wins.
+            response.headers["Strict-Transport-Security"] = _STRICT_TRANSPORT_SECURITY
         return response
 
 

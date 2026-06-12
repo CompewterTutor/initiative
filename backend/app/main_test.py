@@ -6,6 +6,7 @@ import json
 
 import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from fastapi.exceptions import RequestValidationError
 from httpx import ASGITransport, AsyncClient
 
@@ -142,26 +143,30 @@ async def test_docs_and_openapi_served_when_enabled(client: AsyncClient) -> None
 
 
 @pytest.mark.unit
-def test_docs_urls_none_when_disabled() -> None:
-    # With ENABLE_API_DOCS=False, FastAPI is constructed with no docs/openapi
-    # routes — the same wiring app.main uses, exercised in isolation.
+def test_docs_routes_return_404_when_disabled() -> None:
+    """HTTP-level check for the disabled path.
+
+    ``app.main`` builds its app at import time, so the real app can't be
+    reconstructed with ``ENABLE_API_DOCS=False`` inside the suite. Instead this
+    constructs FastAPI with the exact wiring ``app.main`` uses and proves over
+    HTTP that the docs/openapi routes don't exist (404), not merely that the
+    attributes are ``None``. The enabled path is covered against the real app
+    by ``test_docs_and_openapi_served_when_enabled``.
+    """
     cfg = Settings(ENABLE_API_DOCS=False)
     disabled = FastAPI(
         docs_url=f"{cfg.API_V1_STR}/docs" if cfg.ENABLE_API_DOCS else None,
         openapi_url=(f"{cfg.API_V1_STR}/openapi.json" if cfg.ENABLE_API_DOCS else None),
         redoc_url=None,
     )
-    assert disabled.docs_url is None
-    assert disabled.openapi_url is None
+    http = TestClient(disabled)
+    assert http.get("/api/v1/docs").status_code == 404
+    assert http.get("/api/v1/openapi.json").status_code == 404
 
 
 @pytest.mark.unit
-def test_docs_urls_set_when_enabled() -> None:
-    cfg = Settings(ENABLE_API_DOCS=True)
-    enabled = FastAPI(
-        docs_url=f"{cfg.API_V1_STR}/docs" if cfg.ENABLE_API_DOCS else None,
-        openapi_url=(f"{cfg.API_V1_STR}/openapi.json" if cfg.ENABLE_API_DOCS else None),
-        redoc_url=None,
-    )
-    assert enabled.docs_url == "/api/v1/docs"
-    assert enabled.openapi_url == "/api/v1/openapi.json"
+def test_real_app_serves_docs_only_when_enabled() -> None:
+    # The deployed app object reflects the (default-on) setting — guards
+    # against the wiring in app.main drifting from ENABLE_API_DOCS.
+    assert main_module.app.docs_url == "/api/v1/docs"
+    assert main_module.app.openapi_url == "/api/v1/openapi.json"
