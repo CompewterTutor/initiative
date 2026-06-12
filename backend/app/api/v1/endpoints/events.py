@@ -3,20 +3,17 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
-import jwt
 from sqlalchemy import text
-from sqlmodel import select
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal, set_rls_context
-from app.models.user import User, UserStatus
-from app.schemas.token import TokenPayload
+from app.models.user import User
 from app.services import access_grants as access_grants_service
 from app.services import guilds as guilds_service
 from app.services.realtime import manager
-from app.services import user_tokens
+from app.services.ws_auth import authenticate_ws_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,32 +23,13 @@ MSG_AUTH = 5
 
 
 async def _user_from_token(token: str, session: AsyncSession) -> Optional[User]:
-    """Validate JWT or device token and return user, or None if invalid."""
-    # First try JWT validation
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-        if token_data.sub:
-            statement = select(User).where(User.id == int(token_data.sub))
-            result = await session.exec(statement)
-            user = result.one_or_none()
-            if user and user.status == UserStatus.active:
-                return user
-    except jwt.PyJWTError:
-        pass
+    """Validate a session JWT or device token and return the user, or None.
 
-    # Fall back to device token validation
-    device_token = await user_tokens.get_device_token(session, token=token)
-    if device_token:
-        statement = select(User).where(User.id == device_token.user_id)
-        result = await session.exec(statement)
-        user = result.one_or_none()
-        if user and user.status == UserStatus.active:
-            return user
-
-    return None
+    Delegates to the shared ``authenticate_ws_token`` helper so the
+    ``token_version`` revocation check stays in lockstep with the HTTP auth
+    path and the other realtime WebSocket endpoints (SEC-4).
+    """
+    return await authenticate_ws_token(token, session)
 
 
 async def _user_can_access_guild(
