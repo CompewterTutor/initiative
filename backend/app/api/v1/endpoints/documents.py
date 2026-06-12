@@ -612,7 +612,8 @@ async def list_documents(
         if page_size > 0:
             has_next = page * page_size < total_count
         else:
-            has_next = False
+            # "All rows" is still capped (SEC-14): report truncation.
+            has_next = len(items) < total_count
             page = 1
         return DocumentListResponse(
             items=items,
@@ -713,8 +714,10 @@ async def list_documents(
     if page_size > 0:
         has_next = page * page_size < total_count
     else:
-        # page_size=0 means "all rows, no pagination"
-        has_next = False
+        # page_size=0 means "all rows" — but still capped at
+        # unbounded_page_limit() (SEC-14). Surface a truncated result via
+        # has_next so the SPA can tell data is missing.
+        has_next = len(items) < total_count
         page = 1
 
     return DocumentListResponse(

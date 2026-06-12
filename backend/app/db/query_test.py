@@ -1032,3 +1032,26 @@ class TestParseSortFields:
 
         with pytest.raises(ValueError, match="too many sort fields"):
             parse_sort_fields(json.dumps(items), max_fields=2)
+
+
+class TestBuildPaginatedResponseUnbounded:
+    """SEC-14 follow-up: a capped "all rows" response must signal truncation."""
+
+    def test_truncated_unbounded_result_sets_has_next(self):
+        from app.db.query import build_paginated_response
+
+        # 1000-row cap hit: 1000 items of a 1500-row total.
+        resp = build_paginated_response(
+            items=list(range(1000)), total_count=1500, page=1, page_size=0
+        )
+        assert resp["has_next"] is True
+        assert resp["has_prev"] is False
+        assert resp["page"] == 1
+
+    def test_complete_unbounded_result_has_no_next(self):
+        from app.db.query import build_paginated_response
+
+        resp = build_paginated_response(
+            items=list(range(42)), total_count=42, page=1, page_size=0
+        )
+        assert resp["has_next"] is False

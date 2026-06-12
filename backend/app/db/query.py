@@ -384,7 +384,11 @@ def build_paginated_response(
     """
     if page_size <= 0:
         effective_page = 1
-        has_next = False
+        # "All rows" requests are still capped at unbounded_page_limit()
+        # (SEC-14). When the cap truncated the result, surface it via
+        # has_next so the SPA can tell data is missing instead of silently
+        # treating the first N rows as the complete set.
+        has_next = len(items) < total_count
         has_prev = False
     else:
         effective_page = page
