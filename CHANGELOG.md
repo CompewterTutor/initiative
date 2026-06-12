@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guild schemas are now re-provisioned (idempotently) on every boot: when a release adds tables to the per-guild schema layout, existing guilds pick them up automatically instead of silently falling through to the frozen pre-migration `public` copies — and a guild whose schema provisioning was interrupted mid-creation is healed at the next startup.
+
 - **Expandable guild sidebar.** The icon-only guild rail can now expand into a "Guilds" flyout that shows each guild's full name and member count. Open it with the chevron toggle (or swipe in from the rail), collapse it with the header button, click-away (desktop), or by swiping it closed. On mobile the flyout fills the drawer; on desktop it floats over the sidebar. Member counts are exposed via a new `member_count` field on the guild list response. Drag-to-reorder still works (press-and-hold on touch so it doesn't fight the swipe gestures).
 - **German (Deutsch) interface language.** Added a full German translation across all 24 i18n namespaces, registered `de` as a supported language, wired up the German date-fns locale for date formatting, and added "Deutsch" to the language picker in user interface settings.
 - Table classification manifest (`app/db/tenancy.py`) marking every table as shared or guild-scoped, with a test guarding completeness — the first step toward schema-per-guild tenancy.
