@@ -62,9 +62,7 @@ async def test_initiative_removal_ends_document_access(
     assert response.status_code == 201
 
     # Member can open and list the document while in the initiative.
-    response = await client.get(
-        f"/api/v1/documents/{doc_id}", headers=member_headers
-    )
+    response = await client.get(f"/api/v1/documents/{doc_id}", headers=member_headers)
     assert response.status_code == 200
     response = await client.get("/api/v1/documents/", headers=member_headers)
     assert doc_id in {d["id"] for d in response.json()["items"]}
@@ -77,15 +75,11 @@ async def test_initiative_removal_ends_document_access(
     assert response.status_code == 200
 
     # Access is gone: open is 403, the list no longer contains the doc.
-    response = await client.get(
-        f"/api/v1/documents/{doc_id}", headers=member_headers
-    )
+    response = await client.get(f"/api/v1/documents/{doc_id}", headers=member_headers)
     assert response.status_code == 403
     response = await client.get("/api/v1/documents/", headers=member_headers)
     assert doc_id not in {d["id"] for d in response.json()["items"]}
 
     # The admin (initiative PM here) is unaffected.
-    response = await client.get(
-        f"/api/v1/documents/{doc_id}", headers=admin_headers
-    )
+    response = await client.get(f"/api/v1/documents/{doc_id}", headers=admin_headers)
     assert response.status_code == 200

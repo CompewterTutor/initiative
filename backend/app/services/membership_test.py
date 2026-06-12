@@ -48,9 +48,7 @@ async def test_initiative_member_user_ids_batch(session: AsyncSession):
 
     # Empty batch short-circuits without a query.
     assert (
-        await membership_service.initiative_member_user_ids(
-            session, initiative.id, ()
-        )
+        await membership_service.initiative_member_user_ids(session, initiative.id, ())
         == set()
     )
 
@@ -86,12 +84,8 @@ async def test_guild_role_map_batch(session: AsyncSession):
     assert roles == {admin.id: GuildRole.admin, member.id: GuildRole.member}
 
     assert await membership_service.is_guild_admin(session, guild.id, admin.id)
-    assert not await membership_service.is_guild_admin(
-        session, guild.id, member.id
-    )
-    assert not await membership_service.is_guild_admin(
-        session, guild.id, outsider.id
-    )
+    assert not await membership_service.is_guild_admin(session, guild.id, member.id)
+    assert not await membership_service.is_guild_admin(session, guild.id, outsider.id)
 
     found = await membership_service.guild_member_user_ids(
         session, guild.id, (admin.id, outsider.id)

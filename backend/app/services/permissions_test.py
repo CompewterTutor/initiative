@@ -523,9 +523,7 @@ def test_pam_grant_bypasses_initiative_scope():
 @pytest.mark.unit
 def test_membership_without_permission_row_still_denied():
     """The gate is an AND-layer: membership alone grants nothing."""
-    doc = _make_document(
-        memberships=[SimpleNamespace(user_id=1, role_id=None)]
-    )
+    doc = _make_document(memberships=[SimpleNamespace(user_id=1, role_id=None)])
     user = _make_user(user_id=1)
     with patch(_PATCH_TARGET, return_value=doc.permissions):
         with pytest.raises(HTTPException) as exc_info:

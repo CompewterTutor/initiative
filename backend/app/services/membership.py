@@ -100,9 +100,7 @@ def initiative_scope_clause(
     bypass_roles = tuple(roles_with_capability(Capability.DATA_BYPASS))
     return or_(
         initiative_access_clause(user_id, initiative_id_col, guild_id_col),
-        exists(
-            select(1).where(User.id == user_id, User.role.in_(bypass_roles))
-        ),
+        exists(select(1).where(User.id == user_id, User.role.in_(bypass_roles))),
     )
 
 
@@ -159,9 +157,7 @@ async def is_initiative_member(
     session: AsyncSession, initiative_id: int, user_id: int
 ) -> bool:
     """Single-user convenience over :func:`initiative_member_user_ids`."""
-    return bool(
-        await initiative_member_user_ids(session, initiative_id, (user_id,))
-    )
+    return bool(await initiative_member_user_ids(session, initiative_id, (user_id,)))
 
 
 async def guild_member_user_ids(
@@ -171,9 +167,7 @@ async def guild_member_user_ids(
 ) -> set[int]:
     """The subset of ``user_ids`` that belong to the guild (every member when
     ``user_ids`` is None). Shared table — no guild routing required."""
-    stmt = select(GuildMembership.user_id).where(
-        GuildMembership.guild_id == guild_id
-    )
+    stmt = select(GuildMembership.user_id).where(GuildMembership.guild_id == guild_id)
     if user_ids is not None:
         if not user_ids:
             return set()
@@ -200,9 +194,7 @@ async def guild_role_map(
     return {user_id: role for user_id, role in rows.all()}
 
 
-async def is_guild_admin(
-    session: AsyncSession, guild_id: int, user_id: int
-) -> bool:
+async def is_guild_admin(session: AsyncSession, guild_id: int, user_id: int) -> bool:
     """Whether the user is an admin of the guild. Shared table — works on any
     session."""
     role = (await guild_role_map(session, guild_id, (user_id,))).get(user_id)

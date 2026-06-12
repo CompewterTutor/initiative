@@ -1063,9 +1063,7 @@ async def remove_initiative_member(
             delete(DocumentPermission).where(
                 DocumentPermission.user_id == user_id,
                 DocumentPermission.document_id.in_(
-                    select(Document.id).where(
-                        Document.initiative_id == initiative_id
-                    )
+                    select(Document.id).where(Document.initiative_id == initiative_id)
                 ),
             )
         )
