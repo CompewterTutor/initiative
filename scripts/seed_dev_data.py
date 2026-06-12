@@ -99,6 +99,7 @@ from app.models.task import (  # noqa: E402
     TaskStatusCategory,
 )
 from app.models.user import User, UserRole  # noqa: E402
+from app.services.app_settings import get_or_create_guild_settings  # noqa: E402
 from app.services.guilds import get_primary_guild  # noqa: E402
 from app.services.initiatives import (  # noqa: E402
     create_builtin_roles,
@@ -1406,14 +1407,16 @@ async def seed() -> None:
             admin_users=[dm],
         )
 
-        # Find default initiative
-        result = await session.exec(
-            select(Initiative).where(
-                Initiative.guild_id == g1_id,
-                Initiative.is_default == True,  # noqa: E712
-            )
+        # Ensure the default initiative exists (create-on-missing, like the
+        # guild 2/3 sections). A pre-existing primary guild whose schema was
+        # healed by the boot back-fill is structurally complete but EMPTY —
+        # the back-fill can't seed content (it has no creator) — so a bare
+        # lookup would crash here on such a dev DB.
+        g1_default_init = await ensure_default_initiative(
+            session, admin_user, guild_id=g1_id
         )
-        g1_default_init = result.one()
+        # Same healing for the settings row seed_guild_content would have made.
+        await get_or_create_guild_settings(session, g1_id)
 
         # Add admin + DM as PM to default initiative
         for user in [dm]:
@@ -1914,7 +1917,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 1 queues...")
-        g1_queues = await _create_queues(session, ids, g1, all_users, g1_tags, [
+        await _create_queues(session, ids, g1, all_users, g1_tags, [
             {
                 "initiative_id": g1_strahd.id,
                 "name": "Death House Encounter",
@@ -2635,7 +2638,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 2 queues...")
-        g2_queues = await _create_queues(session, ids, g2, all_users, g2_tags, [
+        await _create_queues(session, ids, g2, all_users, g2_tags, [
             {
                 "initiative_id": g2_main.id,
                 "name": "Bridge Standoff: Krellix Boarding Party",
@@ -3309,7 +3312,7 @@ async def seed() -> None:
 
         # -- Queues --
         print("  Creating Guild 3 queues...")
-        g3_queues = await _create_queues(session, ids, g3, all_users, g3_tags, [
+        await _create_queues(session, ids, g3, all_users, g3_tags, [
             {
                 "initiative_id": g3_main.id,
                 "name": "Kraken Attack on the Crimson Maiden",
