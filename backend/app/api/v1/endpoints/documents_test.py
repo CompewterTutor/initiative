@@ -532,7 +532,8 @@ async def test_download_inline_returns_no_attachment_header(
     try:
         headers = get_auth_headers(owner)
         response = await client.get(
-            f"/api/v1/documents/{doc.id}/download?guild_id={guild.id}&inline=1", headers=headers
+            f"/api/v1/documents/{doc.id}/download?guild_id={guild.id}&inline=1",
+            headers=headers,
         )
         assert response.status_code == 200
         assert "attachment" not in response.headers.get("content-disposition", "")
@@ -557,7 +558,8 @@ async def test_download_inline_html_svg_is_same_origin_framable_but_scriptless(
     try:
         headers = get_auth_headers(owner)
         response = await client.get(
-            f"/api/v1/documents/{doc.id}/download?guild_id={guild.id}&inline=1", headers=headers
+            f"/api/v1/documents/{doc.id}/download?guild_id={guild.id}&inline=1",
+            headers=headers,
         )
         assert response.status_code == 200
         # Same-origin framing allowed (overrides the global DENY middleware)

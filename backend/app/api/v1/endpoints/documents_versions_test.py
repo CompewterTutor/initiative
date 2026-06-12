@@ -407,8 +407,7 @@ async def test_download_version_unknown_returns_404(
 
     auth_headers = get_auth_headers(owner)
     resp = await client.get(
-        f"/api/v1/documents/{doc['id']}/versions/99999/download"
-        f"?guild_id={guild.id}",
+        f"/api/v1/documents/{doc['id']}/versions/99999/download?guild_id={guild.id}",
         headers=auth_headers,
     )
     assert resp.status_code == 404
