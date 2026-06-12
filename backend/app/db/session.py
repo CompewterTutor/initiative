@@ -67,6 +67,26 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 async def get_admin_session() -> AsyncGenerator[AsyncSession, None]:
     """Get a session that bypasses RLS (for migrations, background jobs, etc.)."""
     async with AdminSessionLocal() as session:
+        # Reset routing GUCs on the recycled connection. Without this an admin
+        # session inherits whatever search_path / assumed guild role the previous
+        # checkout of this pooled connection left behind — so an unrouted admin
+        # query for a guild-scoped table could land in a stale guild_<id> schema
+        # (or `public`) nondeterministically. Start every admin session from a
+        # clean public, login-role baseline; callers that need a guild schema
+        # call set_rls_context() explicitly.
+        await session.execute(
+            text(
+                "SELECT set_config('app.current_user_id', '', false), "
+                "set_config('app.current_guild_id', '', false), "
+                "set_config('app.current_guild_role', '', false), "
+                "set_config('app.is_superadmin', 'false', false), "
+                "set_config('app.pam_guild_id', '', false), "
+                "set_config('app.pam_read', 'false', false), "
+                "set_config('app.pam_write', 'false', false), "
+                "set_config('search_path', 'public', false), "
+                "set_config('role', 'none', false)"
+            )
+        )
         yield session
 
 

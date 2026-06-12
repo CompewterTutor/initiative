@@ -108,9 +108,66 @@ def _disable_hibp_check(monkeypatch):
 @pytest.fixture(scope="function")
 async def engine():
     """Create a test database engine."""
-    test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, future=True, pool_pre_ping=True)
+    test_engine = create_async_engine(
+        TEST_DATABASE_URL, echo=False, future=True, pool_pre_ping=True
+    )
     yield test_engine
     await test_engine.dispose()
+
+
+def _test_url_for_role(role: str) -> str:
+    """Test-DB connection URL for a given Postgres login role.
+
+    The default ``engine``/``session`` fixtures connect as the SUPERUSER, which
+    bypasses table/schema GRANTs and BYPASSRLS — so they silently mask
+    permission bugs that bite the real ``app_admin``/``app_user`` roles in
+    production (e.g. a cross-schema ``SELECT`` without ``SET ROLE``). This maps a
+    role name onto a test-DB URL using that role's real credentials so a test can
+    exercise the production privilege boundary.
+    """
+    if role in ("superuser", "su"):
+        return TEST_DATABASE_URL
+    base = {
+        "app_admin": settings.DATABASE_URL_ADMIN,
+        "app_user": settings.DATABASE_URL_APP,
+    }.get(role)
+    if base is None:
+        raise ValueError(f"unknown test role: {role!r}")
+    return base.rsplit("/", 1)[0] + "/" + TEST_DB_NAME
+
+
+@pytest.fixture
+async def role_session():
+    """Factory yielding a DB session connected AS a given role (default
+    ``app_admin``), against the test database.
+
+    Use this to verify behaviour under the REAL production privilege boundary —
+    the superuser-backed ``session`` fixture would let a missing ``SET ROLE`` or
+    a cross-schema grant gap pass silently. Set up data with the normal
+    ``session`` fixture (factories commit, so the rows are visible to this
+    separate connection), then assert via ``await role_session("app_admin")``.
+
+    Example:
+        s = await role_session("app_admin")
+        # raises asyncpg InsufficientPrivilege if the code reads a guild schema
+        # without SET ROLE — exactly the bug the superuser session hides.
+    """
+    created: list = []
+
+    async def _make(role: str = "app_admin") -> AsyncSession:
+        eng = create_async_engine(
+            _test_url_for_role(role), echo=False, future=True, pool_pre_ping=True
+        )
+        maker = sessionmaker(bind=eng, class_=AsyncSession, expire_on_commit=False)
+        sess = maker()
+        created.append((eng, sess))
+        return sess
+
+    yield _make
+
+    for eng, sess in created:
+        await sess.close()
+        await eng.dispose()
 
 
 @pytest.fixture(autouse=True)
@@ -181,7 +238,9 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         await conn.exec_driver_sql("SET lock_timeout = '10s'")
         for (schema,) in (
             await conn.execute(
-                text("SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'")
+                text(
+                    "SELECT nspname FROM pg_namespace WHERE nspname ~ '^guild_[0-9]+$'"
+                )
             )
         ).all():
             await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
@@ -190,16 +249,20 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         # cluster-global catalog but belong to that database).
         role_pattern = f"^{settings.GUILD_ROLE_PREFIX}guild_[0-9]+(_ro)?$"
         roles = [
-            r for (r,) in (
+            r
+            for (r,) in (
                 await conn.execute(
-                    text("SELECT rolname FROM pg_roles WHERE rolname ~ :pat"), {"pat": role_pattern}
+                    text("SELECT rolname FROM pg_roles WHERE rolname ~ :pat"),
+                    {"pat": role_pattern},
                 )
             ).all()
         ]
         # Truncate all public tables to reset state.
         await conn.execute(text("SET session_replication_role = 'replica'"))
         for table in reversed(SQLModel.metadata.sorted_tables):
-            await conn.execute(text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE"))
+            await conn.execute(
+                text(f"TRUNCATE TABLE {table.name} RESTART IDENTITY CASCADE")
+            )
         await conn.execute(text("SET session_replication_role = 'origin'"))
 
     # Drop the suite's prefixed roles, each in its own transaction. Prefixed roles
@@ -243,8 +306,7 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     limiter.enabled = False
 
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as test_client:
         yield test_client
 

@@ -141,10 +141,10 @@ async def serve_upload_file(
     """Serve an uploaded file — requires authentication and guild membership."""
     from pathlib import Path as FilePath
 
+    from sqlalchemy import text
     from sqlmodel import select
 
     from app.models.guild import GuildMembership
-    from app.models.upload import Upload
 
     try:
         file_path = (uploads_path / filename).resolve()
@@ -154,25 +154,67 @@ async def serve_upload_file(
     if not file_path.is_file():
         raise HTTPException(status_code=404)
 
-    # Guild authorization: look up upload record and verify membership.
-    # Fail closed: a blob on disk without a matching Upload row has no owning
-    # guild to authorize against, so we 404 (don't confirm existence) rather
-    # than serve it to any authenticated user cross-guild. Every legitimate
-    # write path inserts an Upload row, so a row-less blob is never expected.
-    record_result = await session.exec(
-        select(Upload).where(Upload.filename == FilePath(filename).name)
-    )
-    record = record_result.one_or_none()
-    if record is None:
+    # Guild authorization: look up the Upload record and verify membership.
+    # Fail closed: a blob on disk without a matching Upload row in a guild the
+    # requester belongs to has no owning guild to authorize against, so we 404
+    # (don't confirm existence) rather than serve it cross-guild.
+    #
+    # ``uploads`` is guild-scoped under schema-per-guild: every live row lives
+    # in ``guild_<id>.uploads``. This route runs on the admin session
+    # (``search_path=public``), and the ``public.uploads`` copy is a frozen
+    # pre-conversion BACKUP — never read it, or new uploads 404 and old ones
+    # serve stale. Instead, resolve membership → schema: enumerate the
+    # requester's guilds (``guild_memberships`` is a shared/public table — the
+    # correct place to read it), then probe each of THEIR OWN guild schemas for
+    # the filename. A row in a guild the user doesn't belong to is never looked
+    # at, so an outsider always 404s without existence being confirmed, and a
+    # hit in one of the requester's schemas establishes membership by
+    # construction.
+    from app.db.session import set_rls_context
+    from app.db.schema_provisioning import guild_schema_name
+
+    fname = FilePath(filename).name
+    member_guild_ids = [
+        row.guild_id
+        for row in (
+            await session.execute(
+                select(GuildMembership.guild_id).where(
+                    GuildMembership.user_id == current_user.id
+                )
+            )
+        ).all()
+    ]
+    # Only probe guilds whose schema actually exists (pg_namespace is a system
+    # catalog readable by any role). The admin login role has NO table grants on
+    # a guild schema, so we must SET ROLE into the guild role to read it —
+    # ``set_rls_context`` does that. A bare ``SELECT FROM "guild_<id>".uploads``
+    # as the admin role fails with "permission denied for schema".
+    schema_by_gid = {int(gid): guild_schema_name(int(gid)) for gid in member_guild_ids}
+    existing = {
+        row.nspname
+        for row in (
+            await session.execute(
+                text("SELECT nspname FROM pg_namespace WHERE nspname = ANY(:ns)"),
+                {"ns": list(schema_by_gid.values())},
+            )
+        ).all()
+    }
+    found = False
+    for gid, schema in schema_by_gid.items():
+        if schema not in existing:
+            continue
+        await set_rls_context(session, guild_id=gid, is_superadmin=True)
+        hit = (
+            await session.execute(
+                text("SELECT 1 FROM uploads WHERE filename = :fn LIMIT 1"),
+                {"fn": fname},
+            )
+        ).first()
+        if hit is not None:
+            found = True
+            break
+    if not found:
         raise HTTPException(status_code=404)
-    membership_result = await session.exec(
-        select(GuildMembership).where(
-            GuildMembership.guild_id == record.guild_id,
-            GuildMembership.user_id == current_user.id,
-        )
-    )
-    if membership_result.one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
     headers: dict[str, str] = {}
     if filename.lower().endswith((".svg", ".html", ".htm")):

@@ -242,6 +242,10 @@ class ProjectBasic(SanitizedBaseModel):
     id: int
     name: str
     initiative_id: int
+    # The owning guild. Projects live in per-guild schemas, so the deletion /
+    # transfer UI needs this to call the guild-scoped member-picker and
+    # transfer endpoints (which now require ``guild_id``).
+    guild_id: int
 
 
 class AccountDeletionRequest(SanitizedBaseModel):
@@ -254,7 +258,10 @@ class AccountDeletionRequest(SanitizedBaseModel):
     action: Literal["deactivate", "soft_delete"]
     password: RawTextStr
     confirmation_text: str
-    project_transfers: Optional[Dict[int, int]] = None  # {project_id: new_owner_id}
+    # Keyed by "guild_id:project_id" (NOT bare project_id): under schema-per-guild
+    # the same numeric project id can exist in multiple guilds the user owns, so a
+    # bare id would collide and transfer both to one recipient.
+    project_transfers: Optional[Dict[str, int]] = None
 
 
 class DeletionEligibilityResponse(SanitizedBaseModel):

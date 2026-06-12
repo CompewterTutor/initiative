@@ -27,7 +27,6 @@ from app.models.calendar_event import (
     CalendarEventTag,
     RSVPStatus,
 )
-from app.models.guild import GuildMembership
 from app.models.initiative import Initiative, PermissionKey
 from app.models.property import CalendarEventPropertyValue
 from app.models.user import User
@@ -49,6 +48,7 @@ from app.schemas.ical import (
 )
 from app.schemas.property import PropertyValuesSetRequest
 from app.services import calendar_events as events_service
+from app.services.cross_guild import gather_across_guilds, member_guild_ids
 from app.services import ical_service
 from app.services import notifications as notifications_service
 from app.services import properties as properties_service
@@ -152,6 +152,12 @@ async def _fetch_users(session: RLSSessionDep, user_ids: list[int]) -> list[User
 # ---------------------------------------------------------------------------
 
 
+async def _exec_events(session, stmt) -> list[CalendarEvent]:
+    """Run a CalendarEvent select and return de-duplicated rows as a list."""
+    result = await session.execute(stmt)
+    return list(result.unique().scalars().all())
+
+
 @router.get("/global", response_model=CalendarEventListResponse)
 async def list_global_calendar_events(
     session: AdminSessionDep,
@@ -164,69 +170,55 @@ async def list_global_calendar_events(
 ) -> CalendarEventListResponse:
     """List calendar events across all guilds the user belongs to.
 
-    Uses AdminSessionDep (bypasses RLS) because this endpoint manually
-    filters by the user's guild memberships — same pattern as global tasks.
+    Uses AdminSessionDep + ``gather_across_guilds`` (schema-per-guild): events
+    live in per-guild schemas, so a single cross-guild query would read the
+    frozen ``public`` backup. Instead we visit each of the user's guild schemas
+    in turn (routed to the user's own RLS context, so guild isolation still
+    holds) and merge, then sort + paginate the merged set in Python.
     """
-    # Base conditions: user must be a guild member and events must be enabled
-    conditions = [
-        GuildMembership.user_id == current_user.id,
-        Initiative.events_enabled == True,  # noqa: E712
-    ]
 
-    # If specific guild_ids requested, intersect with user's memberships
-    if guild_ids:
-        conditions.append(CalendarEvent.guild_id.in_(tuple(guild_ids)))
-
-    if start_after is not None:
-        conditions.append(CalendarEvent.start_at >= start_after)
-    if start_before is not None:
-        conditions.append(CalendarEvent.start_at <= start_before)
-
-    def _base_query(stmt):  # type: ignore[no-untyped-def]
-        return (
-            stmt.join(Initiative, Initiative.id == CalendarEvent.initiative_id)
-            .join(
-                GuildMembership,
-                GuildMembership.guild_id == CalendarEvent.guild_id,
-            )
+    def _fetch(guild_session, _guild_id):  # type: ignore[no-untyped-def]
+        conditions = [
+            Initiative.events_enabled == True,  # noqa: E712
+        ]
+        if start_after is not None:
+            conditions.append(CalendarEvent.start_at >= start_after)
+        if start_before is not None:
+            conditions.append(CalendarEvent.start_at <= start_before)
+        stmt = (
+            select(CalendarEvent)
+            .join(Initiative, Initiative.id == CalendarEvent.initiative_id)
             .where(*conditions)
+            .options(
+                selectinload(CalendarEvent.attendees).selectinload(
+                    CalendarEventAttendee.user,
+                ),
+                selectinload(CalendarEvent.initiative),
+                selectinload(CalendarEvent.tag_links).selectinload(
+                    CalendarEventTag.tag
+                ),
+                selectinload(CalendarEvent.property_values).selectinload(
+                    CalendarEventPropertyValue.property_definition
+                ),
+                selectinload(CalendarEvent.property_values).selectinload(
+                    CalendarEventPropertyValue.value_user
+                ),
+            )
         )
+        return _exec_events(guild_session, stmt)
 
-    # Count
-    count_subq = _base_query(select(CalendarEvent.id)).subquery()
-    count_stmt = select(func.count()).select_from(count_subq)
-    total_count = (await session.execute(count_stmt)).scalar_one()
-
-    # Data
-    stmt = (
-        _base_query(select(CalendarEvent))
-        .options(
-            selectinload(CalendarEvent.attendees).selectinload(
-                CalendarEventAttendee.user,
-            ),
-            selectinload(CalendarEvent.initiative),
-            selectinload(CalendarEvent.tag_links).selectinload(CalendarEventTag.tag),
-            selectinload(CalendarEvent.property_values).selectinload(
-                CalendarEventPropertyValue.property_definition
-            ),
-            selectinload(CalendarEvent.property_values).selectinload(
-                CalendarEventPropertyValue.value_user
-            ),
-        )
-        .order_by(
-            CalendarEvent.start_at.asc(),
-            CalendarEvent.id.asc(),
-        )
-        .offset(
-            (page - 1) * page_size,
-        )
-        .limit(page_size)
+    target_guilds = await member_guild_ids(
+        session, current_user.id, restrict_to=guild_ids
     )
+    events = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
+    # Merge-sort across guilds, then paginate in Python (per-schema SQL can't
+    # order/limit across schemas).
+    events.sort(key=lambda e: (e.start_at, e.guild_id, e.id))
+    total_count = len(events)
+    start = (page - 1) * page_size
+    page_events = events[start : start + page_size]
 
-    result = await session.execute(stmt)
-    events = result.unique().scalars().all()
-
-    items = [serialize_calendar_event_summary(e) for e in events]
+    items = [serialize_calendar_event_summary(e) for e in page_events]
     has_next = page * page_size < total_count
     return CalendarEventListResponse(
         items=items,
@@ -295,32 +287,37 @@ async def export_global_calendar_events_ics(
     start_after: Optional[datetime] = Query(default=None),
     start_before: Optional[datetime] = Query(default=None),
 ) -> Response:
-    """Export cross-guild calendar events as an .ics file."""
-    conditions = [
-        GuildMembership.user_id == current_user.id,
-        Initiative.events_enabled == True,  # noqa: E712
-    ]
-    if guild_ids:
-        conditions.append(CalendarEvent.guild_id.in_(tuple(guild_ids)))
-    if start_after is not None:
-        conditions.append(CalendarEvent.start_at >= start_after)
-    if start_before is not None:
-        conditions.append(CalendarEvent.start_at <= start_before)
+    """Export cross-guild calendar events as an .ics file.
 
-    stmt = (
-        select(CalendarEvent)
-        .join(Initiative, Initiative.id == CalendarEvent.initiative_id)
-        .join(GuildMembership, GuildMembership.guild_id == CalendarEvent.guild_id)
-        .where(*conditions)
-        .options(
-            selectinload(CalendarEvent.attendees).selectinload(
-                CalendarEventAttendee.user
-            ),
+    Schema-per-guild: aggregate per guild schema via ``gather_across_guilds``
+    (the unrouted public query would read the frozen backup).
+    """
+
+    def _fetch(guild_session, _guild_id):  # type: ignore[no-untyped-def]
+        conditions = [
+            Initiative.events_enabled == True,  # noqa: E712
+        ]
+        if start_after is not None:
+            conditions.append(CalendarEvent.start_at >= start_after)
+        if start_before is not None:
+            conditions.append(CalendarEvent.start_at <= start_before)
+        stmt = (
+            select(CalendarEvent)
+            .join(Initiative, Initiative.id == CalendarEvent.initiative_id)
+            .where(*conditions)
+            .options(
+                selectinload(CalendarEvent.attendees).selectinload(
+                    CalendarEventAttendee.user
+                ),
+            )
         )
-        .order_by(CalendarEvent.start_at.asc())
+        return _exec_events(guild_session, stmt)
+
+    target_guilds = await member_guild_ids(
+        session, current_user.id, restrict_to=guild_ids
     )
-    result = await session.execute(stmt)
-    events = result.unique().scalars().all()
+    events = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
+    events.sort(key=lambda e: (e.start_at, e.guild_id, e.id))
 
     ics_bytes = ical_service.events_to_ical(list(events))
     return Response(

@@ -1019,7 +1019,9 @@ async def test_initiative_members_excludes_anonymized(
 
     headers = get_auth_headers(creator)
     response = await client.get(
-        f"/api/v1/users/me/initiative-members/{initiative.id}", headers=headers
+        f"/api/v1/users/me/initiative-members/{initiative.id}",
+        params={"guild_id": guild.id},
+        headers=headers,
     )
     assert response.status_code == 200
     ids = {member["id"] for member in response.json()}
@@ -1073,7 +1075,7 @@ async def test_self_delete_rejects_anonymized_transfer_target(
             "action": "soft_delete",
             "password": "testpassword123",
             "confirmation_text": "DELETE MY ACCOUNT",
-            "project_transfers": {str(project.id): husk.id},
+            "project_transfers": {f"{guild.id}:{project.id}": husk.id},
         },
     )
     assert response.status_code == 400

@@ -30,7 +30,9 @@ class AdminUserDeleteRequest(SanitizedBaseModel):
     """Request to deactivate, anonymize (soft delete), or hard delete a user as platform admin."""
 
     action: Literal["deactivate", "soft_delete", "hard_delete"]
-    project_transfers: Optional[Dict[int, int]] = None  # {project_id: new_owner_id}
+    # Keyed by "guild_id:project_id" (NOT bare project_id) — numeric project ids
+    # repeat across per-guild schemas, so a bare id would collide.
+    project_transfers: Optional[Dict[str, int]] = None
 
 
 class GuildBlockerInfo(SanitizedBaseModel):

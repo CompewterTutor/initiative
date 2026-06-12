@@ -13,6 +13,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.db.session import set_rls_context
 from app.models.guild import GuildRole
 from app.models.initiative import InitiativeMember
 from app.models.oidc_claim_mapping import OIDCClaimMapping, OIDCMappingTargetType
@@ -352,6 +353,9 @@ async def test_sync_nulls_orphaned_role_on_valid_initiative(session: AsyncSessio
 
     await sync_oidc_assignments(session, user_id=user.id, claim_values={"pm"})
 
+    # sync resets the shared test session to public on the way out (as a real
+    # admin request would); re-route to read the guild-scoped member it wrote.
+    await set_rls_context(session, guild_id=guild.id, is_superadmin=True)
     members = (
         await session.exec(
             select(InitiativeMember).where(

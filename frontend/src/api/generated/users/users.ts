@@ -28,6 +28,7 @@ import type {
   ApiKeyListResponse,
   DeletionEligibilityResponse,
   ExportUsersCsvApiV1UsersExportCsvGetParams,
+  GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   GetUserStatsApiV1UsersMeStatsGetParams,
   GuildRemovalEligibilityResponse,
   GuildRemovalRequest,
@@ -1164,25 +1165,34 @@ export function useCheckDeletionEligibilityApiV1UsersMeDeletionEligibilityGet<
 /**
  * List members of an initiative the current user belongs to.
  *
- * Uses AdminSession to bypass RLS so users can see members across guilds
- * when selecting project transfer targets during account deletion.
+ * Used by the account-deletion transfer-target picker. ``guild_id`` is
+ * required: the initiative lives in that guild's schema (ids repeat across
+ * guild schemas), and the caller has it from the blocker record. We route in
+ * as superadmin so the member list is read from the live guild schema (the
+ * intentional cross-guild visibility the picker needs), not the frozen
+ * ``public`` backup.
  * @summary Get My Initiative Members
  */
 export const getMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGet = (
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
   return apiMutator<UserPublic[]>(
-    { url: `/api/v1/users/me/initiative-members/${initiativeId}`, method: "GET", signal },
+    { url: `/api/v1/users/me/initiative-members/${initiativeId}`, method: "GET", params, signal },
     options
   );
 };
 
 export const getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetQueryKey = (
-  initiativeId: number
+  initiativeId: number,
+  params?: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams
 ) => {
-  return [`/api/v1/users/me/initiative-members/${initiativeId}`] as const;
+  return [
+    `/api/v1/users/me/initiative-members/${initiativeId}`,
+    ...(params ? [params] : []),
+  ] as const;
 };
 
 export const getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetQueryOptions = <
@@ -1192,6 +1202,7 @@ export const getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdG
   TError = ErrorType<HTTPValidationError>,
 >(
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1209,13 +1220,17 @@ export const getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdG
 
   const queryKey =
     queryOptions?.queryKey ??
-    getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetQueryKey(initiativeId);
+    getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetQueryKey(
+      initiativeId,
+      params
+    );
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGet>>
   > = ({ signal }) =>
     getMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGet(
       initiativeId,
+      params,
       requestOptions,
       signal
     );
@@ -1246,6 +1261,7 @@ export function useGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiative
   TError = ErrorType<HTTPValidationError>,
 >(
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -1279,6 +1295,7 @@ export function useGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiative
   TError = ErrorType<HTTPValidationError>,
 >(
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1312,6 +1329,7 @@ export function useGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiative
   TError = ErrorType<HTTPValidationError>,
 >(
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1337,6 +1355,7 @@ export function useGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiative
   TError = ErrorType<HTTPValidationError>,
 >(
   initiativeId: number,
+  params: GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1354,6 +1373,7 @@ export function useGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiative
   const queryOptions =
     getGetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetQueryOptions(
       initiativeId,
+      params,
       options
     );
 

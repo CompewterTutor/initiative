@@ -20,6 +20,7 @@ from app.testing import (
     create_initiative,
     create_initiative_member,
     create_user,
+    get_auth_headers,
     get_guild_headers,
 )
 
@@ -354,3 +355,21 @@ async def test_rsvp_notifies_organizer(client: AsyncClient, session: AsyncSessio
     rsvps = await _notifications_for(session, organizer.id, NotificationType.event_rsvp)
     assert len(rsvps) == 1
     assert rsvps[0].data["rsvp_status"] == "accepted"
+
+
+@pytest.mark.integration
+async def test_global_calendar_events_reads_guild_schema(
+    client: AsyncClient, session: AsyncSession
+):
+    """The cross-guild /global list must read events from the per-guild schema
+    (schema-per-guild), not the frozen public backup. The factory writes the
+    event into guild_<id>; /global aggregates per guild and must surface it."""
+    user, guild, initiative, event = await _setup_event(
+        session, initiative_name="GlobalView"
+    )
+    response = await client.get(
+        "/api/v1/calendar-events/global", headers=get_auth_headers(user)
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert event.id in {item["id"] for item in body["items"]}
