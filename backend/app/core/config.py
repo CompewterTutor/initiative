@@ -66,6 +66,37 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     COOKIE_NAME: str = "session_token"
 
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _validate_secret_key(cls, value: str) -> str:
+        # SECRET_KEY signs session JWTs and the OIDC state HMAC, and roots all
+        # Fernet field encryption (SMTP password, OIDC client secret, AI keys,
+        # refresh tokens) plus the email_hash HMAC. A known placeholder or
+        # short key makes every one of those forgeable/decryptable, so fail
+        # closed at startup rather than booting with a guessable key.
+        known_placeholders = {"change-me", "changeme", "super-secret-key", "secret"}
+        normalized = value.strip()
+        if not normalized or normalized.lower() in known_placeholders:
+            raise ValueError(
+                "SECRET_KEY is unset or a known placeholder. Generate a real "
+                "key with: openssl rand -hex 32"
+            )
+        # Reject (rather than silently strip) surrounding whitespace: every
+        # byte of this value feeds HMAC/Fernet key derivation, so quietly
+        # normalizing it would rotate the effective key out from under a
+        # deployment whose env var carried stray whitespace.
+        if normalized != value:
+            raise ValueError(
+                "SECRET_KEY has leading or trailing whitespace. Remove it — "
+                "the exact value is used for key derivation."
+            )
+        if len(normalized) < 32:
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters. Generate one "
+                "with: openssl rand -hex 32"
+            )
+        return value
+
     @property
     def app_url_is_https(self) -> bool:
         """True when the public app origin is served over HTTPS.
