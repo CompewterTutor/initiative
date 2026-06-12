@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import html as _html
 import re
 import smtplib
 import ssl
@@ -114,7 +115,20 @@ def _build_html_layout(
 
 
 def _strip_html(html: str) -> str:
-    return re.sub(r"<[^>]+>", "", html)
+    """Reduce an HTML email fragment to its plain-text alternative.
+
+    Strips trusted template tags, then unescapes entities so values that were
+    HTML-escaped for the HTML part (see ``email_i18n``) read as the user's
+    literal text in the text/plain part.
+
+    Deliberate consequence: a user-supplied value that itself looks like markup
+    (e.g. a display name of ``<a href="https://x">…</a>``) appears verbatim in
+    the text part — including any URL, which a client's auto-linkification may
+    make clickable. That is acceptable for text/plain (no styling or trust
+    cues, unlike the brand-styled HTML part), and the alternative — leaving
+    entities encoded — would corrupt legitimate names like ``Tom & Jerry``.
+    """
+    return _html.unescape(re.sub(r"<[^>]+>", "", html))
 
 
 def _build_smtp_config(settings_obj: AppSetting) -> SMTPConfig:
@@ -279,9 +293,9 @@ async def send_test_email(session: AsyncSession, recipient: str) -> None:
     await send_email(
         session,
         recipients=[recipient],
-        subject=email_t("test.subject", locale=locale),
+        subject=email_t("test.subject", locale=locale, escape=False),
         html_body=html_body,
-        text_body=email_t("test.body", locale=locale),
+        text_body=email_t("test.body", locale=locale, escape=False),
         settings_obj=settings_obj,
     )
 
@@ -312,11 +326,11 @@ async def send_verification_email(
     html_body = _build_html_layout(
         email_t("verification.title", locale=locale), body, accent, locale=locale
     )
-    text_body = email_t("verification.textBody", locale=locale, link=link)
+    text_body = email_t("verification.textBody", locale=locale, link=link, escape=False)
     await send_email(
         session,
         recipients=[user.email],
-        subject=email_t("verification.subject", locale=locale),
+        subject=email_t("verification.subject", locale=locale, escape=False),
         html_body=html_body,
         text_body=text_body,
         settings_obj=settings_obj,
@@ -342,11 +356,13 @@ async def send_password_reset_email(
     html_body = _build_html_layout(
         email_t("passwordReset.title", locale=locale), body, accent, locale=locale
     )
-    text_body = email_t("passwordReset.textBody", locale=locale, link=link)
+    text_body = email_t(
+        "passwordReset.textBody", locale=locale, link=link, escape=False
+    )
     await send_email(
         session,
         recipients=[user.email],
-        subject=email_t("passwordReset.subject", locale=locale),
+        subject=email_t("passwordReset.subject", locale=locale, escape=False),
         html_body=html_body,
         text_body=text_body,
         settings_obj=settings_obj,
@@ -376,12 +392,16 @@ async def send_initiative_added_email(
         locale=locale,
         initiativeName=initiative_name,
         link=link,
+        escape=False,
     )
     await send_email(
         session,
         recipients=[user.email],
         subject=email_t(
-            "initiativeAdded.subject", locale=locale, initiativeName=initiative_name
+            "initiativeAdded.subject",
+            locale=locale,
+            initiativeName=initiative_name,
+            escape=False,
         ),
         html_body=html_body,
         text_body=text_body,
@@ -418,12 +438,16 @@ async def send_project_added_to_initiative_email(
         projectName=project_name,
         initiativeName=initiative_name,
         link=link,
+        escape=False,
     )
     await send_email(
         session,
         recipients=[user.email],
         subject=email_t(
-            "projectAdded.subject", locale=locale, initiativeName=initiative_name
+            "projectAdded.subject",
+            locale=locale,
+            initiativeName=initiative_name,
+            escape=False,
         ),
         html_body=html_body,
         text_body=text_body,
@@ -475,11 +499,15 @@ async def send_access_grant_email(
     html_body = _build_html_layout(
         email_t(f"{base}.title", locale=locale), body, accent, locale=locale
     )
-    text_body = email_t(f"{base}.textBody", locale=locale, link=link, **vars_)
+    text_body = email_t(
+        f"{base}.textBody", locale=locale, link=link, escape=False, **vars_
+    )
     await send_email(
         session,
         recipients=[user.email],
-        subject=email_t(f"{base}.subject", locale=locale, guildName=guild_name),
+        subject=email_t(
+            f"{base}.subject", locale=locale, guildName=guild_name, escape=False
+        ),
         html_body=html_body,
         text_body=text_body,
         settings_obj=settings_obj,
@@ -498,7 +526,9 @@ async def send_task_assignment_digest_email(
     name = _display_name(user)
 
     def assignment_html(item: dict) -> str:
-        title = item.get("task_title") or "Task"
+        # ``title`` is user-controlled and spliced into markup directly (not via
+        # email_t), so escape it here.
+        title = _html.escape(item.get("task_title") or "Task")
         project_name = item.get("project_name") or "a project"
         assigned_by = item.get("assigned_by_name")
         link = item.get("link")
@@ -520,12 +550,22 @@ async def send_task_assignment_digest_email(
         assigned_by = item.get("assigned_by_name")
         link = item.get("link")
         in_project = _strip_html(
-            email_t("taskAssignment.inProject", locale=locale, projectName=project_name)
+            email_t(
+                "taskAssignment.inProject",
+                locale=locale,
+                projectName=project_name,
+                escape=False,
+            )
         )
         line = f"- {title} {in_project}"
         if assigned_by:
             assigned = _strip_html(
-                email_t("taskAssignment.assignedBy", locale=locale, name=assigned_by)
+                email_t(
+                    "taskAssignment.assignedBy",
+                    locale=locale,
+                    name=assigned_by,
+                    escape=False,
+                )
             )
             line += f" ({assigned})"
         if link:
@@ -543,15 +583,15 @@ async def send_task_assignment_digest_email(
         email_t("taskAssignment.title", locale=locale), body, accent, locale=locale
     )
     text_lines = [
-        email_t("taskAssignment.textBody", locale=locale),
+        email_t("taskAssignment.textBody", locale=locale, escape=False),
         *(assignment_text(item) for item in assignments),
-        email_t("taskAssignment.footer", locale=locale),
+        email_t("taskAssignment.footer", locale=locale, escape=False),
     ]
     text_body = "\n".join(text_lines)
     await send_email(
         session,
         recipients=[user.email],
-        subject=email_t("taskAssignment.subject", locale=locale),
+        subject=email_t("taskAssignment.subject", locale=locale, escape=False),
         html_body=html_body,
         text_body=text_body,
         settings_obj=settings_obj,
@@ -612,7 +652,9 @@ async def send_overdue_tasks_email(
     name = _display_name(user)
 
     def overdue_html(item: dict) -> str:
-        title = item.get("title") or "Task"
+        # ``title`` is user-controlled and spliced into markup directly (not via
+        # email_t), so escape it here.
+        title = _html.escape(item.get("title") or "Task")
         project_name = item.get("project_name") or "a project"
         due_date = item.get("due_date") or "N/A"
         link = item.get("link")
@@ -640,6 +682,7 @@ async def send_overdue_tasks_email(
                 locale=locale,
                 projectName=project_name,
                 dueDate=due_date,
+                escape=False,
             )
         )
         line = f"- {title} ({detail})"
@@ -659,15 +702,15 @@ async def send_overdue_tasks_email(
         email_t("overdue.title", locale=locale), body, accent, locale=locale
     )
     text_lines = [
-        email_t("overdue.textBody", locale=locale, count=task_count),
+        email_t("overdue.textBody", locale=locale, count=task_count, escape=False),
         *(overdue_text(item) for item in tasks),
-        email_t("overdue.footer", locale=locale),
+        email_t("overdue.footer", locale=locale, escape=False),
     ]
     text_body = "\n".join(text_lines)
     await send_email(
         session,
         recipients=[user.email],
-        subject=email_t("overdue.subject", locale=locale),
+        subject=email_t("overdue.subject", locale=locale, escape=False),
         html_body=html_body,
         text_body=text_body,
         settings_obj=settings_obj,

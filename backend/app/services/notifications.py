@@ -352,7 +352,10 @@ async def notify_document_mention(
                 session,
                 mentioned_user,
                 subject=email_t(
-                    "mention.document.subject", locale, document=document_title
+                    "mention.document.subject",
+                    locale,
+                    document=document_title,
+                    escape=False,
                 ),
                 headline=email_t("mention.document.title", locale),
                 body_text=email_t(
@@ -444,7 +447,7 @@ async def notify_comment_mention(
             await email_service.send_mention_email(
                 session,
                 mentioned_user,
-                subject=email_t("mention.comment.subject", locale),
+                subject=email_t("mention.comment.subject", locale, escape=False),
                 headline=email_t("mention.comment.title", locale),
                 body_text=email_t(
                     "mention.comment.body",
@@ -541,7 +544,7 @@ async def notify_task_mentioned_in_comment(
             await email_service.send_mention_email(
                 session,
                 assignee,
-                subject=email_t("mention.task.subject", locale),
+                subject=email_t("mention.task.subject", locale, escape=False),
                 headline=email_t("mention.task.title", locale),
                 body_text=email_t(
                     "mention.task.body",
@@ -628,7 +631,9 @@ async def notify_comment_on_task(
             await email_service.send_mention_email(
                 session,
                 assignee,
-                subject=email_t("comment.onTask.subject", locale, task=task_title),
+                subject=email_t(
+                    "comment.onTask.subject", locale, task=task_title, escape=False
+                ),
                 headline=email_t("comment.onTask.title", locale),
                 body_text=email_t(
                     "comment.onTask.body", locale, actor=commenter_name, task=task_title
@@ -706,7 +711,10 @@ async def notify_comment_on_document(
                 session,
                 author,
                 subject=email_t(
-                    "comment.onDocument.subject", locale, document=document_title
+                    "comment.onDocument.subject",
+                    locale,
+                    document=document_title,
+                    escape=False,
                 ),
                 headline=email_t("comment.onDocument.title", locale),
                 body_text=email_t(
@@ -798,7 +806,7 @@ async def notify_comment_reply(
             await email_service.send_mention_email(
                 session,
                 parent_author,
-                subject=email_t("comment.reply.subject", locale),
+                subject=email_t("comment.reply.subject", locale, escape=False),
                 headline=email_t("comment.reply.title", locale),
                 body_text=email_t(
                     "comment.reply.body",
@@ -957,7 +965,9 @@ async def notify_event_invitation(
         data=_event_data(event, guild_id, organizer_name=organizer_name),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=email_t("event.invitation.subject", locale, event=event.title),
+        email_subject=email_t(
+            "event.invitation.subject", locale, event=event.title, escape=False
+        ),
         email_headline=email_t("event.invitation.title", locale),
         email_body=email_t(
             "event.invitation.body",
@@ -996,7 +1006,9 @@ async def notify_event_updated(
         ),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=email_t(f"{key}.subject", locale, event=event.title),
+        email_subject=email_t(
+            f"{key}.subject", locale, event=event.title, escape=False
+        ),
         email_headline=email_t(f"{key}.title", locale),
         email_body=email_t(
             f"{key}.body", locale, editor=editor_name, event=event.title, when=when
@@ -1027,7 +1039,9 @@ async def notify_event_cancelled(
         data=_event_data(event, guild_id, canceller_name=canceller_name),
         email_enabled=attendee.email_events is not False,
         push_enabled=attendee.push_events is not False,
-        email_subject=email_t("event.cancelled.subject", locale, event=event.title),
+        email_subject=email_t(
+            "event.cancelled.subject", locale, event=event.title, escape=False
+        ),
         email_headline=email_t("event.cancelled.title", locale),
         email_body=email_t(
             "event.cancelled.body",
@@ -1070,7 +1084,9 @@ async def notify_event_rsvp(
         ),
         email_enabled=organizer.email_events is not False,
         push_enabled=organizer.push_events is not False,
-        email_subject=email_t("event.rsvp.subject", locale, event=event.title),
+        email_subject=email_t(
+            "event.rsvp.subject", locale, event=event.title, escape=False
+        ),
         email_headline=email_t("event.rsvp.title", locale),
         email_body=email_t(
             "event.rsvp.body",
@@ -1107,7 +1123,9 @@ async def notify_event_reminder(
         data=_event_data(event, guild_id),
         email_enabled=recipient.email_event_reminders is not False,
         push_enabled=recipient.push_event_reminders is not False,
-        email_subject=email_t("event.reminder.subject", locale, event=event.title),
+        email_subject=email_t(
+            "event.reminder.subject", locale, event=event.title, escape=False
+        ),
         email_headline=email_t("event.reminder.title", locale),
         email_body=email_t("event.reminder.body", locale, event=event.title, when=when),
         push_title=_nt("event.reminder.title", locale),
