@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Reinstated the initiative permission layer dropped by the schema-per-guild cutover.** The old database-level "must be a member of the owning initiative" check (`is_initiative_member` RESTRICTIVE policies) didn't carry over into per-guild schemas, so a document/project permission row left behind after someone was removed from an initiative quietly became a live grant. Access checks and the visibility queries now require initiative scope (member, guild admin, or platform `data.bypass`) on top of an explicit permission row, removing a member from an initiative also deletes their document permission rows (project permissions already were), and a live PAM grant still acts as membership of every initiative it covers. New shared helpers in `app/services/membership.py` provide batch-efficient guild/initiative membership checks for future use.
+
 ### Added
 
 - **Expandable guild sidebar.** The icon-only guild rail can now expand into a "Guilds" flyout that shows each guild's full name and member count. Open it with the chevron toggle (or swipe in from the rail), collapse it with the header button, click-away (desktop), or by swiping it closed. On mobile the flyout fills the drawer; on desktop it floats over the sidebar. Member counts are exposed via a new `member_count` field on the guild list response. Drag-to-reorder still works (press-and-hold on touch so it doesn't fight the swipe gestures).
