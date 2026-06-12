@@ -1407,15 +1407,24 @@ async def seed() -> None:
             admin_users=[dm],
         )
 
-        # Ensure the default initiative exists (create-on-missing, like the
-        # guild 2/3 sections). A pre-existing primary guild whose schema was
-        # healed by the boot back-fill is structurally complete but EMPTY —
-        # the back-fill can't seed content (it has no creator) — so a bare
-        # lookup would crash here on such a dev DB.
+        # Look up the primary guild's "Default Initiative", creating it if it
+        # doesn't exist (same approach as the guild 2/3 sections below).
+        #
+        # Why it can be missing: a dev database can end up with a
+        # "Primary Guild" row in public.guilds but NO matching guild_1
+        # schema (for example, the row was created before per-guild schemas
+        # existed, or a cleanup was interrupted partway). On the next backend
+        # startup, backfill_guild_schemas() creates the missing guild_1
+        # schema — but it only creates the empty tables, it never inserts
+        # rows. The result: guild_1.initiatives exists with zero rows, and
+        # the previous code here (a SELECT followed by .one()) crashed with
+        # NoResultFound.
         g1_default_init = await ensure_default_initiative(
             session, admin_user, guild_id=g1_id
         )
-        # Same healing for the settings row seed_guild_content would have made.
+        # guild_1.guild_settings has the same gap: normally one row is
+        # inserted when a guild is created, but a startup back-fill leaves
+        # the table empty — create the row if it isn't there.
         await get_or_create_guild_settings(session, g1_id)
 
         # Add admin + DM as PM to default initiative
