@@ -17,6 +17,7 @@ from app.db.query import (
     paginated_query,
     parse_conditions,
     parse_sort_fields,
+    unbounded_page_limit,
 )
 from app.schemas.query import FilterOp
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -988,6 +989,10 @@ async def _gather_global_task_reads(
     if page_size > 0:
         start = (actual_page - 1) * page_size
         items = items[start : start + page_size]
+    else:
+        # "all rows" is still capped server-side (SEC-14): never return an
+        # unbounded merged list across every guild.
+        items = items[: unbounded_page_limit()]
     return items, total_count, actual_page
 
 

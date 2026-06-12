@@ -47,6 +47,7 @@ from app.services import rls as rls_service
 from app.services import task_statuses as task_statuses_service
 from app.core.messages import ProjectExportMessages, ProjectMessages
 from app.core.config import settings as app_settings
+from app.db.query import unbounded_page_limit
 from app.core.pam_context import has_active_grant
 from app.services.realtime import broadcast_event
 from app.schemas.project import (
@@ -928,8 +929,11 @@ async def _list_global_projects(
     reads = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
     reads = _sort_global_project_reads(reads, sort_by, sort_dir)
     total_count = len(reads)
-    start = (page - 1) * page_size
-    return reads[start : start + page_size], total_count
+    if page_size > 0:
+        start = (page - 1) * page_size
+        return reads[start : start + page_size], total_count
+    # "all rows" is still capped server-side (SEC-14).
+    return reads[: unbounded_page_limit()], total_count
 
 
 @router.get("/", response_model=ProjectListResponse)
@@ -960,8 +964,10 @@ async def list_projects(
         items = all_reads[start : start + page_size]
         has_next = page * page_size < total_count
     else:
-        items = all_reads
-        has_next = False
+        # "all rows" is still capped server-side (SEC-14) so a single request
+        # can't dump every project in the guild.
+        items = all_reads[: unbounded_page_limit()]
+        has_next = total_count > len(items)
     return ProjectListResponse(
         items=items,
         total_count=total_count,

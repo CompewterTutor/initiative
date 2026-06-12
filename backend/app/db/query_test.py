@@ -658,18 +658,41 @@ class TestApplyPagination:
         assert "LIMIT" in sql
         assert "10" in sql
 
-    def test_page_size_zero_no_pagination(self):
+    def test_page_size_zero_caps_at_ceiling(self):
+        """page_size=0 ("all rows") is bounded by MAX_UNBOUNDED_PAGE_SIZE (SEC-14):
+        a hard LIMIT is applied and there is no OFFSET."""
+        from app.core.config import settings
+        from app.db.query import unbounded_page_limit
+
         stmt = select(_dummy_table)
         result = apply_pagination(stmt, page=1, page_size=0)
         sql = str(result.compile(compile_kwargs={"literal_binds": True}))
-        assert "LIMIT" not in sql
+        assert "LIMIT" in sql
         assert "OFFSET" not in sql
+        assert str(settings.MAX_UNBOUNDED_PAGE_SIZE) in sql
+        assert unbounded_page_limit() == settings.MAX_UNBOUNDED_PAGE_SIZE
 
-    def test_negative_page_size_no_pagination(self):
+    def test_negative_page_size_caps_at_ceiling(self):
+        """A negative page_size is treated as "all rows" and capped, never
+        left unbounded (SEC-14)."""
+        from app.core.config import settings
+
         stmt = select(_dummy_table)
         result = apply_pagination(stmt, page=1, page_size=-1)
         sql = str(result.compile(compile_kwargs={"literal_binds": True}))
-        assert "LIMIT" not in sql
+        assert "LIMIT" in sql
+        assert str(settings.MAX_UNBOUNDED_PAGE_SIZE) in sql
+
+    def test_page_size_zero_respects_configured_ceiling(self, monkeypatch):
+        """The cap is settings-driven: changing MAX_UNBOUNDED_PAGE_SIZE changes
+        the applied LIMIT without a code change."""
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings, "MAX_UNBOUNDED_PAGE_SIZE", 7)
+        stmt = select(_dummy_table)
+        result = apply_pagination(stmt, page=1, page_size=0)
+        sql = str(result.compile(compile_kwargs={"literal_binds": True}))
+        assert "LIMIT 7" in sql.replace("LIMIT  7", "LIMIT 7")
 
 
 # ---------------------------------------------------------------------------
@@ -1009,3 +1032,26 @@ class TestParseSortFields:
 
         with pytest.raises(ValueError, match="too many sort fields"):
             parse_sort_fields(json.dumps(items), max_fields=2)
+
+
+class TestBuildPaginatedResponseUnbounded:
+    """SEC-14 follow-up: a capped "all rows" response must signal truncation."""
+
+    def test_truncated_unbounded_result_sets_has_next(self):
+        from app.db.query import build_paginated_response
+
+        # 1000-row cap hit: 1000 items of a 1500-row total.
+        resp = build_paginated_response(
+            items=list(range(1000)), total_count=1500, page=1, page_size=0
+        )
+        assert resp["has_next"] is True
+        assert resp["has_prev"] is False
+        assert resp["page"] == 1
+
+    def test_complete_unbounded_result_has_no_next(self):
+        from app.db.query import build_paginated_response
+
+        resp = build_paginated_response(
+            items=list(range(42)), total_count=42, page=1, page_size=0
+        )
+        assert resp["has_next"] is False

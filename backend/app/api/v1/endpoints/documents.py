@@ -31,6 +31,7 @@ from app.api.deps import (
     GuildContext,
 )
 from app.core.config import settings
+from app.db.query import unbounded_page_limit
 from app.core.messages import DocumentMessages, InitiativeMessages, QueryMessages
 from app.core.pam_context import has_active_grant
 from app.core.rate_limit import limiter
@@ -488,6 +489,10 @@ async def _list_global_documents(
     if page_size > 0:
         start = (page - 1) * page_size
         items = items[start : start + page_size]
+    else:
+        # "all rows" is still capped server-side (SEC-14): never return an
+        # unbounded merged list across every guild.
+        items = items[: unbounded_page_limit()]
     return items, total_count
 
 
@@ -607,7 +612,8 @@ async def list_documents(
         if page_size > 0:
             has_next = page * page_size < total_count
         else:
-            has_next = False
+            # "All rows" is still capped (SEC-14): report truncation.
+            has_next = len(items) < total_count
             page = 1
         return DocumentListResponse(
             items=items,
@@ -685,6 +691,10 @@ async def list_documents(
 
     if page_size > 0:
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+    else:
+        # "all rows" is still capped server-side (SEC-14) so the query can't
+        # dump an entire guild's document table in one response.
+        stmt = stmt.limit(unbounded_page_limit())
 
     result = await session.exec(stmt)
     documents = result.unique().all()
@@ -704,8 +714,10 @@ async def list_documents(
     if page_size > 0:
         has_next = page * page_size < total_count
     else:
-        # page_size=0 means "all rows, no pagination"
-        has_next = False
+        # page_size=0 means "all rows" — but still capped at
+        # unbounded_page_limit() (SEC-14). Surface a truncated result via
+        # has_next so the SPA can tell data is missing.
+        has_next = len(items) < total_count
         page = 1
 
     return DocumentListResponse(
