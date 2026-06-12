@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Property definitions can be created again by initiative members: the membership check ran on an unrouted admin session and read the frozen pre-migration `public` tables under schema-per-guild, falsely rejecting members of any initiative created (or joined) since the cutover — and conversely still honoring memberships that had been removed. The check now runs on the request's guild-routed session.
 - Corrected malformed stored defaults for tag/task-status colors and the task-status icon (an extra pair of quotes had been baked into the default value).
 - The "added to initiative" notification now carries its guild (id + guild-qualified deep link), like every other guild-scoped notification — so it resolves correctly in the cross-guild inbox under schema-per-guild tenancy.
 - **The Initiative logo now appears in emails.** It was an inline SVG, which Gmail, Outlook, and Yahoo strip from email bodies; it's now shipped as a raster PNG embedded inline (via a Content-ID reference) so it renders without an external image fetch. Also removed a stray period that trailed the "Update notification settings" footer link.
