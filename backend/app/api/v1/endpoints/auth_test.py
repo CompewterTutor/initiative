@@ -732,6 +732,169 @@ async def test_oidc_callback_blocks_new_user_when_registration_disabled(
     assert "session_token" not in response.cookies
 
 
+def _patch_oidc_callback(monkeypatch, *, userinfo_profile: dict) -> None:
+    """Wire the OIDC callback's httpx + runtime-config deps to a fixed profile.
+
+    Mirrors the harness used by
+    ``test_oidc_callback_blocks_new_user_when_registration_disabled`` so the
+    callback runs against a deterministic userinfo response.
+    """
+    import app.api.v1.endpoints.auth as auth_module
+
+    class _FakeTokenResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"access_token": "tok"}
+
+    class _FakeUserinfoResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return userinfo_profile
+
+    class _FakeHttpxClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def post(self, *a, **kw):
+            return _FakeTokenResp()
+
+        async def get(self, *a, **kw):
+            return _FakeUserinfoResp()
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeHttpxClient())
+
+    async def _fake_runtime_config(s):
+        settings_obj = type(
+            "S",
+            (),
+            {
+                "oidc_enabled": True,
+                "oidc_issuer": "https://id.example.com",
+                "oidc_client_id": "cid",
+                "oidc_client_secret_encrypted": None,
+                "oidc_scopes": ["openid"],
+                "oidc_provider_name": "Test",
+                "oidc_role_claim_path": None,
+            },
+        )()
+        metadata = {
+            "authorization_endpoint": "https://id.example.com/auth",
+            "token_endpoint": "https://id.example.com/token",
+            "userinfo_endpoint": "https://id.example.com/userinfo",
+        }
+        return settings_obj, metadata
+
+    monkeypatch.setattr(auth_module, "_get_oidc_runtime_config", _fake_runtime_config)
+
+
+@pytest.mark.integration
+@pytest.mark.auth
+@pytest.mark.parametrize(
+    "verified_claim",
+    [
+        pytest.param(False, id="email_verified_false"),
+        pytest.param(None, id="email_verified_absent"),
+    ],
+)
+async def test_oidc_callback_refuses_existing_account_when_email_unverified(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch,
+    verified_claim,
+):
+    """SEC-9: an OIDC login must not link to / log into a pre-existing local
+    account when the IdP does not assert ``email_verified is True`` for a
+    matching email. A false claim (IdP allows unverified emails) and an absent
+    claim (e.g. Azure AD) are both refused — fail closed."""
+    import app.api.v1.endpoints.auth as auth_module
+
+    existing = await create_user(
+        session,
+        email="victim@example.com",
+        full_name="Victim",
+        email_verified=False,
+    )
+
+    profile = {"email": "victim@example.com", "name": "Attacker", "sub": "sub-attacker"}
+    if verified_claim is not None:
+        profile["email_verified"] = verified_claim
+    _patch_oidc_callback(monkeypatch, userinfo_profile=profile)
+
+    valid_state = auth_module._generate_state()
+    response = await client.get(
+        "/api/v1/auth/oidc/callback",
+        params={"code": "fake-code", "state": valid_state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code in (302, 307)
+    assert "OIDC_EMAIL_UNVERIFIED" in response.headers["location"]
+    # No session was issued.
+    assert "session_token" not in response.cookies
+    # The account must not have been silently promoted to verified, and its
+    # profile must not have been overwritten by the attacker-supplied claims.
+    await session.refresh(existing)
+    assert existing.email_verified is False
+    assert existing.full_name == "Victim"
+
+
+@pytest.mark.integration
+@pytest.mark.auth
+async def test_oidc_callback_links_existing_account_when_email_verified(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch,
+):
+    """SEC-9: the verified flow is unchanged — a matching email with
+    ``email_verified=true`` logs into the existing account and promotes an
+    unverified local account to verified."""
+    import app.api.v1.endpoints.auth as auth_module
+    from app.core.config import settings as app_config
+
+    existing = await create_user(
+        session,
+        email="member@example.com",
+        full_name="Member",
+        email_verified=False,
+    )
+
+    profile = {
+        "email": "member@example.com",
+        "name": "Member",
+        "sub": "sub-member",
+        "email_verified": True,
+    }
+    _patch_oidc_callback(monkeypatch, userinfo_profile=profile)
+
+    valid_state = auth_module._generate_state()
+    response = await client.get(
+        "/api/v1/auth/oidc/callback",
+        params={"code": "fake-code", "state": valid_state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code in (302, 307)
+    assert "OIDC_EMAIL_UNVERIFIED" not in response.headers["location"]
+    # A session cookie is issued on the verified web flow.
+    assert app_config.COOKIE_NAME in response.cookies
+    # The verified claim promotes the previously-unverified local account.
+    await session.refresh(existing)
+    assert existing.email_verified is True
+
+
 @pytest.mark.integration
 @pytest.mark.auth
 async def test_oidc_login_rejects_non_https_authorization_endpoint(

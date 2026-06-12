@@ -61,6 +61,7 @@
   "INITIATIVE_ROLE_HAS_MEMBERS": "Cannot delete role: members are still assigned to it",
   "OIDC_NOT_ENABLED": "OIDC is not enabled",
   "OIDC_METADATA_INCOMPLETE": "OIDC metadata incomplete",
+  "OIDC_EMAIL_UNVERIFIED": "Your identity provider did not confirm your email is verified, so we can't sign you in to an existing account. Verify your email with your provider and try again.",
   "SMTP_NOT_CONFIGURED": "SMTP settings are incomplete.",
   "INVALID_OR_EXPIRED_TOKEN": "Invalid or expired token",
   "PROJECT_NOT_FOUND": "Project not found",
