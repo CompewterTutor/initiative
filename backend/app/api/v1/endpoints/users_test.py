@@ -1019,7 +1019,9 @@ async def test_initiative_members_excludes_anonymized(
 
     headers = get_auth_headers(creator)
     response = await client.get(
-        f"/api/v1/users/me/initiative-members/{initiative.id}", headers=headers
+        f"/api/v1/users/me/initiative-members/{initiative.id}",
+        params={"guild_id": guild.id},
+        headers=headers,
     )
     assert response.status_code == 200
     ids = {member["id"] for member in response.json()}

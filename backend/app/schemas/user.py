@@ -242,6 +242,10 @@ class ProjectBasic(SanitizedBaseModel):
     id: int
     name: str
     initiative_id: int
+    # The owning guild. Projects live in per-guild schemas, so the deletion /
+    # transfer UI needs this to call the guild-scoped member-picker and
+    # transfer endpoints (which now require ``guild_id``).
+    guild_id: int
 
 
 class AccountDeletionRequest(SanitizedBaseModel):

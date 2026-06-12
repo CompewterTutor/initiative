@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, List, Sequence
 from datetime import datetime, timezone
 
@@ -6,14 +7,15 @@ from sqlmodel import select
 
 from app.api.deps import require_capability
 from app.core.capabilities import Capability, capabilities_for, can_assign_role
-from app.db.session import get_admin_session
+from app.db.session import get_admin_session, set_rls_context
+from app.db.schema_provisioning import deprovision_guild
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.guild import Guild, GuildRole
 from app.models.initiative import Initiative, InitiativeMember
 from app.models.project import Project
 from app.models.user import User, UserStatus
 from app.models.user_token import UserTokenPurpose
-from app.schemas.user import UserRead, AccountDeletionResponse, ProjectBasic, UserPublic
+from app.schemas.user import UserRead, AccountDeletionResponse, UserPublic
 from app.schemas.auth import VerificationSendResponse
 from app.schemas.admin import (
     PlatformRoleUpdate,
@@ -33,6 +35,8 @@ from app.services import email as email_service
 from app.services import initiatives as initiatives_service
 from app.services import users as users_service
 from app.services import guilds as guilds_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -366,10 +370,7 @@ async def check_user_deletion_eligibility(
         can_delete=can_delete,
         blockers=blockers,
         warnings=warnings,
-        owned_projects=[
-            ProjectBasic(id=p.id, name=p.name, initiative_id=p.initiative_id)
-            for p in owned_projects
-        ],
+        owned_projects=owned_projects,
         guild_blockers=[
             GuildBlockerInfo(
                 guild_id=gb["guild_id"],
@@ -516,16 +517,16 @@ async def delete_user(
             )
 
         if payload.action in ("deactivate", "soft_delete"):
-            for project_id, new_owner_id in payload.project_transfers.items():
-                try:
-                    await users_service.transfer_project_ownership(
-                        session, project_id, new_owner_id
-                    )
-                except users_service.InvalidTransferRecipient:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=AdminMessages.INVALID_TRANSFER_RECIPIENT,
-                    )
+            try:
+                # Routed per guild — projects live in per-guild schemas.
+                await users_service.transfer_owned_projects(
+                    session, user_id, payload.project_transfers
+                )
+            except users_service.InvalidTransferRecipient:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=AdminMessages.INVALID_TRANSFER_RECIPIENT,
+                )
 
     if payload.action == "deactivate":
         await users_service.deactivate_user(session, user_id)
@@ -584,8 +585,22 @@ async def admin_delete_guild(
             status_code=status.HTTP_404_NOT_FOUND, detail=AdminMessages.GUILD_NOT_FOUND
         )
 
+    # Delete the shared guild row (cascades clear the roster), then drop the
+    # guild's schema — its content lives entirely in guild_<id> and is NOT
+    # removed by the row delete (no cross-schema FKs). Without the deprovision
+    # the schema is orphaned: every initiative/project/document/task for the
+    # guild stays on disk, reachable by id if the schema name is ever reused.
+    # Mirrors the member-facing DELETE /guilds/{id} endpoint.
     await guilds_service.delete_guild(session, guild)
     await session.commit()
+    try:
+        await deprovision_guild(guild_id)
+    except Exception:
+        logger.exception(
+            "admin guild deletion: schema deprovision failed for guild %s "
+            "(row already deleted; schema orphaned, reclaimed on retry)",
+            guild_id,
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -596,6 +611,7 @@ async def admin_delete_guild(
 )
 async def admin_delete_initiative(
     initiative_id: int,
+    guild_id: Annotated[int, Query()],
     session: AdminSessionDep,
     _current_user: GuildsManageDep,
 ) -> Response:
@@ -612,7 +628,15 @@ async def admin_delete_initiative(
     guild admins (so the guild always has a default for new project
     creation), but a platform admin cleaning up a soon-to-be-deleted
     user shouldn't be blocked by it.
+
+    ``guild_id`` is REQUIRED: initiatives live in per-guild schemas with
+    independent id sequences, so ``initiative_id`` alone is ambiguous across
+    guilds. The caller (the blocker-resolution UI) has it from the blocker
+    record. We route into that guild's schema as superadmin so the cascade
+    deletes the real rows, not the frozen ``public`` backup copies.
     """
+    await set_rls_context(session, guild_id=guild_id, is_superadmin=True)
+
     initiative = await session.get(Initiative, initiative_id)
     if not initiative:
         raise HTTPException(
@@ -690,14 +714,19 @@ async def admin_update_guild_member_role(
 @router.get("/initiatives/{initiative_id}/members", response_model=List[UserPublic])
 async def admin_get_initiative_members(
     initiative_id: int,
+    guild_id: Annotated[int, Query()],
     session: AdminSessionDep,
     _current_user: GuildsManageDep,
 ) -> Sequence[User]:
     """List members of any initiative (platform admin only).
 
-    Bypasses RLS so admins can see members across guilds,
-    e.g. when choosing a project transfer target during user deletion.
+    ``guild_id`` is required: initiatives live in per-guild schemas with
+    independent id sequences. We route into that guild's schema as superadmin
+    so the member list comes from the live data, not the frozen ``public``
+    backup.
     """
+    await set_rls_context(session, guild_id=guild_id, is_superadmin=True)
+
     stmt = select(Initiative).where(Initiative.id == initiative_id)
     result = await session.exec(stmt)
     if not result.one_or_none():
@@ -733,6 +762,7 @@ async def admin_update_initiative_member_role(
     initiative_id: int,
     user_id: int,
     payload: AdminInitiativeRoleUpdate,
+    guild_id: Annotated[int, Query()],
     session: AdminSessionDep,
     _current_user: GuildsManageDep,
 ) -> Response:
@@ -741,9 +771,14 @@ async def admin_update_initiative_member_role(
     This allows platform admins to change initiative member roles in any initiative,
     even if they're not a member. Useful for resolving "sole PM" blockers.
 
+    ``guild_id`` is required (per-guild schemas; ``initiative_id`` is not unique
+    across guilds). We route into that guild's schema as superadmin.
+
     Restrictions:
     - Cannot demote the last project manager
     """
+    await set_rls_context(session, guild_id=guild_id, is_superadmin=True)
+
     # Check initiative exists
     stmt = select(Initiative).where(Initiative.id == initiative_id)
     result = await session.exec(stmt)

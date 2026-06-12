@@ -16,7 +16,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse
-from sqlalchemy import delete as sa_delete, exists, func
+from sqlalchemy import delete as sa_delete, exists, func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -2247,6 +2247,78 @@ async def remove_document_role_permission(
     await session.commit()
 
 
+def _download_document_options():
+    """Eager loads needed by ``_require_document_access`` on a download."""
+    return (
+        selectinload(Document.initiative)
+        .selectinload(Initiative.memberships)
+        .options(
+            selectinload(InitiativeMember.user),
+            selectinload(InitiativeMember.role_ref).selectinload(
+                InitiativeRoleModel.permissions
+            ),
+        ),
+        selectinload(Document.permissions),
+        selectinload(Document.role_permissions).selectinload(
+            DocumentRolePermission.role
+        ),
+    )
+
+
+async def _load_download_document(
+    session: AsyncSession, current_user, document_id: int
+):
+    """Load a file ``Document`` by id from whichever of the REQUESTER'S OWN guild
+    schemas holds it (schema-per-guild), with the eager loads the access check
+    needs.
+
+    Served via iframe/window.open with no X-Guild-ID header, so we can't route
+    by request context. Documents live in per-guild schemas, so we probe each of
+    the user's guild schemas (membership is shared/public) — never the frozen
+    ``public`` backup, which would 404 new docs and could serve stale ones.
+    Probing only the user's own guilds enforces guild isolation by construction;
+    document-level read permission is still checked by the caller. Leaves the
+    session routed into the found document's guild so a follow-up version query
+    runs in the same schema. Returns the Document or ``None``.
+    """
+    from app.db.session import set_rls_context
+    from app.db.schema_provisioning import guild_schema_name
+
+    member_guild_ids = list(
+        (
+            await session.exec(
+                select(GuildMembership.guild_id).where(
+                    GuildMembership.user_id == current_user.id
+                )
+            )
+        ).all()
+    )
+    schema_by_gid = {int(g): guild_schema_name(int(g)) for g in member_guild_ids}
+    existing = {
+        row.nspname
+        for row in (
+            await session.execute(
+                text("SELECT nspname FROM pg_namespace WHERE nspname = ANY(:ns)"),
+                {"ns": list(schema_by_gid.values())},
+            )
+        ).all()
+    }
+    for gid, schema in schema_by_gid.items():
+        if schema not in existing:
+            continue
+        await set_rls_context(session, guild_id=gid, is_superadmin=True)
+        doc = (
+            await session.exec(
+                select(Document)
+                .where(Document.id == document_id)
+                .options(*_download_document_options())
+            )
+        ).one_or_none()
+        if doc is not None:
+            return doc
+    return None
+
+
 @router.get("/{document_id}/download", include_in_schema=False)
 @limiter.limit("30/minute")
 async def download_document_file(
@@ -2254,40 +2326,13 @@ async def download_document_file(
     document_id: int,
     current_user: UploadUserDep,
     # Use AdminSessionDep (not RLSSessionDep) because this endpoint is accessed
-    # via iframe and window.open(), which can't send X-Guild-ID headers.
-    # Guild isolation is enforced directly in the query instead.
+    # via iframe and window.open(), which can't send X-Guild-ID headers. Guild
+    # isolation is enforced by probing only the requester's own guild schemas.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
 ) -> FileResponse:
     """Download a file-type document — requires read permission on the document."""
-    stmt = (
-        select(Document)
-        .where(Document.id == document_id)
-        .join(Document.initiative)
-        .where(
-            Initiative.guild_id.in_(
-                select(GuildMembership.guild_id).where(
-                    GuildMembership.user_id == current_user.id
-                )
-            )
-        )
-        .options(
-            selectinload(Document.initiative)
-            .selectinload(Initiative.memberships)
-            .options(
-                selectinload(InitiativeMember.user),
-                selectinload(InitiativeMember.role_ref).selectinload(
-                    InitiativeRoleModel.permissions
-                ),
-            ),
-            selectinload(Document.permissions),
-            selectinload(Document.role_permissions).selectinload(
-                DocumentRolePermission.role
-            ),
-        )
-    )
-    result = await session.exec(stmt)
-    document = result.one_or_none()
+    document = await _load_download_document(session, current_user, document_id)
     if (
         document is None
         or document.document_type != DocumentType.file
@@ -2327,34 +2372,7 @@ async def download_document_file_version(
     inline: bool = False,
 ) -> FileResponse:
     """Download a specific stored version of a file document — read permission."""
-    stmt = (
-        select(Document)
-        .where(Document.id == document_id)
-        .join(Document.initiative)
-        .where(
-            Initiative.guild_id.in_(
-                select(GuildMembership.guild_id).where(
-                    GuildMembership.user_id == current_user.id
-                )
-            )
-        )
-        .options(
-            selectinload(Document.initiative)
-            .selectinload(Initiative.memberships)
-            .options(
-                selectinload(InitiativeMember.user),
-                selectinload(InitiativeMember.role_ref).selectinload(
-                    InitiativeRoleModel.permissions
-                ),
-            ),
-            selectinload(Document.permissions),
-            selectinload(Document.role_permissions).selectinload(
-                DocumentRolePermission.role
-            ),
-        )
-    )
-    result = await session.exec(stmt)
-    document = result.one_or_none()
+    document = await _load_download_document(session, current_user, document_id)
     if document is None or document.document_type != DocumentType.file:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=DocumentMessages.NOT_FOUND

@@ -40,7 +40,6 @@ from app.schemas.user import (
     GuildRemovalEligibilityResponse,
     GuildRemovalProjectInfo,
     GuildRemovalRequest,
-    ProjectBasic,
     UserPublic,
 )
 from app.schemas.api_key import (
@@ -530,13 +529,6 @@ async def check_deletion_eligibility(
         owned_projects,
     ) = await users_service.check_deletion_eligibility(session, current_user.id)
 
-    project_basics = [
-        ProjectBasic(
-            id=project.id, name=project.name, initiative_id=project.initiative_id
-        )
-        for project in owned_projects
-    ]
-
     last_admin_guilds = await users_service.is_last_guild_admin(
         session, current_user.id
     )
@@ -545,7 +537,7 @@ async def check_deletion_eligibility(
         can_delete=can_delete,
         blockers=blockers,
         warnings=warnings,
-        owned_projects=project_basics,
+        owned_projects=owned_projects,
         last_admin_guilds=last_admin_guilds,
     )
 
@@ -553,14 +545,21 @@ async def check_deletion_eligibility(
 @router.get("/me/initiative-members/{initiative_id}", response_model=List[UserPublic])
 async def get_my_initiative_members(
     initiative_id: int,
+    guild_id: Annotated[int, Query()],
     session: AdminSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Sequence[User]:
     """List members of an initiative the current user belongs to.
 
-    Uses AdminSession to bypass RLS so users can see members across guilds
-    when selecting project transfer targets during account deletion.
+    Used by the account-deletion transfer-target picker. ``guild_id`` is
+    required: the initiative lives in that guild's schema (ids repeat across
+    guild schemas), and the caller has it from the blocker record. We route in
+    as superadmin so the member list is read from the live guild schema (the
+    intentional cross-guild visibility the picker needs), not the frozen
+    ``public`` backup.
     """
+    await set_rls_context(session, guild_id=guild_id, is_superadmin=True)
+
     # Verify the current user is a member of this initiative
     membership = await initiatives_service.get_initiative_membership(
         session,
@@ -681,16 +680,16 @@ async def delete_own_account(
                 detail=f"project_transfers contains projects not owned by user: {extra}",
             )
 
-        for project_id, new_owner_id in request.project_transfers.items():
-            try:
-                await users_service.transfer_project_ownership(
-                    session, project_id, new_owner_id
-                )
-            except users_service.InvalidTransferRecipient:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=UserMessages.INVALID_TRANSFER_RECIPIENT,
-                )
+        try:
+            # Routed per guild — the projects live in per-guild schemas.
+            await users_service.transfer_owned_projects(
+                session, current_user.id, request.project_transfers
+            )
+        except users_service.InvalidTransferRecipient:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=UserMessages.INVALID_TRANSFER_RECIPIENT,
+            )
 
     if request.action == "deactivate":
         await users_service.deactivate_user(session, current_user.id)

@@ -148,6 +148,7 @@ export interface ProjectBasic {
   id: number;
   name: string;
   initiative_id: number;
+  guild_id: number;
 }
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
@@ -3628,6 +3629,19 @@ export type ExportPlatformUsersCsvApiV1AdminUsersExportCsvGetParams = {
   user_id?: number[] | null;
 };
 
+export type AdminDeleteInitiativeApiV1AdminInitiativesInitiativeIdDeleteParams = {
+  guild_id: number;
+};
+
+export type AdminGetInitiativeMembersApiV1AdminInitiativesInitiativeIdMembersGetParams = {
+  guild_id: number;
+};
+
+export type AdminUpdateInitiativeMemberRoleApiV1AdminInitiativesInitiativeIdMembersUserIdRolePatchParams =
+  {
+    guild_id: number;
+  };
+
 export type ListAccessGrantsApiV1AccessGrantsGetParams = {
   /**
    * List only your own requests.
@@ -3664,6 +3678,10 @@ export type GetUserStatsApiV1UsersMeStatsGetParams = {
 
 export type ExportUsersCsvApiV1UsersExportCsvGetParams = {
   user_id?: number[] | null;
+};
+
+export type GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams = {
+  guild_id: number;
 };
 
 export type ListProjectsApiV1ProjectsGetParams = {

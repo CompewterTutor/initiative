@@ -145,12 +145,13 @@ export function AdminDeleteUserDialog({
   // Fetch initiative members for project transfer
   const [initiativeMembers, setInitiativeMembers] = useState<Record<number, UserRead[]>>({});
   const fetchInitiativeMembers = useCallback(
-    async (initiativeId: number) => {
+    async (initiativeId: number, guildId: number) => {
       if (initiativeMembers[initiativeId]) return;
 
       try {
         const members = await (adminGetInitiativeMembersApiV1AdminInitiativesInitiativeIdMembersGet(
-          initiativeId
+          initiativeId,
+          { guild_id: guildId }
         ) as unknown as Promise<UserRead[]>);
         setInitiativeMembers((prev) => ({
           ...prev,
@@ -230,7 +231,7 @@ export function AdminDeleteUserDialog({
 
       // Load initiative members for all owned projects
       for (const project of result.data.owned_projects) {
-        await fetchInitiativeMembers(project.initiative_id);
+        await fetchInitiativeMembers(project.initiative_id, project.guild_id);
       }
 
       // If blockers are now resolved, move forward
@@ -254,7 +255,7 @@ export function AdminDeleteUserDialog({
 
         // Load initiative members for all owned projects
         for (const project of result.data.owned_projects) {
-          await fetchInitiativeMembers(project.initiative_id);
+          await fetchInitiativeMembers(project.initiative_id, project.guild_id);
         }
 
         // Check if there are blockers that can be resolved
@@ -321,14 +322,18 @@ export function AdminDeleteUserDialog({
     deleteGuild.mutate(guildId);
   };
 
-  const handleDeleteInitiative = (initiativeId: number) => {
+  const handleDeleteInitiative = (initiativeId: number, guildId: number) => {
     setIsResolvingBlocker(true);
-    deleteInitiative.mutate(initiativeId);
+    deleteInitiative.mutate({ initiativeId, guildId });
   };
 
-  const handlePromoteInitiativeMember = (initiativeId: number, userId: number) => {
+  const handlePromoteInitiativeMember = (
+    initiativeId: number,
+    userId: number,
+    guildId: number
+  ) => {
     setIsResolvingBlocker(true);
-    promoteInitiativeMember.mutate({ initiativeId, userId });
+    promoteInitiativeMember.mutate({ initiativeId, userId, guildId });
   };
 
   // Check if there are blockers (guild or initiative)
@@ -611,7 +616,8 @@ export function AdminDeleteUserDialog({
                                       onValueChange={(value) =>
                                         handlePromoteInitiativeMember(
                                           initBlocker.initiative_id,
-                                          parseInt(value, 10)
+                                          parseInt(value, 10),
+                                          initBlocker.guild_id
                                         )
                                       }
                                       placeholder={t("adminDeleteUser.transferSelectPlaceholder")}
@@ -825,7 +831,11 @@ export function AdminDeleteUserDialog({
         confirmLabel={t("adminDeleteUser.deleteInitiative")}
         destructive
         onConfirm={() =>
-          initiativeDeleteConfirm && handleDeleteInitiative(initiativeDeleteConfirm.initiative_id)
+          initiativeDeleteConfirm &&
+          handleDeleteInitiative(
+            initiativeDeleteConfirm.initiative_id,
+            initiativeDeleteConfirm.guild_id
+          )
         }
         isLoading={deleteInitiative.isPending}
       />

@@ -544,3 +544,53 @@ async def test_reassign_user_content_moves_file_version_uploads(session: AsyncSe
         )
     ).one()
     assert refreshed.uploaded_by_id == system_user.id
+
+
+@pytest.mark.integration
+async def test_soft_delete_removes_membership_in_guild_schema(session: AsyncSession):
+    """Production-faithful routing check (schema-per-guild).
+
+    The membership-drop cascade must operate on the GUILD schema where the
+    rows actually live — not the frozen ``public`` backup. Factories write the
+    InitiativeMember into ``guild_<id>`` (via the test routing harness), and
+    soft_delete resets the session to ``public`` on the way out (as a real
+    request would). So this asserts by EXPLICITLY re-routing into the guild
+    schema afterwards: if the cascade had run unrouted against ``public``, the
+    guild-schema row would still be here and this would fail."""
+    from app.db.session import set_rls_context
+    from app.models.initiative import InitiativeMember
+    from app.testing.factories import create_initiative, create_initiative_member
+
+    creator = await create_user(session, email="guild-creator@example.com")
+    guild = await create_guild(session, creator=creator)
+    initiative = await create_initiative(session, guild=guild, creator=creator)
+
+    member = await create_user(session, email="departing-member@example.com")
+    await create_guild_membership(session, user=member, guild=guild)
+    await create_initiative_member(session, initiative=initiative, user=member)
+
+    # Sanity: the membership exists in the guild schema before deletion.
+    await set_rls_context(session, guild_id=guild.id, is_superadmin=True)
+    before = (
+        await session.exec(
+            select(InitiativeMember).where(InitiativeMember.user_id == member.id)
+        )
+    ).all()
+    assert len(before) == 1
+
+    await user_service.soft_delete_user(session, member.id)
+
+    # Re-route into the guild schema and confirm the row is gone THERE.
+    session.expunge_all()
+    await set_rls_context(session, guild_id=guild.id, is_superadmin=True)
+    after = (
+        await session.exec(
+            select(InitiativeMember).where(InitiativeMember.user_id == member.id)
+        )
+    ).all()
+    assert after == []
+
+    # And the user row itself (shared/public) is anonymized.
+    await set_rls_context(session, is_superadmin=True)
+    refreshed = (await session.exec(select(User).where(User.id == member.id))).one()
+    assert refreshed.status == UserStatus.anonymized

@@ -235,10 +235,14 @@ async def test_admin_delete_rejects_surplus_project_transfers(
     assert response.status_code == 400
     assert "not owned by user" in response.json()["detail"]
 
-    # Bystander's project ownership is unchanged.
+    # Bystander's project ownership is unchanged. The request routed the shared
+    # session through the guild schema and reset it to public on the way out (as
+    # a real request would), so re-route before this guild-scoped read.
     from sqlmodel import select as _select
     from app.models.project import Project
+    from app.db.session import set_rls_context
 
+    await set_rls_context(session, guild_id=guild.id, is_superadmin=True)
     refreshed = (
         await session.exec(_select(Project).where(Project.id == bystander_project.id))
     ).one()

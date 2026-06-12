@@ -44,6 +44,7 @@ interface ProjectBasic {
   id: number;
   name: string;
   initiative_id: number;
+  guild_id: number;
 }
 
 interface DeletionEligibilityResponse {
@@ -113,12 +114,13 @@ export function DeleteAccountDialog({
   // Fetch initiative members for project transfer
   const [initiativeMembers, setInitiativeMembers] = useState<Record<number, UserRead[]>>({});
   const fetchInitiativeMembers = useCallback(
-    async (initiativeId: number) => {
+    async (initiativeId: number, guildId: number) => {
       if (initiativeMembers[initiativeId]) return;
 
       try {
         const data = (await getMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGet(
-          initiativeId
+          initiativeId,
+          { guild_id: guildId }
         )) as unknown as UserRead[];
         setInitiativeMembers((prev) => ({
           ...prev,
@@ -156,7 +158,7 @@ export function DeleteAccountDialog({
 
     // Load initiative members for any projects we'd need to transfer.
     for (const project of result.data.owned_projects) {
-      await fetchInitiativeMembers(project.initiative_id);
+      await fetchInitiativeMembers(project.initiative_id, project.guild_id);
     }
 
     // Project transfers are required for both actions when the user
