@@ -34,11 +34,12 @@ import { toast } from "@/lib/chesterToast";
 import { getErrorMessage } from "@/lib/errorMessage";
 import type { MutationOpts } from "@/types/mutation";
 
-export const useTags = () => {
+export const useTags = (options?: { enabled?: boolean }) => {
   return useQuery<TagRead[]>({
     queryKey: getListTagsApiV1TagsGetQueryKey(),
     queryFn: () => listTagsApiV1TagsGet() as unknown as Promise<TagRead[]>,
     staleTime: 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 };
 

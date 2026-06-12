@@ -95,15 +95,20 @@ const handleCommentEvent = (data?: Record<string, unknown>) => {
 
 export const useRealtimeUpdates = () => {
   const { token, user, logout } = useAuth();
-  const { activeGuildId } = useGuilds();
+  // Key the socket off the SERVER-held context, not the local "last guild"
+  // preference: the backend scopes the stream to users.active_guild_id and
+  // policy-closes the socket when it's NULL (personal mode). Connecting off
+  // the local preference while in personal mode would auth-fail repeatedly
+  // and eventually force a logout.
+  const { serverGuildId } = useGuilds();
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const authFailureCountRef = useRef<number>(0);
 
   useEffect(() => {
-    // The socket is scoped to a single guild — without an active guild there's
+    // The socket is scoped to a single guild — in personal mode there's
     // nothing to subscribe to, and the backend would reject the auth payload.
-    if (!user || !activeGuildId) {
+    if (!user || serverGuildId === null) {
       if (websocketRef.current) {
         websocketRef.current.close();
         websocketRef.current = null;
@@ -211,5 +216,5 @@ export const useRealtimeUpdates = () => {
         websocketRef.current = null;
       }
     };
-  }, [token, user, activeGuildId, logout]);
+  }, [token, user, serverGuildId, logout]);
 };

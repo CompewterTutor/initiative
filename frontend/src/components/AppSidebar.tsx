@@ -89,19 +89,26 @@ export const AppSidebar = () => {
   // Helper to create guild-scoped paths
   const gp = (path: string) => (activeGuildId ? guildPath(activeGuildId, path) : path);
 
-  const initiativesQuery = useInitiatives({ enabled: Boolean(activeGuild), staleTime: 60_000 });
+  // The guild tree (initiatives/projects/documents/queues/counters/tags) is
+  // only rendered on /g/ routes, and only there does the server-held guild
+  // context line up with it — on personal pages these guild-scoped queries
+  // would 409 (no context) and cache errors that linger as zeroed counts.
+  // Gate them all on actually being in the guild UI.
+  const guildTreeEnabled = Boolean(activeGuild) && isGuildRoute;
+
+  const initiativesQuery = useInitiatives({ enabled: guildTreeEnabled, staleTime: 60_000 });
 
   const projectsQuery = useProjects(undefined, {
-    enabled: Boolean(activeGuild),
+    enabled: guildTreeEnabled,
     staleTime: 60_000,
   });
 
   const favoritesQuery = useFavoriteProjects({
-    enabled: activeGuildId !== null,
+    enabled: guildTreeEnabled,
     staleTime: 60_000,
   });
 
-  const documentsQuery = useAllDocumentIds({ enabled: Boolean(activeGuild), staleTime: 60_000 });
+  const documentsQuery = useAllDocumentIds({ enabled: guildTreeEnabled, staleTime: 60_000 });
 
   const projectsByInitiative = useMemo(() => {
     const map = new Map<number, ProjectRead[]>();
@@ -128,7 +135,7 @@ export const AppSidebar = () => {
   // Fetch queues for counts (lightweight list query)
   const queuesQuery = useQueuesList(
     { page: 1, page_size: 100 },
-    { enabled: Boolean(activeGuild), staleTime: 60_000 }
+    { enabled: guildTreeEnabled, staleTime: 60_000 }
   );
 
   const queueCountsByInitiative = useMemo(() => {
@@ -144,7 +151,7 @@ export const AppSidebar = () => {
   // Fetch counter groups for counts
   const counterGroupsQuery = useCounterGroupsList(
     { page: 1, page_size: 100 },
-    { enabled: Boolean(activeGuild), staleTime: 60_000 }
+    { enabled: guildTreeEnabled, staleTime: 60_000 }
   );
   const counterGroupCountsByInitiative = useMemo(() => {
     const map = new Map<number, number>();
@@ -174,7 +181,7 @@ export const AppSidebar = () => {
   const avatarSrc = resolveUploadUrl(user?.avatar_url) || user?.avatar_base64 || null;
 
   // Fetch tags for the tag browser
-  const tagsQuery = useTags();
+  const tagsQuery = useTags({ enabled: guildTreeEnabled });
 
   // Collapse/expand all for initiatives
   const [initiativeCollapseKey, setInitiativeCollapseKey] = useState(0);
