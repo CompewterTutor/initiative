@@ -28,13 +28,15 @@ from app.testing.factories import (
 async def test_list_initiatives_requires_guild_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """A user with no guild memberships should be 403 when listing initiatives."""
+    """A user with no guild context (no flag set — e.g. zero memberships)
+    gets a clean 409 when listing initiatives."""
     user = await create_user(session, email="test@example.com")
 
     headers = get_auth_headers(user)
     response = await client.get("/api/v1/initiatives/", headers=headers)
 
-    assert response.status_code == 403
+    assert response.status_code == 409
+    assert response.json()["detail"] == "NO_GUILD_MEMBERSHIP"
 
 
 @pytest.mark.integration

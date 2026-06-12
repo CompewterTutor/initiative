@@ -33,6 +33,11 @@ export type GuildEntry = GuildRead & {
 interface GuildContextValue {
   guilds: GuildEntry[];
   activeGuildId: number | null;
+  /** The guild the SERVER currently holds for this user (users.active_guild_id
+   * mirror); null = personal mode. Unlike activeGuildId (the local "last
+   * guild" preference), this is what actually scopes requests — long-lived
+   * consumers like the events websocket must key off it. */
+  serverGuildId: number | null;
   activeGuild: GuildEntry | null;
   /** True when the active guild is reached via a read-only grant — writes are
    * blocked server-side, so the UI should hide write affordances. */
@@ -136,25 +141,33 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
   // The guild context the server currently holds for this user
   // (users.active_guild_id; null = personal mode). Seeded from the loaded
   // user so a fresh tab doesn't re-PUT a context the server already has.
+  // The ref is the synchronous source of truth for the idempotence check;
+  // the state mirror lets reactive consumers (events websocket) follow it.
   const serverContextRef = useRef<number | null | undefined>(undefined);
+  const [serverGuildId, setServerGuildId] = useState<number | null>(null);
   useEffect(() => {
     if (user && serverContextRef.current === undefined) {
       serverContextRef.current = user.active_guild_id ?? null;
+      setServerGuildId(user.active_guild_id ?? null);
     }
     if (!user) {
       serverContextRef.current = undefined;
+      setServerGuildId(null);
     }
   }, [user]);
 
   /** Push the server-held guild context (idempotent). All guild-scoped
    * requests resolve their guild from this flag, so it must land before the
-   * new context's fetches fire. Throws if the PUT fails. */
+   * new context's fetches fire. Returns true when the server context actually
+   * changed (a PUT was sent). Throws if the PUT fails. */
   const pushServerContext = useCallback(async (guildId: number | null) => {
     if (serverContextRef.current === guildId) {
-      return;
+      return false;
     }
     await setGuildContextApiV1UsersMeGuildContextPut({ guild_id: guildId });
     serverContextRef.current = guildId;
+    setServerGuildId(guildId);
+    return true;
   }, []);
 
   const applyGuildState = useCallback((guildList: GuildEntry[]) => {
@@ -295,9 +308,12 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
       // Don't switch if we are already there
       if (!user || guildId === activeGuildIdRef.current) {
         // Still make sure the server context matches (e.g. coming back from
-        // personal mode to the already-highlighted guild).
+        // personal mode to the already-highlighted guild) — and if it moved,
+        // refetch the guild-scoped queries that errored without it.
         try {
-          await pushServerContext(guildId);
+          if (await pushServerContext(guildId)) {
+            await resetGuildScopedQueries();
+          }
         } catch (err) {
           console.error("Failed to set guild context", err);
         }
@@ -336,13 +352,28 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
       // Always converge the server-held context first — the local id can
       // already match while the server flag points elsewhere (fresh tab,
       // return from personal mode). pushServerContext is idempotent.
+      let contextChanged = false;
       try {
-        await pushServerContext(guildId);
+        contextChanged = await pushServerContext(guildId);
       } catch (err) {
+        // Abort: flipping the local UI into a guild the server context never
+        // reached would have every guild-scoped request resolving under the
+        // OLD context — wrong guild, no error indication. Leave local state
+        // alone so UI and server stay consistent; the user can retry.
         console.error("Failed to set guild context", err);
+        toast.error("Unable to enter guild. Please try again.");
+        return;
       }
 
       if (guildId === activeGuildIdRef.current) {
+        // The local guild didn't change but the SERVER context did (e.g.
+        // returning to the guild from personal mode, where guild-scoped
+        // queries 409ed): those cached errors/empties won't refetch on their
+        // own — sidebar counts would stay zeroed — so reset them now that
+        // requests resolve in this guild again.
+        if (contextChanged) {
+          await resetGuildScopedQueries();
+        }
         return;
       }
 
@@ -377,6 +408,7 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
    */
   const adoptExternalGuildSwitch = useCallback(async (guildId: number | null) => {
     serverContextRef.current = guildId;
+    setServerGuildId(guildId);
     if (guildId === null || guildId === activeGuildIdRef.current) {
       return;
     }
@@ -503,6 +535,7 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
   const value: GuildContextValue = {
     guilds,
     activeGuildId,
+    serverGuildId,
     activeGuild,
     activeGuildReadOnly,
     loading,

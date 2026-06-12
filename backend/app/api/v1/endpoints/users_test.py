@@ -121,14 +121,15 @@ async def test_list_users_in_guild(client: AsyncClient, session: AsyncSession):
 async def test_list_users_requires_guild_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """Test that listing users requires guild context."""
+    """Listing users with no guild context (no flag set) is a clean 409."""
     user = await create_user(session)
     headers = get_auth_headers(user)
 
     response = await client.get("/api/v1/users/", headers=headers)
 
-    # Should fail without guild membership
-    assert response.status_code == 403
+    # Fails without a guild context (the server-held flag is unset)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "NO_GUILD_MEMBERSHIP"
 
 
 @pytest.mark.integration
@@ -792,12 +793,12 @@ async def test_export_users_csv_forbidden_for_member(
 async def test_export_users_csv_requires_guild_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """Without the guild header the export is rejected."""
+    """Without a guild context the export is rejected (409)."""
     user = await create_user(session)
     headers = get_auth_headers(user)
 
     response = await client.get("/api/v1/users/export.csv", headers=headers)
-    assert response.status_code == 403
+    assert response.status_code == 409
 
 
 @pytest.mark.integration
