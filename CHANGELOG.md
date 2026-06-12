@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CSV exports are no longer vulnerable to formula injection (SEC-11).** User-controlled fields (names, emails, initiative names) in the guild and platform user CSV exports were written verbatim, so a cell beginning with `=`, `+`, `-`, `@`, tab, or carriage return could execute as a spreadsheet formula (e.g. `=HYPERLINK(...)`, `=cmd|...`) when opened in Excel or Google Sheets. Every exported cell is now prefixed with a single quote when it starts with one of those characters, so spreadsheets treat it as text; benign values are unchanged.
 - Guild admins can no longer assign a platform role when creating a user; admin-created accounts are always platform members, closing a privilege-escalation path to `owner`.
 - Uploaded files with no matching database record now return 404 instead of being served to any authenticated user, closing a fail-open cross-guild access path.
+- **Logging out (or resetting a password) now closes realtime sessions too.** The four WebSocket endpoints (events, counters, queues, collaboration) now enforce the same `token_version` check as the HTTP API via one shared authenticator, so a stolen-but-unexpired session token can no longer open realtime sockets after logout or a password change.
 
 ## [0.50.2] - 2026-06-08
 
