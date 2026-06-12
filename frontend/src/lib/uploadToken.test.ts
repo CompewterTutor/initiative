@@ -96,3 +96,27 @@ describe("uploadToken", () => {
     expect(getUploadToken()).toBeNull();
   });
 });
+
+describe("uploadToken logout race", () => {
+  it("does not revive the cache when cleared while a refresh is in flight", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    let release: (value: unknown) => void = () => {};
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const postMock = vi.spyOn(apiClient, "post").mockImplementation(async () => {
+      await gate;
+      return { data: { upload_token: "post-logout", expires_in: 600 } };
+    });
+
+    const pending = refreshUploadToken();
+    // Logout happens while the mint request is still in flight.
+    clearUploadToken();
+    release(null);
+
+    expect(await pending).toBeNull();
+    // The orphaned response must not have re-entered the cache.
+    expect(getUploadToken()).toBeNull();
+    expect(postMock).toHaveBeenCalled();
+  });
+});

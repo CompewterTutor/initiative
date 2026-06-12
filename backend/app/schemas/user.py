@@ -96,9 +96,12 @@ class UserPublic(SanitizedBaseModel):
     id: int
     email: EmailStr
     full_name: Optional[str] = None
-    avatar_base64: Optional[RawTextStr] = Field(
-        default=None, max_length=MAX_AVATAR_BASE64_LENGTH
-    )
+    # No max_length here: this is a RESPONSE schema, and FastAPI validates
+    # response models, so a cap would 500 every endpoint returning a user whose
+    # avatar predates the write-side cap. The bound is enforced on the write
+    # schemas (UserUpdate / UserSelfUpdate); legacy oversized rows shrink as
+    # they are next updated.
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     status: UserStatus = UserStatus.active
 
@@ -125,9 +128,8 @@ class UserRead(UserBase):
     email_verified: bool
     created_at: datetime
     updated_at: datetime
-    avatar_base64: Optional[RawTextStr] = Field(
-        default=None, max_length=MAX_AVATAR_BASE64_LENGTH
-    )
+    # Response schema — uncapped for the same legacy-row reason as UserPublic.
+    avatar_base64: Optional[RawTextStr] = None
     avatar_url: Optional[str] = None
     week_starts_on: int = 0
     timezone: str = "UTC"

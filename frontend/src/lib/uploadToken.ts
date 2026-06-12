@@ -26,6 +26,11 @@ interface CachedUploadToken {
 
 let cached: CachedUploadToken | null = null;
 let inFlight: Promise<string | null> | null = null;
+// Bumped by clearUploadToken (logout / server switch). A refresh that was
+// already in flight when the cache was cleared must not commit its result —
+// otherwise a freshly-minted token (valid ~10 min server-side) silently
+// re-enters the cache after logout and gets stamped into media URLs.
+let generation = 0;
 
 // Refresh this many milliseconds before the server-reported expiry so a token
 // stamped into a URL is still valid by the time the media request lands. The
@@ -41,12 +46,18 @@ export const refreshUploadToken = async (): Promise<string | null> => {
   if (inFlight) {
     return inFlight;
   }
+  const requestGeneration = generation;
   inFlight = (async () => {
     try {
       const { data } = await apiClient.post<{
         upload_token: string;
         expires_in: number;
       }>("/auth/upload-token");
+      if (generation !== requestGeneration) {
+        // clearUploadToken ran while this request was in flight (logout):
+        // drop the result instead of reviving the cleared cache.
+        return null;
+      }
       const lifetimeMs = Math.max(0, (data.expires_in ?? 0) * 1000);
       cached = {
         token: data.upload_token,
@@ -56,9 +67,11 @@ export const refreshUploadToken = async (): Promise<string | null> => {
     } catch {
       // Leave any existing cached token in place; a transient failure
       // shouldn't blank out media that's currently rendering.
-      return cached?.token ?? null;
+      return generation === requestGeneration ? (cached?.token ?? null) : null;
     } finally {
-      inFlight = null;
+      if (generation === requestGeneration) {
+        inFlight = null;
+      }
     }
   })();
   return inFlight;
@@ -83,6 +96,7 @@ export const getUploadToken = (): string | null => {
 
 /** Drop the cached token (e.g. on logout / server switch). */
 export const clearUploadToken = (): void => {
+  generation += 1;
   cached = null;
   inFlight = null;
 };
