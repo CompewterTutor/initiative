@@ -31,6 +31,7 @@ import type {
   InitiativeRoleRead,
   InitiativeRoleUpdate,
   InitiativeUpdate,
+  ListInitiativesApiV1InitiativesGetParams,
   MyInitiativePermissions,
   UserPublic,
 } from "../initiativeAPI.schemas";
@@ -44,35 +45,41 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary List Initiatives
  */
 export const listInitiativesApiV1InitiativesGet = (
+  params?: ListInitiativesApiV1InitiativesGetParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
   return apiMutator<InitiativeRead[]>(
-    { url: `/api/v1/initiatives/`, method: "GET", signal },
+    { url: `/api/v1/initiatives/`, method: "GET", params, signal },
     options
   );
 };
 
-export const getListInitiativesApiV1InitiativesGetQueryKey = () => {
-  return [`/api/v1/initiatives/`] as const;
+export const getListInitiativesApiV1InitiativesGetQueryKey = (
+  params?: ListInitiativesApiV1InitiativesGetParams
+) => {
+  return [`/api/v1/initiatives/`, ...(params ? [params] : [])] as const;
 };
 
 export const getListInitiativesApiV1InitiativesGetQueryOptions = <
   TData = Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
   TError = ErrorType<HTTPValidationError>,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
-  >;
-  request?: SecondParameter<typeof apiMutator>;
-}) => {
+>(
+  params?: ListInitiativesApiV1InitiativesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListInitiativesApiV1InitiativesGetQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListInitiativesApiV1InitiativesGetQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>> = ({
     signal,
-  }) => listInitiativesApiV1InitiativesGet(requestOptions, signal);
+  }) => listInitiativesApiV1InitiativesGet(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
@@ -90,6 +97,7 @@ export function useListInitiativesApiV1InitiativesGet<
   TData = Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
+  params: undefined | ListInitiativesApiV1InitiativesGetParams,
   options: {
     query: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
@@ -110,6 +118,7 @@ export function useListInitiativesApiV1InitiativesGet<
   TData = Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
+  params?: ListInitiativesApiV1InitiativesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
@@ -130,6 +139,7 @@ export function useListInitiativesApiV1InitiativesGet<
   TData = Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
+  params?: ListInitiativesApiV1InitiativesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
@@ -146,6 +156,7 @@ export function useListInitiativesApiV1InitiativesGet<
   TData = Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
+  params?: ListInitiativesApiV1InitiativesGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listInitiativesApiV1InitiativesGet>>, TError, TData>
@@ -154,7 +165,7 @@ export function useListInitiativesApiV1InitiativesGet<
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListInitiativesApiV1InitiativesGetQueryOptions(options);
+  const queryOptions = getListInitiativesApiV1InitiativesGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

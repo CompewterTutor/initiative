@@ -204,7 +204,7 @@ async def test_existing_public_schema_guild_is_usable(
     # GOAL: the owner reads the guild's data through the normal flow. Fails today
     # (no schema/role to route into); passes once the conversion provisions and
     # migrates the guild.
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.get("/api/v1/tags/", headers=headers)
     assert response.status_code == 200, response.text
     assert any(tag["name"] == "Legacy Tag" for tag in response.json())

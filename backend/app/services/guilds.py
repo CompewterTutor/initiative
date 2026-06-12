@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 import secrets
 
-from sqlalchemy import func
+from sqlalchemy import func, update as sa_update
 from sqlmodel import select, delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -57,26 +57,6 @@ async def get_guild(session: AsyncSession, guild_id: int) -> Guild:
     if not guild:
         raise ValueError(GuildMessages.GUILD_NOT_FOUND)
     return guild
-
-
-async def resolve_user_guild_id(
-    session: AsyncSession,
-    *,
-    user,
-    guild_id: int | None = None,
-) -> int | None:
-    if guild_id is not None:
-        return guild_id
-    if user and getattr(user, "id", None):
-        result = await session.exec(
-            select(GuildMembership.guild_id)
-            .where(GuildMembership.user_id == user.id)
-            .limit(1)
-        )
-        membership_guild_id = result.first()
-        if membership_guild_id:
-            return membership_guild_id
-    return None
 
 
 async def ensure_membership(
@@ -568,6 +548,28 @@ async def describe_invite_code(
     return invite, guild, False, reason
 
 
+async def clear_active_guild_context(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    guild_id: int,
+) -> None:
+    """Drop the user to personal mode if their server-held context points at
+    ``guild_id``.
+
+    Called whenever access to a guild ends (leave, kick, OIDC de-sync) so the
+    ``users.active_guild_id`` flag never outlives the membership it represents.
+    Guild deletion needs no call — the FK is ``ON DELETE SET NULL``. This is a
+    UX courtesy on top of the real guarantee: every request re-validates the
+    flag against membership/PAM and fails closed regardless.
+    """
+    await session.exec(
+        sa_update(User)
+        .where(User.id == user_id, User.active_guild_id == guild_id)
+        .values(active_guild_id=None)
+    )
+
+
 async def remove_user_from_guild(
     session: AsyncSession,
     *,
@@ -590,3 +592,7 @@ async def remove_user_from_guild(
         GuildMembership.user_id == user_id,
     )
     await session.exec(stmt)
+
+    # Their server-held context must not keep pointing at a guild they just
+    # left.
+    await clear_active_guild_context(session, user_id=user_id, guild_id=guild_id)

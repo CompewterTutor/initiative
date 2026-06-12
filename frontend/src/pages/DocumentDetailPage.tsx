@@ -765,12 +765,14 @@ export const DocumentDetailPage = () => {
       const isAbsolute = API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://");
       const baseUrl = isAbsolute ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`;
       const url = `${baseUrl}/documents/${pending.documentId}`;
+      // No guild context travels with the request — the server resolves it
+      // from the user's server-held flag, which is this document's guild
+      // (the page required entering it).
       fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${tokenRef.current}`,
-          "X-Guild-ID": String(activeGuildIdRef.current),
         },
         body: JSON.stringify(pending.data),
         keepalive: true,

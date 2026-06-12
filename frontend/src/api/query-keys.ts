@@ -5,8 +5,9 @@
  * This module provides domain-specific helpers that use `predicate`-based
  * matching so a single invalidation call can reach both list and detail keys.
  *
- * Guild isolation is handled by the X-Guild-ID header interceptor on apiClient;
- * query keys don't embed guild IDs because the cache is cleared on guild switch.
+ * Guild isolation is handled server-side (the backend resolves every request's
+ * guild from the user's server-held context flag); query keys don't embed guild
+ * IDs because the cache is cleared on guild switch.
  */
 import { queryClient } from "@/lib/queryClient";
 

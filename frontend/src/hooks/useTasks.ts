@@ -147,7 +147,9 @@ export const useUpdateTask = (
     {
       taskId: number;
       data: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[1];
-      requestOptions?: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[2];
+      /** Explicit guild address for cross-guild updates from personal-mode
+       * surfaces (e.g. My Tasks status changes). Omit on guild pages. */
+      params?: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[2];
     }
   >
 ) => {
@@ -160,16 +162,16 @@ export const useUpdateTask = (
     mutationFn: async ({
       taskId,
       data,
-      requestOptions,
+      params,
     }: {
       taskId: number;
       data: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[1];
-      requestOptions?: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[2];
+      params?: Parameters<typeof updateTaskApiV1TasksTaskIdPatch>[2];
     }) => {
       return updateTaskApiV1TasksTaskIdPatch(
         taskId,
         data,
-        requestOptions
+        params
       ) as unknown as Promise<TaskListRead>;
     },
     onMutate: ({ taskId }) => {

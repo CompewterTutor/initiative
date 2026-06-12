@@ -70,6 +70,10 @@ export const AUTH_UNAUTHORIZED_EVENT = "initiative:auth:unauthorized";
 
 let authToken: string | null = null;
 let isDeviceToken = false;
+// The guild the SPA believes the user is in (mirrors the server-held
+// users.active_guild_id flag; null = personal/cross-guild mode). Requests
+// carry NO guild context — the backend resolves it from the flag — but this
+// mirror drives the response echo guard below and guild-keyed caches.
 let activeGuildId: number | null = null;
 // Tracks whether we currently believe a user session is active. On web the
 // in-memory authToken is never set after a page reload (cookie auth is
@@ -137,15 +141,6 @@ apiClient.interceptors.request.use((config) => {
     const scheme = isDeviceToken ? "DeviceToken" : "Bearer";
     config.headers.Authorization = `${scheme} ${authToken}`;
   }
-  if (activeGuildId !== null) {
-    config.headers = config.headers ?? {};
-    const hasCustomGuildHeader = Object.keys(config.headers).some(
-      (key) => key.toLowerCase() === "x-guild-id"
-    );
-    if (!hasCustomGuildHeader) {
-      config.headers["X-Guild-ID"] = String(activeGuildId);
-    }
-  }
   return config;
 });
 
@@ -155,8 +150,30 @@ const emitUnauthorized = () => {
   }
 };
 
+/** Error code for responses discarded by the guild-context echo guard. */
+export const GUILD_CONTEXT_SWITCHED = "ERR_GUILD_CONTEXT_SWITCHED";
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Context echo guard: the backend stamps X-Resolved-Guild on responses it
+    // resolved under the user's ambient (server-held) guild context. If we've
+    // switched contexts while this response was in flight, discard it instead
+    // of painting another guild's data into the current view — the switch
+    // already reset the caches and refetched. Explicitly guild-addressed
+    // calls (?guild_id=) are never stamped, so they pass through.
+    const echo = response.headers?.["x-resolved-guild"];
+    if (echo !== undefined && Number(echo) !== activeGuildId) {
+      const error = new axios.AxiosError(
+        "Response discarded: guild context switched while the request was in flight",
+        GUILD_CONTEXT_SWITCHED,
+        response.config,
+        response.request,
+        response
+      );
+      return Promise.reject(error);
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401 && hasActiveSession) {
       emitUnauthorized();

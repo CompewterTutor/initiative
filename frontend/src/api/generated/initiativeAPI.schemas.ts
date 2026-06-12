@@ -1211,6 +1211,16 @@ export interface GuildAISettingsUpdate {
   clear_settings?: boolean;
 }
 
+/**
+ * Body for ``PUT /users/me/guild-context``.
+ *
+ * ``guild_id`` is the guild the user is entering; ``null`` enters personal
+ * (cross-guild) mode.
+ */
+export interface GuildContextUpdate {
+  guild_id?: number | null;
+}
+
 export interface GuildCreate {
   name: string;
   description?: string | null;
@@ -3237,6 +3247,7 @@ export interface UserRead {
   task_completion_haptic_feedback: boolean;
   locale: string;
   oidc_sub: string | null;
+  active_guild_id: number | null;
   initiative_roles: UserInitiativeRole[];
   readonly can_create_guilds: boolean;
   /**
@@ -3726,6 +3737,13 @@ export type ProjectActivityFeedApiV1ProjectsProjectIdActivityGetParams = {
   page_size?: number;
 };
 
+export type ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams = {
+  /**
+   * Explicit guild address for cross-guild operations from personal mode. Per-guild ids collide across guilds, so an entity is only fully addressed as (guild_id, id). Validated like any context: membership or live PAM grant, else 403.
+   */
+  guild_id?: number | null;
+};
+
 export type ListTasksApiV1TasksGetParams = {
   scope?: ListTasksApiV1TasksGetScope;
   /**
@@ -3763,6 +3781,13 @@ export const ListTasksApiV1TasksGetScope = {
   global: "global",
   global_created: "global_created",
 } as const;
+
+export type UpdateTaskApiV1TasksTaskIdPatchParams = {
+  /**
+   * Explicit guild address for cross-guild operations from personal mode. Per-guild ids collide across guilds, so an entity is only fully addressed as (guild_id, id). Validated like any context: membership or live PAM grant, else 403.
+   */
+  guild_id?: number | null;
+};
 
 export type ArchiveDoneTasksApiV1TasksArchiveDonePostParams = {
   /**
@@ -3816,6 +3841,13 @@ export type UpdateOidcClaimPathApiV1SettingsOidcMappingsClaimPathPut200 = {
 
 export type GetOidcMappingOptionsApiV1SettingsOidcMappingsOptionsGet200 = {
   [key: string]: unknown;
+};
+
+export type ListInitiativesApiV1InitiativesGetParams = {
+  /**
+   * Explicit guild address for cross-guild operations from personal mode. Per-guild ids collide across guilds, so an entity is only fully addressed as (guild_id, id). Validated like any context: membership or live PAM grant, else 403.
+   */
+  guild_id?: number | null;
 };
 
 export type GetDocumentCountsApiV1DocumentsCountsGetParams = {
@@ -3964,3 +3996,10 @@ export const ListTrashApiV1TrashGetScope = {
   mine: "mine",
   guild: "guild",
 } as const;
+
+export type ClearRecentApiV1RecentsEntityTypeEntityIdDeleteParams = {
+  /**
+   * Explicit guild address for cross-guild operations from personal mode. Per-guild ids collide across guilds, so an entity is only fully addressed as (guild_id, id). Validated like any context: membership or live PAM grant, else 403.
+   */
+  guild_id?: number | null;
+};

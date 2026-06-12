@@ -327,11 +327,7 @@ export function AdminDeleteUserDialog({
     deleteInitiative.mutate({ initiativeId, guildId });
   };
 
-  const handlePromoteInitiativeMember = (
-    initiativeId: number,
-    userId: number,
-    guildId: number
-  ) => {
+  const handlePromoteInitiativeMember = (initiativeId: number, userId: number, guildId: number) => {
     setIsResolvingBlocker(true);
     promoteInitiativeMember.mutate({ initiativeId, userId, guildId });
   };

@@ -1,23 +1,12 @@
 import { type UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete,
-  recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost,
-} from "@/api/generated/counters/counters";
-import {
-  clearDocumentViewApiV1DocumentsDocumentIdViewDelete,
-  recordDocumentViewApiV1DocumentsDocumentIdViewPost,
-} from "@/api/generated/documents/documents";
+import { recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost } from "@/api/generated/counters/counters";
+import { recordDocumentViewApiV1DocumentsDocumentIdViewPost } from "@/api/generated/documents/documents";
 import type { RecentItemRead } from "@/api/generated/initiativeAPI.schemas";
+import { recordProjectViewApiV1ProjectsProjectIdViewPost } from "@/api/generated/projects/projects";
+import { recordQueueViewApiV1QueuesQueueIdViewPost } from "@/api/generated/queues/queues";
 import {
-  clearProjectViewApiV1ProjectsProjectIdViewDelete,
-  recordProjectViewApiV1ProjectsProjectIdViewPost,
-} from "@/api/generated/projects/projects";
-import {
-  clearQueueViewApiV1QueuesQueueIdViewDelete,
-  recordQueueViewApiV1QueuesQueueIdViewPost,
-} from "@/api/generated/queues/queues";
-import {
+  clearRecentApiV1RecentsEntityTypeEntityIdDelete,
   getListRecentsApiV1RecentsGetQueryKey,
   listRecentsApiV1RecentsGet,
 } from "@/api/generated/recents/recents";
@@ -50,13 +39,6 @@ const recorders: Record<RecentEntityType, (id: number) => Promise<unknown>> = {
   counter_group: recordCounterGroupViewApiV1CounterGroupsGroupIdViewPost,
 };
 
-const clearers: Record<RecentEntityType, (id: number) => Promise<unknown>> = {
-  project: clearProjectViewApiV1ProjectsProjectIdViewDelete,
-  document: clearDocumentViewApiV1DocumentsDocumentIdViewDelete,
-  queue: clearQueueViewApiV1QueuesQueueIdViewDelete,
-  counter_group: clearCounterGroupViewApiV1CounterGroupsGroupIdViewDelete,
-};
-
 /**
  * Mutation that POSTs ``/<entity>/{id}/view`` to record a recent open. Pages
  * call this in a ``useEffect`` once the entity has loaded and access checks
@@ -74,18 +56,26 @@ export const useRecordRecentView = (entityType: RecentEntityType) => {
 };
 
 /**
- * Mutation that DELETEs ``/<entity>/{id}/view`` (the X on a tab).
+ * Mutation that DELETEs ``/recents/{type}/{id}?guild_id=`` (the X on a tab).
+ *
+ * Guild-ADDRESSED: a tab can belong to any of the user's guilds regardless of
+ * the current context, and per-guild entity ids are only unique within their
+ * guild, so the tab's ``guild_id`` travels with the call.
  */
 export const useClearRecentView = () => {
   return useMutation({
     mutationFn: async ({
       entityType,
       entityId,
+      guildId,
     }: {
       entityType: RecentEntityType;
       entityId: number;
+      guildId: number;
     }) => {
-      await clearers[entityType](entityId);
+      await clearRecentApiV1RecentsEntityTypeEntityIdDelete(entityType, entityId, {
+        guild_id: guildId,
+      });
     },
     onSuccess: () => {
       void invalidateRecents();

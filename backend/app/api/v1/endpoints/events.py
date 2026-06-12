@@ -61,10 +61,13 @@ async def websocket_updates(websocket: WebSocket):
 
     Authentication is done via MSG_AUTH message sent immediately after
     connection, not via URL query parameters (for security - prevents token
-    leakage in logs). The auth payload must declare the guild the socket wants
-    events for: ``{"token": "...", "guild_id": <int>}``. The server verifies the
-    user belongs to (or holds a live PAM grant for) that guild and only then
-    registers the socket under it, so events never cross the tenancy boundary.
+    leakage in logs): ``{"token": "..."}``. The guild comes from the user's
+    server-held context (``users.active_guild_id``) — the socket subscribes to
+    the guild the user is in, same as every other surface. The server verifies
+    the user belongs to (or holds a live PAM grant for) that guild and only
+    then registers the socket under it, so events never cross the tenancy
+    boundary. The client reconnects on guild switch (the context PUT lands
+    first), so the socket always tracks the active guild.
     """
     await websocket.accept()
 
@@ -85,10 +88,6 @@ async def websocket_updates(websocket: WebSocket):
                 token = websocket.cookies.get(settings.COOKIE_NAME)
             if not token:
                 raise ValueError("Missing token")
-            guild_id = auth_payload.get("guild_id")
-            if guild_id is None:
-                raise ValueError("Missing guild_id")
-            guild_id = int(guild_id)
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning(f"Events WebSocket: Invalid auth payload: {e}")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -112,13 +111,18 @@ async def websocket_updates(websocket: WebSocket):
             )
         )
         user = await _user_from_token(token, session)
-        # Scope the socket to the declared guild — only a member (or live PAM
+        # The socket subscribes to the user's server-held guild context. No
+        # context (personal mode) → nothing to subscribe to.
+        guild_id = user.active_guild_id if user is not None else None
+        # Scope the socket to that guild — only a member (or live PAM
         # grantee) may subscribe, so events for a guild never reach outsiders.
         # Checked inside this session block: after the ``async with`` exits the
         # session would silently re-acquire a pooled connection WITHOUT the GUC
         # reset above.
-        authorized = user is not None and await _user_can_access_guild(
-            session, user=user, guild_id=guild_id
+        authorized = (
+            user is not None
+            and guild_id is not None
+            and await _user_can_access_guild(session, user=user, guild_id=guild_id)
         )
     if not user:
         logger.warning("Events WebSocket: Auth failed")

@@ -263,6 +263,7 @@ async def sync_oidc_assignments(
     # For each oidc-managed guild the claims no longer grant: re-home owned
     # projects + drop initiative memberships (guild-scoped, routed), then delete
     # the shared GuildMembership row in public context.
+    from app.services import guilds as guilds_service
     from app.services.initiatives import remove_user_from_guild_initiatives
 
     session.expunge_all()
@@ -294,6 +295,10 @@ async def sync_oidc_assignments(
                 GuildMembership.user_id == user_id,
                 GuildMembership.guild_id == stale_gid,
             )
+        )
+        # Server-held context must not keep pointing at the de-synced guild.
+        await guilds_service.clear_active_guild_context(
+            session, user_id=user_id, guild_id=stale_gid
         )
         result.guilds_removed.append(stale_gid)
 

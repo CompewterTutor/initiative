@@ -78,7 +78,6 @@ export const CreatedTasksPage = () => {
       changeTaskStatusById: table.changeTaskStatusById,
       fetchProjectStatuses: table.fetchProjectStatuses,
       projectStatusCache: table.projectStatusCache,
-      projectsById: table.projectsById,
       t: t as TranslateFn,
       showAssignees: true,
     });
@@ -93,7 +92,6 @@ export const CreatedTasksPage = () => {
     table.changeTaskStatusById,
     table.fetchProjectStatuses,
     table.projectStatusCache,
-    table.projectsById,
     t,
     propertyColumns,
   ]);

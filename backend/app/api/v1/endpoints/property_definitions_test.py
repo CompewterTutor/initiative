@@ -115,7 +115,8 @@ async def test_list_property_definitions_returns_union_across_initiatives(
     defn_b = await create_property_definition(session, init_b, name="In B")
 
     response = await client.get(
-        "/api/v1/property-definitions/", headers=get_guild_headers(guild, user)
+        "/api/v1/property-definitions/",
+        headers=await get_guild_headers(session, guild, user),
     )
     assert response.status_code == 200
     ids = {item["id"] for item in response.json()}
@@ -140,7 +141,7 @@ async def test_list_property_definitions_filtered_by_initiative_id(
 
     response = await client.get(
         f"/api/v1/property-definitions/?initiative_id={init_a.id}",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
     assert response.status_code == 200
     ids = {item["id"] for item in response.json()}
@@ -172,7 +173,7 @@ async def test_list_property_definitions_scoped_by_initiative_id_query(
     # Scoped to A
     response_a = await client.get(
         f"/api/v1/property-definitions/?initiative_id={init_a.id}",
-        headers=get_guild_headers(guild, admin),
+        headers=await get_guild_headers(session, guild, admin),
     )
     assert response_a.status_code == 200
     ids_a = {item["id"] for item in response_a.json()}
@@ -182,7 +183,7 @@ async def test_list_property_definitions_scoped_by_initiative_id_query(
     # Scoped to B
     response_b = await client.get(
         f"/api/v1/property-definitions/?initiative_id={init_b.id}",
-        headers=get_guild_headers(guild, admin),
+        headers=await get_guild_headers(session, guild, admin),
     )
     assert response_b.status_code == 200
     ids_b = {item["id"] for item in response_b.json()}
@@ -204,7 +205,7 @@ async def test_create_text_property_definition(
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
     initiative = await create_initiative(session, guild, user, name="Init")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "name": "Status",
         "type": "text",
@@ -244,7 +245,7 @@ async def test_create_rejected_when_not_initiative_member(
     # Alice's initiative; Bob is NOT a member.
     initiative = await create_initiative(session, guild, alice, name="Init")
 
-    headers = get_guild_headers(guild, bob)
+    headers = await get_guild_headers(session, guild, bob)
     payload = {
         "name": "Foo",
         "type": "text",
@@ -282,7 +283,7 @@ async def test_create_allowed_for_initiative_member(
     initiative = await create_initiative(session, guild, admin, name="Init")
     await create_initiative_member(session, initiative, member)
 
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     payload = {
         "name": "Owner Tag",
         "type": "text",
@@ -317,7 +318,7 @@ async def test_create_rejected_for_guild_member_not_in_initiative(
     # Admin's initiative; outsider is a guild member but not an initiative member.
     initiative = await create_initiative(session, guild, admin, name="Init")
 
-    headers = get_guild_headers(guild, outsider)
+    headers = await get_guild_headers(session, guild, outsider)
     payload = {
         "name": "Foo",
         "type": "text",
@@ -352,7 +353,7 @@ async def test_create_allowed_for_guild_admin_not_in_initiative(
     # The creator owns the initiative; the guild admin is not a member of it.
     initiative = await create_initiative(session, guild, creator, name="Init")
 
-    headers = get_guild_headers(guild, guild_admin)
+    headers = await get_guild_headers(session, guild, guild_admin)
     payload = {
         "name": "Admin Field",
         "type": "text",
@@ -375,7 +376,7 @@ async def test_create_select_requires_options(
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
     initiative = await create_initiative(session, guild, user, name="Init")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"name": "State", "type": "select", "initiative_id": initiative.id}
     response = await client.post(
         "/api/v1/property-definitions/", headers=headers, json=payload
@@ -397,7 +398,7 @@ async def test_create_duplicate_name_case_insensitive_conflicts(
 
     await create_property_definition(session, initiative, name="Priority")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"name": "priority", "type": "text", "initiative_id": initiative.id}
     response = await client.post(
         "/api/v1/property-definitions/", headers=headers, json=payload
@@ -421,7 +422,7 @@ async def test_create_same_name_in_different_initiatives_allowed(
 
     await create_property_definition(session, init_a, name="Priority")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"name": "Priority", "type": "text", "initiative_id": init_b.id}
     response = await client.post(
         "/api/v1/property-definitions/", headers=headers, json=payload
@@ -438,7 +439,7 @@ async def test_create_select_duplicate_option_values_rejected(
     await create_guild_membership(session, user=user, guild=guild, role=GuildRole.admin)
     initiative = await create_initiative(session, guild, user, name="Init")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {
         "name": "Phase",
         "type": "select",
@@ -474,7 +475,7 @@ async def test_get_definition_returns_definition(
 
     response = await client.get(
         f"/api/v1/property-definitions/{defn.id}",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
 
     assert response.status_code == 200
@@ -492,7 +493,7 @@ async def test_get_definition_for_missing_id_returns_404(
 
     response = await client.get(
         "/api/v1/property-definitions/99999",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
 
     assert response.status_code == 404
@@ -516,7 +517,7 @@ async def test_patch_renames_color_and_position(
         session, initiative, name="Old Name", position=0.0
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"name": "New Name", "color": "#FF00AA", "position": 5.5}
     response = await client.patch(
         f"/api/v1/property-definitions/{defn.id}", headers=headers, json=payload
@@ -543,7 +544,7 @@ async def test_patch_ignores_type_change_silently(
         session, initiative, name="Immutable", type=PropertyType.text
     )
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     payload = {"type": "number", "name": "Renamed"}
     response = await client.patch(
         f"/api/v1/property-definitions/{defn.id}", headers=headers, json=payload
@@ -579,7 +580,7 @@ async def test_patch_removing_option_reports_orphaned_values(
     doc = await _create_document(session, initiative=initiative, owner=user)
     await create_document_property_value(session, doc, defn, value_text="live")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     # Remove "live" from the option list.
     payload = {"options": [{"value": "draft", "label": "Draft"}]}
     response = await client.patch(
@@ -621,7 +622,7 @@ async def test_delete_definition_cascades_to_values(
     await create_document_property_value(session, doc, defn, value_text="a doc value")
     await create_task_property_value(session, task, defn, value_text="a task value")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.delete(
         f"/api/v1/property-definitions/{defn.id}", headers=headers
     )
@@ -674,7 +675,7 @@ async def test_get_entities_returns_attached_docs_and_tasks(
 
     response = await client.get(
         f"/api/v1/property-definitions/{defn.id}/entities",
-        headers=get_guild_headers(guild, user),
+        headers=await get_guild_headers(session, guild, user),
     )
     assert response.status_code == 200
     data = response.json()

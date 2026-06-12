@@ -52,6 +52,7 @@ async def _setup_guild_with_owner(session: AsyncSession):
 
 async def _upload_initial_file_doc(
     client: AsyncClient,
+    session,
     *,
     guild,
     user,
@@ -62,7 +63,7 @@ async def _upload_initial_file_doc(
     content_type: str = "application/pdf",
 ) -> dict:
     """Create a file document through the real upload endpoint (creates v1)."""
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.post(
         "/api/v1/documents/upload",
         headers=headers,
@@ -80,10 +81,10 @@ async def test_initial_upload_creates_version_one(
     """Uploading a file document seeds version 1."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     resp = await client.get(f"/api/v1/documents/{doc['id']}/versions", headers=headers)
     assert resp.status_code == 200
     versions = resp.json()
@@ -110,7 +111,7 @@ async def test_upload_version_creates_v2_and_mirrors_document(
     await create_initiative_member(session, initiative, writer)
 
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
     # Grant the writer write access.
     session.add(
@@ -123,7 +124,7 @@ async def test_upload_version_creates_v2_and_mirrors_document(
     )
     await session.commit()
 
-    headers = get_guild_headers(guild, writer)
+    headers = await get_guild_headers(session, guild, writer)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=headers,
@@ -170,7 +171,7 @@ async def test_upload_version_read_user_forbidden(
     await create_initiative_member(session, initiative, reader)
 
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
     session.add(
         DocumentPermission(
@@ -182,7 +183,7 @@ async def test_upload_version_read_user_forbidden(
     )
     await session.commit()
 
-    headers = get_guild_headers(guild, reader)
+    headers = await get_guild_headers(session, guild, reader)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=headers,
@@ -207,10 +208,10 @@ async def test_upload_version_type_mismatch_rejected(
     """A new version must match the original file type."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=headers,
@@ -235,7 +236,7 @@ async def test_upload_version_non_file_document_rejected(
 ) -> None:
     """Native documents don't support versions."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     create = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -267,10 +268,10 @@ async def test_upload_version_unsupported_file_rejected(
     """An unsupported/invalid file is rejected with a coded error."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=headers,
@@ -306,7 +307,7 @@ async def test_list_versions_read_user_allowed_and_ordered(
     await create_initiative_member(session, initiative, reader)
 
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
     session.add(
         DocumentPermission(
@@ -319,14 +320,14 @@ async def test_list_versions_read_user_allowed_and_ordered(
     await session.commit()
 
     # Owner uploads v2.
-    owner_headers = get_guild_headers(guild, owner)
+    owner_headers = await get_guild_headers(session, guild, owner)
     await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=owner_headers,
         files={"file": ("v2.pdf", PDF_BYTES_V2, "application/pdf")},
     )
 
-    reader_headers = get_guild_headers(guild, reader)
+    reader_headers = await get_guild_headers(session, guild, reader)
     resp = await client.get(
         f"/api/v1/documents/{doc['id']}/versions", headers=reader_headers
     )
@@ -353,10 +354,10 @@ async def test_download_specific_version_returns_its_bytes(
     """Downloading an old version returns that version's bytes, not the current one."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=guild_headers,
@@ -400,7 +401,7 @@ async def test_download_version_unknown_returns_404(
     """A version id that doesn't belong to the document 404s."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
     auth_headers = get_auth_headers(owner)
@@ -427,12 +428,12 @@ async def test_download_version_cross_guild_forbidden(
     """A user from another guild cannot download a version."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
     versions = (
         await client.get(
             f"/api/v1/documents/{doc['id']}/versions",
-            headers=get_guild_headers(guild, owner),
+            headers=await get_guild_headers(session, guild, owner),
         )
     ).json()
     v1 = versions[0]
@@ -461,9 +462,9 @@ async def test_delete_non_current_version_owner(
     """Owner deletes an old version; current stays, blob + Upload row removed."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=guild_headers,
@@ -519,9 +520,9 @@ async def test_delete_current_version_promotes_previous(
     """Deleting the current version rolls the document back to the prior version."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     v2_resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=guild_headers,
@@ -558,9 +559,9 @@ async def test_delete_last_version_blocked(
     """The only remaining version can't be deleted."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     versions = (
         await client.get(
             f"/api/v1/documents/{doc['id']}/versions", headers=guild_headers
@@ -596,7 +597,7 @@ async def test_delete_version_non_owner_forbidden(
     await create_initiative_member(session, initiative, writer)
 
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
     session.add(
         DocumentPermission(
@@ -607,7 +608,7 @@ async def test_delete_version_non_owner_forbidden(
         )
     )
     await session.commit()
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=guild_headers,
@@ -622,7 +623,7 @@ async def test_delete_version_non_owner_forbidden(
 
     resp = await client.delete(
         f"/api/v1/documents/{doc['id']}/versions/{v1_id}",
-        headers=get_guild_headers(guild, writer),
+        headers=await get_guild_headers(session, guild, writer),
     )
     assert resp.status_code == 403
 
@@ -648,7 +649,7 @@ async def test_upload_version_allowed_when_stored_content_type_is_null(
     """
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
     # Simulate a legacy / backfilled row where the content type was never recorded.
@@ -657,7 +658,7 @@ async def test_upload_version_allowed_when_stored_content_type_is_null(
     db_doc.file_content_type = None
     await session.commit()
 
-    guild_headers = get_guild_headers(guild, owner)
+    guild_headers = await get_guild_headers(session, guild, owner)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
         headers=guild_headers,
@@ -682,7 +683,7 @@ async def test_delete_version_non_file_document_rejected(
 ) -> None:
     """Delete is rejected on non-file documents with the same code as upload/list."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     create = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -719,7 +720,7 @@ async def test_upload_document_file_over_limit_rejected(
     monkeypatch.setattr(attachments_service, "MAX_DOCUMENT_FILE_SIZE", cap)
 
     owner, guild, initiative = await _setup_guild_with_owner(session)
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
 
     oversized = b"%PDF-1.4 " + b"A" * (cap + 1)
     resp = await client.post(
@@ -750,7 +751,7 @@ async def test_upload_document_file_just_under_limit_succeeds(
     monkeypatch.setattr(attachments_service, "MAX_DOCUMENT_FILE_SIZE", cap)
 
     owner, guild, initiative = await _setup_guild_with_owner(session)
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
 
     under = _TINY_PDF + b" " + b"B" * (cap - len(_TINY_PDF) - 1)
     assert len(under) == cap
@@ -783,13 +784,13 @@ async def test_upload_document_version_over_limit_rejected(
     owner, guild, initiative = await _setup_guild_with_owner(session)
     # Seed v1 while the cap is still large so the document exists.
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
     cap = 1024
     monkeypatch.setattr(attachments_service, "MAX_DOCUMENT_FILE_SIZE", cap)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     oversized = b"%PDF-1.4 " + b"A" * (cap + 1)
     resp = await client.post(
         f"/api/v1/documents/{doc['id']}/versions",
@@ -820,13 +821,13 @@ async def test_upload_document_version_just_under_limit_succeeds(
     """POST /documents/{id}/versions accepts a body at/under the cap."""
     owner, guild, initiative = await _setup_guild_with_owner(session)
     doc = await _upload_initial_file_doc(
-        client, guild=guild, user=owner, initiative=initiative
+        client, session, guild=guild, user=owner, initiative=initiative
     )
 
     cap = 4096
     monkeypatch.setattr(attachments_service, "MAX_DOCUMENT_FILE_SIZE", cap)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     under = _TINY_PDF + b" " + b"B" * (cap - len(_TINY_PDF) - 1)
     assert len(under) == cap
     resp = await client.post(

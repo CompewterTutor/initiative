@@ -80,7 +80,6 @@ export const MyTasksPage = () => {
       changeTaskStatusById: table.changeTaskStatusById,
       fetchProjectStatuses: table.fetchProjectStatuses,
       projectStatusCache: table.projectStatusCache,
-      projectsById: table.projectsById,
       t: t as TranslateFn,
     });
     if (propertyColumns.length === 0) return base;
@@ -94,7 +93,6 @@ export const MyTasksPage = () => {
     table.changeTaskStatusById,
     table.fetchProjectStatuses,
     table.projectStatusCache,
-    table.projectsById,
     t,
     propertyColumns,
   ]);

@@ -99,7 +99,7 @@ async def test_create_document_with_permissions(
     )
     member_role = result.one()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "title": "Doc With Permissions",
         "initiative_id": initiative.id,
@@ -145,7 +145,7 @@ async def test_create_document_without_permissions(
 
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "title": "Doc No Perms",
         "initiative_id": initiative.id,
@@ -185,7 +185,7 @@ async def test_create_document_rejects_foreign_initiative_role(
     )
     foreign_role = result.one()
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "title": "Doc Cross Initiative",
         "initiative_id": initiative_a.id,
@@ -217,7 +217,7 @@ async def test_create_document_skips_owner_level_grants(
     initiative = await create_initiative(session, guild, admin, name="Test Initiative")
     await create_initiative_member(session, initiative, member, role_name="member")
 
-    headers = get_guild_headers(guild, admin)
+    headers = await get_guild_headers(session, guild, admin)
     payload = {
         "title": "Doc Owner Skip",
         "initiative_id": initiative.id,
@@ -310,7 +310,7 @@ async def test_copy_template_with_read_only_access(
     )
     await session.commit()
 
-    headers = get_guild_headers(guild, reader)
+    headers = await get_guild_headers(session, guild, reader)
     response = await client.post(
         f"/api/v1/documents/{template.id}/copy",
         headers=headers,
@@ -368,7 +368,7 @@ async def test_copy_non_template_still_requires_write_access(
     )
     await session.commit()
 
-    headers = get_guild_headers(guild, reader)
+    headers = await get_guild_headers(session, guild, reader)
     response = await client.post(
         f"/api/v1/documents/{doc.id}/copy",
         headers=headers,
@@ -657,7 +657,7 @@ async def test_download_native_document_returns_404(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -687,7 +687,7 @@ async def test_update_content_clears_yjs_state(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     create_resp = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -742,7 +742,7 @@ async def test_create_whiteboard_document(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -795,7 +795,7 @@ async def test_create_smart_link_document(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -821,7 +821,7 @@ async def test_create_smart_link_rejects_missing_url(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         "/api/v1/documents/",
         headers=headers,
@@ -845,7 +845,7 @@ async def test_create_smart_link_rejects_non_http_url(
     await create_guild_membership(session, user=owner, guild=guild)
     initiative = await create_initiative(session, guild, owner)
 
-    headers = get_guild_headers(guild, owner)
+    headers = await get_guild_headers(session, guild, owner)
     response = await client.post(
         "/api/v1/documents/",
         headers=headers,

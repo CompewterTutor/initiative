@@ -184,23 +184,34 @@ async def test_ensure_membership_force_role_updates(session: AsyncSession):
 
 @pytest.mark.unit
 @pytest.mark.service
-async def test_resolve_user_guild_id_from_header(session: AsyncSession):
-    """Test that explicit guild_id takes precedence."""
+async def test_remove_user_from_guild_clears_active_context(session: AsyncSession):
+    """Leaving a guild drops the server-held context flag if (and only if) it
+    pointed at that guild."""
     user = await create_user(session)
     guild1 = await create_guild(session, name="Guild 1")
     guild2 = await create_guild(session, name="Guild 2")
-
     await create_guild_membership(session, user=user, guild=guild1)
     await create_guild_membership(session, user=user, guild=guild2)
 
-    # Explicit guild_id should be used
-    resolved = await guild_service.resolve_user_guild_id(
-        session,
-        user=user,
-        guild_id=guild2.id,
-    )
+    user.active_guild_id = guild1.id
+    session.add(user)
+    await session.commit()
 
-    assert resolved == guild2.id
+    # Removing from the OTHER guild leaves the flag alone.
+    await guild_service.remove_user_from_guild(
+        session, guild_id=guild2.id, user_id=user.id
+    )
+    await session.commit()
+    await session.refresh(user)
+    assert user.active_guild_id == guild1.id
+
+    # Removing from the active guild drops the user to personal mode.
+    await guild_service.remove_user_from_guild(
+        session, guild_id=guild1.id, user_id=user.id
+    )
+    await session.commit()
+    await session.refresh(user)
+    assert user.active_guild_id is None
 
 
 @pytest.mark.unit

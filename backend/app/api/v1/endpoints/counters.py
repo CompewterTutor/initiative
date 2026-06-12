@@ -1044,7 +1044,8 @@ async def websocket_counter_group(
 ) -> None:
     """Real-time updates for a counter group.
 
-    Protocol: client sends `{"token": "...", "guild_id": <int>}` first, server
+    Protocol: client sends `{"token": "..."}` first (the guild comes from the
+    user's server-held context, ``users.active_guild_id``), server
     validates auth + DAC, then broadcasts `counter_added`, `counter_removed`,
     `counter_updated`, `count_changed`, `counters_reset`, `counters_reordered`,
     `group_updated`, `group_deleted`, `permissions_changed` events.
@@ -1055,13 +1056,11 @@ async def websocket_counter_group(
         raw = await websocket.receive_text()
         auth_payload = json.loads(raw)
         token = auth_payload.get("token")
-        guild_id = auth_payload.get("guild_id")
         if not token:
             token = websocket.cookies.get(settings.COOKIE_NAME)
-        if not token or guild_id is None:
+        if not token:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-        guild_id = int(guild_id)
     except (json.JSONDecodeError, ValueError, WebSocketDisconnect):
         try:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -1073,6 +1072,14 @@ async def websocket_counter_group(
         user = await _ws_authenticate(token, session)
         if not user:
             logger.warning(f"Counter WS: auth failed for group {group_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # The group lives in the user's server-held guild context (the page
+        # opening this socket required entering its guild first).
+        guild_id = user.active_guild_id
+        if guild_id is None:
+            logger.warning(f"Counter WS: user {user.id} has no guild context")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 

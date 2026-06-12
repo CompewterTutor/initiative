@@ -12,6 +12,7 @@ import {
 
 import { apiClient, setCurrentGuildId } from "@/api/client";
 import type { AccessGrantRead, GuildRead } from "@/api/generated/initiativeAPI.schemas";
+import { setGuildContextApiV1UsersMeGuildContextPut } from "@/api/generated/users/users";
 import { resetGuildScopedQueries } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/chesterToast";
@@ -41,6 +42,12 @@ interface GuildContextValue {
   refreshGuilds: () => Promise<void>;
   switchGuild: (guildId: number) => Promise<void>;
   syncGuildFromUrl: (guildId: number) => Promise<void>;
+  /** Enter personal (cross-guild) mode server-side. Called when the user
+   * lands on the personal home page. */
+  syncPersonalContext: () => Promise<void>;
+  /** Adopt a guild switch made in another tab (no server PUT — the other tab
+   * already moved the server-held context). */
+  adoptExternalGuildSwitch: (guildId: number | null) => Promise<void>;
   createGuild: (input: { name: string; description?: string }) => Promise<GuildRead>;
   updateGuildInState: (guild: GuildRead) => void;
   reorderGuilds: (guildIds: number[]) => void;
@@ -50,6 +57,10 @@ interface GuildContextValue {
 export const GuildContext = createContext<GuildContextValue | undefined>(undefined);
 
 const GUILD_STORAGE_KEY = "initiative-active-guild";
+
+/** Fired after this tab adopts a guild switch made in another tab, so a
+ * router-aware component can move off a now-wrong guild URL. */
+export const GUILD_CONTEXT_CONVERGED_EVENT = "initiative:guild-context-converged";
 
 const readStoredGuildId = (): number | null => {
   const stored = getItem(GUILD_STORAGE_KEY);
@@ -121,6 +132,30 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     setCurrentGuildId(activeGuildId);
     persistGuildId(activeGuildId);
   }, [activeGuildId]);
+
+  // The guild context the server currently holds for this user
+  // (users.active_guild_id; null = personal mode). Seeded from the loaded
+  // user so a fresh tab doesn't re-PUT a context the server already has.
+  const serverContextRef = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (user && serverContextRef.current === undefined) {
+      serverContextRef.current = user.active_guild_id ?? null;
+    }
+    if (!user) {
+      serverContextRef.current = undefined;
+    }
+  }, [user]);
+
+  /** Push the server-held guild context (idempotent). All guild-scoped
+   * requests resolve their guild from this flag, so it must land before the
+   * new context's fetches fire. Throws if the PUT fails. */
+  const pushServerContext = useCallback(async (guildId: number | null) => {
+    if (serverContextRef.current === guildId) {
+      return;
+    }
+    await setGuildContextApiV1UsersMeGuildContextPut({ guild_id: guildId });
+    serverContextRef.current = guildId;
+  }, []);
 
   const applyGuildState = useCallback((guildList: GuildEntry[]) => {
     const sortedGuilds = sortGuilds(guildList);
@@ -259,10 +294,27 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     async (guildId: number) => {
       // Don't switch if we are already there
       if (!user || guildId === activeGuildIdRef.current) {
+        // Still make sure the server context matches (e.g. coming back from
+        // personal mode to the already-highlighted guild).
+        try {
+          await pushServerContext(guildId);
+        } catch (err) {
+          console.error("Failed to set guild context", err);
+        }
         return;
       }
 
-      // Update local state immediately so UI reacts
+      // The server-held context must land BEFORE the new guild's fetches —
+      // every guild-scoped request resolves its guild from it.
+      try {
+        await pushServerContext(guildId);
+      } catch (err) {
+        console.error("Failed to set guild context", err);
+        toast.error("Unable to switch guild. Please try again.");
+        return;
+      }
+
+      // Update local state so UI reacts
       setActiveGuildId(guildId);
 
       // Clear guild-scoped query cache so stale data from the previous guild isn't shown
@@ -271,26 +323,90 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
       // Refresh data in background to ensure everything is synced
       await Promise.all([refreshGuilds(), refreshUser()]);
     },
-    [user, refreshGuilds, refreshUser]
+    [user, pushServerContext, refreshGuilds, refreshUser]
   );
 
   /**
    * Sync guild context from URL without full navigation.
-   * Used by guild-scoped routes to sync context from URL params.
+   * Used by guild-scoped routes to sync context from URL params (deep links,
+   * opened tabs, cross-guild navigation).
    */
-  const syncGuildFromUrl = useCallback(async (guildId: number) => {
-    if (guildId === activeGuildIdRef.current) {
+  const syncGuildFromUrl = useCallback(
+    async (guildId: number) => {
+      // Always converge the server-held context first — the local id can
+      // already match while the server flag points elsewhere (fresh tab,
+      // return from personal mode). pushServerContext is idempotent.
+      try {
+        await pushServerContext(guildId);
+      } catch (err) {
+        console.error("Failed to set guild context", err);
+      }
+
+      if (guildId === activeGuildIdRef.current) {
+        return;
+      }
+
+      // Update local state immediately
+      setActiveGuildId(guildId);
+      setCurrentGuildId(guildId);
+      persistGuildId(guildId);
+
+      // Clear guild-scoped query cache so stale data from the previous guild isn't shown
+      await resetGuildScopedQueries();
+    },
+    [pushServerContext]
+  );
+
+  /**
+   * Enter personal (cross-guild) mode server-side. The local activeGuildId is
+   * kept as the user's "last guild" for rail highlight and redirect targets —
+   * only the server-held flag goes null.
+   */
+  const syncPersonalContext = useCallback(async () => {
+    try {
+      await pushServerContext(null);
+    } catch (err) {
+      console.error("Failed to enter personal mode", err);
+    }
+  }, [pushServerContext]);
+
+  /**
+   * Another tab switched guilds (storage event): the server-held context has
+   * already moved, so converge this tab without re-PUTting — update local
+   * state and drop guild-scoped caches so nothing stale repaints.
+   */
+  const adoptExternalGuildSwitch = useCallback(async (guildId: number | null) => {
+    serverContextRef.current = guildId;
+    if (guildId === null || guildId === activeGuildIdRef.current) {
       return;
     }
-
-    // Update local state immediately
     setActiveGuildId(guildId);
-    setCurrentGuildId(guildId);
-    persistGuildId(guildId);
-
-    // Clear guild-scoped query cache so stale data from the previous guild isn't shown
     await resetGuildScopedQueries();
+    // Let a router-aware listener (AppLayout) move this tab off a guild URL
+    // that no longer matches the converged context.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(GUILD_CONTEXT_CONVERGED_EVENT, { detail: { guildId } }));
+    }
   }, []);
+
+  // Tabs converge: the user is in exactly one context at a time, everywhere.
+  // When another tab switches guilds it persists the id (storage event fires
+  // only in OTHER tabs) — adopt the switch here so this tab can't keep
+  // operating against a server context that has moved.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== GUILD_STORAGE_KEY) {
+        return;
+      }
+      const parsed = event.newValue === null ? null : Number(event.newValue);
+      void adoptExternalGuildSwitch(Number.isFinite(parsed as number) ? parsed : null);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [adoptExternalGuildSwitch]);
 
   const reorderGuilds = useCallback(
     (guildIds: number[]) => {
@@ -394,6 +510,8 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     refreshGuilds,
     switchGuild,
     syncGuildFromUrl,
+    syncPersonalContext,
+    adoptExternalGuildSwitch,
     createGuild,
     updateGuildInState,
     reorderGuilds,

@@ -35,7 +35,7 @@ async def test_list_global_projects(client: AsyncClient, session: AsyncSession):
     user = await create_user(session, email="user@example.com")
     guild, _, project = await _setup_guild_with_project(session, user)
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/projects/global", headers=headers)
 
     assert response.status_code == 200
@@ -60,7 +60,7 @@ async def test_list_global_projects_excludes_archived(
     session.add(archived_project)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/projects/global", headers=headers)
 
     assert response.status_code == 200
@@ -84,7 +84,7 @@ async def test_list_global_projects_excludes_templates(
     session.add(template_project)
     await session.commit()
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/projects/global", headers=headers)
 
     assert response.status_code == 200
@@ -114,7 +114,7 @@ async def test_list_global_projects_respects_permissions(
     )
 
     # Member requests global projects — should NOT see admin_project
-    headers = get_guild_headers(guild, member)
+    headers = await get_guild_headers(session, guild, member)
     response = await client.get("/api/v1/projects/global", headers=headers)
 
     assert response.status_code == 200
@@ -138,7 +138,7 @@ async def test_list_global_projects_guild_filter(
     guild2, _, project2 = await _setup_guild_with_project(
         session, user, guild_name="Guild 2"
     )
-    headers = get_guild_headers(guild1, user)
+    headers = await get_guild_headers(session, guild1, user)
 
     def keyed(resp):
         return {(p["initiative"]["guild_id"], p["id"]) for p in resp.json()["items"]}
@@ -169,7 +169,7 @@ async def test_list_global_projects_search(client: AsyncClient, session: AsyncSe
     alpha = await create_project(session, initiative, user, name="Alpha Project")
     beta = await create_project(session, initiative, user, name="Beta Project")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
     response = await client.get("/api/v1/projects/global?search=alpha", headers=headers)
 
     assert response.status_code == 200
@@ -190,7 +190,7 @@ async def test_list_global_projects_pagination(
     for i in range(3):
         await create_project(session, initiative, user, name=f"Extra {i}")
 
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     # Page 1 with page_size=2
     response = await client.get(

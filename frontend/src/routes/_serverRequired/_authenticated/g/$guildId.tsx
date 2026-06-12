@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_serverRequired/_authenticated/g/$guildId
     // Skip membership validation while guilds are still loading
     // The component will handle validation once data is available
     // Don't set the guild ID yet — it may be invalid and would poison
-    // the API client header if the user isn't a member.
+    // the SPA's guild state if the user isn't a member.
     if (guilds?.loading) {
       return { urlGuildId: guildId, urlGuild: null };
     }
@@ -33,7 +33,8 @@ export const Route = createFileRoute("/_serverRequired/_authenticated/g/$guildId
       return { urlGuildId: guildId, urlGuild: null };
     }
 
-    // Sync API client header to ensure requests go to correct guild
+    // Sync the SPA's local guild state; the layout effect below pushes the
+    // server-held context (which is what actually scopes requests).
     setCurrentGuildId(guildId);
 
     // Provide validated guild info to child routes via route context

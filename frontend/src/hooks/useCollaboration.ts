@@ -103,7 +103,8 @@ export function useCollaboration({
       ? url.pathname.slice(0, -1)
       : url.pathname || "/api/v1";
     url.pathname = `${normalizedPath}/collaboration/documents/${documentId}/collaborate`;
-    // Note: token and guild_id are sent via MSG_AUTH message, not URL params
+    // Note: the token is sent via MSG_AUTH message, not URL params; the
+    // guild comes from the user's server-held context
     return url.toString();
   }, [isReady, activeGuildId, documentId]);
 
@@ -111,7 +112,7 @@ export function useCollaboration({
   // token may be null for web cookie sessions; backend falls back to session cookie
   const authParams = useMemo(() => {
     if (!activeGuildId) return null;
-    return { token: token ?? null, guildId: activeGuildId };
+    return { token: token ?? null };
   }, [token, activeGuildId]);
 
   // Clean up provider when URL changes (token refresh, guild change, document change, etc.)

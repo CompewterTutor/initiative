@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { apiClient } from "@/api/client";
 

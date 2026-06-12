@@ -241,25 +241,37 @@ def get_auth_headers(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def get_guild_headers(guild: Guild, user: User | None = None) -> dict[str, str]:
+async def get_guild_headers(
+    session: AsyncSession, guild: Guild, user: User
+) -> dict[str, str]:
     """
-    Get headers for guild-scoped API requests.
+    Enter ``guild`` as ``user`` and return auth headers for API requests.
+
+    Guild context is server-held (``users.active_guild_id``): requests carry
+    no guild context of their own, so "act in this guild" is a database write,
+    exactly like the production ``PUT /users/me/guild-context``. The write is
+    direct (unvalidated) on purpose — tests for the fail-closed per-request
+    validation point the flag at guilds the user can't access and assert 403.
+
+    Note the flag is per-user state: headers obtained earlier for the same
+    user in another guild go stale at this call. Re-call to switch back.
 
     Args:
-        guild: Guild context for the request
-        user: Optional user to authenticate as
+        session: Database session
+        guild: Guild to enter
+        user: User to authenticate as
 
     Returns:
-        Dictionary with X-Guild-ID header (and Authorization if user provided)
+        Dictionary with the Authorization header
 
     Example:
-        headers = get_guild_headers(test_guild, test_user)
+        headers = await get_guild_headers(session, test_guild, test_user)
         response = await client.get("/api/v1/initiatives", headers=headers)
     """
-    headers = {"X-Guild-ID": str(guild.id)}
-    if user:
-        headers.update(get_auth_headers(user))
-    return headers
+    user.active_guild_id = guild.id
+    session.add(user)
+    await session.commit()
+    return get_auth_headers(user)
 
 
 async def create_initiative(

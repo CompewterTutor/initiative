@@ -76,7 +76,7 @@ async def test_list_events_summary_includes_tags(
     client: AsyncClient, session: AsyncSession
 ):
     user, guild, initiative, event = await _setup_event(session)
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     tag = Tag(name="Priority", guild_id=guild.id, color="#ff0000")
     session.add(tag)
@@ -109,7 +109,7 @@ async def test_list_events_summary_tags_default_empty(
 ):
     """An event with no tags still serializes ``tags: []`` in the summary."""
     user, guild, initiative, event = await _setup_event(session)
-    headers = get_guild_headers(guild, user)
+    headers = await get_guild_headers(session, guild, user)
 
     response = await client.get(
         f"/api/v1/calendar-events/?initiative_id={initiative.id}", headers=headers
@@ -126,7 +126,7 @@ async def test_create_event_notifies_attendees_not_creator(
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
 
     response = await client.post(
         "/api/v1/calendar-events/",
@@ -165,7 +165,7 @@ async def test_create_multi_day_timed_event_is_allowed(
     organizer, _attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
 
     response = await client.post(
         "/api/v1/calendar-events/",
@@ -192,7 +192,7 @@ async def test_create_event_rejects_end_before_start(
     organizer, _attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
 
     response = await client.post(
         "/api/v1/calendar-events/",
@@ -215,7 +215,7 @@ async def test_update_event_time_notifies_attendees_as_rescheduled(
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
     event = await create_calendar_event(session, initiative, organizer, title="Review")
     await client.put(
         f"/api/v1/calendar-events/{event.id}/attendees",
@@ -244,7 +244,7 @@ async def test_delete_event_notifies_attendees(
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
     event = await create_calendar_event(session, initiative, organizer, title="Retro")
     await client.put(
         f"/api/v1/calendar-events/{event.id}/attendees",
@@ -271,7 +271,7 @@ async def test_update_event_skips_declined_attendees(
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
     event = await create_calendar_event(session, initiative, organizer, title="Review")
     await client.put(
         f"/api/v1/calendar-events/{event.id}/attendees",
@@ -280,7 +280,7 @@ async def test_update_event_skips_declined_attendees(
     )
     declined = await client.patch(
         f"/api/v1/calendar-events/{event.id}/rsvp",
-        headers=get_guild_headers(guild, attendee),
+        headers=await get_guild_headers(session, guild, attendee),
         json={"rsvp_status": "declined"},
     )
     assert declined.status_code == 200
@@ -306,7 +306,7 @@ async def test_delete_event_skips_declined_attendees(
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    headers = get_guild_headers(guild, organizer)
+    headers = await get_guild_headers(session, guild, organizer)
     event = await create_calendar_event(session, initiative, organizer, title="Retro")
     await client.put(
         f"/api/v1/calendar-events/{event.id}/attendees",
@@ -315,7 +315,7 @@ async def test_delete_event_skips_declined_attendees(
     )
     declined = await client.patch(
         f"/api/v1/calendar-events/{event.id}/rsvp",
-        headers=get_guild_headers(guild, attendee),
+        headers=await get_guild_headers(session, guild, attendee),
         json={"rsvp_status": "declined"},
     )
     assert declined.status_code == 200
@@ -336,7 +336,7 @@ async def test_rsvp_notifies_organizer(client: AsyncClient, session: AsyncSessio
     organizer, attendee, guild, initiative = await _setup_organizer_and_attendee(
         session
     )
-    organizer_headers = get_guild_headers(guild, organizer)
+    organizer_headers = await get_guild_headers(session, guild, organizer)
     event = await create_calendar_event(session, initiative, organizer, title="Demo")
     await client.put(
         f"/api/v1/calendar-events/{event.id}/attendees",
@@ -344,7 +344,7 @@ async def test_rsvp_notifies_organizer(client: AsyncClient, session: AsyncSessio
         json=[attendee.id],
     )
 
-    attendee_headers = get_guild_headers(guild, attendee)
+    attendee_headers = await get_guild_headers(session, guild, attendee)
     response = await client.patch(
         f"/api/v1/calendar-events/{event.id}/rsvp",
         headers=attendee_headers,

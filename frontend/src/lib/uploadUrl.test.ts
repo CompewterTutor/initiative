@@ -62,9 +62,7 @@ describe("resolveUploadUrl (native)", () => {
 
   it("stamps the SHORT-LIVED scoped upload token (not the session JWT) into the URL", () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
-    vi.spyOn(apiClient.defaults, "baseURL", "get").mockReturnValue(
-      "http://10.0.2.2:8000/api/v1"
-    );
+    vi.spyOn(apiClient.defaults, "baseURL", "get").mockReturnValue("http://10.0.2.2:8000/api/v1");
     getUploadTokenMock.mockReturnValue("scoped-upload-token");
 
     const url = resolveUploadUrl("/uploads/avatars/abc.png");
@@ -75,9 +73,7 @@ describe("resolveUploadUrl (native)", () => {
 
   it("omits the token when none is available yet", () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
-    vi.spyOn(apiClient.defaults, "baseURL", "get").mockReturnValue(
-      "http://10.0.2.2:8000/api/v1"
-    );
+    vi.spyOn(apiClient.defaults, "baseURL", "get").mockReturnValue("http://10.0.2.2:8000/api/v1");
     getUploadTokenMock.mockReturnValue(null);
 
     expect(resolveUploadUrl("/uploads/avatars/abc.png")).toBe(

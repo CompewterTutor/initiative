@@ -30,6 +30,7 @@ import type {
   ExportUsersCsvApiV1UsersExportCsvGetParams,
   GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
   GetUserStatsApiV1UsersMeStatsGetParams,
+  GuildContextUpdate,
   GuildRemovalEligibilityResponse,
   GuildRemovalRequest,
   HTTPValidationError,
@@ -253,6 +254,106 @@ export const useUpdateUsersMeApiV1UsersMePatch = <
   TContext
 > => {
   return useMutation(getUpdateUsersMeApiV1UsersMePatchMutationOptions(options), queryClient);
+};
+/**
+ * Set the server-held guild context for the current user.
+ *
+ * Called by the client exactly when the user clicks a guild (``guild_id``)
+ * or the personal page (``null``). Every subsequent request — REST,
+ * websocket, download, media load — resolves its guild from this flag, so
+ * no per-request guild context exists anywhere else.
+ *
+ * Fail-closed: a guild the user neither belongs to nor holds a live PAM
+ * grant for is rejected with 403 without confirming the guild exists.
+ * @summary Set Guild Context
+ */
+export const setGuildContextApiV1UsersMeGuildContextPut = (
+  guildContextUpdate: BodyType<GuildContextUpdate>,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<UserRead>(
+    {
+      url: `/api/v1/users/me/guild-context`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: guildContextUpdate,
+      signal,
+    },
+    options
+  );
+};
+
+export const getSetGuildContextApiV1UsersMeGuildContextPutMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>,
+    TError,
+    { data: BodyType<GuildContextUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof apiMutator>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>,
+  TError,
+  { data: BodyType<GuildContextUpdate> },
+  TContext
+> => {
+  const mutationKey = ["setGuildContextApiV1UsersMeGuildContextPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>,
+    { data: BodyType<GuildContextUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return setGuildContextApiV1UsersMeGuildContextPut(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetGuildContextApiV1UsersMeGuildContextPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>
+>;
+export type SetGuildContextApiV1UsersMeGuildContextPutMutationBody = BodyType<GuildContextUpdate>;
+export type SetGuildContextApiV1UsersMeGuildContextPutMutationError =
+  ErrorType<HTTPValidationError>;
+
+/**
+ * @summary Set Guild Context
+ */
+export const useSetGuildContextApiV1UsersMeGuildContextPut = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>,
+      TError,
+      { data: BodyType<GuildContextUpdate> },
+      TContext
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setGuildContextApiV1UsersMeGuildContextPut>>,
+  TError,
+  { data: BodyType<GuildContextUpdate> },
+  TContext
+> => {
+  return useMutation(
+    getSetGuildContextApiV1UsersMeGuildContextPutMutationOptions(options),
+    queryClient
+  );
 };
 /**
  * Get comprehensive statistics for the current user.
