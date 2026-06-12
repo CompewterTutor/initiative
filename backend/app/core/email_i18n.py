@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import html as _html
 import json
 import re
 from functools import lru_cache
@@ -18,6 +19,18 @@ from pathlib import Path
 
 _LOCALES_DIR = Path(__file__).resolve().parent.parent / "locales"
 _VAR_RE = re.compile(r"\{\{(\w+)\}\}")
+
+# Namespaces whose templates are rendered into HTML email bodies. Interpolated
+# variable VALUES (display names, resource titles, comment text — all
+# user-controlled) are HTML-escaped by default for these namespaces so a
+# display name like ``<a href="https://phish">Reset your password</a>`` shows
+# as literal text instead of rendering inside the trusted, brand-styled email.
+# The template text itself (e.g. ``<strong>{{actor}}</strong>``) is trusted and
+# never escaped. Plain-text contexts (subjects, textBody alternatives) opt out
+# per call with ``escape=False`` — a missed opt-out shows a cosmetic ``&amp;``,
+# whereas a missed opt-in would be a phishing-injection hole, so HTML-safe is
+# the default.
+_HTML_NAMESPACES = frozenset({"email"})
 
 
 @lru_cache(maxsize=32)
@@ -57,7 +70,12 @@ def _resolve_key(data: dict, key: str) -> str | None:
 
 
 def translate(
-    key: str, locale: str = "en", *, namespace: str = "email", **kwargs: str | int
+    key: str,
+    locale: str = "en",
+    *,
+    namespace: str = "email",
+    escape: bool | None = None,
+    **kwargs: str | int,
 ) -> str:
     """Look up a translation key with ``{{var}}`` interpolation.
 
@@ -65,6 +83,12 @@ def translate(
     ``notifications``). Supports simple plural selection via the ``count``
     kwarg: if ``count`` is provided and a ``_one`` / ``_other`` suffixed key
     exists, the appropriate variant is returned.
+
+    ``escape`` controls HTML-escaping of the interpolated variable *values*
+    (never the template text). ``None`` (the default) escapes for namespaces
+    in ``_HTML_NAMESPACES`` and leaves others raw; pass ``escape=False`` when
+    rendering an HTML-namespace key into a plain-text context (subject lines,
+    ``textBody`` alternatives).
 
     Resolution falls back to the ``en`` locale when the key is missing for the
     requested locale (e.g. a locale file that hasn't been translated yet), so
@@ -78,9 +102,18 @@ def translate(
     if value is None:
         return key  # last-resort fallback: return the key itself
 
-    return _VAR_RE.sub(lambda m: str(kwargs.get(m.group(1), m.group(0))), value)
+    if escape is None:
+        escape = namespace in _HTML_NAMESPACES
+
+    def _substitute(match: re.Match[str]) -> str:
+        raw = str(kwargs.get(match.group(1), match.group(0)))
+        return _html.escape(raw) if escape else raw
+
+    return _VAR_RE.sub(_substitute, value)
 
 
-def email_t(key: str, locale: str = "en", **kwargs: str | int) -> str:
+def email_t(
+    key: str, locale: str = "en", *, escape: bool | None = None, **kwargs: str | int
+) -> str:
     """Translate a key from the ``email`` namespace (back-compatible helper)."""
-    return translate(key, locale, namespace="email", **kwargs)
+    return translate(key, locale, namespace="email", escape=escape, **kwargs)
