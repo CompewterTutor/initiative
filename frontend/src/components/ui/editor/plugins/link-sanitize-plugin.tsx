@@ -1,4 +1,4 @@
-import { $isAutoLinkNode, $isLinkNode, AutoLinkNode, LinkNode } from "@lexical/link";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import { useEffect } from "react";
@@ -24,10 +24,9 @@ export function LinkSanitizePlugin(): null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
+    // AutoLinkNode extends LinkNode, so one transform body serves both
+    // registrations; registerNodeTransform only ever passes the matching type.
     const sanitizeNode = (node: LinkNode) => {
-      if (!$isLinkNode(node) && !$isAutoLinkNode(node)) {
-        return;
-      }
       const url = node.getURL();
       const safe = sanitizeUrl(url);
       if (safe !== url) {

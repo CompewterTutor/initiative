@@ -81,3 +81,11 @@ describe("validateUrl", () => {
     expect(validateUrl("example.com/path")).toBe(true);
   });
 });
+
+describe("sanitizeUrl link-insertion placeholder", () => {
+  it("passes the https:// placeholder through unchanged", () => {
+    // The floating link editor initialises/resets editedLinkUrl to "https://";
+    // sanitizing it to about:blank would corrupt link insertion (PR review P1).
+    expect(sanitizeUrl("https://")).toBe("https://");
+  });
+});

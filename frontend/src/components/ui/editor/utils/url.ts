@@ -71,6 +71,15 @@ export function sanitizeUrl(url: string): string {
     return SAFE_URL;
   }
 
+  // The link-insertion UI initialises new links with this placeholder before
+  // the user types a real URL (see validateUrl's matching carve-out + TODO).
+  // It is inert — allowlisted scheme with no host, so nothing can navigate to
+  // it — but `new URL("https://")` throws, which would fail closed to
+  // about:blank and let the node transform rewrite the link mid-insertion.
+  if (trimmed === "https://") {
+    return trimmed;
+  }
+
   // Relative references can never carry a dangerous scheme. Test the original
   // trimmed value so a benign leading "/" or "#" is preserved verbatim.
   if (RELATIVE_REFERENCE_RE.test(trimmed)) {
