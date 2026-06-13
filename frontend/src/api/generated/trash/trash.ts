@@ -22,7 +22,7 @@ import type {
 
 import type {
   HTTPValidationError,
-  ListTrashApiV1TrashGetParams,
+  ListTrashApiV1GGuildIdTrashGetParams,
   RestoreNeedsReassignmentResponse,
   RestoreRequest,
   TrashListResponse,
@@ -41,66 +41,79 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * the guild's trash and is admin-only.
  * @summary List Trash
  */
-export const listTrashApiV1TrashGet = (
-  params?: ListTrashApiV1TrashGetParams,
+export const listTrashApiV1GGuildIdTrashGet = (
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
   return apiMutator<TrashListResponse>(
-    { url: `/api/v1/trash/`, method: "GET", params, signal },
+    { url: `/api/v1/g/${guildId}/trash/`, method: "GET", params, signal },
     options
   );
 };
 
-export const getListTrashApiV1TrashGetQueryKey = (params?: ListTrashApiV1TrashGetParams) => {
-  return [`/api/v1/trash/`, ...(params ? [params] : [])] as const;
+export const getListTrashApiV1GGuildIdTrashGetQueryKey = (
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams
+) => {
+  return [`/api/v1/g/${guildId}/trash/`, ...(params ? [params] : [])] as const;
 };
 
-export const getListTrashApiV1TrashGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+export const getListTrashApiV1GGuildIdTrashGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params?: ListTrashApiV1TrashGetParams,
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>, TError, TData>
     >;
     request?: SecondParameter<typeof apiMutator>;
   }
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListTrashApiV1TrashGetQueryKey(params);
+  const queryKey =
+    queryOptions?.queryKey ?? getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, params);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>> = ({ signal }) =>
-    listTrashApiV1TrashGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>> = ({
+    signal,
+  }) => listTrashApiV1GGuildIdTrashGet(guildId, params, requestOptions, signal);
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+  return {
+    queryKey,
+    queryFn,
+    enabled: guildId !== null && guildId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type ListTrashApiV1TrashGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listTrashApiV1TrashGet>>
+export type ListTrashApiV1GGuildIdTrashGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>
 >;
-export type ListTrashApiV1TrashGetQueryError = ErrorType<HTTPValidationError>;
+export type ListTrashApiV1GGuildIdTrashGetQueryError = ErrorType<HTTPValidationError>;
 
-export function useListTrashApiV1TrashGet<
-  TData = Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+export function useListTrashApiV1GGuildIdTrashGet<
+  TData = Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params: undefined | ListTrashApiV1TrashGetParams,
+  guildId: number,
+  params: undefined | ListTrashApiV1GGuildIdTrashGetParams,
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+          Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
           TError,
-          Awaited<ReturnType<typeof listTrashApiV1TrashGet>>
+          Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>
         >,
         "initialData"
       >;
@@ -108,20 +121,21 @@ export function useListTrashApiV1TrashGet<
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListTrashApiV1TrashGet<
-  TData = Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+export function useListTrashApiV1GGuildIdTrashGet<
+  TData = Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params?: ListTrashApiV1TrashGetParams,
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+          Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
           TError,
-          Awaited<ReturnType<typeof listTrashApiV1TrashGet>>
+          Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>
         >,
         "initialData"
       >;
@@ -129,14 +143,15 @@ export function useListTrashApiV1TrashGet<
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListTrashApiV1TrashGet<
-  TData = Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+export function useListTrashApiV1GGuildIdTrashGet<
+  TData = Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params?: ListTrashApiV1TrashGetParams,
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>, TError, TData>
     >;
     request?: SecondParameter<typeof apiMutator>;
   },
@@ -146,20 +161,21 @@ export function useListTrashApiV1TrashGet<
  * @summary List Trash
  */
 
-export function useListTrashApiV1TrashGet<
-  TData = Awaited<ReturnType<typeof listTrashApiV1TrashGet>>,
+export function useListTrashApiV1GGuildIdTrashGet<
+  TData = Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>,
   TError = ErrorType<HTTPValidationError>,
 >(
-  params?: ListTrashApiV1TrashGetParams,
+  guildId: number,
+  params?: ListTrashApiV1GGuildIdTrashGetParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1TrashGet>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listTrashApiV1GGuildIdTrashGet>>, TError, TData>
     >;
     request?: SecondParameter<typeof apiMutator>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListTrashApiV1TrashGetQueryOptions(params, options);
+  const queryOptions = getListTrashApiV1GGuildIdTrashGetQueryOptions(guildId, params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -174,7 +190,8 @@ export function useListTrashApiV1TrashGet<
  * and the caller did not supply a new_owner_id.
  * @summary Restore Trash Entity
  */
-export const restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = (
+export const restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost = (
+  guildId: number,
   entityType:
     | "project"
     | "task"
@@ -194,7 +211,7 @@ export const restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = (
 ) => {
   return apiMutator<unknown>(
     {
-      url: `/api/v1/trash/${entityType}/${entityId}/restore`,
+      url: `/api/v1/g/${guildId}/trash/${entityType}/${entityId}/restore`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       data: restoreRequest,
@@ -204,14 +221,15 @@ export const restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = (
   );
 };
 
-export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutationOptions = <
+export const getRestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePostMutationOptions = <
   TError = ErrorType<RestoreNeedsReassignmentResponse | HTTPValidationError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>,
+    Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>,
     TError,
     {
+      guildId: number;
       entityType:
         | "project"
         | "task"
@@ -231,9 +249,10 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
   >;
   request?: SecondParameter<typeof apiMutator>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>,
+  Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>,
   TError,
   {
+    guildId: number;
     entityType:
       | "project"
       | "task"
@@ -251,7 +270,7 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
   },
   TContext
 > => {
-  const mutationKey = ["restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost"];
+  const mutationKey = ["restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -259,8 +278,9 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>,
+    Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>,
     {
+      guildId: number;
       entityType:
         | "project"
         | "task"
@@ -277,9 +297,10 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
       data: BodyType<RestoreRequest>;
     }
   > = (props) => {
-    const { entityType, entityId, data } = props ?? {};
+    const { guildId, entityType, entityId, data } = props ?? {};
 
-    return restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost(
+    return restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost(
+      guildId,
       entityType,
       entityId,
       data,
@@ -290,27 +311,28 @@ export const getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutatio
   return { mutationFn, ...mutationOptions };
 };
 
-export type RestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>
->;
-export type RestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutationBody =
+export type RestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>
+  >;
+export type RestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePostMutationBody =
   BodyType<RestoreRequest>;
-export type RestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutationError = ErrorType<
-  RestoreNeedsReassignmentResponse | HTTPValidationError
->;
+export type RestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePostMutationError =
+  ErrorType<RestoreNeedsReassignmentResponse | HTTPValidationError>;
 
 /**
  * @summary Restore Trash Entity
  */
-export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
+export const useRestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost = <
   TError = ErrorType<RestoreNeedsReassignmentResponse | HTTPValidationError>,
   TContext = unknown,
 >(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>,
+      Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>,
       TError,
       {
+        guildId: number;
         entityType:
           | "project"
           | "task"
@@ -332,9 +354,10 @@ export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost>>,
+  Awaited<ReturnType<typeof restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost>>,
   TError,
   {
+    guildId: number;
     entityType:
       | "project"
       | "task"
@@ -353,7 +376,7 @@ export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
   TContext
 > => {
   return useMutation(
-    getRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePostMutationOptions(options),
+    getRestoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePostMutationOptions(options),
     queryClient
   );
 };
@@ -363,7 +386,8 @@ export const useRestoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost = <
  * role) and so the upload-cleanup helper can DELETE Upload rows.
  * @summary Purge Trash Entity
  */
-export const purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = (
+export const purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete = (
+  guildId: number,
   entityType:
     | "project"
     | "task"
@@ -381,19 +405,20 @@ export const purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = (
   signal?: AbortSignal
 ) => {
   return apiMutator<void>(
-    { url: `/api/v1/trash/${entityType}/${entityId}/purge`, method: "DELETE", signal },
+    { url: `/api/v1/g/${guildId}/trash/${entityType}/${entityId}/purge`, method: "DELETE", signal },
     options
   );
 };
 
-export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationOptions = <
+export const getPurgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDeleteMutationOptions = <
   TError = ErrorType<HTTPValidationError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>,
+    Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>,
     TError,
     {
+      guildId: number;
       entityType:
         | "project"
         | "task"
@@ -412,9 +437,10 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
   >;
   request?: SecondParameter<typeof apiMutator>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>,
+  Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>,
   TError,
   {
+    guildId: number;
     entityType:
       | "project"
       | "task"
@@ -431,7 +457,7 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
   },
   TContext
 > => {
-  const mutationKey = ["purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete"];
+  const mutationKey = ["purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
       ? options
@@ -439,8 +465,9 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>,
+    Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>,
     {
+      guildId: number;
       entityType:
         | "project"
         | "task"
@@ -456,9 +483,10 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
       entityId: number;
     }
   > = (props) => {
-    const { entityType, entityId } = props ?? {};
+    const { guildId, entityType, entityId } = props ?? {};
 
-    return purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete(
+    return purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete(
+      guildId,
       entityType,
       entityId,
       requestOptions
@@ -468,25 +496,27 @@ export const getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationO
   return { mutationFn, ...mutationOptions };
 };
 
-export type PurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>
->;
+export type PurgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>
+  >;
 
-export type PurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationError =
+export type PurgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDeleteMutationError =
   ErrorType<HTTPValidationError>;
 
 /**
  * @summary Purge Trash Entity
  */
-export const usePurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = <
+export const usePurgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete = <
   TError = ErrorType<HTTPValidationError>,
   TContext = unknown,
 >(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>,
+      Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>,
       TError,
       {
+        guildId: number;
         entityType:
           | "project"
           | "task"
@@ -507,9 +537,10 @@ export const usePurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete>>,
+  Awaited<ReturnType<typeof purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete>>,
   TError,
   {
+    guildId: number;
     entityType:
       | "project"
       | "task"
@@ -527,7 +558,7 @@ export const usePurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete = <
   TContext
 > => {
   return useMutation(
-    getPurgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDeleteMutationOptions(options),
+    getPurgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDeleteMutationOptions(options),
     queryClient
   );
 };

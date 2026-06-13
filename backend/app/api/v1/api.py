@@ -48,6 +48,15 @@ api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(guilds.router, prefix="/guilds", tags=["guilds"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(push.router, prefix="/push", tags=["push"])
+# Platform / app-wide config (owner-only) and cross-guild PAM management — NOT
+# guild-scoped (AdminSessionDep / capability-gated), so they stay top-level.
+api_router.include_router(
+    access_grants.router, prefix="/access-grants", tags=["access-grants"]
+)
+api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+api_router.include_router(
+    ai_settings.platform_router, prefix="/settings", tags=["ai-settings"]
+)
 # Notifications are user-scoped (cross-guild) — not under /g.
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
@@ -69,15 +78,12 @@ api_router.include_router(
 # ---------------------------------------------------------------------------
 guild_router = APIRouter(prefix="/g/{guild_id}")
 guild_router.include_router(auto_subscriptions.router, prefix="/auto", tags=["auto"])
-guild_router.include_router(
-    access_grants.router, prefix="/access-grants", tags=["access-grants"]
-)
 guild_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 guild_router.include_router(task_statuses.router, tags=["task-statuses"])
 guild_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 guild_router.include_router(tasks.subtasks_router, tags=["subtasks"])
 guild_router.include_router(comments.router, prefix="/comments", tags=["comments"])
-guild_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+# Guild-scoped AI config (guild/user levels). Platform AI config is top-level.
 guild_router.include_router(
     ai_settings.router, prefix="/settings", tags=["ai-settings"]
 )
@@ -103,6 +109,9 @@ guild_router.include_router(
     tags=["property-definitions"],
 )
 guild_router.include_router(trash.router, prefix="/trash", tags=["trash"])
+# Guild member management (guild-admin). The /me/* + platform user endpoints
+# stay top-level on users.router.
+guild_router.include_router(users.guild_router, prefix="/users", tags=["users"])
 # Recents: the addressed DELETE is guild-scoped (the cross-guild GET list stays
 # top-level — fully separate endpoints, see recents.py).
 guild_router.include_router(recents.guild_router, prefix="/recents", tags=["recents"])
