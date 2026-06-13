@@ -1,14 +1,18 @@
-import { useParams } from "@tanstack/react-router";
+import { useGuilds } from "@/hooks/useGuilds";
 
 /**
- * The active guild id, read from the `/g/$guildId` route segment.
+ * The active guild id for guild-scoped API calls.
  *
- * Guild-scoped API hooks read this and pass it to the path-based
- * (`/api/v1/g/{guild_id}/...`) generated client. Valid only inside the guild
- * route tree; personal/cross-guild pages (`/me/*`) call the dedicated
- * cross-guild endpoints instead and do not use this hook.
+ * Sourced from the guild context, which mirrors the `/g/$guildId` route
+ * segment. Guild-scoped hooks pass this to the path-based
+ * (`/api/v1/g/{guild_id}/...`) generated client. Only meaningful inside the
+ * guild route tree; personal/cross-guild pages (`/me/*`) call the dedicated
+ * cross-guild endpoints and do not use guild-scoped hooks.
+ *
+ * Returns 0 when there is no active guild (personal mode) — guild-scoped hooks
+ * are not used there, so the value is never sent.
  */
 export function useActiveGuildId(): number {
-  const params = useParams({ strict: false }) as { guildId?: string };
-  return Number(params.guildId);
+  const { activeGuildId } = useGuilds();
+  return activeGuildId ?? 0;
 }

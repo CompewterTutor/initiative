@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { HttpResponse, http } from "msw";
+import { HttpResponse } from "msw";
+import { guildHttp } from "@/__tests__/helpers/guildHttp";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildTrashItem, buildTrashListResponse } from "@/__tests__/factories/trash.factory";
@@ -19,13 +20,13 @@ vi.mock("@/lib/chesterToast", () => {
   };
 });
 
-const trashEndpoint = "/api/v1/trash/";
-const restoreEndpoint = "/api/v1/trash/:type/:id/restore";
-const purgeEndpoint = "/api/v1/trash/:type/:id/purge";
+const trashEndpoint = "/trash/";
+const restoreEndpoint = "/trash/:type/:id/restore";
+const purgeEndpoint = "/trash/:type/:id/purge";
 
 describe("TrashTable", () => {
   it("renders the empty state when the trash list is empty", async () => {
-    server.use(http.get(trashEndpoint, () => HttpResponse.json(buildTrashListResponse([]))));
+    server.use(guildHttp.get(trashEndpoint, () => HttpResponse.json(buildTrashListResponse([]))));
 
     renderWithProviders(<TrashTable scope="mine" showPurgeAction={false} />);
 
@@ -34,7 +35,7 @@ describe("TrashTable", () => {
 
   it("renders one row per trashed item with type badge + name", async () => {
     server.use(
-      http.get(trashEndpoint, () =>
+      guildHttp.get(trashEndpoint, () =>
         HttpResponse.json(
           buildTrashListResponse([
             buildTrashItem({ entity_type: "project", entity_id: 5, name: "Lost Mines" }),
@@ -55,7 +56,7 @@ describe("TrashTable", () => {
 
   it("hides the Delete now column when showPurgeAction=false", async () => {
     server.use(
-      http.get(trashEndpoint, () =>
+      guildHttp.get(trashEndpoint, () =>
         HttpResponse.json(
           buildTrashListResponse([buildTrashItem({ entity_type: "project", name: "Mine" })])
         )
@@ -74,14 +75,14 @@ describe("TrashTable", () => {
     const restoreCalls: string[] = [];
 
     server.use(
-      http.get(trashEndpoint, () =>
+      guildHttp.get(trashEndpoint, () =>
         HttpResponse.json(
           buildTrashListResponse([
             buildTrashItem({ entity_type: "task", entity_id: 42, name: "Test task" }),
           ])
         )
       ),
-      http.post(restoreEndpoint, ({ params }) => {
+      guildHttp.post(restoreEndpoint, ({ params }) => {
         restoreCalls.push(`${params.type}/${params.id}`);
         return HttpResponse.json({ restored: true });
       })
@@ -98,14 +99,14 @@ describe("TrashTable", () => {
 
   it("opens the reassignment dialog when restore returns 409 + needs_reassignment", async () => {
     server.use(
-      http.get(trashEndpoint, () =>
+      guildHttp.get(trashEndpoint, () =>
         HttpResponse.json(
           buildTrashListResponse([
             buildTrashItem({ entity_type: "task", entity_id: 42, name: "Owner-checked" }),
           ])
         )
       ),
-      http.post(restoreEndpoint, () =>
+      guildHttp.post(restoreEndpoint, () =>
         HttpResponse.json(
           {
             needs_reassignment: true,
@@ -116,7 +117,7 @@ describe("TrashTable", () => {
         )
       ),
       // ReassignOwnerDialog uses useUsers() to populate the picker.
-      http.get("/api/v1/users/", () =>
+      guildHttp.get("/users/", () =>
         HttpResponse.json([
           buildUserGuildMember({ id: 11, full_name: "Alice" }),
           buildUserGuildMember({ id: 12, full_name: "Bob" }),
@@ -140,14 +141,14 @@ describe("TrashTable", () => {
     const purgeCalls: string[] = [];
 
     server.use(
-      http.get(trashEndpoint, () =>
+      guildHttp.get(trashEndpoint, () =>
         HttpResponse.json(
           buildTrashListResponse([
             buildTrashItem({ entity_type: "tag", entity_id: 9, name: "old-tag" }),
           ])
         )
       ),
-      http.delete(purgeEndpoint, ({ params }) => {
+      guildHttp.delete(purgeEndpoint, ({ params }) => {
         purgeCalls.push(`${params.type}/${params.id}`);
         return new HttpResponse(null, { status: 204 });
       })
