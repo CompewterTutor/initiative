@@ -416,9 +416,10 @@ async def get_optional_guild_membership(
     session: SessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Optional[GuildContext]:
-    """Optional guild context for endpoints that also work in personal mode
-    (``scope=global`` lists, ``/global`` aggregates). ``None`` means personal:
-    the endpoint aggregates across the user's guilds instead of 409ing.
+    """Optional guild context. ``None`` means personal mode (no active guild).
+
+    Used by guild-scoped list endpoints that 409 in personal mode; the
+    cross-guild aggregates they used to serve now live under ``/api/v1/me/*``.
     """
     return await _resolve_guild_context(request, session, current_user)
 

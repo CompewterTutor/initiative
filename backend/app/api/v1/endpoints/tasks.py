@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Annotated, List, Optional, Literal, Sequence
+from typing import Annotated, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import selectinload
@@ -27,6 +28,7 @@ from app.api.deps import (
     FlexSessionDep,
     RLSSessionDep,
     SessionDep,
+    UserSessionDep,
     ensure_guild_context,
     get_addressed_guild_membership,
     get_current_active_user,
@@ -276,9 +278,13 @@ def _build_task_filter_fields(
 
 
 subtasks_router = APIRouter()
+# Cross-guild "my tasks" aggregates (My Tasks / Created Tasks pages). Mounted
+# under /api/v1/me; user-scoped (no guild context), routes per member guild
+# itself via gather_across_guilds.
+me_router = APIRouter()
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
-# Optional context: the list endpoint also serves personal mode (scope=global
-# aggregates across the user's guilds); its single-guild path 409s on None.
+# Optional context: the list endpoint is guild-scoped and 409s in personal
+# mode (None). Cross-guild "my tasks" aggregates live under /me/tasks instead.
 OptionalGuildContextDep = Annotated[
     Optional[GuildContext], Depends(get_optional_guild_membership)
 ]
@@ -1140,12 +1146,171 @@ async def _list_global_created_tasks(
     )
 
 
+@dataclass
+class _TaskListQuery:
+    """Parsed task list/filter query params, shared by the guild-scoped list
+    and the cross-guild /me aggregates so they stay in lockstep."""
+
+    user_conditions: list
+    sort_fields: Optional[list]
+    tz: Optional[str]
+    project_id: Optional[int]
+    priorities: Optional[list]
+    status_category: Optional[list]
+    initiative_ids: Optional[list]
+    guild_ids: Optional[list]
+    property_value_conditions: list
+    property_definitions: dict
+
+
+async def _parse_task_list_query(
+    session,
+    conditions: Optional[str],
+    sorting: Optional[str],
+    tz: Optional[str],
+) -> _TaskListQuery:
+    """Validate + extract task list query params (conditions, sort, tz,
+    property-value filters). Raises 400 on malformed input."""
+    try:
+        user_conditions = parse_conditions(conditions)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=QueryMessages.INVALID_CONDITIONS,
+        )
+
+    try:
+        sort_fields = parse_sort_fields(sorting) or None
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=QueryMessages.INVALID_SORT_FIELDS,
+        )
+
+    tz = _validate_tz(tz)
+
+    property_value_conditions = [
+        cond for cond in user_conditions if cond.field == "property_values"
+    ]
+    if len(property_value_conditions) > properties_service.MAX_PROPERTY_FILTERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=QueryMessages.INVALID_CONDITIONS,
+        )
+    property_ids_needed: list[int] = []
+    for cond in property_value_conditions:
+        if isinstance(cond.value, dict):
+            try:
+                property_ids_needed.append(int(cond.value.get("property_id")))
+            except (TypeError, ValueError):
+                continue
+    property_definitions_map = await properties_service.load_definitions_by_ids(
+        session,
+        property_ids_needed,
+    )
+
+    return _TaskListQuery(
+        user_conditions=user_conditions,
+        sort_fields=sort_fields,
+        tz=tz,
+        project_id=extract_condition_value(user_conditions, "project_id"),
+        priorities=extract_condition_value(user_conditions, "priority"),
+        status_category=extract_condition_value(user_conditions, "status_category"),
+        initiative_ids=extract_condition_value(user_conditions, "initiative_ids"),
+        guild_ids=extract_condition_value(user_conditions, "guild_ids"),
+        property_value_conditions=property_value_conditions,
+        property_definitions=property_definitions_map,
+    )
+
+
+@me_router.get("/tasks", response_model=TaskListResponse)
+async def list_my_tasks(
+    session: UserSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    conditions: Optional[str] = Query(default=None),
+    include_archived: bool = Query(default=False, description="Include archived tasks"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=0, le=100),
+    sorting: Optional[str] = Query(default=None),
+    tz: Optional[str] = Query(default=None),
+) -> TaskListResponse:
+    """Tasks assigned to the current user across every guild they belong to.
+
+    An optional ``guild_ids`` conditions entry narrows to a subset of guilds.
+    """
+    q = await _parse_task_list_query(session, conditions, sorting, tz)
+    items, total_count, actual_page = await _list_global_tasks(
+        session,
+        current_user,
+        project_id=q.project_id,
+        priorities=q.priorities,
+        status_category=q.status_category,
+        initiative_ids=q.initiative_ids,
+        guild_ids=q.guild_ids,
+        property_value_conditions=q.property_value_conditions,
+        property_definitions=q.property_definitions,
+        include_archived=include_archived,
+        page=page,
+        page_size=page_size,
+        sort_fields=q.sort_fields,
+        tz=q.tz,
+    )
+    return TaskListResponse(
+        **build_paginated_response(
+            items=items,
+            total_count=total_count,
+            page=actual_page,
+            page_size=page_size,
+            sorting=sorting,
+        )
+    )
+
+
+@me_router.get("/tasks/created", response_model=TaskListResponse)
+async def list_my_created_tasks(
+    session: UserSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    conditions: Optional[str] = Query(default=None),
+    include_archived: bool = Query(default=False, description="Include archived tasks"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=0, le=100),
+    sorting: Optional[str] = Query(default=None),
+    tz: Optional[str] = Query(default=None),
+) -> TaskListResponse:
+    """Tasks created by the current user across every guild they belong to."""
+    q = await _parse_task_list_query(session, conditions, sorting, tz)
+    items, total_count, actual_page = await _list_global_created_tasks(
+        session,
+        current_user,
+        project_id=q.project_id,
+        priorities=q.priorities,
+        status_category=q.status_category,
+        initiative_ids=q.initiative_ids,
+        guild_ids=q.guild_ids,
+        property_value_conditions=q.property_value_conditions,
+        property_definitions=q.property_definitions,
+        include_archived=include_archived,
+        page=page,
+        page_size=page_size,
+        sort_fields=q.sort_fields,
+        tz=q.tz,
+    )
+    return TaskListResponse(
+        **build_paginated_response(
+            items=items,
+            total_count=total_count,
+            page=actual_page,
+            page_size=page_size,
+            sorting=sorting,
+        )
+    )
+
+
 @router.get("/", response_model=TaskListResponse)
 async def list_tasks(
     session: FlexSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: OptionalGuildContextDep,
-    scope: Annotated[Literal["global", "global_created"] | None, Query()] = None,
     conditions: Optional[str] = Query(
         default=None,
         description=(
@@ -1167,110 +1332,15 @@ async def list_tasks(
         description="IANA timezone name (e.g. America/Los_Angeles) for date_group calculation",
     ),
 ) -> TaskListResponse:
-    try:
-        user_conditions = parse_conditions(conditions)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=QueryMessages.INVALID_CONDITIONS,
-        )
+    q = await _parse_task_list_query(session, conditions, sorting, tz)
+    user_conditions = q.user_conditions
+    sort_fields = q.sort_fields
+    tz = q.tz
+    project_id = q.project_id
+    property_definitions_map = q.property_definitions
 
-    try:
-        sort_fields = parse_sort_fields(sorting) or None
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=QueryMessages.INVALID_SORT_FIELDS,
-        )
-
-    tz = _validate_tz(tz)
-
-    # Extract values needed by global paths and access control
-    project_id = extract_condition_value(user_conditions, "project_id")
-    priorities = extract_condition_value(user_conditions, "priority")
-    status_category = extract_condition_value(user_conditions, "status_category")
-    initiative_ids = extract_condition_value(user_conditions, "initiative_ids")
-    guild_ids = extract_condition_value(user_conditions, "guild_ids")
-
-    # Collect property_values conditions — global paths need them too, so
-    # pre-load referenced definitions here and pass them down.
-    property_value_conditions = [
-        cond for cond in user_conditions if cond.field == "property_values"
-    ]
-    if len(property_value_conditions) > properties_service.MAX_PROPERTY_FILTERS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=QueryMessages.INVALID_CONDITIONS,
-        )
-    _property_ids_needed: list[int] = []
-    for _cond in property_value_conditions:
-        if isinstance(_cond.value, dict):
-            _pid_raw = _cond.value.get("property_id")
-            try:
-                _property_ids_needed.append(int(_pid_raw))
-            except (TypeError, ValueError):
-                continue
-    property_definitions_map = await properties_service.load_definitions_by_ids(
-        session,
-        _property_ids_needed,
-    )
-
-    if scope == "global":
-        items, total_count, actual_page = await _list_global_tasks(
-            session,
-            current_user,
-            project_id=project_id,
-            priorities=priorities,
-            status_category=status_category,
-            initiative_ids=initiative_ids,
-            guild_ids=guild_ids,
-            property_value_conditions=property_value_conditions,
-            property_definitions=property_definitions_map,
-            include_archived=include_archived,
-            page=page,
-            page_size=page_size,
-            sort_fields=sort_fields,
-            tz=tz,
-        )
-        return TaskListResponse(
-            **build_paginated_response(
-                items=items,
-                total_count=total_count,
-                page=actual_page,
-                page_size=page_size,
-                sorting=sorting,
-            )
-        )
-
-    elif scope == "global_created":
-        items, total_count, actual_page = await _list_global_created_tasks(
-            session,
-            current_user,
-            project_id=project_id,
-            priorities=priorities,
-            status_category=status_category,
-            initiative_ids=initiative_ids,
-            guild_ids=guild_ids,
-            property_value_conditions=property_value_conditions,
-            property_definitions=property_definitions_map,
-            include_archived=include_archived,
-            page=page,
-            page_size=page_size,
-            sort_fields=sort_fields,
-            tz=tz,
-        )
-        return TaskListResponse(
-            **build_paginated_response(
-                items=items,
-                total_count=total_count,
-                page=actual_page,
-                page_size=page_size,
-                sorting=sorting,
-            )
-        )
-
-    # Non-global (guild-scoped) path — requires a guild context (409 in
-    # personal mode; the global scopes above are the personal-mode paths).
+    # Guild-scoped list. Cross-guild "my tasks" aggregates live under
+    # /me/tasks and /me/tasks/created (see list_my_tasks above).
     guild_context = ensure_guild_context(guild_context)
     access_conditions = [Initiative.guild_id == guild_context.guild_id]
 

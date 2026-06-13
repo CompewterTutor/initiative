@@ -739,7 +739,7 @@ async def test_list_global_tasks_guild_ids_filter(
         return {(t["guild_id"], t["id"]) for t in resp.json()["items"]}
 
     # No filter: tasks from BOTH guilds are aggregated.
-    response = await client.get("/api/v1/tasks/?scope=global", headers=headers)
+    response = await client.get("/api/v1/me/tasks", headers=headers)
     assert response.status_code == 200, response.text
     found = keyed(response)
     assert (guild1.id, task_in_guild1.id) in found
@@ -748,7 +748,7 @@ async def test_list_global_tasks_guild_ids_filter(
     # Filtered to guild1: only guild1's task.
     conditions = json.dumps([{"field": "guild_ids", "op": "in_", "value": [guild1.id]}])
     response = await client.get(
-        f"/api/v1/tasks/?scope=global&conditions={conditions}",
+        f"/api/v1/me/tasks?conditions={conditions}",
         headers=headers,
     )
     assert response.status_code == 200, response.text

@@ -29,7 +29,7 @@ import type {
   DeletionEligibilityResponse,
   ExportUsersCsvApiV1UsersExportCsvGetParams,
   GetMyInitiativeMembersApiV1UsersMeInitiativeMembersInitiativeIdGetParams,
-  GetUserStatsApiV1UsersMeStatsGetParams,
+  GetUserStatsApiV1MeStatsGetParams,
   GuildContextUpdate,
   GuildRemovalEligibilityResponse,
   GuildRemovalRequest,
@@ -355,140 +355,6 @@ export const useSetGuildContextApiV1UsersMeGuildContextPut = <
     queryClient
   );
 };
-/**
- * Get comprehensive statistics for the current user.
- * @summary Get User Stats
- */
-export const getUserStatsApiV1UsersMeStatsGet = (
-  params?: GetUserStatsApiV1UsersMeStatsGetParams,
-  options?: SecondParameter<typeof apiMutator>,
-  signal?: AbortSignal
-) => {
-  return apiMutator<UserStatsResponse>(
-    { url: `/api/v1/users/me/stats`, method: "GET", params, signal },
-    options
-  );
-};
-
-export const getGetUserStatsApiV1UsersMeStatsGetQueryKey = (
-  params?: GetUserStatsApiV1UsersMeStatsGetParams
-) => {
-  return [`/api/v1/users/me/stats`, ...(params ? [params] : [])] as const;
-};
-
-export const getGetUserStatsApiV1UsersMeStatsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: GetUserStatsApiV1UsersMeStatsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetUserStatsApiV1UsersMeStatsGetQueryKey(params);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>> = ({
-    signal,
-  }) => getUserStatsApiV1UsersMeStatsGet(params, requestOptions, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type GetUserStatsApiV1UsersMeStatsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>
->;
-export type GetUserStatsApiV1UsersMeStatsGetQueryError = ErrorType<HTTPValidationError>;
-
-export function useGetUserStatsApiV1UsersMeStatsGet<
-  TData = Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params: undefined | GetUserStatsApiV1UsersMeStatsGetParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-          TError,
-          Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetUserStatsApiV1UsersMeStatsGet<
-  TData = Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: GetUserStatsApiV1UsersMeStatsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-          TError,
-          Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetUserStatsApiV1UsersMeStatsGet<
-  TData = Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: GetUserStatsApiV1UsersMeStatsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary Get User Stats
- */
-
-export function useGetUserStatsApiV1UsersMeStatsGet<
-  TData = Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: GetUserStatsApiV1UsersMeStatsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1UsersMeStatsGet>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetUserStatsApiV1UsersMeStatsGetQueryOptions(params, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
 /**
  * @summary List Users
  */
@@ -2106,6 +1972,140 @@ export function useCheckGuildRemovalEligibilityApiV1UsersUserIdGuildRemovalEligi
       userId,
       options
     );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Get comprehensive statistics for the current user.
+ * @summary Get User Stats
+ */
+export const getUserStatsApiV1MeStatsGet = (
+  params?: GetUserStatsApiV1MeStatsGetParams,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<UserStatsResponse>(
+    { url: `/api/v1/me/stats`, method: "GET", params, signal },
+    options
+  );
+};
+
+export const getGetUserStatsApiV1MeStatsGetQueryKey = (
+  params?: GetUserStatsApiV1MeStatsGetParams
+) => {
+  return [`/api/v1/me/stats`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetUserStatsApiV1MeStatsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: GetUserStatsApiV1MeStatsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserStatsApiV1MeStatsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>> = ({
+    signal,
+  }) => getUserStatsApiV1MeStatsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetUserStatsApiV1MeStatsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>
+>;
+export type GetUserStatsApiV1MeStatsGetQueryError = ErrorType<HTTPValidationError>;
+
+export function useGetUserStatsApiV1MeStatsGet<
+  TData = Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | GetUserStatsApiV1MeStatsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserStatsApiV1MeStatsGet<
+  TData = Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: GetUserStatsApiV1MeStatsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserStatsApiV1MeStatsGet<
+  TData = Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: GetUserStatsApiV1MeStatsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get User Stats
+ */
+
+export function useGetUserStatsApiV1MeStatsGet<
+  TData = Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: GetUserStatsApiV1MeStatsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserStatsApiV1MeStatsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetUserStatsApiV1MeStatsGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

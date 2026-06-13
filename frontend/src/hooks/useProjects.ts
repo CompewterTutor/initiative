@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
-  ListGlobalProjectsApiV1ProjectsGlobalGetParams,
+  ListMyProjectsApiV1MeProjectsGetParams,
   ListProjectsApiV1ProjectsGetParams,
   ProjectActivityFeedApiV1ProjectsProjectIdActivityGetParams,
   ProjectActivityResponse,
@@ -34,12 +34,12 @@ import {
   favoriteProjectApiV1ProjectsProjectIdFavoritePost,
   favoriteProjectsApiV1ProjectsFavoritesGet,
   getFavoriteProjectsApiV1ProjectsFavoritesGetQueryKey,
-  getListGlobalProjectsApiV1ProjectsGlobalGetQueryKey,
+  getListMyProjectsApiV1MeProjectsGetQueryKey,
   getListProjectsApiV1ProjectsGetQueryKey,
   getListWritableProjectsApiV1ProjectsWritableGetQueryKey,
   getProjectActivityFeedApiV1ProjectsProjectIdActivityGetQueryKey,
   getReadProjectApiV1ProjectsProjectIdGetQueryKey,
-  listGlobalProjectsApiV1ProjectsGlobalGet,
+  listMyProjectsApiV1MeProjectsGet,
   listProjectsApiV1ProjectsGet,
   listWritableProjectsApiV1ProjectsWritableGet,
   projectActivityFeedApiV1ProjectsProjectIdActivityGet,
@@ -167,24 +167,24 @@ export const useProjectActivity = (
 // ── Global (cross-guild) queries ────────────────────────────────────────────
 
 export const useGlobalProjects = (
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
   options?: QueryOpts<ProjectListResponse>
 ) => {
   return useQuery<ProjectListResponse>({
-    queryKey: getListGlobalProjectsApiV1ProjectsGlobalGetQueryKey(params),
+    queryKey: getListMyProjectsApiV1MeProjectsGetQueryKey(params),
     queryFn: () =>
-      listGlobalProjectsApiV1ProjectsGlobalGet(params) as unknown as Promise<ProjectListResponse>,
+      listMyProjectsApiV1MeProjectsGet(params) as unknown as Promise<ProjectListResponse>,
     ...options,
   });
 };
 
 export const usePrefetchGlobalProjects = () => {
   const qc = useQueryClient();
-  return (params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams) => {
+  return (params?: ListMyProjectsApiV1MeProjectsGetParams) => {
     return qc.prefetchQuery({
-      queryKey: getListGlobalProjectsApiV1ProjectsGlobalGetQueryKey(params),
+      queryKey: getListMyProjectsApiV1MeProjectsGetQueryKey(params),
       queryFn: () =>
-        listGlobalProjectsApiV1ProjectsGlobalGet(params) as unknown as Promise<ProjectListResponse>,
+        listMyProjectsApiV1MeProjectsGet(params) as unknown as Promise<ProjectListResponse>,
       staleTime: 30_000,
     });
   };

@@ -86,6 +86,9 @@ from app.services import recent_views as recent_views_service
 from app.schemas.recent_view import RecentViewWrite
 
 router = APIRouter()
+# Cross-guild "my projects" aggregate (My Projects page). Mounted under
+# /api/v1/me; user-scoped, DAC-filtered across all the user's guilds.
+me_router = APIRouter()
 
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
 GuildAdminContext = Annotated[
@@ -1003,10 +1006,9 @@ async def list_writable_projects(
     )
 
 
-@router.get("/global", response_model=ProjectListResponse)
-async def list_global_projects(
-    # No guild context: this aggregate works identically in a guild and in
-    # personal mode — it routes per member guild itself.
+@me_router.get("/projects", response_model=ProjectListResponse)
+async def list_my_projects(
+    # No guild context: this aggregate routes per member guild itself.
     session: UserSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_ids: Optional[List[int]] = Query(default=None),

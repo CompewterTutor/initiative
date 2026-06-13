@@ -3674,19 +3674,6 @@ export type ListAccessGrantsApiV1AccessGrantsGetParams = {
   offset?: number;
 };
 
-export type GetUserStatsApiV1UsersMeStatsGetParams = {
-  /**
-   * Optional guild ID to filter stats
-   */
-  guild_id?: number | null;
-  /**
-   * Number of days to analyze
-   * @minimum 1
-   * @maximum 365
-   */
-  days?: number;
-};
-
 export type ExportUsersCsvApiV1UsersExportCsvGetParams = {
   user_id?: number[] | null;
 };
@@ -3709,22 +3696,6 @@ export type ListProjectsApiV1ProjectsGetParams = {
   page_size?: number;
 };
 
-export type ListGlobalProjectsApiV1ProjectsGlobalGetParams = {
-  guild_ids?: number[] | null;
-  search?: string | null;
-  /**
-   * @minimum 1
-   */
-  page?: number;
-  /**
-   * @minimum 1
-   * @maximum 100
-   */
-  page_size?: number;
-  sort_by?: string | null;
-  sort_dir?: string | null;
-};
-
 export type ProjectActivityFeedApiV1ProjectsProjectIdActivityGetParams = {
   /**
    * @minimum 1
@@ -3745,7 +3716,6 @@ export type ListTaskStatusesApiV1ProjectsProjectIdTaskStatusesGetParams = {
 };
 
 export type ListTasksApiV1TasksGetParams = {
-  scope?: ListTasksApiV1TasksGetScope;
   /**
    * JSON list of filter conditions. Each object: {"field": "<column>", "op": "<operator>", "value": <val>}. Any Task column is valid plus virtual fields: status_category, assignee_ids, tag_ids, initiative_ids.
    */
@@ -3772,15 +3742,6 @@ export type ListTasksApiV1TasksGetParams = {
    */
   tz?: string | null;
 };
-
-export type ListTasksApiV1TasksGetScope =
-  | (typeof ListTasksApiV1TasksGetScope)[keyof typeof ListTasksApiV1TasksGetScope]
-  | null;
-
-export const ListTasksApiV1TasksGetScope = {
-  global: "global",
-  global_created: "global_created",
-} as const;
 
 export type UpdateTaskApiV1TasksTaskIdPatchParams = {
   /**
@@ -3857,8 +3818,6 @@ export type GetDocumentCountsApiV1DocumentsCountsGetParams = {
 
 export type ListDocumentsApiV1DocumentsGetParams = {
   initiative_id?: number | null;
-  scope?: "global" | null;
-  guild_ids?: number[] | null;
   search?: string | null;
   /**
    * Filter by tag IDs
@@ -3937,29 +3896,8 @@ export type ListCounterGroupPermissionsApiV1CounterGroupsGroupIdPermissionsGet20
   [key: string]: unknown;
 };
 
-export type ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams = {
-  guild_ids?: number[] | null;
-  start_after?: string | null;
-  start_before?: string | null;
-  /**
-   * @minimum 1
-   */
-  page?: number;
-  /**
-   * @minimum 1
-   * @maximum 200
-   */
-  page_size?: number;
-};
-
 export type ExportCalendarEventsIcsApiV1CalendarEventsExportIcsGetParams = {
   initiative_id?: number | null;
-  start_after?: string | null;
-  start_before?: string | null;
-};
-
-export type ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams = {
-  guild_ids?: number[] | null;
   start_after?: string | null;
   start_before?: string | null;
 };
@@ -4001,4 +3939,108 @@ export type ClearRecentApiV1RecentsEntityTypeEntityIdDeleteParams = {
    * Explicit guild address for cross-guild operations from personal mode. Per-guild ids collide across guilds, so an entity is only fully addressed as (guild_id, id). Validated like any context: membership or live PAM grant, else 403.
    */
   guild_id?: number | null;
+};
+
+export type ListMyTasksApiV1MeTasksGetParams = {
+  conditions?: FilterCondition[];
+  /**
+   * Include archived tasks
+   */
+  include_archived?: boolean;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  page_size?: number;
+  sorting?: SortField[];
+  tz?: string | null;
+};
+
+export type ListMyCreatedTasksApiV1MeTasksCreatedGetParams = {
+  conditions?: FilterCondition[];
+  /**
+   * Include archived tasks
+   */
+  include_archived?: boolean;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  page_size?: number;
+  sorting?: SortField[];
+  tz?: string | null;
+};
+
+export type ListMyDocumentsApiV1MeDocumentsGetParams = {
+  guild_ids?: number[] | null;
+  search?: string | null;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  page_size?: number;
+  sort_by?: string | null;
+  sort_dir?: string | null;
+};
+
+export type ListMyProjectsApiV1MeProjectsGetParams = {
+  guild_ids?: number[] | null;
+  search?: string | null;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  page_size?: number;
+  sort_by?: string | null;
+  sort_dir?: string | null;
+};
+
+export type ListMyCalendarEventsApiV1MeCalendarEventsGetParams = {
+  guild_ids?: number[] | null;
+  start_after?: string | null;
+  start_before?: string | null;
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  page_size?: number;
+};
+
+export type ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams = {
+  guild_ids?: number[] | null;
+  start_after?: string | null;
+  start_before?: string | null;
+};
+
+export type GetUserStatsApiV1MeStatsGetParams = {
+  /**
+   * Optional guild ID to filter stats
+   */
+  guild_id?: number | null;
+  /**
+   * Number of days to analyze
+   * @minimum 1
+   * @maximum 365
+   */
+  days?: number;
 };

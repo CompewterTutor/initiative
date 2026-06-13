@@ -44,7 +44,7 @@ export const MyTasksPage = () => {
   const [calendarFocusDate, setCalendarFocusDate] = useState(() => new Date());
   const weekStartsOn = (user?.week_starts_on ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-  const table = useGlobalTasksTable({ scope: "global", storageKeyPrefix: "my-tasks" });
+  const table = useGlobalTasksTable({ view: "assigned", storageKeyPrefix: "my-tasks" });
 
   const handleRefresh = useCallback(async () => {
     await invalidateAllTasks();

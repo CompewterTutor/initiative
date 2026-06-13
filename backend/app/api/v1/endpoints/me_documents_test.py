@@ -1,7 +1,7 @@
 """
 Integration tests for the global documents scope.
 
-Tests GET /api/v1/documents/?scope=global which returns documents created
+Tests GET /api/v1/me/documents which returns documents created
 by the current user across all guilds they belong to.
 """
 
@@ -41,14 +41,14 @@ async def _setup_guild_with_initiative(session, user, *, guild_name="Test Guild"
 
 @pytest.mark.integration
 async def test_list_global_documents(client: AsyncClient, session: AsyncSession):
-    """scope=global should return documents created by the current user."""
+    """GET /me/documents should return documents created by the current user."""
     user = await create_user(session, email="user@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
     doc = await _create_document(client, session, guild, user, initiative, "My Doc")
 
     headers = await get_guild_headers(session, guild, user)
-    response = await client.get("/api/v1/documents/?scope=global", headers=headers)
+    response = await client.get("/api/v1/me/documents", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -61,7 +61,7 @@ async def test_list_global_documents(client: AsyncClient, session: AsyncSession)
 async def test_list_global_documents_excludes_others(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global should NOT return documents created by other users."""
+    """GET /me/documents should NOT return documents created by other users."""
     admin = await create_user(session, email="admin@example.com")
     other = await create_user(session, email="other@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, admin)
@@ -74,7 +74,7 @@ async def test_list_global_documents_excludes_others(
 
     # Other user queries global docs — should not see admin's doc
     headers = await get_guild_headers(session, guild, other)
-    response = await client.get("/api/v1/documents/?scope=global", headers=headers)
+    response = await client.get("/api/v1/me/documents", headers=headers)
 
     assert response.status_code == 200
     doc_ids = {d["id"] for d in response.json()["items"]}
@@ -85,7 +85,7 @@ async def test_list_global_documents_excludes_others(
 async def test_list_global_documents_guild_filter(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global with guild_ids should restrict to specific guilds."""
+    """GET /me/documents with guild_ids should restrict to specific guilds."""
     user = await create_user(session, email="user@example.com")
     guild1, init1 = await _setup_guild_with_initiative(
         session, user, guild_name="Guild 1"
@@ -108,7 +108,7 @@ async def test_list_global_documents_guild_filter(
 
     # No filter: documents from BOTH guilds are aggregated (per-schema ids
     # collide, so key by (guild_id, id)).
-    response = await client.get("/api/v1/documents/?scope=global", headers=headers)
+    response = await client.get("/api/v1/me/documents", headers=headers)
     assert response.status_code == 200
     found = keyed(response)
     assert (guild1.id, doc1["id"]) in found
@@ -116,7 +116,7 @@ async def test_list_global_documents_guild_filter(
 
     # Filtered to guild1: only guild1's document.
     response = await client.get(
-        f"/api/v1/documents/?scope=global&guild_ids={guild1.id}", headers=headers
+        f"/api/v1/me/documents?guild_ids={guild1.id}", headers=headers
     )
     assert response.status_code == 200
     found = keyed(response)
@@ -126,7 +126,7 @@ async def test_list_global_documents_guild_filter(
 
 @pytest.mark.integration
 async def test_list_global_documents_search(client: AsyncClient, session: AsyncSession):
-    """scope=global with search should filter by document title."""
+    """GET /me/documents with search should filter by document title."""
     user = await create_user(session, email="user@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
@@ -137,7 +137,7 @@ async def test_list_global_documents_search(client: AsyncClient, session: AsyncS
 
     headers = await get_guild_headers(session, guild, user)
     response = await client.get(
-        "/api/v1/documents/?scope=global&search=architecture", headers=headers
+        "/api/v1/me/documents?search=architecture", headers=headers
     )
 
     assert response.status_code == 200
@@ -150,7 +150,7 @@ async def test_list_global_documents_search(client: AsyncClient, session: AsyncS
 async def test_list_global_documents_pagination(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global should support pagination."""
+    """GET /me/documents should support pagination."""
     user = await create_user(session, email="user@example.com")
     guild, initiative = await _setup_guild_with_initiative(session, user)
 
@@ -161,7 +161,7 @@ async def test_list_global_documents_pagination(
 
     # Page 1 with page_size=2
     response = await client.get(
-        "/api/v1/documents/?scope=global&page=1&page_size=2", headers=headers
+        "/api/v1/me/documents?page=1&page_size=2", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -171,7 +171,7 @@ async def test_list_global_documents_pagination(
 
     # Page 2
     response = await client.get(
-        "/api/v1/documents/?scope=global&page=2&page_size=2", headers=headers
+        "/api/v1/me/documents?page=2&page_size=2", headers=headers
     )
     assert response.status_code == 200
     data = response.json()

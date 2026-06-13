@@ -27,14 +27,14 @@ import type {
   CalendarEventRead,
   CalendarEventUpdate,
   ExportCalendarEventsIcsApiV1CalendarEventsExportIcsGetParams,
-  ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
+  ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
   HTTPValidationError,
   ICalImportRequest,
   ICalImportResult,
   ICalParseRequest,
   ICalParseResult,
   ListCalendarEventsApiV1CalendarEventsGetParams,
-  ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
+  ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
   PropertyValuesSetRequest,
 } from "../initiativeAPI.schemas";
 
@@ -42,173 +42,6 @@ import { apiMutator } from "../../mutator";
 import type { ErrorType, BodyType } from "../../mutator";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-/**
- * List calendar events across all guilds the user belongs to.
- *
- * Uses AdminSessionDep + ``gather_across_guilds`` (schema-per-guild): events
- * live in per-guild schemas, so a single cross-guild query would read the
- * frozen ``public`` backup. Instead we visit each of the user's guild schemas
- * in turn (routed to the user's own RLS context, so guild isolation still
- * holds) and merge, then sort + paginate the merged set in Python.
- * @summary List Global Calendar Events
- */
-export const listGlobalCalendarEventsApiV1CalendarEventsGlobalGet = (
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options?: SecondParameter<typeof apiMutator>,
-  signal?: AbortSignal
-) => {
-  return apiMutator<CalendarEventListResponse>(
-    { url: `/api/v1/calendar-events/global`, method: "GET", params, signal },
-    options
-  );
-};
-
-export const getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey = (
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams
-) => {
-  return [`/api/v1/calendar-events/global`, ...(params ? [params] : [])] as const;
-};
-
-export const getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>
-  > = ({ signal }) =>
-    listGlobalCalendarEventsApiV1CalendarEventsGlobalGet(params, requestOptions, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>
->;
-export type ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryError =
-  ErrorType<HTTPValidationError>;
-
-export function useListGlobalCalendarEventsApiV1CalendarEventsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params: undefined | ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-          TError,
-          Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListGlobalCalendarEventsApiV1CalendarEventsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-          TError,
-          Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListGlobalCalendarEventsApiV1CalendarEventsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary List Global Calendar Events
- */
-
-export function useListGlobalCalendarEventsApiV1CalendarEventsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalCalendarEventsApiV1CalendarEventsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryOptions(
-    params,
-    options
-  );
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
 
 /**
  * Export guild-scoped calendar events as an .ics file.
@@ -363,204 +196,6 @@ export function useExportCalendarEventsIcsApiV1CalendarEventsExportIcsGet<
     params,
     options
   );
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * Export cross-guild calendar events as an .ics file.
- *
- * Schema-per-guild: aggregate per guild schema via ``gather_across_guilds``
- * (the unrouted public query would read the frozen backup).
- * @summary Export Global Calendar Events Ics
- */
-export const exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet = (
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options?: SecondParameter<typeof apiMutator>,
-  signal?: AbortSignal
-) => {
-  return apiMutator<unknown>(
-    { url: `/api/v1/calendar-events/global/export.ics`, method: "GET", params, signal },
-    options
-  );
-};
-
-export const getExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryKey = (
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams
-) => {
-  return [`/api/v1/calendar-events/global/export.ics`, ...(params ? [params] : [])] as const;
-};
-
-export const getExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryOptions = <
-  TData = Awaited<
-    ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-  >,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-        >,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>>
-  > = ({ signal }) =>
-    exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet(
-      params,
-      requestOptions,
-      signal
-    );
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryResult =
-  NonNullable<
-    Awaited<ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>>
-  >;
-export type ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryError =
-  ErrorType<HTTPValidationError>;
-
-export function useExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet<
-  TData = Awaited<
-    ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-  >,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params: undefined | ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-        >,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-          >,
-          TError,
-          Awaited<
-            ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-          >
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet<
-  TData = Awaited<
-    ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-  >,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-        >,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-          >,
-          TError,
-          Awaited<
-            ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-          >
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet<
-  TData = Awaited<
-    ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-  >,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-        >,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary Export Global Calendar Events Ics
- */
-
-export function useExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet<
-  TData = Awaited<
-    ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-  >,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof exportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGet>
-        >,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions =
-    getExportGlobalCalendarEventsIcsApiV1CalendarEventsGlobalExportIcsGetQueryOptions(
-      params,
-      options
-    );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -1811,3 +1446,327 @@ export const useSetEventPropertiesApiV1CalendarEventsEventIdPropertiesPut = <
     queryClient
   );
 };
+/**
+ * List calendar events across all guilds the user belongs to.
+ *
+ * Uses AdminSessionDep + ``gather_across_guilds`` (schema-per-guild): events
+ * live in per-guild schemas, so a single cross-guild query would read the
+ * frozen ``public`` backup. Instead we visit each of the user's guild schemas
+ * in turn (routed to the user's own RLS context, so guild isolation still
+ * holds) and merge, then sort + paginate the merged set in Python.
+ * @summary List My Calendar Events
+ */
+export const listMyCalendarEventsApiV1MeCalendarEventsGet = (
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<CalendarEventListResponse>(
+    { url: `/api/v1/me/calendar-events`, method: "GET", params, signal },
+    options
+  );
+};
+
+export const getListMyCalendarEventsApiV1MeCalendarEventsGetQueryKey = (
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams
+) => {
+  return [`/api/v1/me/calendar-events`, ...(params ? [params] : [])] as const;
+};
+
+export const getListMyCalendarEventsApiV1MeCalendarEventsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListMyCalendarEventsApiV1MeCalendarEventsGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>
+  > = ({ signal }) => listMyCalendarEventsApiV1MeCalendarEventsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMyCalendarEventsApiV1MeCalendarEventsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>
+>;
+export type ListMyCalendarEventsApiV1MeCalendarEventsGetQueryError = ErrorType<HTTPValidationError>;
+
+export function useListMyCalendarEventsApiV1MeCalendarEventsGet<
+  TData = Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyCalendarEventsApiV1MeCalendarEventsGet<
+  TData = Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyCalendarEventsApiV1MeCalendarEventsGet<
+  TData = Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List My Calendar Events
+ */
+
+export function useListMyCalendarEventsApiV1MeCalendarEventsGet<
+  TData = Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMyCalendarEventsApiV1MeCalendarEventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMyCalendarEventsApiV1MeCalendarEventsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Export cross-guild calendar events as an .ics file.
+ *
+ * Schema-per-guild: aggregate per guild schema via ``gather_across_guilds``
+ * (the unrouted public query would read the frozen backup).
+ * @summary Export My Calendar Events Ics
+ */
+export const exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet = (
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<unknown>(
+    { url: `/api/v1/me/calendar-events/export.ics`, method: "GET", params, signal },
+    options
+  );
+};
+
+export const getExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryKey = (
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams
+) => {
+  return [`/api/v1/me/calendar-events/export.ics`, ...(params ? [params] : [])] as const;
+};
+
+export const getExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>
+  > = ({ signal }) =>
+    exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>
+>;
+export type ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryError =
+  ErrorType<HTTPValidationError>;
+
+export function useExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+          TError,
+          Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+          TError,
+          Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Export My Calendar Events Ics
+ */
+
+export function useExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet<
+  TData = Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof exportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getExportMyCalendarEventsIcsApiV1MeCalendarEventsExportIcsGetQueryOptions(
+    params,
+    options
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

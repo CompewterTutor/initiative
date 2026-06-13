@@ -170,12 +170,12 @@ export const useSetDocumentCache = () => {
 
 import { apiClient } from "@/api/client";
 
-export const GLOBAL_DOCUMENTS_QUERY_KEY = "/api/v1/documents/" as const;
+export const GLOBAL_DOCUMENTS_QUERY_KEY = "/api/v1/me/documents" as const;
 
 export const globalDocumentsQueryFn = async (
   params: Record<string, string | string[] | number | number[]>
 ) => {
-  const response = await apiClient.get<DocumentListResponse>("/documents/", { params });
+  const response = await apiClient.get<DocumentListResponse>("/me/documents", { params });
   return response.data;
 };
 

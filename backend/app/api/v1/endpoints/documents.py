@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import (
     APIRouter,
@@ -27,6 +27,7 @@ from app.api.deps import (
     RLSSessionDep,
     SessionDep,
     UploadUserDep,
+    UserSessionDep,
     ensure_guild_context,
     get_current_active_user,
     get_guild_membership,
@@ -103,10 +104,13 @@ from app.services.collaboration import collaboration_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+# Cross-guild "my documents" aggregate (My Documents page). Mounted under
+# /api/v1/me; user-scoped, routes per member guild via gather_across_guilds.
+me_router = APIRouter()
 
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
-# Optional context: the list endpoint also serves personal mode (scope=global
-# aggregates across the user's guilds); its single-guild path 409s on None.
+# Optional context: the list endpoint is guild-scoped and 409s in personal
+# mode (None). Cross-guild "my documents" lives under /me/documents instead.
 OptionalGuildContextDep = Annotated[
     Optional[GuildContext], Depends(get_optional_guild_membership)
 ]
@@ -573,14 +577,54 @@ async def get_document_counts(
     )
 
 
+@me_router.get("/documents", response_model=DocumentListResponse)
+async def list_my_documents(
+    session: UserSessionDep,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    guild_ids: Optional[List[int]] = Query(default=None),
+    search: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=0, le=100),
+    sort_by: Optional[str] = Query(default=None),
+    sort_dir: Optional[str] = Query(default=None),
+) -> DocumentListResponse:
+    """Documents created by the current user across every guild they belong to.
+
+    An optional ``guild_ids`` filter narrows to a subset of guilds.
+    """
+    items, total_count = await _list_global_documents(
+        session,
+        current_user,
+        guild_ids=guild_ids,
+        search=search,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+    if page_size > 0:
+        has_next = page * page_size < total_count
+    else:
+        # "All rows" is still capped (SEC-14): report truncation.
+        has_next = len(items) < total_count
+        page = 1
+    return DocumentListResponse(
+        items=items,
+        total_count=total_count,
+        page=page,
+        page_size=page_size,
+        has_next=has_next,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+
+
 @router.get("/", response_model=DocumentListResponse)
 async def list_documents(
     session: FlexSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_context: OptionalGuildContextDep,
     initiative_id: Optional[int] = Query(default=None),
-    scope: Annotated[Literal["global"] | None, Query()] = None,
-    guild_ids: Optional[List[int]] = Query(default=None),
     search: Optional[str] = Query(default=None),
     tag_ids: Optional[List[int]] = Query(default=None, description="Filter by tag IDs"),
     untagged: Optional[bool] = Query(
@@ -599,44 +643,15 @@ async def list_documents(
     sort_by: Optional[str] = Query(default=None),
     sort_dir: Optional[str] = Query(default=None),
 ) -> DocumentListResponse:
-    """List documents visible to the current user.
+    """List documents in the active guild visible to the current user.
 
     DAC: Documents with explicit DocumentPermission or role-based permission.
 
     Pagination: page_size=0 returns all documents (no pagination).
 
-    When scope=global, returns documents created by the current user across
-    all guilds they belong to. Optionally filter by guild_ids.
+    Cross-guild "my documents" lives under /me/documents (see list_my_documents).
     """
-    if scope == "global":
-        items, total_count = await _list_global_documents(
-            session,
-            current_user,
-            guild_ids=guild_ids,
-            search=search,
-            page=page,
-            page_size=page_size,
-            sort_by=sort_by,
-            sort_dir=sort_dir,
-        )
-        if page_size > 0:
-            has_next = page * page_size < total_count
-        else:
-            # "All rows" is still capped (SEC-14): report truncation.
-            has_next = len(items) < total_count
-            page = 1
-        return DocumentListResponse(
-            items=items,
-            total_count=total_count,
-            page=page,
-            page_size=page_size,
-            has_next=has_next,
-            sort_by=sort_by,
-            sort_dir=sort_dir,
-        )
-
-    # Non-global (guild-scoped) path — requires a guild context (409 in
-    # personal mode; scope=global above is the personal-mode path).
+    # Guild-scoped path — requires a guild context (409 in personal mode).
     guild_context = ensure_guild_context(guild_context)
 
     if initiative_id is not None:

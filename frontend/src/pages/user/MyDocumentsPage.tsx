@@ -166,9 +166,7 @@ export const MyDocumentsPage = () => {
   }, [guildFilters, debouncedSearch, setPage]);
 
   const documentsGlobalParams = useMemo(() => {
-    const params: Record<string, string | string[] | number | number[]> = {
-      scope: "global",
-    };
+    const params: Record<string, string | string[] | number | number[]> = {};
     if (guildFilters.length > 0) params.guild_ids = guildFilters;
     if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
     if (sortBy) params.sort_by = sortBy;
