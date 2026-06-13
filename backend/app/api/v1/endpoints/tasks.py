@@ -1366,9 +1366,7 @@ async def list_tasks(
             )
         access_conditions.append(Task.project_id.in_(tuple(allowed_ids)))
 
-    # ``property_definitions_map`` is pre-loaded above (at function top)
-    # so the non-global path and both global paths share the same cache.
-
+    # ``property_definitions_map`` was resolved up-front by _parse_task_list_query.
     filter_fields = _build_task_filter_fields(
         guild_id=guild_context.guild_id,
         current_user_id=current_user.id,
