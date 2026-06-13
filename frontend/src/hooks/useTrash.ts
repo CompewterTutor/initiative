@@ -6,11 +6,12 @@ import type {
   TrashListResponse,
 } from "@/api/generated/initiativeAPI.schemas";
 import {
-  getListTrashApiV1TrashGetQueryKey,
-  listTrashApiV1TrashGet,
-  purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete,
-  restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost,
+  getListTrashApiV1GGuildIdTrashGetQueryKey,
+  listTrashApiV1GGuildIdTrashGet,
+  purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete,
+  restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost,
 } from "@/api/generated/trash/trash";
+import { useActiveGuildId } from "@/hooks/useActiveGuildId";
 import type { MutationOpts } from "@/types/mutation";
 import type { QueryOpts } from "@/types/query";
 
@@ -22,9 +23,11 @@ export const useTrashList = (
   scope: TrashScope = "mine",
   options?: QueryOpts<TrashListResponse>
 ) => {
+  const guildId = useActiveGuildId();
   return useQuery<TrashListResponse>({
-    queryKey: getListTrashApiV1TrashGetQueryKey({ scope }),
-    queryFn: () => listTrashApiV1TrashGet({ scope }) as unknown as Promise<TrashListResponse>,
+    queryKey: getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, { scope }),
+    queryFn: () =>
+      listTrashApiV1GGuildIdTrashGet(guildId, { scope }) as unknown as Promise<TrashListResponse>,
     ...options,
   });
 };
@@ -65,12 +68,14 @@ export const useRestoreTrashEntity = (
 ) => {
   const { onSuccess, onError, onSettled, ...rest } = options ?? {};
   const queryClient = useQueryClient();
+  const guildId = useActiveGuildId();
 
   return useMutation({
     ...rest,
     mutationFn: async ({ entityType, entityId, body }: RestoreTrashVars) => {
       try {
-        return (await restoreTrashEntityApiV1TrashEntityTypeEntityIdRestorePost(
+        return (await restoreTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdRestorePost(
+          guildId,
           entityType,
           entityId,
           body ?? {}
@@ -100,10 +105,10 @@ export const useRestoreTrashEntity = (
       // when the response was needs_reassignment).
       void queryClient.invalidateQueries({ queryKey: ["api", "v1", "trash"] });
       void queryClient.invalidateQueries({
-        queryKey: getListTrashApiV1TrashGetQueryKey({ scope: "mine" }),
+        queryKey: getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, { scope: "mine" }),
       });
       void queryClient.invalidateQueries({
-        queryKey: getListTrashApiV1TrashGetQueryKey({ scope: "guild" }),
+        queryKey: getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, { scope: "guild" }),
       });
       if ("restored" in data) {
         for (const prefix of ENTITY_INVALIDATION_PREFIXES[variables.entityType] ?? []) {
@@ -127,21 +132,23 @@ export type PurgeTrashVars = {
 export const usePurgeTrashEntity = (options?: MutationOpts<void, PurgeTrashVars>) => {
   const { onSuccess, onError, onSettled, ...rest } = options ?? {};
   const queryClient = useQueryClient();
+  const guildId = useActiveGuildId();
 
   return useMutation({
     ...rest,
     mutationFn: async ({ entityType, entityId }: PurgeTrashVars) => {
-      return purgeTrashEntityApiV1TrashEntityTypeEntityIdPurgeDelete(
+      return purgeTrashEntityApiV1GGuildIdTrashEntityTypeEntityIdPurgeDelete(
+        guildId,
         entityType,
         entityId
       ) as unknown as Promise<void>;
     },
     onSuccess: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: getListTrashApiV1TrashGetQueryKey({ scope: "mine" }),
+        queryKey: getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, { scope: "mine" }),
       });
       void queryClient.invalidateQueries({
-        queryKey: getListTrashApiV1TrashGetQueryKey({ scope: "guild" }),
+        queryKey: getListTrashApiV1GGuildIdTrashGetQueryKey(guildId, { scope: "guild" }),
       });
       onSuccess?.(...args);
     },
