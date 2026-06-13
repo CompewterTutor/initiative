@@ -29,7 +29,7 @@ import { guildPath, useGuildPath } from "@/lib/guildUrl";
 import { getProjectColor } from "@/lib/projectColor";
 import type { TranslateFn } from "@/types/i18n";
 
-export const CreatedTasksPage = () => {
+export const MyCreatedTasksPage = () => {
   const { t } = useTranslation(["tasks", "dates", "common"]);
   const { guilds } = useGuilds();
   const { user } = useAuth();
@@ -44,7 +44,7 @@ export const CreatedTasksPage = () => {
   const [calendarFocusDate, setCalendarFocusDate] = useState(() => new Date());
   const weekStartsOn = (user?.week_starts_on ?? 0) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-  const table = useGlobalTasksTable({ scope: "global_created", storageKeyPrefix: "created-tasks" });
+  const table = useGlobalTasksTable({ view: "created", storageKeyPrefix: "created-tasks" });
 
   const handleRefresh = useCallback(async () => {
     await invalidateAllTasks();

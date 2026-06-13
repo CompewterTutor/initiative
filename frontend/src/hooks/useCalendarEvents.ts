@@ -5,10 +5,10 @@ import {
   createCalendarEventApiV1CalendarEventsPost,
   deleteCalendarEventApiV1CalendarEventsEventIdDelete,
   getListCalendarEventsApiV1CalendarEventsGetQueryKey,
-  getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey,
+  getListMyCalendarEventsApiV1MeCalendarEventsGetQueryKey,
   getReadCalendarEventApiV1CalendarEventsEventIdGetQueryKey,
   listCalendarEventsApiV1CalendarEventsGet,
-  listGlobalCalendarEventsApiV1CalendarEventsGlobalGet,
+  listMyCalendarEventsApiV1MeCalendarEventsGet,
   readCalendarEventApiV1CalendarEventsEventIdGet,
   setAttendeesApiV1CalendarEventsEventIdAttendeesPut,
   setDocumentsApiV1CalendarEventsEventIdDocumentsPut,
@@ -23,7 +23,7 @@ import type {
   CalendarEventRSVPUpdate,
   CalendarEventUpdate,
   ListCalendarEventsApiV1CalendarEventsGetParams,
-  ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
+  ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
 } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllCalendarEvents, invalidateCalendarEvent } from "@/api/query-keys";
 import { toast } from "@/lib/chesterToast";
@@ -48,13 +48,13 @@ export const useCalendarEventsList = (
 };
 
 export const useGlobalCalendarEventsList = (
-  params: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
+  params: ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
   options?: QueryOpts<CalendarEventListResponse>
 ) => {
   return useQuery<CalendarEventListResponse>({
-    queryKey: getListGlobalCalendarEventsApiV1CalendarEventsGlobalGetQueryKey(params),
+    queryKey: getListMyCalendarEventsApiV1MeCalendarEventsGetQueryKey(params),
     queryFn: () =>
-      listGlobalCalendarEventsApiV1CalendarEventsGlobalGet(
+      listMyCalendarEventsApiV1MeCalendarEventsGet(
         params
       ) as unknown as Promise<CalendarEventListResponse>,
     placeholderData: keepPreviousData,

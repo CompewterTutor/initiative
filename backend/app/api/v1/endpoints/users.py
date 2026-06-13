@@ -68,6 +68,9 @@ TASK_COMPLETION_VISUAL_FEEDBACK_VALUES: frozenset[str] = frozenset(
 )
 
 router = APIRouter()
+# Cross-guild "my" aggregate (user stats). Mounted under /api/v1/me; user-scoped
+# (no guild context), with an optional guild_id filter.
+me_router = APIRouter()
 
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
 GuildContextDep = Annotated[GuildContext, Depends(get_guild_membership)]
@@ -123,7 +126,7 @@ async def set_guild_context(
     return current_user
 
 
-@router.get("/me/stats", response_model=UserStatsResponse)
+@me_router.get("/stats", response_model=UserStatsResponse)
 async def get_user_stats(
     session: UserSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],

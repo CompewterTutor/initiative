@@ -20,7 +20,7 @@ import { useUserStats } from "@/hooks/useUserStats";
 
 const GUILD_FILTER_ALL = "all";
 
-export function UserStatsPage() {
+export function MyStatsPage() {
   const { t } = useTranslation("stats");
   const [selectedGuildId, setSelectedGuildId] = useState<string>(GUILD_FILTER_ALL);
   const { guilds } = useGuilds();

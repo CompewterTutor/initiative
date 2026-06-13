@@ -1,7 +1,7 @@
 """
 Integration tests for the global_created task scope.
 
-Tests the GET /api/v1/tasks/?scope=global_created endpoint which returns
+Tests the GET /api/v1/me/tasks/created endpoint which returns
 tasks created by the current user across all guilds they belong to.
 """
 
@@ -84,7 +84,7 @@ async def test_create_task_sets_created_by_id(
 
 @pytest.mark.integration
 async def test_list_global_created_tasks(client: AsyncClient, session: AsyncSession):
-    """scope=global_created should return tasks created by the current user."""
+    """GET /me/tasks/created should return tasks created by the current user."""
     creator = await create_user(session, email="creator@example.com")
     guild, _, project = await _setup_guild_with_project(session, creator)
 
@@ -92,7 +92,7 @@ async def test_list_global_created_tasks(client: AsyncClient, session: AsyncSess
     task2 = await _create_task(session, project, "My Task 2", created_by_id=creator.id)
 
     headers = await get_guild_headers(session, guild, creator)
-    response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
+    response = await client.get("/api/v1/me/tasks/created", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -106,7 +106,7 @@ async def test_list_global_created_tasks(client: AsyncClient, session: AsyncSess
 async def test_list_global_created_tasks_excludes_others(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global_created should NOT return tasks created by other users."""
+    """GET /me/tasks/created should NOT return tasks created by other users."""
     creator = await create_user(session, email="creator@example.com")
     other = await create_user(session, email="other@example.com")
     guild, _, project = await _setup_guild_with_project(session, creator)
@@ -118,7 +118,7 @@ async def test_list_global_created_tasks_excludes_others(
     )
 
     headers = await get_guild_headers(session, guild, creator)
-    response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
+    response = await client.get("/api/v1/me/tasks/created", headers=headers)
 
     assert response.status_code == 200
     task_ids = {t["id"] for t in response.json()["items"]}
@@ -139,7 +139,7 @@ async def test_list_global_created_tasks_excludes_null_created_by(
     my_task = await _create_task(session, project, "My Task", created_by_id=user.id)
 
     headers = await get_guild_headers(session, guild, user)
-    response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
+    response = await client.get("/api/v1/me/tasks/created", headers=headers)
 
     assert response.status_code == 200
     task_ids = {t["id"] for t in response.json()["items"]}
@@ -151,7 +151,7 @@ async def test_list_global_created_tasks_excludes_null_created_by(
 async def test_list_global_created_tasks_priority_filter(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global_created should respect priority filters."""
+    """GET /me/tasks/created should respect priority filters."""
     user = await create_user(session, email="user@example.com")
     guild, _, project = await _setup_guild_with_project(session, user)
 
@@ -171,7 +171,7 @@ async def test_list_global_created_tasks_priority_filter(
     headers = await get_guild_headers(session, guild, user)
     conditions = json.dumps([{"field": "priority", "op": "in_", "value": ["high"]}])
     response = await client.get(
-        f"/api/v1/tasks/?scope=global_created&conditions={conditions}", headers=headers
+        f"/api/v1/me/tasks/created?conditions={conditions}", headers=headers
     )
 
     assert response.status_code == 200
@@ -184,7 +184,7 @@ async def test_list_global_created_tasks_priority_filter(
 async def test_list_global_created_tasks_guild_filter(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global_created with guild_ids filter should only return matching guilds."""
+    """GET /me/tasks/created with guild_ids filter should only return matching guilds."""
     user = await create_user(session, email="user@example.com")
     guild1, _, project1 = await _setup_guild_with_project(
         session, user, guild_name="Guild 1"
@@ -203,7 +203,7 @@ async def test_list_global_created_tasks_guild_filter(
         return {(t["guild_id"], t["id"]) for t in resp.json()["items"]}
 
     # No filter: created tasks from BOTH guilds are aggregated.
-    response = await client.get("/api/v1/tasks/?scope=global_created", headers=headers)
+    response = await client.get("/api/v1/me/tasks/created", headers=headers)
     assert response.status_code == 200
     found = keyed(response)
     assert (guild1.id, task1.id) in found
@@ -212,7 +212,7 @@ async def test_list_global_created_tasks_guild_filter(
     # Filter to guild1 only.
     conditions = json.dumps([{"field": "guild_ids", "op": "in_", "value": [guild1.id]}])
     response = await client.get(
-        f"/api/v1/tasks/?scope=global_created&conditions={conditions}",
+        f"/api/v1/me/tasks/created?conditions={conditions}",
         headers=headers,
     )
     assert response.status_code == 200
@@ -225,7 +225,7 @@ async def test_list_global_created_tasks_guild_filter(
 async def test_list_global_created_tasks_pagination(
     client: AsyncClient, session: AsyncSession
 ):
-    """scope=global_created should support pagination."""
+    """GET /me/tasks/created should support pagination."""
     user = await create_user(session, email="user@example.com")
     guild, _, project = await _setup_guild_with_project(session, user)
 
@@ -237,7 +237,7 @@ async def test_list_global_created_tasks_pagination(
 
     # Page 1 with page_size=2
     response = await client.get(
-        "/api/v1/tasks/?scope=global_created&page=1&page_size=2", headers=headers
+        "/api/v1/me/tasks/created?page=1&page_size=2", headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -247,7 +247,7 @@ async def test_list_global_created_tasks_pagination(
 
     # Page 2
     response = await client.get(
-        "/api/v1/tasks/?scope=global_created&page=2&page_size=2", headers=headers
+        "/api/v1/me/tasks/created?page=2&page_size=2", headers=headers
     )
     assert response.status_code == 200
     data = response.json()

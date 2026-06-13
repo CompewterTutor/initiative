@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { apiClient } from "@/api/client";
 import type {
-  ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams,
+  ListMyCalendarEventsApiV1MeCalendarEventsGetParams,
   TaskPriority,
   TaskStatusCategory,
 } from "@/api/generated/initiativeAPI.schemas";
@@ -106,11 +106,11 @@ export const MyCalendarPage = () => {
   const [focusDate, setFocusDate] = useState(() => new Date());
 
   // Use the same hook as My Tasks for task data + filters
-  const table = useGlobalTasksTable({ scope: "global", storageKeyPrefix: "my-calendar-tasks" });
+  const table = useGlobalTasksTable({ view: "assigned", storageKeyPrefix: "my-calendar-tasks" });
 
   // --- Events query (global cross-guild) ---
-  const eventsParams = useMemo((): ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams => {
-    const params: ListGlobalCalendarEventsApiV1CalendarEventsGlobalGetParams = {
+  const eventsParams = useMemo((): ListMyCalendarEventsApiV1MeCalendarEventsGetParams => {
+    const params: ListMyCalendarEventsApiV1MeCalendarEventsGetParams = {
       start_after: startOfYear(subYears(focusDate, 1)).toISOString(),
       start_before: endOfYear(addYears(focusDate, 1)).toISOString(),
       page: 1,
@@ -209,7 +209,7 @@ export const MyCalendarPage = () => {
       if (table.guildFilters.length > 0) {
         params.guild_ids = table.guildFilters;
       }
-      const response = await apiClient.get("/api/v1/calendar-events/global/export.ics", {
+      const response = await apiClient.get("/api/v1/me/calendar-events/export.ics", {
         params,
         responseType: "blob",
       });

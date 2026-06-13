@@ -47,6 +47,7 @@ import type {
   GetDocumentCountsApiV1DocumentsCountsGetParams,
   HTTPValidationError,
   ListDocumentsApiV1DocumentsGetParams,
+  ListMyDocumentsApiV1MeDocumentsGetParams,
   PropertyValuesSetRequest,
   RecentViewWrite,
   TagSetRequest,
@@ -216,14 +217,13 @@ export function useGetDocumentCountsApiV1DocumentsCountsGet<
 }
 
 /**
- * List documents visible to the current user.
+ * List documents in the active guild visible to the current user.
  *
  * DAC: Documents with explicit DocumentPermission or role-based permission.
  *
  * Pagination: page_size=0 returns all documents (no pagination).
  *
- * When scope=global, returns documents created by the current user across
- * all guilds they belong to. Optionally filter by guild_ids.
+ * Cross-guild "my documents" lives under /me/documents (see list_my_documents).
  * @summary List Documents
  */
 export const listDocumentsApiV1DocumentsGet = (
@@ -3180,3 +3180,138 @@ export const useClearDocumentViewApiV1DocumentsDocumentIdViewDelete = <
     queryClient
   );
 };
+/**
+ * Documents created by the current user across every guild they belong to.
+ *
+ * An optional ``guild_ids`` filter narrows to a subset of guilds.
+ * @summary List My Documents
+ */
+export const listMyDocumentsApiV1MeDocumentsGet = (
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<DocumentListResponse>(
+    { url: `/api/v1/me/documents`, method: "GET", params, signal },
+    options
+  );
+};
+
+export const getListMyDocumentsApiV1MeDocumentsGetQueryKey = (
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams
+) => {
+  return [`/api/v1/me/documents`, ...(params ? [params] : [])] as const;
+};
+
+export const getListMyDocumentsApiV1MeDocumentsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyDocumentsApiV1MeDocumentsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>> = ({
+    signal,
+  }) => listMyDocumentsApiV1MeDocumentsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMyDocumentsApiV1MeDocumentsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>
+>;
+export type ListMyDocumentsApiV1MeDocumentsGetQueryError = ErrorType<HTTPValidationError>;
+
+export function useListMyDocumentsApiV1MeDocumentsGet<
+  TData = Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | ListMyDocumentsApiV1MeDocumentsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyDocumentsApiV1MeDocumentsGet<
+  TData = Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyDocumentsApiV1MeDocumentsGet<
+  TData = Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List My Documents
+ */
+
+export function useListMyDocumentsApiV1MeDocumentsGet<
+  TData = Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyDocumentsApiV1MeDocumentsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyDocumentsApiV1MeDocumentsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMyDocumentsApiV1MeDocumentsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

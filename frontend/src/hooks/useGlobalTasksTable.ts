@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import type {
   FilterCondition,
-  ListTasksApiV1TasksGetParams,
+  ListMyTasksApiV1MeTasksGetParams,
   SortField,
   TaskListRead,
   TaskListResponse,
@@ -16,8 +16,10 @@ import type {
 } from "@/api/generated/initiativeAPI.schemas";
 import { listTaskStatusesApiV1ProjectsProjectIdTaskStatusesGet } from "@/api/generated/task-statuses/task-statuses";
 import {
-  getListTasksApiV1TasksGetQueryKey,
-  listTasksApiV1TasksGet,
+  getListMyCreatedTasksApiV1MeTasksCreatedGetQueryKey,
+  getListMyTasksApiV1MeTasksGetQueryKey,
+  listMyCreatedTasksApiV1MeTasksCreatedGet,
+  listMyTasksApiV1MeTasksGet,
 } from "@/api/generated/tasks/tasks";
 import type { PropertyFilterCondition } from "@/components/properties/PropertyFilter";
 import { useGuilds } from "@/hooks/useGuilds";
@@ -88,15 +90,23 @@ const SORT_FIELD_MAP: Record<string, string> = {
   priority: "priority",
 };
 
-export type GlobalTaskScope = "global" | "global_created";
+export type MyTasksView = "assigned" | "created";
 
 interface UseGlobalTasksTableOptions {
-  scope: GlobalTaskScope;
+  view: MyTasksView;
   storageKeyPrefix: string;
 }
 
-export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksTableOptions) {
+export function useGlobalTasksTable({ view, storageKeyPrefix }: UseGlobalTasksTableOptions) {
   const { t } = useTranslation(["tasks", "dates", "common"]);
+  // Cross-guild aggregates: /me/tasks (assigned) vs /me/tasks/created (created).
+  const isCreated = view === "created";
+  const listMyTasks = isCreated
+    ? listMyCreatedTasksApiV1MeTasksCreatedGet
+    : listMyTasksApiV1MeTasksGet;
+  const getMyTasksQueryKey = isCreated
+    ? getListMyCreatedTasksApiV1MeTasksCreatedGetQueryKey
+    : getListMyTasksApiV1MeTasksGetQueryKey;
   const { activeGuildId } = useGuilds();
   const localQueryClient = useQueryClient();
   const router = useRouter();
@@ -195,7 +205,7 @@ export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksT
   const userTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   // --- Tasks query ---
-  const tasksParams = useMemo((): ListTasksApiV1TasksGetParams => {
+  const tasksParams = useMemo((): ListMyTasksApiV1MeTasksGetParams => {
     // Build synthesized property-value conditions. The tasks backend exposes
     // ``property_values`` as a virtual field where ``value`` is the shape
     // ``{property_id, value}`` (see backend/app/api/v1/endpoints/tasks.py).
@@ -220,7 +230,6 @@ export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksT
       ...propertyConditions,
     ];
     return {
-      scope: scope as ListTasksApiV1TasksGetParams["scope"],
       conditions: conditions.length > 0 ? conditions : undefined,
       page,
       page_size: pageSize,
@@ -228,7 +237,6 @@ export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksT
       tz: userTimezone,
     };
   }, [
-    scope,
     statusFilters,
     priorityFilters,
     guildFilters,
@@ -240,24 +248,26 @@ export function useGlobalTasksTable({ scope, storageKeyPrefix }: UseGlobalTasksT
   ]);
 
   const tasksQuery = useQuery<TaskListResponse>({
-    queryKey: getListTasksApiV1TasksGetQueryKey(tasksParams),
-    queryFn: () => listTasksApiV1TasksGet(tasksParams) as unknown as Promise<TaskListResponse>,
+    queryKey: getMyTasksQueryKey(tasksParams),
+    queryFn: () => listMyTasks(tasksParams) as unknown as Promise<TaskListResponse>,
     placeholderData: keepPreviousData,
   });
 
   const prefetchPage = useCallback(
     (targetPage: number) => {
       if (targetPage < 1) return;
-      const prefetchParams: ListTasksApiV1TasksGetParams = { ...tasksParams, page: targetPage };
+      const prefetchParams: ListMyTasksApiV1MeTasksGetParams = {
+        ...tasksParams,
+        page: targetPage,
+      };
 
       void localQueryClient.prefetchQuery({
-        queryKey: getListTasksApiV1TasksGetQueryKey(prefetchParams),
-        queryFn: () =>
-          listTasksApiV1TasksGet(prefetchParams) as unknown as Promise<TaskListResponse>,
+        queryKey: getMyTasksQueryKey(prefetchParams),
+        queryFn: () => listMyTasks(prefetchParams) as unknown as Promise<TaskListResponse>,
         staleTime: 30_000,
       });
     },
-    [tasksParams, localQueryClient]
+    [tasksParams, localQueryClient, getMyTasksQueryKey, listMyTasks]
   );
 
   // --- Status mutation ---

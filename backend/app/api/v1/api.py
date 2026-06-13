@@ -87,3 +87,19 @@ api_router.include_router(
     prefix="/user-view-preferences",
     tags=["user-view-preferences"],
 )
+
+# Cross-guild "my X" aggregates for the personal/multi-guild pages (My Tasks,
+# Created Tasks, My Projects, My Documents, My Calendar). User-scoped (no guild
+# context); each routes per the user's member guilds. Single-guild reads/writes
+# stay on their own routers above.
+#
+# Tagged per DOMAIN (not a single "me" tag) so Orval's tags-split generates each
+# hook into its existing domain file (tasks.ts, documents.ts, ...) rather than
+# one unmaintainable me.ts.
+me_router = APIRouter(prefix="/me")
+me_router.include_router(tasks.me_router, tags=["tasks"])
+me_router.include_router(documents.me_router, tags=["documents"])
+me_router.include_router(projects.me_router, tags=["projects"])
+me_router.include_router(calendar_events.me_router, tags=["calendar-events"])
+me_router.include_router(users.me_router, tags=["users"])
+api_router.include_router(me_router)

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type {
-  ListGlobalProjectsApiV1ProjectsGlobalGetParams,
+  ListMyProjectsApiV1MeProjectsGetParams,
   ProjectRead,
 } from "@/api/generated/initiativeAPI.schemas";
 import { invalidateAllProjects } from "@/api/query-keys";
@@ -177,7 +177,7 @@ export const MyProjectsPage = () => {
   }, [guilds]);
 
   const projectsGlobalParams = useMemo(() => {
-    const params: ListGlobalProjectsApiV1ProjectsGlobalGetParams = {};
+    const params: ListMyProjectsApiV1MeProjectsGetParams = {};
     if (guildFilters.length > 0) params.guild_ids = guildFilters;
     if (debouncedSearch) params.search = debouncedSearch;
     if (sortBy) params.sort_by = sortBy;

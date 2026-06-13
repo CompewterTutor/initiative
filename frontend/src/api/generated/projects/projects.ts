@@ -22,7 +22,7 @@ import type {
 
 import type {
   HTTPValidationError,
-  ListGlobalProjectsApiV1ProjectsGlobalGetParams,
+  ListMyProjectsApiV1MeProjectsGetParams,
   ListProjectsApiV1ProjectsGetParams,
   ProjectActivityFeedApiV1ProjectsProjectIdActivityGetParams,
   ProjectActivityResponse,
@@ -409,165 +409,6 @@ export function useListWritableProjectsApiV1ProjectsWritableGet<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListWritableProjectsApiV1ProjectsWritableGetQueryOptions(options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * List projects across all guilds the current user belongs to.
- *
- * Returns a paginated list filtered by DAC permissions, excluding
- * archived and template projects. Supports optional guild and
- * name-search filters.
- * @summary List Global Projects
- */
-export const listGlobalProjectsApiV1ProjectsGlobalGet = (
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options?: SecondParameter<typeof apiMutator>,
-  signal?: AbortSignal
-) => {
-  return apiMutator<ProjectListResponse>(
-    { url: `/api/v1/projects/global`, method: "GET", params, signal },
-    options
-  );
-};
-
-export const getListGlobalProjectsApiV1ProjectsGlobalGetQueryKey = (
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams
-) => {
-  return [`/api/v1/projects/global`, ...(params ? [params] : [])] as const;
-};
-
-export const getListGlobalProjectsApiV1ProjectsGlobalGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  }
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getListGlobalProjectsApiV1ProjectsGlobalGetQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>
-  > = ({ signal }) => listGlobalProjectsApiV1ProjectsGlobalGet(params, requestOptions, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type ListGlobalProjectsApiV1ProjectsGlobalGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>
->;
-export type ListGlobalProjectsApiV1ProjectsGlobalGetQueryError = ErrorType<HTTPValidationError>;
-
-export function useListGlobalProjectsApiV1ProjectsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params: undefined | ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-          TError,
-          Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListGlobalProjectsApiV1ProjectsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-          TError,
-          Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListGlobalProjectsApiV1ProjectsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary List Global Projects
- */
-
-export function useListGlobalProjectsApiV1ProjectsGlobalGet<
-  TData = Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-  TError = ErrorType<HTTPValidationError>,
->(
-  params?: ListGlobalProjectsApiV1ProjectsGlobalGetParams,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof listGlobalProjectsApiV1ProjectsGlobalGet>>,
-        TError,
-        TData
-      >
-    >;
-    request?: SecondParameter<typeof apiMutator>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListGlobalProjectsApiV1ProjectsGlobalGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -3289,3 +3130,140 @@ export const useImportProjectApiV1ProjectsImportPost = <
 > => {
   return useMutation(getImportProjectApiV1ProjectsImportPostMutationOptions(options), queryClient);
 };
+/**
+ * List projects across all guilds the current user belongs to.
+ *
+ * Returns a paginated list filtered by DAC permissions, excluding
+ * archived and template projects. Supports optional guild and
+ * name-search filters.
+ * @summary List My Projects
+ */
+export const listMyProjectsApiV1MeProjectsGet = (
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
+  options?: SecondParameter<typeof apiMutator>,
+  signal?: AbortSignal
+) => {
+  return apiMutator<ProjectListResponse>(
+    { url: `/api/v1/me/projects`, method: "GET", params, signal },
+    options
+  );
+};
+
+export const getListMyProjectsApiV1MeProjectsGetQueryKey = (
+  params?: ListMyProjectsApiV1MeProjectsGetParams
+) => {
+  return [`/api/v1/me/projects`, ...(params ? [params] : [])] as const;
+};
+
+export const getListMyProjectsApiV1MeProjectsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMyProjectsApiV1MeProjectsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>> = ({
+    signal,
+  }) => listMyProjectsApiV1MeProjectsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMyProjectsApiV1MeProjectsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>
+>;
+export type ListMyProjectsApiV1MeProjectsGetQueryError = ErrorType<HTTPValidationError>;
+
+export function useListMyProjectsApiV1MeProjectsGet<
+  TData = Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | ListMyProjectsApiV1MeProjectsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyProjectsApiV1MeProjectsGet<
+  TData = Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMyProjectsApiV1MeProjectsGet<
+  TData = Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List My Projects
+ */
+
+export function useListMyProjectsApiV1MeProjectsGet<
+  TData = Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: ListMyProjectsApiV1MeProjectsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMyProjectsApiV1MeProjectsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiMutator>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMyProjectsApiV1MeProjectsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

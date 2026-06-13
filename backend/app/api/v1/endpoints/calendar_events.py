@@ -55,6 +55,9 @@ from app.services import properties as properties_service
 from app.services import rls as rls_service
 
 router = APIRouter()
+# Cross-guild "my calendar" aggregate (My Calendar page). Mounted under
+# /api/v1/me; routes per member guild via gather_across_guilds.
+me_router = APIRouter()
 logger = logging.getLogger(__name__)
 
 AdminSessionDep = Annotated[AsyncSession, Depends(get_admin_session)]
@@ -158,8 +161,8 @@ async def _exec_events(session, stmt) -> list[CalendarEvent]:
     return list(result.unique().scalars().all())
 
 
-@router.get("/global", response_model=CalendarEventListResponse)
-async def list_global_calendar_events(
+@me_router.get("/calendar-events", response_model=CalendarEventListResponse)
+async def list_my_calendar_events(
     session: AdminSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_ids: Optional[List[int]] = Query(default=None),
@@ -279,8 +282,8 @@ async def export_calendar_events_ics(
     )
 
 
-@router.get("/global/export.ics")
-async def export_global_calendar_events_ics(
+@me_router.get("/calendar-events/export.ics")
+async def export_my_calendar_events_ics(
     session: AdminSessionDep,
     current_user: Annotated[User, Depends(get_current_active_user)],
     guild_ids: Optional[List[int]] = Query(default=None),

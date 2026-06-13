@@ -368,7 +368,7 @@ async def test_global_calendar_events_reads_guild_schema(
         session, initiative_name="GlobalView"
     )
     response = await client.get(
-        "/api/v1/calendar-events/global", headers=get_auth_headers(user)
+        "/api/v1/me/calendar-events", headers=get_auth_headers(user)
     )
     assert response.status_code == 200
     body = response.json()
