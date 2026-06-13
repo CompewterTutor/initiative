@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **⚠️ BREAKING: cross-guild ("my") data moved to a new `/api/v1/me/*` API.** The personal views (My Tasks, Created Tasks, My Projects, My Documents, My Calendar, and user stats) are now served by dedicated `/me/*` endpoints, replacing the old `?scope=global`, `/projects/global`, `/calendar-events/global`, and `/users/me/stats` routes. **The personal calendar (iCal) export URL changed** from `/api/v1/calendar-events/global/export.ics` to `/api/v1/me/calendar-events/export.ics` — any subscribed calendar feeds or bookmarks pointing at the old URL must be updated. Direct API integrations calling the old routes must move to `/me/*`.
 - **Guild context is now tracked by the server instead of being sent with every request.** This fixes a class of bugs where downloads, embedded media, and live connections could lose track of which guild you were in. The recent-items tabs bar now works across guilds: tabs show items from all your guilds, and opening one takes you into its guild.
 - Notification emails and push messages are now sent in your language.
 - The mobile sidebar follows your finger when swiping it open or closed.
