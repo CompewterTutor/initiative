@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-import app.api.v1.endpoints.guilds as guilds_endpoint
+import app.api.v1.public_endpoints.guilds as guilds_endpoint
 from app.db.schema_provisioning import guild_role_name, guild_schema_name
 from app.models.guild import Guild, GuildRole
 from app.testing.factories import (

@@ -12,12 +12,14 @@ endpoint.
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.v1.endpoints.collaboration import (
+from app.api.v1.guild_endpoints.collaboration import (
     _get_user_from_token as collaboration_authenticate,
 )
-from app.api.v1.endpoints.counters import _ws_authenticate as counters_authenticate
-from app.api.v1.endpoints.events import _user_from_token as events_authenticate
-from app.api.v1.endpoints.queues import _ws_authenticate as queues_authenticate
+from app.api.v1.guild_endpoints.counters import (
+    _ws_authenticate as counters_authenticate,
+)
+from app.api.v1.guild_endpoints.events import _user_from_token as events_authenticate
+from app.api.v1.guild_endpoints.queues import _ws_authenticate as queues_authenticate
 from app.testing import create_user, get_auth_token
 
 pytestmark = pytest.mark.asyncio

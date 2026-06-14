@@ -12,7 +12,7 @@ from app.api.deps import (
     GuildContext,
     require_guild_roles,
 )
-from app.api.v1.endpoints.admin import ConfigManageDep
+from app.api.v1.public_endpoints.admin import ConfigManageDep
 from app.core.config import settings as app_config
 from app.core.rate_limit import limiter
 from app.db.session import get_admin_session

@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.v1.endpoints.events import _user_can_access_guild
+from app.api.v1.guild_endpoints.events import _user_can_access_guild
 from app.models.access_grant import AccessGrant, AccessGrantStatus, AccessLevel
 from app.models.guild import GuildRole
 from app.services import realtime

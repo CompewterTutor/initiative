@@ -18,7 +18,7 @@ from app.api.deps import (
     get_guild_membership,
     require_guild_roles,
 )
-from app.api.v1.endpoints.admin import ConfigManageDep
+from app.api.v1.public_endpoints.admin import ConfigManageDep
 from app.models.guild import GuildRole
 from app.core.capabilities import Capability, user_has_capability
 from app.models.user import User

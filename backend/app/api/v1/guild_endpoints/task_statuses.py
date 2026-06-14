@@ -12,7 +12,10 @@ from app.api.deps import (
     get_guild_membership,
 )
 from app.db.session import reapply_rls_context
-from app.api.v1.endpoints.tasks import _get_project_with_access, _ensure_can_manage
+from app.api.v1.guild_endpoints.tasks import (
+    _get_project_with_access,
+    _ensure_can_manage,
+)
 from app.models.task import Task, TaskStatus, TaskStatusCategory
 from app.models.user import User
 from app.schemas.task_status import (

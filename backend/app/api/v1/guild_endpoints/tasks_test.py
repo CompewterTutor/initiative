@@ -993,7 +993,7 @@ async def test_rolling_recurrence_uses_user_timezone_for_completion_date(
     May 5 (LA) instead of Wednesday May 6 (LA).
     """
     from datetime import datetime, timezone
-    from app.api.v1.endpoints.tasks import _advance_recurrence_if_needed
+    from app.api.v1.guild_endpoints.tasks import _advance_recurrence_if_needed
     from app.models.task import Task, TaskStatusCategory
     from app.services import task_statuses as task_statuses_service
 
@@ -1084,7 +1084,7 @@ async def test_rolling_recurrence_spring_forward_preserves_wall_clock_time(
     AM is a valid local time.
     """
     from datetime import datetime, timezone
-    from app.api.v1.endpoints.tasks import _advance_recurrence_if_needed
+    from app.api.v1.guild_endpoints.tasks import _advance_recurrence_if_needed
     from app.models.task import Task, TaskStatusCategory
     from app.services import task_statuses as task_statuses_service
 

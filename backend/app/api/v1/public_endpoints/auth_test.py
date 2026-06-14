@@ -648,7 +648,7 @@ async def test_oidc_callback_blocks_new_user_when_registration_disabled(
 ):
     """OIDC callback must honor the same no-invite registration gate as /register."""
     from app.core import config as cfg
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     monkeypatch.setattr(
         cfg.settings, "ENABLE_PUBLIC_REGISTRATION", public_registration_enabled
@@ -739,7 +739,7 @@ def _patch_oidc_callback(monkeypatch, *, userinfo_profile: dict) -> None:
     ``test_oidc_callback_blocks_new_user_when_registration_disabled`` so the
     callback runs against a deterministic userinfo response.
     """
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     class _FakeTokenResp:
         status_code = 200
@@ -819,7 +819,7 @@ async def test_oidc_callback_refuses_existing_account_when_email_unverified(
     account when the IdP does not assert ``email_verified is True`` for a
     matching email. A false claim (IdP allows unverified emails) and an absent
     claim (e.g. Azure AD) are both refused — fail closed."""
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     existing = await create_user(
         session,
@@ -861,7 +861,7 @@ async def test_oidc_callback_links_existing_account_when_email_verified(
     """SEC-9: the verified flow is unchanged — a matching email with
     ``email_verified=true`` logs into the existing account and promotes an
     unverified local account to verified."""
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
     from app.core.config import settings as app_config
 
     existing = await create_user(
@@ -903,7 +903,7 @@ async def test_oidc_login_rejects_non_https_authorization_endpoint(
 ):
     """A discovery doc whose authorization_endpoint isn't an absolute https
     URL must not be used as a redirect target (CodeQL py/url-redirection)."""
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     async def _fake_runtime_config(s):
         settings_obj = type(
@@ -940,7 +940,7 @@ async def test_oidc_login_rejects_null_authorization_endpoint(
 ):
     """A non-string (e.g. null) authorization_endpoint must surface the clean
     OIDC_METADATA_INCOMPLETE error, not an uncaught urlsplit TypeError."""
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     async def _fake_runtime_config(s):
         settings_obj = type(
@@ -976,7 +976,7 @@ async def test_oidc_login_redirects_to_https_authorization_endpoint(
     monkeypatch,
 ):
     """Happy path: an https authorization_endpoint is used as the redirect."""
-    import app.api.v1.endpoints.auth as auth_module
+    import app.api.v1.public_endpoints.auth as auth_module
 
     async def _fake_runtime_config(s):
         settings_obj = type(

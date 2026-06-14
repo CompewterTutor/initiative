@@ -67,7 +67,9 @@ async def test_email_test_runtime_error_logs_details_server_side(
 
     monkeypatch.setattr(email_service, "send_test_email", _boom)
 
-    with caplog.at_level(logging.WARNING, logger="app.api.v1.endpoints.settings"):
+    with caplog.at_level(
+        logging.WARNING, logger="app.api.v1.public_endpoints.settings"
+    ):
         resp = await client.post(
             "/api/v1/settings/email/test",
             json={"recipient": "dest@example.com"},

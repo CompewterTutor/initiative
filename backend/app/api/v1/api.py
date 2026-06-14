@@ -1,34 +1,42 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import (
-    access_grants,
-    admin,
+# Endpoints are organized by the kind of data they touch (they must never mix):
+#   public_endpoints/  — platform / public-schema tables (auth, users, guilds,
+#                        settings, …); not tied to a single guild.
+#   guild_endpoints/   — per-guild-schema tables (projects, tasks, documents, …),
+#                        including the cross-guild "my" aggregates that read them.
+from app.api.v1.guild_endpoints import (
     ai_settings,
     attachments,
-    auth,
     auto_subscriptions,
     calendar_events,
     collaboration,
     comments,
-    config,
     counters,
     documents,
     events,
-    guilds,
     imports,
     initiatives,
-    native,
-    notifications,
+    me_trash,
     projects,
     property_definitions,
-    push,
     queues,
     recents,
-    settings,
     tags,
     task_statuses,
     tasks,
     trash,
+)
+from app.api.v1.public_endpoints import (
+    access_grants,
+    admin,
+    auth,
+    config,
+    guilds,
+    native,
+    notifications,
+    push,
+    settings,
     user_view_preferences,
     users,
     version,
@@ -133,6 +141,6 @@ me_router.include_router(tasks.me_router, tags=["tasks"])
 me_router.include_router(documents.me_router, tags=["documents"])
 me_router.include_router(projects.me_router, tags=["projects"])
 me_router.include_router(calendar_events.me_router, tags=["calendar-events"])
-me_router.include_router(trash.me_router, tags=["trash"])
+me_router.include_router(me_trash.me_router, tags=["trash"])
 me_router.include_router(users.me_router, tags=["users"])
 api_router.include_router(me_router)

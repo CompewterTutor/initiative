@@ -13,7 +13,7 @@ import hashlib
 import pytest
 from httpx import AsyncClient
 
-from app.api.v1.endpoints import native
+from app.api.v1.public_endpoints import native
 from app.core.messages import NativeMessages
 from app.core.version import __version__
 
