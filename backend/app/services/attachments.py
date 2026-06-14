@@ -105,10 +105,13 @@ def normalize_upload_url(url: str | None) -> str | None:
         path = parsed.path or ""
     if not path.startswith(UPLOADS_URL_PREFIX):
         return None
-    filename = Path(path).name
-    if not filename:
+    # Keep the full ``/uploads/{guild_id}/{filename}`` path (only origin/query are
+    # dropped): the guild segment is part of the canonical URL, so content
+    # rewrites and dedup compare like-for-like. Disk ops take ``Path(url).name``,
+    # which is the filename regardless of the guild segment.
+    if not Path(path).name:
         return None
-    return f"{UPLOADS_URL_PREFIX}{filename}"
+    return path
 
 
 def delete_upload_by_url(url: str | None) -> None:
@@ -287,7 +290,9 @@ def duplicate_upload(url: str | None) -> str | None:
             continue
         try:
             shutil.copy2(source_path, destination)
-            return f"{UPLOADS_URL_PREFIX}{destination.name}"
+            # Keep the source URL's ``/uploads/{guild_id}`` prefix — a duplicate
+            # stays in the same guild — and swap only the filename segment.
+            return f"{normalized.rsplit('/', 1)[0]}/{destination.name}"
         except OSError as exc:
             logger.error(
                 "Failed to duplicate upload %s -> %s: %s", source_path, destination, exc
@@ -419,15 +424,17 @@ def validate_document_file(
     return detected_mime, extension
 
 
-def save_document_file(content: bytes, extension: str) -> str:
+def save_document_file(content: bytes, extension: str, guild_id: int) -> str:
     """Save document file content to the uploads directory.
 
     Args:
         content: File content bytes
         extension: File extension (including dot)
+        guild_id: Guild the file belongs to — encoded into the URL path so the
+            served media self-describes its guild (e.g. /uploads/7/abc123.pdf).
 
     Returns:
-        URL path to the uploaded file (e.g., /uploads/abc123.pdf)
+        URL path to the uploaded file (e.g., /uploads/7/abc123.pdf)
     """
     safe_extension = extension if extension.startswith(".") else f".{extension}"
     filename = f"{uuid4().hex}{safe_extension}"
@@ -436,4 +443,4 @@ def save_document_file(content: bytes, extension: str) -> str:
     destination = upload_dir / filename
     destination.write_bytes(content)
 
-    return f"{UPLOADS_URL_PREFIX}{filename}"
+    return f"{UPLOADS_URL_PREFIX}{guild_id}/{filename}"

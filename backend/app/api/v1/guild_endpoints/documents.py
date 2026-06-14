@@ -1031,7 +1031,9 @@ async def upload_document_file(
         )
 
     # Save file to uploads directory
-    file_url = attachments_service.save_document_file(contents, extension)
+    file_url = attachments_service.save_document_file(
+        contents, extension, guild_context.guild_id
+    )
 
     # Track the upload in the uploads table for guild-scoped access control
     upload_record = Upload(
@@ -1165,7 +1167,9 @@ async def upload_document_version(
             detail=DocumentMessages.VERSION_TYPE_MISMATCH,
         )
 
-    file_url = attachments_service.save_document_file(contents, extension)
+    file_url = attachments_service.save_document_file(
+        contents, extension, guild_context.guild_id
+    )
 
     # Track the new blob in the uploads table for guild-scoped access control.
     upload_record = Upload(
