@@ -1264,13 +1264,14 @@ async def _ws_authenticate(token: str, session) -> Optional[User]:
 @router.websocket("/{queue_id}/ws")
 async def websocket_queue(
     websocket: WebSocket,
+    guild_id: int,
     queue_id: int,
 ) -> None:
     """WebSocket for real-time queue updates (server-to-client broadcast).
 
     Protocol:
     1. Client connects and sends JSON: {"token": "..."} — the guild comes
-       from the user's server-held context (users.active_guild_id)
+       from the ``/g/{guild_id}`` path segment
     2. Server validates auth and initiative membership
     3. Server broadcasts JSON events as queue state changes
     4. Client keeps connection alive; no client-to-server data expected
@@ -1308,14 +1309,7 @@ async def websocket_queue(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        # The queue lives in the user's server-held guild context (the page
-        # opening this socket required entering its guild first).
-        guild_id = user.active_guild_id
-        if guild_id is None:
-            logger.warning(f"Queue WS: user {user.id} has no guild context")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
+        # The queue lives in the path-addressed guild (``/g/{guild_id}/``).
         await set_rls_context(session, user_id=user.id, guild_id=guild_id)
 
         # Verify guild membership

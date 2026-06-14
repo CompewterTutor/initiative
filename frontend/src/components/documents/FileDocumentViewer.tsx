@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useActiveGuildId } from "@/hooks/useActiveGuildId";
 import { useDateLocale } from "@/hooks/useDateLocale";
 import {
   useDeleteDocumentVersion,
@@ -68,6 +69,7 @@ export const FileDocumentViewer = ({
 }: FileDocumentViewerProps) => {
   const { t } = useTranslation(["documents", "common"]);
   const dateLocale = useDateLocale();
+  const guildId = useActiveGuildId();
 
   // ── Version history ─────────────────────────────────────────────────────
   const { data: versions } = useDocumentVersions(documentId);
@@ -95,11 +97,11 @@ export const FileDocumentViewer = ({
   // (The plain /download URL is constant and would otherwise show stale bytes.)
   // Falls back to the document download URL only until the version list loads.
   const resolvedUrl = selectedVersion
-    ? resolveDocumentVersionDownloadUrl(documentId, selectedVersion.id)
-    : resolveDocumentDownloadUrl(documentId);
+    ? resolveDocumentVersionDownloadUrl(documentId, selectedVersion.id, guildId)
+    : resolveDocumentDownloadUrl(documentId, guildId);
   const inlineUrl = selectedVersion
-    ? resolveDocumentVersionDownloadUrl(documentId, selectedVersion.id, true)
-    : resolveDocumentDownloadUrl(documentId, true);
+    ? resolveDocumentVersionDownloadUrl(documentId, selectedVersion.id, guildId, true)
+    : resolveDocumentDownloadUrl(documentId, guildId, true);
 
   // Header metadata follows the selected version (falls back to props/current).
   const displayFilename = selectedVersion?.original_filename ?? originalFilename;
