@@ -29,8 +29,11 @@ def downgrade() -> None:
         "users",
         sa.Column("active_guild_id", sa.Integer(), nullable=True),
     )
+    # Re-create the FK under the SAME name the original migration used
+    # (fk_users_active_guild_id_guilds), so a full down-migration can drop it
+    # cleanly when it reaches 20260612_0102's downgrade.
     op.create_foreign_key(
-        "users_active_guild_id_fkey",
+        "fk_users_active_guild_id_guilds",
         "users",
         "guilds",
         ["active_guild_id"],
