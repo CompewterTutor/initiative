@@ -24,7 +24,9 @@ from app.testing.factories import (
 )
 
 
-async def _create_task(session, project, title="Test Task", *, created_by_id=None):
+async def _create_task(
+    session, project, title="Test Task", *, created_by_id=None, due_date=None
+):
     """Create a task in ``project``'s guild schema."""
     from app.db.session import set_rls_context
     from app.services import task_statuses as task_statuses_service
@@ -41,6 +43,7 @@ async def _create_task(session, project, title="Test Task", *, created_by_id=Non
         task_status_id=status.id,
         guild_id=project.guild_id,
         created_by_id=created_by_id,
+        due_date=due_date,
     )
     session.add(task)
     await session.commit()
@@ -230,3 +233,59 @@ async def test_list_my_tasks_pagination(client: AsyncClient, session: AsyncSessi
     data = response.json()
     assert len(data["items"]) == 1
     assert data["has_next"] is False
+
+
+@pytest.mark.integration
+async def test_list_my_tasks_date_group_sorted_across_guilds(
+    client: AsyncClient, session: AsyncSession
+):
+    """GET /me/tasks sorts by date_group then due_date across ALL guilds.
+
+    Regression: per-guild SQL ordering was concatenated in guild-id order, so a
+    later guild's "today" task could appear after an earlier guild's "later"
+    task. The merged set must be globally re-sorted before pagination.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    overdue = now - timedelta(days=2)
+    today = now + timedelta(hours=2)
+    this_week = now + timedelta(days=3)
+    later = now + timedelta(days=60)
+
+    user = await create_user(session, email="user@example.com")
+    guild1, _, project1 = await _setup_guild_with_project(
+        session, user, guild_name="Guild 1"
+    )
+    guild2, _, project2 = await _setup_guild_with_project(
+        session, user, guild_name="Guild 2"
+    )
+
+    # Interleave date groups so any per-guild-only ordering is detectably wrong:
+    # guild1 holds overdue + later; guild2 holds today + this-week.
+    g1_overdue = await _create_task(
+        session, project1, "g1 overdue", created_by_id=user.id, due_date=overdue
+    )
+    g1_later = await _create_task(
+        session, project1, "g1 later", created_by_id=user.id, due_date=later
+    )
+    g2_today = await _create_task(
+        session, project2, "g2 today", created_by_id=user.id, due_date=today
+    )
+    g2_week = await _create_task(
+        session, project2, "g2 this week", created_by_id=user.id, due_date=this_week
+    )
+    for task in (g1_overdue, g1_later, g2_today, g2_week):
+        await _assign(session, task, user.id)
+
+    headers = await get_guild_headers(session, guild1, user)
+    sorting = json.dumps(
+        [{"field": "date_group", "dir": "asc"}, {"field": "due_date", "dir": "asc"}]
+    )
+    response = await client.get(
+        f"/api/v1/me/tasks?sorting={sorting}&tz=UTC", headers=headers
+    )
+    assert response.status_code == 200, response.text
+    titles = [t["title"] for t in response.json()["items"]]
+    # Overdue → today → this week → later, regardless of which guild owns each.
+    assert titles == ["g1 overdue", "g2 today", "g2 this week", "g1 later"]

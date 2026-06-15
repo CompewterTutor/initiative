@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -20,7 +20,7 @@ from app.db.query import (
     parse_sort_fields,
     unbounded_page_limit,
 )
-from app.schemas.query import FilterOp
+from app.schemas.query import FilterOp, SortDir
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import (
@@ -167,6 +167,101 @@ def _task_sort_fields(tz: str | None = None) -> dict[str, object]:
 
 
 TASK_DEFAULT_SORT = [(Task.position, "asc"), (Task.id, "asc")]
+
+
+def _as_aware(dt: datetime | None) -> datetime | None:
+    """Coerce a naive datetime to UTC. Task date columns are ``timestamptz`` so
+    the driver returns aware values, but guard against a stray naive one."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _date_group_value(
+    start: datetime | None, due: datetime | None, tz: str | None
+) -> int:
+    """Python mirror of :func:`_date_group_expression` for the cross-guild merge.
+
+    Returns the same numeric group (0=overdue, 1=today, 2=this week,
+    3=this month, 4=later). Must stay in lockstep with the SQL CASE and the
+    frontend ``getTaskDateStatus``. Day boundaries are evaluated in the user's
+    timezone so "today" matches their local day.
+    """
+    zone = ZoneInfo(tz) if tz else timezone.utc
+    start = _as_aware(start)
+    due = _as_aware(due)
+    now = datetime.now(zone)
+    today = now.date()
+    week_later = now + timedelta(days=7)
+    month_later = now + timedelta(days=30)
+
+    # 0: overdue — due_date is in the past (checked first, mirrors SQL)
+    if due is not None and due < now:
+        return 0
+    # 1: today — start before today, or start/due falls on today (local day)
+    if start is not None and start.astimezone(zone).date() <= today:
+        return 1
+    if due is not None and due.astimezone(zone).date() == today:
+        return 1
+    # 2: this week — start or due within 7 days
+    if start is not None and start <= week_later:
+        return 2
+    if due is not None and due <= week_later:
+        return 2
+    # 3: this month — start or due within 30 days
+    if start is not None and start <= month_later:
+        return 3
+    if due is not None and due <= month_later:
+        return 3
+    # 4: later — everything else
+    return 4
+
+
+def _global_sort_key_getter(field: str, tz: str | None):
+    """Return a callable extracting *field*'s sort value from a TaskListRead, or
+    ``None`` for fields not in the allowed set (mirrors apply_sorting skipping
+    columns absent from ``allowed_fields``)."""
+    if field == "date_group":
+        return lambda t: _date_group_value(t.start_date, t.due_date, tz)
+    if field == "priority":
+        # Native PG enum orders by definition order (low→urgent), not
+        # alphabetically; replicate that here. TaskPriority is a str-enum, so a
+        # plain-string priority hashes to the same key.
+        order = {p: i for i, p in enumerate(TaskPriority)}
+        return lambda t: order.get(t.priority, len(order))
+    if field in _TASK_SORT_FIELDS_STATIC:
+        return lambda t, f=field: getattr(t, f, None)
+    return None
+
+
+def _sort_global_task_reads(
+    items: list[TaskListRead],
+    sort_fields: list | None,
+    tz: str | None,
+) -> list[TaskListRead]:
+    """Reapply the requested sort across the full cross-guild result set.
+
+    Each guild's tasks are sorted in SQL, but concatenating guilds loses the
+    global order, so the merged list must be re-sorted before pagination.
+    Mirrors :func:`apply_sorting`: every field places NULLs last regardless of
+    direction, and ``id`` ascending is the final tiebreaker.
+    """
+    if not sort_fields:
+        return items
+
+    # Stable radix sort: apply the least-significant key first. ``id`` asc is the
+    # final tiebreaker apply_sorting() appends, so it sorts first here.
+    result = sorted(items, key=lambda t: t.id)
+    for sf in reversed(sort_fields):
+        getter = _global_sort_key_getter(sf.field, tz)
+        if getter is None:
+            continue
+        reverse = sf.dir == SortDir.desc
+        non_null = [t for t in result if getter(t) is not None]
+        nulls = [t for t in result if getter(t) is None]
+        non_null.sort(key=getter, reverse=reverse)
+        result = non_null + nulls
+    return result
 
 
 def _build_task_filter_fields(
@@ -970,13 +1065,17 @@ async def _gather_global_task_reads(
     guild_ids: Optional[List[int]],
     page: int,
     page_size: int,
+    sort_fields: list | None = None,
+    tz: str | None = None,
 ) -> tuple[list[TaskListRead], int, int]:
     """Run a per-guild task query across every guild the user belongs to and
     merge into TaskListReads.
 
-    Each guild's tasks keep their in-schema sort; guilds are concatenated in id
-    order (per-schema ``position`` can't order across guilds). Annotation +
-    conversion happen inside each guild's routed context.
+    Each guild's tasks are sorted in SQL, but concatenating guilds loses that
+    order (per-schema ``position`` can't order across guilds), so the full
+    merged set is re-sorted with :func:`_sort_global_task_reads` before
+    paginating. Annotation + conversion happen inside each guild's routed
+    context.
     """
     target_guilds = await member_guild_ids(
         session, current_user.id, restrict_to=guild_ids
@@ -990,6 +1089,9 @@ async def _gather_global_task_reads(
         return [_task_to_list_read(task) for task in tasks]
 
     items = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
+    # Re-sort across ALL guilds before slicing — per-guild SQL order alone leaves
+    # the merged list grouped by guild instead of globally sorted.
+    items = _sort_global_task_reads(items, sort_fields, tz)
     total_count = len(items)
     actual_page = _clamp_page(page, page_size, total_count)
     if page_size > 0:
@@ -1066,6 +1168,8 @@ async def _list_global_tasks(
         guild_ids=guild_ids,
         page=page,
         page_size=page_size,
+        sort_fields=sort_fields,
+        tz=tz,
     )
 
 
@@ -1128,6 +1232,8 @@ async def _list_global_created_tasks(
         guild_ids=guild_ids,
         page=page,
         page_size=page_size,
+        sort_fields=sort_fields,
+        tz=tz,
     )
 
 
