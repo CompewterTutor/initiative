@@ -464,6 +464,12 @@ const MobileSidebar = ({
           // first control (the guild expand toggle), and its focus-triggered
           // tooltip would then stay stuck open until the user taps elsewhere.
           onOpenAutoFocus={(e) => e.preventDefault()}
+          // Don't let the Sheet dismiss itself on outside interaction. Nested
+          // poppers (the user-footer dropdown, tooltips, selects) portal to the
+          // body, so opening one reads as a focus/pointer event "outside" the
+          // drawer and would otherwise collapse it. Tap-outside-to-close is
+          // already handled by the custom overlay below, plus swipe and the X.
+          onInteractOutside={(e) => e.preventDefault()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
