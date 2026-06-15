@@ -151,11 +151,19 @@ def test_effective_permission_level_takes_higher():
 
 
 @pytest.mark.unit
-def test_compute_project_permission_guild_admin_no_dac():
-    """Guild admin with no DAC grant gets no access (no admin bypass)."""
-    project = _make_project()
-    result = compute_project_permission(project, user_id=1)
-    assert result is None
+def test_compute_project_permission_guild_admin_gets_owner():
+    """A guild admin has full access to all of their guild's data regardless of
+    DAC, so ``my_permission_level`` reports ``owner`` — otherwise the UI would
+    hide edit/delete affordances the API actually honors."""
+    from app.core.role_context import set_active_role
+
+    project = _make_project()  # no DAC permission for user_id=1
+    try:
+        set_active_role(1, "admin")
+        result = compute_project_permission(project, user_id=1)
+    finally:
+        set_active_role(None, None)
+    assert result == "owner"
 
 
 @pytest.mark.unit
@@ -241,6 +249,40 @@ def test_require_project_access_owner_passes():
     require_project_access(project, user, require_owner=True)  # should not raise
 
 
+@pytest.mark.unit
+def test_require_project_access_guild_admin_no_dac_full_access():
+    """A guild admin gets read/write/owner access to any project in their guild
+    without a permission row or initiative membership."""
+    from app.core.role_context import set_active_role
+
+    project = _make_project()  # no permissions, no membership for user_id=1
+    user = _make_user(user_id=1)
+    try:
+        set_active_role(1, "admin")
+        require_project_access(project, user, access="read")
+        require_project_access(project, user, access="write")
+        require_project_access(project, user, require_owner=True)  # none should raise
+    finally:
+        set_active_role(None, None)
+
+
+@pytest.mark.unit
+def test_require_project_access_guild_member_no_dac_denied():
+    """A plain guild member (non-admin) still needs DAC — the admin bypass is
+    strictly guild-admin-scoped."""
+    from app.core.role_context import set_active_role
+
+    project = _make_project()  # no permissions for user_id=1
+    user = _make_user(user_id=1)
+    try:
+        set_active_role(1, "member")
+        with pytest.raises(HTTPException) as exc_info:
+            require_project_access(project, user, access="read")
+    finally:
+        set_active_role(None, None)
+    assert exc_info.value.status_code == 403
+
+
 # ---------------------------------------------------------------------------
 # has_project_write_access
 # ---------------------------------------------------------------------------
@@ -280,11 +322,18 @@ def test_has_project_write_access_false_for_none():
 
 
 @pytest.mark.unit
-def test_compute_document_permission_guild_admin_no_dac():
-    """Guild admin with no DAC grant gets no access (no admin bypass)."""
-    doc = _make_document()
-    result = compute_document_permission(doc, user_id=1)
-    assert result is None
+def test_compute_document_permission_guild_admin_gets_owner():
+    """A guild admin has full access to all of their guild's data regardless of
+    DAC, so ``my_permission_level`` reports ``owner``."""
+    from app.core.role_context import set_active_role
+
+    doc = _make_document()  # no DAC permission for user_id=1
+    try:
+        set_active_role(1, "admin")
+        result = compute_document_permission(doc, user_id=1)
+    finally:
+        set_active_role(None, None)
+    assert result == "owner"
 
 
 @pytest.mark.unit
@@ -474,6 +523,23 @@ def test_guild_admin_bypasses_initiative_scope_via_role_context():
         set_active_role(7, "admin")
         with patch(_PATCH_TARGET, return_value=doc.permissions):
             require_document_access(doc, user, access="read")  # should not raise
+    finally:
+        set_active_role(None, None)
+
+
+@pytest.mark.unit
+def test_require_document_access_guild_admin_no_dac_full_access():
+    """A guild admin gets read/write/owner access to any document in their guild
+    without a permission row or initiative membership."""
+    from app.core.role_context import set_active_role
+
+    doc = _make_document(guild_id=7)  # no permissions, no membership for user_id=1
+    user = _make_user(user_id=1)
+    try:
+        set_active_role(7, "admin")
+        require_document_access(doc, user, access="read")
+        require_document_access(doc, user, access="write")
+        require_document_access(doc, user, require_owner=True)  # none should raise
     finally:
         set_active_role(None, None)
 

@@ -557,6 +557,93 @@ async def test_update_initiative_member_role(
 
 
 @pytest.mark.integration
+async def test_guild_admin_cannot_be_assigned_member_role(
+    client: AsyncClient, session: AsyncSession
+):
+    """A guild admin is an implicit full-access member; assigning them a
+    standard member (or custom) role is rejected — they may only be elevated to
+    a manager role."""
+    from app.models.initiative import InitiativeRoleModel
+    from app.testing.factories import create_initiative
+    from sqlmodel import select
+
+    admin = await create_user(session, email="admin@example.com")
+    target_admin = await create_user(session, email="admin2@example.com")
+    guild = await create_guild(session)
+    await create_guild_membership(
+        session, user=admin, guild=guild, role=GuildRole.admin
+    )
+    await create_guild_membership(
+        session, user=target_admin, guild=guild, role=GuildRole.admin
+    )
+
+    initiative = await create_initiative(session, guild, admin, name="Test Initiative")
+
+    member_role = (
+        await session.exec(
+            select(InitiativeRoleModel).where(
+                InitiativeRoleModel.initiative_id == initiative.id,
+                InitiativeRoleModel.name == "member",
+            )
+        )
+    ).one()
+
+    headers = await get_guild_headers(session, guild, admin)
+    response = await client.post(
+        f"/api/v1/g/{guild.id}/initiatives/{initiative.id}/members",
+        headers=headers,
+        json={"user_id": target_admin.id, "role_id": member_role.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "INITIATIVE_GUILD_ADMIN_ROLE_RESTRICTED"
+
+
+@pytest.mark.integration
+async def test_guild_admin_can_be_assigned_manager_role(
+    client: AsyncClient, session: AsyncSession
+):
+    """A guild admin may be elevated to the manager role (for manager-style
+    features like notifications)."""
+    from app.models.initiative import InitiativeRoleModel
+    from app.testing.factories import create_initiative
+    from sqlmodel import select
+
+    admin = await create_user(session, email="admin@example.com")
+    target_admin = await create_user(session, email="admin2@example.com")
+    guild = await create_guild(session)
+    await create_guild_membership(
+        session, user=admin, guild=guild, role=GuildRole.admin
+    )
+    await create_guild_membership(
+        session, user=target_admin, guild=guild, role=GuildRole.admin
+    )
+
+    initiative = await create_initiative(session, guild, admin, name="Test Initiative")
+
+    pm_role = (
+        await session.exec(
+            select(InitiativeRoleModel).where(
+                InitiativeRoleModel.initiative_id == initiative.id,
+                InitiativeRoleModel.name == "project_manager",
+            )
+        )
+    ).one()
+
+    headers = await get_guild_headers(session, guild, admin)
+    response = await client.post(
+        f"/api/v1/g/{guild.id}/initiatives/{initiative.id}/members",
+        headers=headers,
+        json={"user_id": target_admin.id, "role_id": pm_role.id},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    member_roles = {m["user"]["id"]: m["role"] for m in data["members"]}
+    assert member_roles[target_admin.id] == "project_manager"
+
+
+@pytest.mark.integration
 async def test_remove_initiative_member(client: AsyncClient, session: AsyncSession):
     """Test removing an initiative member."""
     from app.testing.factories import create_initiative

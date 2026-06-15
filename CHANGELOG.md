@@ -25,9 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The assignee selector is now a searchable dropdown with checkboxes and avatar chips, matching the tag picker.
 - Slim, styled scrollbars in the sidebars and on the kanban board.
 - Transactional emails are easier to read: names and key details are bolded, and styling survives Gmail mobile.
+- Guild admins now have complete read/write access to every initiative's projects, documents, tasks, and comments in their guild, regardless of initiative membership or per-item permissions. In initiative member settings they appear in a collapsed "Guild admins" group (greyed out, can't be removed) and can be promoted to project manager, but are never assigned a standard member or custom role.
 
 ### Fixed
 
+- Guild admins can again create and manage projects and documents in initiatives they don't explicitly belong to (such as a guild's default initiative) — the create and visibility checks now honor guild-admin access instead of requiring a per-initiative role.
 - A batch of schema-per-guild fixes: property definitions, uploads and document downloads, account deletion/deactivation cleanup, OIDC role sync, cross-guild calendars, and the "added to initiative" notification all read and write the correct guild's data again.
 - The Initiative logo now displays in emails.
 - Corrected malformed stored defaults for tag and task-status colors and icons.

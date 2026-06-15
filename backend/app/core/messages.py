@@ -81,6 +81,10 @@ class InitiativeMessages:
     MUST_HAVE_PM = "INITIATIVE_MUST_HAVE_PM"
     CANNOT_DELETE_BUILTIN = "INITIATIVE_CANNOT_DELETE_BUILTIN"
     ROLE_HAS_MEMBERS = "INITIATIVE_ROLE_HAS_MEMBERS"
+    # A guild admin already has full access to every initiative; they may only
+    # hold the manager role (for manager-style features), never a standard
+    # member or custom role.
+    GUILD_ADMIN_ROLE_RESTRICTED = "INITIATIVE_GUILD_ADMIN_ROLE_RESTRICTED"
 
 
 class ProjectMessages:

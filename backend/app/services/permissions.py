@@ -25,7 +25,7 @@ from sqlmodel import select
 from app.core.capabilities import Capability, user_has_capability
 from app.core.pam_context import active_grant_level, grant_satisfies, has_active_grant
 from app.core.role_context import active_guild_role
-from app.services.membership import initiative_scope_clause
+from app.services.membership import guild_member_clause, initiative_scope_clause
 
 from app.models.guild import GuildRole
 from app.models.project import (
@@ -186,6 +186,11 @@ def visible_project_ids_subquery(user_id: int):
     after the user was removed from the initiative must not grant access.
     The DB-level RESTRICTIVE policies used to enforce this; under
     schema-per-guild this subquery is the enforcement point.
+
+    A third branch surfaces *every* project in a guild the user administers:
+    guild admins have full access to all of their guild's data regardless of a
+    permission row, so they must see all of it in listings, not only the
+    projects they were explicitly granted.
     """
     user_perm_subq = (
         select(ProjectPermission.project_id)
@@ -200,7 +205,10 @@ def visible_project_ids_subquery(user_id: int):
         (InitiativeMember.role_id == ProjectRolePermission.initiative_role_id)
         & (InitiativeMember.user_id == user_id),
     )
-    return user_perm_subq.union(role_perm_subq)
+    guild_admin_subq = select(Project.id).where(
+        guild_member_clause(user_id, Project.guild_id, role=GuildRole.admin)
+    )
+    return user_perm_subq.union(role_perm_subq, guild_admin_subq)
 
 
 def visible_document_ids_subquery(user_id: int):
@@ -211,7 +219,8 @@ def visible_document_ids_subquery(user_id: int):
 
     The explicit-permission branch is additionally gated on initiative scope
     (member / guild admin / platform bypass) — see
-    ``visible_project_ids_subquery`` for why.
+    ``visible_project_ids_subquery`` for why. The third branch likewise surfaces
+    every document in a guild the user administers.
     """
     user_perm_subq = (
         select(DocumentPermission.document_id)
@@ -226,10 +235,35 @@ def visible_document_ids_subquery(user_id: int):
         (InitiativeMember.role_id == DocumentRolePermission.initiative_role_id)
         & (InitiativeMember.user_id == user_id),
     )
-    return user_perm_subq.union(role_perm_subq)
+    guild_admin_subq = select(Document.id).where(
+        guild_member_clause(user_id, Document.guild_id, role=GuildRole.admin)
+    )
+    return user_perm_subq.union(role_perm_subq, guild_admin_subq)
 
 
 # ── Initiative-scope gate (loaded-data variant) ──────────────────
+
+
+def is_request_guild_admin(
+    guild_id: int | None,
+    *,
+    guild_role: GuildRole | str | None = None,
+) -> bool:
+    """Whether the request acts as a *guild admin* of ``guild_id``.
+
+    Guild roles are strictly guild-scoped — a guild admin has full authority
+    only within their own guild's schema. The role is taken from ``guild_role``
+    when the caller already holds it, otherwise from the request's active-guild
+    role context (``role_context`` is keyed by guild id, so a role recorded for
+    one guild never bleeds into another). This is deliberately independent of
+    app/platform-level roles (``data.bypass``, PAM grants), which reach across
+    guilds through their own separate mechanisms — do not fold those in here.
+    """
+    if guild_id is None:
+        return False
+    role = guild_role if guild_role is not None else active_guild_role(guild_id)
+    role_value = role.value if isinstance(role, GuildRole) else role
+    return role_value == GuildRole.admin.value
 
 
 def initiative_scope_ok(
@@ -242,10 +276,9 @@ def initiative_scope_ok(
     whose ``initiative.memberships`` are already eagerly loaded.
 
     Mirrors the old RESTRICTIVE policy expression: initiative member, OR
-    admin of the entity's guild (from ``guild_role`` if the caller has it,
-    else the request's role context), OR ``data.bypass`` holder, OR a live
-    PAM grant covering the guild (a grantee acts as a member of every
-    initiative in scope).
+    admin of the entity's guild (guild-level), OR ``data.bypass`` holder, OR a
+    live PAM grant covering the guild (the latter two are app-level reach,
+    handled separately from the guild role).
     """
     initiative = getattr(entity, "initiative", None)
     memberships = (
@@ -253,14 +286,14 @@ def initiative_scope_ok(
     ) or []
     if any(m.user_id == user.id for m in memberships):
         return True
+    guild_id = getattr(entity, "guild_id", None)
+    # App-level reach — kept distinct from the guild role below.
     if user_has_capability(user, Capability.DATA_BYPASS):
         return True
-    guild_id = getattr(entity, "guild_id", None)
     if guild_id is not None and has_active_grant(guild_id):
         return True
-    role = guild_role if guild_role is not None else active_guild_role(guild_id)
-    role_value = role.value if isinstance(role, GuildRole) else role
-    return role_value == GuildRole.admin.value
+    # Guild-level: admin of the entity's own guild.
+    return is_request_guild_admin(guild_id, guild_role=guild_role)
 
 
 # ── High-level helpers for projects ─────────────────────────────
@@ -309,17 +342,24 @@ def compute_project_permission(
 ) -> str | None:
     """Compute the effective permission level string for a user on a project.
 
-    Uses eagerly-loaded relationships (permissions, role_permissions,
-    initiative.memberships) so no DB queries are needed.
-    Pure DAC — no guild admin bypass.
+    A guild admin gets ``owner`` — they have full access to all of their guild's
+    data regardless of DAC (see ``require_project_access``), so the
+    ``my_permission_level`` the client sees must report it or the UI would hide
+    edit/delete affordances the API actually honors. This short-circuit also
+    avoids the (otherwise wasted) DAC computation for admins.
+
+    Otherwise pure DAC from eagerly-loaded relationships (permissions,
+    role_permissions, initiative.memberships) so no DB queries are needed,
+    lifted to any active PAM grant level.
     """
+    guild_id = getattr(project, "guild_id", None)
+    if is_request_guild_admin(guild_id):
+        return ProjectPermissionLevel.owner.value
     user_perm = user_permission_from_project(project, user_id)
     user_level = user_perm.level if user_perm else None
     role_level = project_role_permission_level(project, user_id)
     effective = effective_project_permission(user_level, role_level)
-    return lift_level_for_grant(
-        effective.value if effective else None, getattr(project, "guild_id", None)
-    )
+    return lift_level_for_grant(effective.value if effective else None, guild_id)
 
 
 def _effective_project_level(
@@ -349,8 +389,14 @@ def require_project_access(
 
     Access additionally requires initiative scope (member / guild admin /
     platform bypass) — a stale permission row alone never grants access.
+
+    A guild admin has full read/write/owner access to every project in their
+    guild regardless of initiative membership or DAC, so they short-circuit the
+    DAC checks below entirely.
     """
     if grant_satisfies(project.guild_id, access=access, require_owner=require_owner):
+        return
+    if is_request_guild_admin(project.guild_id, guild_role=guild_role):
         return
     if not initiative_scope_ok(project, user, guild_role=guild_role):
         raise HTTPException(
@@ -435,10 +481,16 @@ def compute_document_permission(
 ) -> str | None:
     """Compute the effective permission level string for a user on a document.
 
-    Uses eagerly-loaded relationships (permissions, role_permissions,
-    initiative.memberships) so no DB queries are needed.
-    Pure DAC — no guild admin bypass.
+    A guild admin gets ``owner`` — full access to all of their guild's data
+    regardless of DAC (see ``require_document_access``) — so the client renders
+    edit/delete affordances; the short-circuit also skips the otherwise-wasted
+    DAC computation. Otherwise pure DAC from eagerly-loaded relationships
+    (permissions, role_permissions, initiative.memberships) so no DB queries are
+    needed, lifted to any active PAM grant level.
     """
+    guild_id = getattr(document, "guild_id", None)
+    if is_request_guild_admin(guild_id):
+        return DocumentPermissionLevel.owner.value
     user_level: DocumentPermissionLevel | None = None
     permissions = getattr(document, "permissions", None) or []
     for perm in permissions:
@@ -448,9 +500,7 @@ def compute_document_permission(
 
     role_level = document_role_permission_level(document, user_id)
     effective = effective_document_permission(user_level, role_level)
-    return lift_level_for_grant(
-        effective.value if effective else None, getattr(document, "guild_id", None)
-    )
+    return lift_level_for_grant(effective.value if effective else None, guild_id)
 
 
 def _effective_document_level(
@@ -484,8 +534,14 @@ def require_document_access(
 
     Access additionally requires initiative scope (member / guild admin /
     platform bypass) — a stale permission row alone never grants access.
+
+    A guild admin has full read/write/owner access to every document in their
+    guild regardless of initiative membership or DAC, so they short-circuit the
+    DAC checks below entirely.
     """
     if grant_satisfies(document.guild_id, access=access, require_owner=require_owner):
+        return
+    if is_request_guild_admin(document.guild_id, guild_role=guild_role):
         return
     if not initiative_scope_ok(document, user, guild_role=guild_role):
         raise HTTPException(
