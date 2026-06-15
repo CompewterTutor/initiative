@@ -50,9 +50,6 @@ interface GuildContextValue {
   /** Enter personal (cross-guild) mode server-side. Called when the user
    * lands on the personal home page. */
   syncPersonalContext: () => Promise<void>;
-  /** Adopt a guild switch made in another tab (no server PUT — the other tab
-   * already moved the server-held context). */
-  adoptExternalGuildSwitch: (guildId: number | null) => Promise<void>;
   createGuild: (input: { name: string; description?: string }) => Promise<GuildRead>;
   updateGuildInState: (guild: GuildRead) => void;
   reorderGuilds: (guildIds: number[]) => void;
@@ -62,10 +59,6 @@ interface GuildContextValue {
 export const GuildContext = createContext<GuildContextValue | undefined>(undefined);
 
 const GUILD_STORAGE_KEY = "initiative-active-guild";
-
-/** Fired after this tab adopts a guild switch made in another tab, so a
- * router-aware component can move off a now-wrong guild URL. */
-export const GUILD_CONTEXT_CONVERGED_EVENT = "initiative:guild-context-converged";
 
 const readStoredGuildId = (): number | null => {
   const stored = getItem(GUILD_STORAGE_KEY);
@@ -401,44 +394,11 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pushServerContext]);
 
-  /**
-   * Another tab switched guilds (storage event): the server-held context has
-   * already moved, so converge this tab without re-PUTting — update local
-   * state and drop guild-scoped caches so nothing stale repaints.
-   */
-  const adoptExternalGuildSwitch = useCallback(async (guildId: number | null) => {
-    serverContextRef.current = guildId;
-    setServerGuildId(guildId);
-    if (guildId === null || guildId === activeGuildIdRef.current) {
-      return;
-    }
-    setActiveGuildId(guildId);
-    await resetGuildScopedQueries();
-    // Let a router-aware listener (AppLayout) move this tab off a guild URL
-    // that no longer matches the converged context.
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(GUILD_CONTEXT_CONVERGED_EVENT, { detail: { guildId } }));
-    }
-  }, []);
-
-  // Tabs converge: the user is in exactly one context at a time, everywhere.
-  // When another tab switches guilds it persists the id (storage event fires
-  // only in OTHER tabs) — adopt the switch here so this tab can't keep
-  // operating against a server context that has moved.
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== GUILD_STORAGE_KEY) {
-        return;
-      }
-      const parsed = event.newValue === null ? null : Number(event.newValue);
-      void adoptExternalGuildSwitch(Number.isFinite(parsed as number) ? parsed : null);
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [adoptExternalGuildSwitch]);
+  // Each browser tab holds its OWN guild, taken from its `/g/{guildId}` URL —
+  // tabs do NOT converge. We deliberately do not listen for the guild storage
+  // event, so a guild switch in one tab never drags another tab's context with
+  // it; that is what lets two tabs sit in two different guilds at once. (The
+  // persisted id is only a fresh-tab default, read once at mount.)
 
   const reorderGuilds = useCallback(
     (guildIds: number[]) => {
@@ -544,7 +504,6 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     switchGuild,
     syncGuildFromUrl,
     syncPersonalContext,
-    adoptExternalGuildSwitch,
     createGuild,
     updateGuildInState,
     reorderGuilds,

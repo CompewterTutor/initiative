@@ -5,7 +5,6 @@ import {
   Outlet,
   redirect,
   useLocation,
-  useNavigate,
   useSearch,
 } from "@tanstack/react-router";
 import { Loader2, LogOut, Menu, Plus, Search, Settings, Ticket, UserCog } from "lucide-react";
@@ -28,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { VersionDialog } from "@/components/VersionDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useBackButton } from "@/hooks/useBackButton";
-import { GUILD_CONTEXT_CONVERGED_EVENT, useGuilds } from "@/hooks/useGuilds";
+import { useGuilds } from "@/hooks/useGuilds";
 import { useLegacyFilterStorageMigration } from "@/hooks/useLegacyFilterStorageMigration";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
@@ -91,7 +90,6 @@ function AppLayout() {
     syncPersonalContext,
   } = useGuilds();
   const location = useLocation();
-  const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { authenticated?: string };
   // Check if we just authenticated (search param passed via navigation)
   const justAuthenticated = search?.authenticated === "1";
@@ -110,20 +108,8 @@ function AppLayout() {
     }
   }, [user, location.pathname, syncPersonalContext]);
 
-  // Cross-tab convergence: when another tab switched guilds and this tab is
-  // sitting on a guild URL that no longer matches, follow the switch instead
-  // of repainting the old URL with the new guild's data.
-  useEffect(() => {
-    const onConverged = (event: Event) => {
-      const guildId = (event as CustomEvent<{ guildId: number }>).detail?.guildId;
-      const match = window.location.pathname.match(/^\/g\/(\d+)/);
-      if (guildId && match && Number(match[1]) !== guildId) {
-        void navigate({ to: "/g/$guildId", params: { guildId: String(guildId) } });
-      }
-    };
-    window.addEventListener(GUILD_CONTEXT_CONVERGED_EVENT, onConverged);
-    return () => window.removeEventListener(GUILD_CONTEXT_CONVERGED_EVENT, onConverged);
-  }, [navigate]);
+  // No cross-tab guild convergence: each tab keeps the guild from its own URL,
+  // so two tabs can sit in two different guilds at once.
 
   // The tabs bar is cross-guild by design (names only): one user-context
   // query, valid in any guild and in personal mode.
