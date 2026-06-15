@@ -19,7 +19,7 @@ from app.models.document import (
     DocumentPermissionLevel,
     DocumentType,
 )
-from app.testing.factories import (
+from app.testing import (
     create_guild,
     create_guild_membership,
     create_initiative,
@@ -116,7 +116,16 @@ async def test_sync_content_rejects_non_member(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """A validly-authenticated user who is not a member of the path guild can't
-    sync into it — the guild boundary holds independent of how auth arrived."""
+    sync into it — the guild boundary holds independent of how auth arrived.
+
+    Note the 200-with-error-body (not a 403): this endpoint fires from a
+    page-unload ``keepalive`` fetch whose response the client never reads, so
+    every app-level failure (bad JSON, no guild access, not found, no write
+    access) reports a soft ``{"status": "error"}`` rather than an HTTP error.
+    That contract predates this change and is deliberately preserved. Only
+    *authentication* now hard-fails (401), because that is enforced by the
+    ``UploadUserDep`` dependency before the handler runs.
+    """
     owner = await create_user(session)
     guild = await create_guild(session, creator=owner)
     await create_guild_membership(session, user=owner, guild=guild)
