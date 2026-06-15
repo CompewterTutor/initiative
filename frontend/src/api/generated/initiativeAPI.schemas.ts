@@ -1213,16 +1213,6 @@ export interface GuildAISettingsUpdate {
   clear_settings?: boolean;
 }
 
-/**
- * Body for ``PUT /users/me/guild-context``.
- *
- * ``guild_id`` is the guild the user is entering; ``null`` enters personal
- * (cross-guild) mode.
- */
-export interface GuildContextUpdate {
-  guild_id?: number | null;
-}
-
 export interface GuildCreate {
   name: string;
   description?: string | null;
@@ -3250,7 +3240,6 @@ export interface UserRead {
   task_completion_haptic_feedback: boolean;
   locale: string;
   oidc_sub: string | null;
-  active_guild_id: number | null;
   initiative_roles: UserInitiativeRole[];
   readonly can_create_guilds: boolean;
   /**

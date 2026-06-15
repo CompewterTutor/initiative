@@ -8,7 +8,7 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 import { Loader2, LogOut, Menu, Plus, Search, Settings, Ticket, UserCog } from "lucide-react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { RecentItemRead } from "@/api/generated/initiativeAPI.schemas";
@@ -82,13 +82,7 @@ function AppLayout() {
     []
   );
   const shortcutLabel = isMac ? "\u2318K" : "Ctrl+K";
-  const {
-    guilds,
-    loading: guildsLoading,
-    canCreateGuilds,
-    createGuild,
-    syncPersonalContext,
-  } = useGuilds();
+  const { guilds, loading: guildsLoading, canCreateGuilds, createGuild } = useGuilds();
   const location = useLocation();
   const search = useSearch({ strict: false }) as { authenticated?: string };
   // Check if we just authenticated (search param passed via navigation)
@@ -99,14 +93,6 @@ function AppLayout() {
   usePushNotifications();
   useBackButton();
   useLegacyFilterStorageMigration();
-
-  // Landing on the personal home page enters personal (cross-guild) mode
-  // server-side; guild routes set their context in the /g/$guildId layout.
-  useEffect(() => {
-    if (user && location.pathname === "/") {
-      void syncPersonalContext();
-    }
-  }, [user, location.pathname, syncPersonalContext]);
 
   // No cross-tab guild convergence: each tab keeps the guild from its own URL,
   // so two tabs can sit in two different guilds at once.

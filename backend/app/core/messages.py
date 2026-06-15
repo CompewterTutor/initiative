@@ -31,9 +31,9 @@ class AuthMessages:
 
 
 class GuildMessages:
-    # Raised (409) when a single-guild endpoint is called with no guild
-    # context (users.active_guild_id is NULL — personal mode, or no guilds at
-    # all). The client enters a guild first via PUT /users/me/guild-context.
+    # Legacy code for "no guild context". Guild is now resolved from the
+    # ``/g/{guild_id}`` path and a missing/forbidden guild returns 403
+    # GUILD_ACCESS_DENIED; kept for the frontend error map's back-compat.
     NO_GUILD_MEMBERSHIP = "NO_GUILD_MEMBERSHIP"
     GUILD_ACCESS_DENIED = "GUILD_ACCESS_DENIED"
     GUILD_PERMISSION_REQUIRED = "GUILD_PERMISSION_REQUIRED"

@@ -12,7 +12,6 @@ import {
 
 import { apiClient, setCurrentGuildId } from "@/api/client";
 import type { AccessGrantRead, GuildRead } from "@/api/generated/initiativeAPI.schemas";
-import { setGuildContextApiV1UsersMeGuildContextPut } from "@/api/generated/users/users";
 import { resetGuildScopedQueries } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/lib/chesterToast";
@@ -32,12 +31,10 @@ export type GuildEntry = GuildRead & {
 
 interface GuildContextValue {
   guilds: GuildEntry[];
+  /** This tab's guild, taken from its `/g/{guildId}` URL (the route layout
+   * calls syncGuildFromUrl). Per-tab — no server-held context — so two tabs can
+   * sit in two different guilds at once. */
   activeGuildId: number | null;
-  /** The guild the SERVER currently holds for this user (users.active_guild_id
-   * mirror); null = personal mode. Unlike activeGuildId (the local "last
-   * guild" preference), this is what actually scopes requests — long-lived
-   * consumers like the events websocket must key off it. */
-  serverGuildId: number | null;
   activeGuild: GuildEntry | null;
   /** True when the active guild is reached via a read-only grant — writes are
    * blocked server-side, so the UI should hide write affordances. */
@@ -47,9 +44,6 @@ interface GuildContextValue {
   refreshGuilds: () => Promise<void>;
   switchGuild: (guildId: number) => Promise<void>;
   syncGuildFromUrl: (guildId: number) => Promise<void>;
-  /** Enter personal (cross-guild) mode server-side. Called when the user
-   * lands on the personal home page. */
-  syncPersonalContext: () => Promise<void>;
   createGuild: (input: { name: string; description?: string }) => Promise<GuildRead>;
   updateGuildInState: (guild: GuildRead) => void;
   reorderGuilds: (guildIds: number[]) => void;
@@ -130,38 +124,6 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     setCurrentGuildId(activeGuildId);
     persistGuildId(activeGuildId);
   }, [activeGuildId]);
-
-  // The guild context the server currently holds for this user
-  // (users.active_guild_id; null = personal mode). Seeded from the loaded
-  // user so a fresh tab doesn't re-PUT a context the server already has.
-  // The ref is the synchronous source of truth for the idempotence check;
-  // the state mirror lets reactive consumers (events websocket) follow it.
-  const serverContextRef = useRef<number | null | undefined>(undefined);
-  const [serverGuildId, setServerGuildId] = useState<number | null>(null);
-  useEffect(() => {
-    if (user && serverContextRef.current === undefined) {
-      serverContextRef.current = user.active_guild_id ?? null;
-      setServerGuildId(user.active_guild_id ?? null);
-    }
-    if (!user) {
-      serverContextRef.current = undefined;
-      setServerGuildId(null);
-    }
-  }, [user]);
-
-  /** Push the server-held guild context (idempotent). All guild-scoped
-   * requests resolve their guild from this flag, so it must land before the
-   * new context's fetches fire. Returns true when the server context actually
-   * changed (a PUT was sent). Throws if the PUT fails. */
-  const pushServerContext = useCallback(async (guildId: number | null) => {
-    if (serverContextRef.current === guildId) {
-      return false;
-    }
-    await setGuildContextApiV1UsersMeGuildContextPut({ guild_id: guildId });
-    serverContextRef.current = guildId;
-    setServerGuildId(guildId);
-    return true;
-  }, []);
 
   const applyGuildState = useCallback((guildList: GuildEntry[]) => {
     const sortedGuilds = sortGuilds(guildList);
@@ -298,101 +260,34 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
 
   const switchGuild = useCallback(
     async (guildId: number) => {
-      // Don't switch if we are already there
+      // The guild lives in the URL: callers navigate to /g/{guildId} and the
+      // route layout calls syncGuildFromUrl. Here we just move this tab's local
+      // state and drop the previous guild's now-wrong cached query data. No
+      // server context — per-tab only, so two tabs can hold different guilds.
       if (!user || guildId === activeGuildIdRef.current) {
-        // Still make sure the server context matches (e.g. coming back from
-        // personal mode to the already-highlighted guild) — and if it moved,
-        // refetch the guild-scoped queries that errored without it.
-        try {
-          if (await pushServerContext(guildId)) {
-            await resetGuildScopedQueries();
-          }
-        } catch (err) {
-          console.error("Failed to set guild context", err);
-        }
         return;
       }
-
-      // The server-held context must land BEFORE the new guild's fetches —
-      // every guild-scoped request resolves its guild from it.
-      try {
-        await pushServerContext(guildId);
-      } catch (err) {
-        console.error("Failed to set guild context", err);
-        toast.error("Unable to switch guild. Please try again.");
-        return;
-      }
-
-      // Update local state so UI reacts
       setActiveGuildId(guildId);
-
-      // Clear guild-scoped query cache so stale data from the previous guild isn't shown
       await resetGuildScopedQueries();
-
-      // Refresh data in background to ensure everything is synced
       await Promise.all([refreshGuilds(), refreshUser()]);
     },
-    [user, pushServerContext, refreshGuilds, refreshUser]
+    [user, refreshGuilds, refreshUser]
   );
 
   /**
-   * Sync guild context from URL without full navigation.
-   * Used by guild-scoped routes to sync context from URL params (deep links,
-   * opened tabs, cross-guild navigation).
+   * Adopt the guild from a /g/{guildId} route into this tab's local state
+   * (rail highlight, redirect targets, query keys). Per-tab only — no server
+   * context — so each tab tracks the guild in its own URL.
    */
-  const syncGuildFromUrl = useCallback(
-    async (guildId: number) => {
-      // Always converge the server-held context first — the local id can
-      // already match while the server flag points elsewhere (fresh tab,
-      // return from personal mode). pushServerContext is idempotent.
-      let contextChanged = false;
-      try {
-        contextChanged = await pushServerContext(guildId);
-      } catch (err) {
-        // Abort: flipping the local UI into a guild the server context never
-        // reached would have every guild-scoped request resolving under the
-        // OLD context — wrong guild, no error indication. Leave local state
-        // alone so UI and server stay consistent; the user can retry.
-        console.error("Failed to set guild context", err);
-        toast.error("Unable to enter guild. Please try again.");
-        return;
-      }
-
-      if (guildId === activeGuildIdRef.current) {
-        // The local guild didn't change but the SERVER context did (e.g.
-        // returning to the guild from personal mode, where guild-scoped
-        // queries 409ed): those cached errors/empties won't refetch on their
-        // own — sidebar counts would stay zeroed — so reset them now that
-        // requests resolve in this guild again.
-        if (contextChanged) {
-          await resetGuildScopedQueries();
-        }
-        return;
-      }
-
-      // Update local state immediately
-      setActiveGuildId(guildId);
-      setCurrentGuildId(guildId);
-      persistGuildId(guildId);
-
-      // Clear guild-scoped query cache so stale data from the previous guild isn't shown
-      await resetGuildScopedQueries();
-    },
-    [pushServerContext]
-  );
-
-  /**
-   * Enter personal (cross-guild) mode server-side. The local activeGuildId is
-   * kept as the user's "last guild" for rail highlight and redirect targets —
-   * only the server-held flag goes null.
-   */
-  const syncPersonalContext = useCallback(async () => {
-    try {
-      await pushServerContext(null);
-    } catch (err) {
-      console.error("Failed to enter personal mode", err);
+  const syncGuildFromUrl = useCallback(async (guildId: number) => {
+    if (guildId === activeGuildIdRef.current) {
+      return;
     }
-  }, [pushServerContext]);
+    setActiveGuildId(guildId);
+    setCurrentGuildId(guildId);
+    persistGuildId(guildId);
+    await resetGuildScopedQueries();
+  }, []);
 
   // Each browser tab holds its OWN guild, taken from its `/g/{guildId}` URL —
   // tabs do NOT converge. We deliberately do not listen for the guild storage
@@ -495,7 +390,6 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
   const value: GuildContextValue = {
     guilds,
     activeGuildId,
-    serverGuildId,
     activeGuild,
     activeGuildReadOnly,
     loading,
@@ -503,7 +397,6 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
     refreshGuilds,
     switchGuild,
     syncGuildFromUrl,
-    syncPersonalContext,
     createGuild,
     updateGuildInState,
     reorderGuilds,

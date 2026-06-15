@@ -1,3 +1,4 @@
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { API_BASE_URL } from "@/api/client";
@@ -13,7 +14,6 @@ import {
 } from "@/api/query-keys";
 
 import { useAuth } from "./useAuth";
-import { useGuilds } from "./useGuilds";
 
 // Message type for authentication (must match backend)
 const MSG_AUTH = 5;
@@ -95,12 +95,12 @@ const handleCommentEvent = (data?: Record<string, unknown>) => {
 
 export const useRealtimeUpdates = () => {
   const { token, user, logout } = useAuth();
-  // Key the socket off the SERVER-held context, not the local "last guild"
-  // preference: the backend scopes the stream to users.active_guild_id and
-  // policy-closes the socket when it's NULL (personal mode). Connecting off
-  // the local preference while in personal mode would auth-fail repeatedly
-  // and eventually force a logout.
-  const { serverGuildId } = useGuilds();
+  // Key the socket off THIS tab's URL guild (the /g/{guildId} route param), so
+  // each tab streams its own guild. On personal routes (/, /me/*) there's no
+  // param → null → no socket. The backend authorizes the socket from the same
+  // path segment, so the URL is the single source of truth.
+  const params = useParams({ strict: false }) as { guildId?: string };
+  const routeGuildId = params.guildId ? Number(params.guildId) : null;
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const authFailureCountRef = useRef<number>(0);
@@ -108,7 +108,7 @@ export const useRealtimeUpdates = () => {
   useEffect(() => {
     // The socket is scoped to a single guild — in personal mode there's
     // nothing to subscribe to, and the backend would reject the auth payload.
-    if (!user || serverGuildId === null) {
+    if (!user || routeGuildId === null) {
       if (websocketRef.current) {
         websocketRef.current.close();
         websocketRef.current = null;
@@ -120,9 +120,9 @@ export const useRealtimeUpdates = () => {
       authFailureCountRef.current = 0;
       return;
     }
-    // serverGuildId is non-null past the guard; capture as a number for the
-    // /g/{guildId} websocket path used in the connect() closure below.
-    const guildId = serverGuildId;
+    // routeGuildId is non-null past the guard; capture for the /g/{guildId}
+    // websocket path used in the connect() closure below.
+    const guildId = routeGuildId;
 
     let isActive = true;
 
@@ -219,5 +219,5 @@ export const useRealtimeUpdates = () => {
         websocketRef.current = null;
       }
     };
-  }, [token, user, serverGuildId, logout]);
+  }, [token, user, routeGuildId, logout]);
 };
