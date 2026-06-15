@@ -209,7 +209,7 @@ export const MyCalendarPage = () => {
       if (table.guildFilters.length > 0) {
         params.guild_ids = table.guildFilters;
       }
-      const response = await apiClient.get("/api/v1/me/calendar-events/export.ics", {
+      const response = await apiClient.get("/me/calendar-events/export.ics", {
         params,
         responseType: "blob",
       });

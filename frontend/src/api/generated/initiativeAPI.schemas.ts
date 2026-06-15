@@ -3892,7 +3892,7 @@ export type GetDocumentCollaboratorsApiV1GGuildIdCollaborationDocumentsDocumentI
 
 export type SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams =
   {
-    token: string;
+    token?: string | null;
   };
 
 export type ListMyTasksApiV1MeTasksGetParams = {

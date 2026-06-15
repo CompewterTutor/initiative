@@ -296,10 +296,13 @@ export function useGetDocumentCollaboratorsApiV1GGuildIdCollaborationDocumentsDo
 /**
  * Sync Lexical content from the frontend to the database.
  *
- * Called via navigator.sendBeacon on page unload to keep the content column
- * in sync with yjs_state. sendBeacon can't set headers, so this authenticates
- * with a ``?token=`` query param and takes the guild from the ``/g/{guild_id}``
- * path — the document being synced was open inside that guild.
+ * Called via a ``keepalive`` fetch on page unload to keep the content column
+ * in sync with yjs_state. Authenticates with the same header-less scheme as
+ * ``/uploads/*`` and document downloads (``UploadUserDep``): the HttpOnly
+ * session cookie on web, a short-lived uploads-scoped ``?token=`` on native —
+ * so the long-lived session JWT never rides in a URL (SEC-12), unlike the
+ * earlier ``?token=<session jwt>`` version. The guild comes from the
+ * ``/g/{guild_id}`` path — the document being synced was open inside it.
  *
  * The request body should contain the Lexical serialized state as JSON.
  * @summary Sync Document Content
@@ -307,7 +310,7 @@ export function useGetDocumentCollaboratorsApiV1GGuildIdCollaborationDocumentsDo
 export const syncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPost = (
   guildId: number,
   documentId: number,
-  params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams,
+  params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams,
   options?: SecondParameter<typeof apiMutator>,
   signal?: AbortSignal
 ) => {
@@ -334,7 +337,7 @@ export const getSyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentId
       {
         guildId: number;
         documentId: number;
-        params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
+        params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
       },
       TContext
     >;
@@ -349,7 +352,7 @@ export const getSyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentId
     {
       guildId: number;
       documentId: number;
-      params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
+      params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
     },
     TContext
   > => {
@@ -371,7 +374,7 @@ export const getSyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentId
       {
         guildId: number;
         documentId: number;
-        params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
+        params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
       }
     > = (props) => {
       const { guildId, documentId, params } = props ?? {};
@@ -417,7 +420,7 @@ export const useSyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentId
       {
         guildId: number;
         documentId: number;
-        params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
+        params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
       },
       TContext
     >;
@@ -434,7 +437,7 @@ export const useSyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentId
   {
     guildId: number;
     documentId: number;
-    params: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
+    params?: SyncDocumentContentApiV1GGuildIdCollaborationDocumentsDocumentIdSyncContentPostParams;
   },
   TContext
 > => {

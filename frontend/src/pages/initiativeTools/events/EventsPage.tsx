@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { useActiveGuildId } from "@/hooks/useActiveGuildId";
 import { useAuth } from "@/hooks/useAuth";
 import { useCalendarEventsList, useRescheduleCalendarEvent } from "@/hooks/useCalendarEvents";
 import {
@@ -104,6 +105,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
   const router = useRouter();
   const { user } = useAuth();
   const gp = useGuildPath();
+  const guildId = useActiveGuildId();
   const searchParams = useSearch({ strict: false }) as {
     initiativeId?: string;
     create?: string;
@@ -397,7 +399,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
       if (initiativeId) {
         params.initiative_id = String(initiativeId);
       }
-      const response = await apiClient.get("/api/v1/calendar-events/export.ics", {
+      const response = await apiClient.get(`/g/${guildId}/calendar-events/export.ics`, {
         params,
         responseType: "blob",
       });
@@ -410,7 +412,7 @@ export const EventsView = ({ fixedInitiativeId, canCreate }: EventsViewProps) =>
     } catch {
       toast.error(t("export.exportError"));
     }
-  }, [initiativeId, t]);
+  }, [guildId, initiativeId, t]);
 
   const statusOptions = useMemo(
     () =>
