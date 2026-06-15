@@ -27,7 +27,7 @@ dependencies = [
     "icalendar>=6.0.0",                  # iCal import/export
     "nh3>=0.3.5,<0.4",                   # HTML sanitization for schema inputs
     # Collaboration (Yjs CRDT): pycrdt-websocket 0.16.1 requires pycrdt>=0.13,<0.14; keep aligned.
-    "pycrdt>=0.13.0,<0.14",
+    "pycrdt>=0.13.0,<0.15",
     "pycrdt-websocket>=0.16.1,<0.17",
     "premailer>=3.10.0",
 ]
