@@ -258,11 +258,11 @@ def test_verify_upload_token_rejects_expired_token():
 
 
 @pytest.mark.unit
-def test_session_jwt_signed_with_dedicated_jwt_secret_key(monkeypatch):
-    """When JWT_SECRET_KEY is set, session JWTs are signed/verified with it — so it
+def test_session_jwt_signed_with_dedicated_jwt_signing_key(monkeypatch):
+    """When JWT_SIGNING_KEY is set, session JWTs are signed/verified with it — so it
     can be rotated independently of the encryption-rooting SECRET_KEY."""
     jwt_key = "j" * 48
-    monkeypatch.setattr(security.settings, "JWT_SECRET_KEY", jwt_key)
+    monkeypatch.setattr(security.settings, "JWT_SIGNING_KEY", jwt_key)
 
     token = security.create_access_token(subject="7", token_version=1)
     # Verifies under the dedicated key...
@@ -278,15 +278,15 @@ def test_session_jwt_signed_with_dedicated_jwt_secret_key(monkeypatch):
 
 
 @pytest.mark.unit
-def test_jwt_secret_key_does_not_affect_encryption(monkeypatch):
-    """Setting/rotating JWT_SECRET_KEY must not change encryption or the email HMAC —
+def test_jwt_signing_key_does_not_affect_encryption(monkeypatch):
+    """Setting/rotating JWT_SIGNING_KEY must not change encryption or the email HMAC —
     those are rooted in SECRET_KEY alone, so a JWT rotation can't orphan data."""
     from app.core.encryption import SALT_EMAIL, encrypt_field, hash_email
 
     before_ct = encrypt_field("alice@example.com", SALT_EMAIL)
     before_hash = hash_email("alice@example.com")
 
-    monkeypatch.setattr(security.settings, "JWT_SECRET_KEY", "j" * 48)
+    monkeypatch.setattr(security.settings, "JWT_SIGNING_KEY", "j" * 48)
 
     # Same email hash, and the pre-rotation ciphertext still decrypts.
     from app.core.encryption import decrypt_field

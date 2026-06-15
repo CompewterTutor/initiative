@@ -90,7 +90,7 @@ _SECRET_KEY_ROTATION_HINT = (
 
 
 def _validate_strong_key(value: str, var_name: str, *, rotation_hint: bool) -> str:
-    """Enforce the shared strength rules for SECRET_KEY / JWT_SECRET_KEY: non-empty,
+    """Enforce the shared strength rules for SECRET_KEY / JWT_SIGNING_KEY: non-empty,
     not a known placeholder, no surrounding whitespace, >= 32 chars. ``rotation_hint``
     appends the safe-change instructions for keys that encrypt stored data."""
     hint = _SECRET_KEY_ROTATION_HINT if rotation_hint else ""
@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     # signed and verified with this instead of SECRET_KEY (see ``jwt_signing_key``),
     # so it can be rotated freely — the only cost is forcing every user to re-login,
     # with no impact on encrypted-at-rest data. Falls back to SECRET_KEY when unset.
-    JWT_SECRET_KEY: str | None = None
+    JWT_SIGNING_KEY: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     ALGORITHM: str = "HS256"
     COOKIE_NAME: str = "session_token"
@@ -162,22 +162,22 @@ class Settings(BaseSettings):
         # fix — "just set a new key" — silently orphans all encrypted data.
         return _validate_strong_key(value, "SECRET_KEY", rotation_hint=True)
 
-    @field_validator("JWT_SECRET_KEY")
+    @field_validator("JWT_SIGNING_KEY")
     @classmethod
-    def _validate_jwt_secret_key(cls, value: str | None) -> str | None:
+    def _validate_jwt_signing_key(cls, value: str | None) -> str | None:
         # Optional, but when present it signs JWTs, so hold it to the same strength
         # bar as SECRET_KEY. No rotation hint: rotating it only forces re-login, so a
         # bare swap is the correct fix.
         if value is None:
             return None
-        return _validate_strong_key(value, "JWT_SECRET_KEY", rotation_hint=False)
+        return _validate_strong_key(value, "JWT_SIGNING_KEY", rotation_hint=False)
 
     @property
     def jwt_signing_key(self) -> str:
-        """Key used to sign/verify JWTs. Prefers the dedicated JWT_SECRET_KEY so it
+        """Key used to sign/verify JWTs. Prefers the dedicated JWT_SIGNING_KEY so it
         can be rotated without touching encrypted-at-rest data; falls back to
         SECRET_KEY for deployments that haven't set one."""
-        return self.JWT_SECRET_KEY or self.SECRET_KEY
+        return self.JWT_SIGNING_KEY or self.SECRET_KEY
 
     @property
     def app_url_is_https(self) -> bool:

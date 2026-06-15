@@ -58,7 +58,7 @@ def test_secret_key_failure_points_at_safe_rotation_path():
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# PREVIOUS_SECRET_KEY / JWT_SECRET_KEY / jwt_signing_key
+# PREVIOUS_SECRET_KEY / JWT_SIGNING_KEY / jwt_signing_key
 # ──────────────────────────────────────────────────────────────────────────
 
 
@@ -74,23 +74,23 @@ def test_previous_secret_key_taken_verbatim_without_validation():
 
 def test_jwt_signing_key_falls_back_to_secret_key_when_unset():
     settings = _settings()
-    assert settings.JWT_SECRET_KEY is None
+    assert settings.JWT_SIGNING_KEY is None
     assert settings.jwt_signing_key == settings.SECRET_KEY
 
 
 def test_jwt_signing_key_prefers_dedicated_key_when_set():
     other = "c" * 48
-    settings = _settings(JWT_SECRET_KEY=other)
+    settings = _settings(JWT_SIGNING_KEY=other)
     assert settings.jwt_signing_key == other
     assert settings.jwt_signing_key != settings.SECRET_KEY
 
 
-def test_jwt_secret_key_enforces_strong_rules_when_set():
+def test_jwt_signing_key_enforces_strong_rules_when_set():
     # Same bar as SECRET_KEY, but only when present.
-    with pytest.raises(ValidationError, match="JWT_SECRET_KEY"):
-        _settings(JWT_SECRET_KEY="tooshort")
-    with pytest.raises(ValidationError, match="JWT_SECRET_KEY"):
-        _settings(JWT_SECRET_KEY="change-me")
+    with pytest.raises(ValidationError, match="JWT_SIGNING_KEY"):
+        _settings(JWT_SIGNING_KEY="tooshort")
+    with pytest.raises(ValidationError, match="JWT_SIGNING_KEY"):
+        _settings(JWT_SIGNING_KEY="change-me")
 
 
 def test_cors_allowed_origins_accepts_comma_separated_string():

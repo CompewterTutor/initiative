@@ -392,16 +392,6 @@ async def on_startup() -> None:
     # deployment (SPA served from a host other than APP_URL) is self-diagnosing.
     logger.info("CORS allowed origins: %s", settings.cors_origins)
 
-    # Nudge operators mid-rotation: PREVIOUS_SECRET_KEY lingering after the sweep
-    # keeps the old encryption key loadable indefinitely. WARNING so it survives
-    # INFO-filtered logs.
-    if settings.PREVIOUS_SECRET_KEY:
-        logger.warning(
-            "PREVIOUS_SECRET_KEY is set — a SECRET_KEY rotation is in progress. Run "
-            "`python -m app.db.secret_key_rotation`, then UNSET PREVIOUS_SECRET_KEY "
-            "to finish retiring the old key."
-        )
-
     install_soft_delete_filter()
     await check_pre_baseline_db()
     await run_migrations()
