@@ -392,6 +392,16 @@ async def on_startup() -> None:
     # deployment (SPA served from a host other than APP_URL) is self-diagnosing.
     logger.info("CORS allowed origins: %s", settings.cors_origins)
 
+    # Nudge operators mid-rotation: PREVIOUS_SECRET_KEY lingering after the sweep
+    # keeps the old encryption key loadable indefinitely. WARNING so it survives
+    # INFO-filtered logs.
+    if settings.PREVIOUS_SECRET_KEY:
+        logger.warning(
+            "PREVIOUS_SECRET_KEY is set — a SECRET_KEY rotation is in progress. Run "
+            "`python -m app.db.secret_key_rotation`, then UNSET PREVIOUS_SECRET_KEY "
+            "to finish retiring the old key."
+        )
+
     install_soft_delete_filter()
     await check_pre_baseline_db()
     await run_migrations()
@@ -423,6 +433,13 @@ async def on_startup() -> None:
             backfill.provisioned,
             backfill.total,
         )
+    # Rotate SECRET_KEY-derived data (encrypted fields + email_hash) when
+    # PREVIOUS_SECRET_KEY names a prior key. Runs after guild schemas exist and
+    # before traffic is served, so a packaged deploy rotates itself on boot.
+    # Idempotent — a no-op once rotated (then unset PREVIOUS_SECRET_KEY).
+    from app.db.secret_key_rotation import maybe_rotate_at_startup
+
+    await maybe_rotate_at_startup()
     async with AdminSessionLocal() as session:
         await app_settings_service.ensure_defaults(session)
     app.state.notification_tasks = background_tasks_service.start_background_tasks()
