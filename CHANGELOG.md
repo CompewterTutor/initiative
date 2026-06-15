@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Initiative logo now displays in emails.
 - Corrected malformed stored defaults for tag and task-status colors and icons.
 - Spell-check dictionaries, Excalidraw whiteboard fonts, and the Swagger API docs page are no longer blocked by the Content-Security-Policy.
+- Opening the user or theme menu from the sidebar footer on mobile no longer collapses the sidebar.
 
 ### Security
 
