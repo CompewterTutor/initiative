@@ -143,6 +143,7 @@ async def _check_document_access(
 @router.websocket("/documents/{document_id}/collaborate")
 async def websocket_collaborate(
     websocket: WebSocket,
+    guild_id: int,
     document_id: int,
 ):
     """
@@ -150,7 +151,7 @@ async def websocket_collaborate(
 
     Protocol:
     1. Client connects and sends MSG_AUTH with {token} as first message; the
-       guild comes from the user's server-held context (users.active_guild_id)
+       guild comes from the ``/g/{guild_id}`` path segment
     2. Server validates auth and sends current Yjs state (SYNC_STEP2)
     3. Client sends incremental updates (UPDATE)
     4. Server broadcasts updates to other clients
@@ -209,19 +210,7 @@ async def websocket_collaborate(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        # The document lives in the user's server-held guild context — a
-        # collaboration socket is only ever opened from the document's page,
-        # which required entering its guild first. Personal mode → no guild to
-        # collaborate in.
-        guild_id = user.active_guild_id
-        if guild_id is None:
-            logger.warning(
-                f"Collaboration: user {user.id} has no guild context "
-                f"for document {document_id}"
-            )
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
+        # The document lives in the path-addressed guild (``/g/{guild_id}/``).
         # Resolve access: real membership, or a live PAM grant. Set the RLS
         # context accordingly so the document (and its checks) are visible.
         # Query under a minimal user-only context first.

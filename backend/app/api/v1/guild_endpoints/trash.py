@@ -1,7 +1,7 @@
 """Trash-can endpoints: list / restore / immediate-purge.
 
-All routes operate on the active guild (the user's server-held context,
-``users.active_guild_id``). The list
+Guild routes operate on the guild in the ``/g/{guild_id}`` path; the
+cross-guild ``/me/trash`` view (see ``me_trash.py``) spans the user's guilds. The list
 endpoint uses 9 separate per-entity queries merged in Python rather than a
 literal SQL UNION ALL — pragmatic and easier to filter; the spec calls out
 moving to a polymorphic trash index later if it gets slow.

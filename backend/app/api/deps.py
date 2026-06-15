@@ -74,10 +74,9 @@ async def _authenticate_auto_delegation(
     A verified token also pins the request's guild context to the token's
     ``guild_id`` claim (via ``request.state.delegated_guild_id``): delegation
     tokens are minted for exactly one guild, and a machine caller has no
-    server-held context of its own to resolve from. The claim takes
-    precedence over the named user's ``active_guild_id`` flag, so an auto
-    workflow always acts in the guild its token was issued for — never in
-    whatever guild the human happens to be viewing.
+    guild context of its own to resolve from. The claim is validated against
+    the user's memberships and must agree with the ``/g/{guild_id}`` path, so an
+    auto workflow always acts in the guild its token was issued for.
     """
     if not settings.AUTO_DELEGATION_PUBLIC_KEY_PEM:
         return None  # delegation disabled — let other auth paths run

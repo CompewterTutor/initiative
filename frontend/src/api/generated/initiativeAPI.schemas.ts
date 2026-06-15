@@ -1026,6 +1026,7 @@ export interface DocumentSummary {
   featured_image_url: string | null;
   is_template: boolean;
   id: number;
+  guild_id: number;
   created_by_id: number;
   updated_by_id: number;
   created_at: string;
@@ -1089,6 +1090,7 @@ export interface DocumentRead {
   featured_image_url: string | null;
   is_template: boolean;
   id: number;
+  guild_id: number;
   created_by_id: number;
   updated_by_id: number;
   created_at: string;
@@ -1209,16 +1211,6 @@ export interface GuildAISettingsUpdate {
   allow_user_override?: boolean | null;
   /** If true, clears all guild AI settings to inherit from platform */
   clear_settings?: boolean;
-}
-
-/**
- * Body for ``PUT /users/me/guild-context``.
- *
- * ``guild_id`` is the guild the user is entering; ``null`` enters personal
- * (cross-guild) mode.
- */
-export interface GuildContextUpdate {
-  guild_id?: number | null;
 }
 
 export interface GuildCreate {
@@ -3248,7 +3240,6 @@ export interface UserRead {
   task_completion_haptic_feedback: boolean;
   locale: string;
   oidc_sub: string | null;
-  active_guild_id: number | null;
   initiative_roles: UserInitiativeRole[];
   readonly can_create_guilds: boolean;
   /**

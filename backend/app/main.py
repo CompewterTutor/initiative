@@ -130,16 +130,17 @@ app.add_middleware(
 )
 
 
-@app.get("/uploads/{filename:path}", include_in_schema=False)
+@app.get("/uploads/{guild_id}/{filename:path}", include_in_schema=False)
 @limiter.limit("600/minute")
 async def serve_upload_file(
     request: Request,
+    guild_id: int,
     filename: str,
     current_user: Annotated[User, Depends(get_upload_user)],
     session: Annotated[AsyncSession, Depends(get_admin_session)],
 ) -> FileResponse:
     """Serve an uploaded file — requires authentication and an Upload row in
-    the requester's ACTIVE guild."""
+    the path-addressed guild."""
     from pathlib import Path as FilePath
 
     from sqlalchemy import text
@@ -152,22 +153,19 @@ async def serve_upload_file(
     if not file_path.is_file():
         raise HTTPException(status_code=404)
 
-    # Guild authorization via the server-held context: media is referenced by
-    # pages inside a guild, and the user row (loaded during auth) carries the
-    # guild they're in (``users.active_guild_id``). Resolve → validate access
-    # (membership or live PAM grant — defense in depth on top of the validated
-    # context PUT) → route into that ONE guild schema and look the filename up
-    # there. Fail closed: no context, no access, no schema, or no Upload row in
-    # the active guild all 404 without confirming the blob exists. The frozen
-    # ``public.uploads`` backup is never read.
+    # Guild authorization via the ``/uploads/{guild_id}/…`` path: media is
+    # referenced by pages inside a guild, and ``<img>``/iframe can't send headers,
+    # so the guild rides in the URL (and a cookie is per-browser, not per-tab).
+    # Validate access (membership or live PAM grant) against the path guild →
+    # route into that ONE guild schema and look the filename up there. Fail
+    # closed: no access, no schema, or no Upload row in that guild all 404
+    # without confirming the blob exists. The frozen ``public.uploads`` backup
+    # is never read.
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
     from app.services import access_grants as access_grants_service
     from app.services import guilds as guilds_service
 
-    guild_id = current_user.active_guild_id
-    if guild_id is None:
-        raise HTTPException(status_code=404)
     membership = await guilds_service.get_membership(
         session, guild_id=guild_id, user_id=current_user.id
     )

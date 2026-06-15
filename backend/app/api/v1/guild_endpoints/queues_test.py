@@ -303,7 +303,7 @@ async def test_fractional_positions(client: AsyncClient, session: AsyncSession):
     headers = await get_guild_headers(session, guild, admin)
     queue_data = await _create_queue_via_api(client, headers, guild, initiative.id)
     item_a = await _add_item_via_api(
-        client, headers, queue_data["id"], "A", position=10
+        client, headers, guild, queue_data["id"], "A", position=10
     )
     await _add_item_via_api(client, headers, guild, queue_data["id"], "B", position=10)
 
@@ -663,7 +663,7 @@ async def test_release_without_body_preserves_position(
     admin, guild, initiative = await _setup_guild_and_initiative(session)
     headers = await get_guild_headers(session, guild, admin)
     queue_data, a, _b, _c = await _running_queue_with_abc(
-        client, headers, initiative.id
+        client, headers, guild, initiative.id
     )
 
     original_position = a["position"]
@@ -714,7 +714,7 @@ async def test_set_active_clears_held(client: AsyncClient, session: AsyncSession
     admin, guild, initiative = await _setup_guild_and_initiative(session)
     headers = await get_guild_headers(session, guild, admin)
     queue_data, a, _b, _c = await _running_queue_with_abc(
-        client, headers, initiative.id
+        client, headers, guild, initiative.id
     )
 
     await client.post(
@@ -805,7 +805,7 @@ async def test_release_unheld_item_returns_400(
     admin, guild, initiative = await _setup_guild_and_initiative(session)
     headers = await get_guild_headers(session, guild, admin)
     queue_data, a, _b, _c = await _running_queue_with_abc(
-        client, headers, initiative.id
+        client, headers, guild, initiative.id
     )
 
     response = await client.post(
@@ -823,7 +823,7 @@ async def test_hold_requires_write_access(client: AsyncClient, session: AsyncSes
     admin_headers = await get_guild_headers(session, guild, admin)
     member_headers = await get_guild_headers(session, guild, member)
     queue_data, _a, _b, _c = await _running_queue_with_abc(
-        client, admin_headers, initiative.id
+        client, admin_headers, guild, initiative.id
     )
 
     response = await client.post(
@@ -893,7 +893,9 @@ async def test_member_with_read_can_view_queue(
     """Member with read permission can view but not modify."""
     admin, member, guild, initiative = await _setup_with_member(session)
     admin_headers = await get_guild_headers(session, guild, admin)
-    queue_data = await _create_queue_via_api(client, admin_headers, initiative.id)
+    queue_data = await _create_queue_via_api(
+        client, admin_headers, guild, initiative.id
+    )
 
     # Grant read to member
     await client.put(
@@ -926,7 +928,9 @@ async def test_member_without_permission_cannot_view(
     """Member with no permission cannot access the queue."""
     admin, member, guild, initiative = await _setup_with_member(session)
     admin_headers = await get_guild_headers(session, guild, admin)
-    queue_data = await _create_queue_via_api(client, admin_headers, initiative.id)
+    queue_data = await _create_queue_via_api(
+        client, admin_headers, guild, initiative.id
+    )
 
     member_headers = await get_guild_headers(session, guild, member)
     response = await client.get(

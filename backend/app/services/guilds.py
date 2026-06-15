@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 import secrets
 
-from sqlalchemy import func, update as sa_update
+from sqlalchemy import func
 from sqlmodel import select, delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -548,28 +548,6 @@ async def describe_invite_code(
     return invite, guild, False, reason
 
 
-async def clear_active_guild_context(
-    session: AsyncSession,
-    *,
-    user_id: int,
-    guild_id: int,
-) -> None:
-    """Drop the user to personal mode if their server-held context points at
-    ``guild_id``.
-
-    Called whenever access to a guild ends (leave, kick, OIDC de-sync) so the
-    ``users.active_guild_id`` flag never outlives the membership it represents.
-    Guild deletion needs no call — the FK is ``ON DELETE SET NULL``. This is a
-    UX courtesy on top of the real guarantee: every request re-validates the
-    flag against membership/PAM and fails closed regardless.
-    """
-    await session.exec(
-        sa_update(User)
-        .where(User.id == user_id, User.active_guild_id == guild_id)
-        .values(active_guild_id=None)
-    )
-
-
 async def remove_user_from_guild(
     session: AsyncSession,
     *,
@@ -592,7 +570,3 @@ async def remove_user_from_guild(
         GuildMembership.user_id == user_id,
     )
     await session.exec(stmt)
-
-    # Their server-held context must not keep pointing at a guild they just
-    # left.
-    await clear_active_guild_context(session, user_id=user_id, guild_id=guild_id)

@@ -1040,12 +1040,13 @@ async def _ws_authenticate(token: str, session) -> Optional[User]:
 @router.websocket("/{group_id}/ws")
 async def websocket_counter_group(
     websocket: WebSocket,
+    guild_id: int,
     group_id: int,
 ) -> None:
     """Real-time updates for a counter group.
 
     Protocol: client sends `{"token": "..."}` first (the guild comes from the
-    user's server-held context, ``users.active_guild_id``), server
+    ``/g/{guild_id}`` path segment), server
     validates auth + DAC, then broadcasts `counter_added`, `counter_removed`,
     `counter_updated`, `count_changed`, `counters_reset`, `counters_reordered`,
     `group_updated`, `group_deleted`, `permissions_changed` events.
@@ -1075,14 +1076,7 @@ async def websocket_counter_group(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        # The group lives in the user's server-held guild context (the page
-        # opening this socket required entering its guild first).
-        guild_id = user.active_guild_id
-        if guild_id is None:
-            logger.warning(f"Counter WS: user {user.id} has no guild context")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
+        # The group lives in the path-addressed guild (``/g/{guild_id}/``).
         await set_rls_context(session, user_id=user.id, guild_id=guild_id)
 
         stmt = select(GuildMembership).where(

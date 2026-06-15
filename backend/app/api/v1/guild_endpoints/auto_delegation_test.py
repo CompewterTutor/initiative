@@ -5,9 +5,9 @@ JWTs minted by initiative-auto:
 
 * signature, audience, issuer (negative tests against tampered tokens)
 * one-shot replay rejection via the jti blocklist
-* the guild_id JWT claim pins the request's guild context (it takes
-  precedence over the named user's server-held ``active_guild_id`` flag
-  and is validated against the user's memberships like any context)
+* the guild_id JWT claim pins the request's guild context (validated against
+  the user's memberships, and refused if it disagrees with the ``/g/{guild_id}``
+  path)
 * deactivated users can't be impersonated even with a valid token
 
 These don't repeat the unit tests on token issuance — those live next
@@ -146,13 +146,12 @@ async def test_delegation_token_guild_claim_pins_context(
 async def test_delegation_token_guild_claim_provides_context(
     client: AsyncClient, session: AsyncSession
 ):
-    """A machine caller has no server-held context of its own: the token's
-    guild_id claim supplies it, so a guild-scoped endpoint works even while
-    the named user is in personal mode (flag NULL)."""
+    """A machine caller has no ambient guild context: the token's guild_id
+    claim (validated against the user's memberships) supplies the guild for a
+    guild-scoped endpoint."""
     user = await create_user(session, email="happy-path@example.com")
     guild = await create_guild(session, creator=user)
     await create_guild_membership(session, user=user, guild=guild)
-    assert user.active_guild_id is None  # personal mode
     token = _mint_delegation(user_id=user.id, guild_id=guild.id)
 
     response = await client.get(

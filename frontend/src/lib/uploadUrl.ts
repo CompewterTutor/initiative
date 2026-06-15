@@ -36,12 +36,19 @@ function resolveDownloadApiPath(apiPath: string): string {
 
 /**
  * Resolve a document ID to its authorized download URL (current version).
+ *
+ * The download is guild-scoped (``/g/{guildId}/…``): served via iframe/
+ * window.open, which can't send headers, so the guild rides in the path.
  */
-export function resolveDocumentDownloadUrl(documentId: number, inline = false): string | null {
-  if (!documentId) {
+export function resolveDocumentDownloadUrl(
+  documentId: number,
+  guildId: number,
+  inline = false
+): string | null {
+  if (!documentId || !guildId) {
     return null;
   }
-  const base = `/api/v1/documents/${documentId}/download`;
+  const base = `/api/v1/g/${guildId}/documents/${documentId}/download`;
   return resolveDownloadApiPath(inline ? `${base}?inline=1` : base);
 }
 
@@ -53,12 +60,13 @@ export function resolveDocumentDownloadUrl(documentId: number, inline = false): 
 export function resolveDocumentVersionDownloadUrl(
   documentId: number,
   versionId: number,
+  guildId: number,
   inline = false
 ): string | null {
-  if (!documentId || !versionId) {
+  if (!documentId || !versionId || !guildId) {
     return null;
   }
-  const base = `/api/v1/documents/${documentId}/versions/${versionId}/download`;
+  const base = `/api/v1/g/${guildId}/documents/${documentId}/versions/${versionId}/download`;
   return resolveDownloadApiPath(inline ? `${base}?inline=1` : base);
 }
 

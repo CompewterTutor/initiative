@@ -244,33 +244,21 @@ def get_auth_headers(user: User) -> dict[str, str]:
 async def get_guild_headers(
     session: AsyncSession, guild: Guild, user: User
 ) -> dict[str, str]:
-    """
-    Enter ``guild`` as ``user`` and return auth headers for API requests.
+    """Return auth headers for ``user``.
 
-    Guild context is server-held (``users.active_guild_id``): requests carry
-    no guild context of their own, so "act in this guild" is a database write,
-    exactly like the production ``PUT /users/me/guild-context``. The write is
-    direct (unvalidated) on purpose — tests for the fail-closed per-request
-    validation point the flag at guilds the user can't access and assert 403.
+    Guild context is no longer server-held — every guild-scoped request
+    addresses its guild through the ``/g/{guild_id}`` URL path. So this no
+    longer writes any state; it's a thin wrapper over ``get_auth_headers``,
+    kept for call-site compatibility. Put the guild in the request URL:
 
-    Note the flag is per-user state: headers obtained earlier for the same
-    user in another guild go stale at this call. Re-call to switch back.
+        headers = await get_guild_headers(session, test_guild, test_user)
+        await client.get(f"/api/v1/g/{test_guild.id}/initiatives/", headers=headers)
 
     Args:
-        session: Database session
-        guild: Guild to enter
-        user: User to authenticate as
-
-    Returns:
-        Dictionary with the Authorization header
-
-    Example:
-        headers = await get_guild_headers(session, test_guild, test_user)
-        response = await client.get("/api/v1/initiatives", headers=headers)
+        session: Unused (no server-held context to write).
+        guild: Unused (address the guild in the request path instead).
+        user: User to authenticate as.
     """
-    user.active_guild_id = guild.id
-    session.add(user)
-    await session.commit()
     return get_auth_headers(user)
 
 

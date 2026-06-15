@@ -1031,7 +1031,9 @@ async def upload_document_file(
         )
 
     # Save file to uploads directory
-    file_url = attachments_service.save_document_file(contents, extension)
+    file_url = attachments_service.save_document_file(
+        contents, extension, guild_context.guild_id
+    )
 
     # Track the upload in the uploads table for guild-scoped access control
     upload_record = Upload(
@@ -1165,7 +1167,9 @@ async def upload_document_version(
             detail=DocumentMessages.VERSION_TYPE_MISMATCH,
         )
 
-    file_url = attachments_service.save_document_file(contents, extension)
+    file_url = attachments_service.save_document_file(
+        contents, extension, guild_context.guild_id
+    )
 
     # Track the new blob in the uploads table for guild-scoped access control.
     upload_record = Upload(
@@ -2285,32 +2289,27 @@ def _download_document_options():
 
 
 async def _load_download_document(
-    session: AsyncSession, current_user, document_id: int
+    session: AsyncSession, current_user, guild_id: int, document_id: int
 ):
-    """Load a file ``Document`` by id from the requester's ACTIVE guild schema
-    (server-held context), with the eager loads the access check needs.
+    """Load a file ``Document`` by id from the path-addressed guild schema,
+    with the eager loads the access check needs.
 
-    Downloads are served via iframe/window.open while the user is viewing the
-    document inside its guild, so ``users.active_guild_id`` (loaded with the
-    user during auth) names exactly the schema to read. Access is re-validated
-    here (membership or live PAM grant — defense in depth on top of the
-    validated context PUT); the frozen ``public`` backup is never read. Leaves
-    the session routed into the guild so a follow-up version query runs in the
-    same schema.
+    Downloads are served via iframe/window.open, which can't send headers, so
+    the guild rides in the ``/g/{guild_id}`` path segment and names exactly the
+    schema to read. Access is re-validated here (membership or live PAM grant);
+    the frozen ``public`` backup is never read. Leaves the session routed into
+    the guild so a follow-up version query runs in the same schema.
 
     Returns ``(document, guild_role)`` — role ``None`` for PAM grantees — or
-    ``(None, None)`` when there's no context, no access, no schema, or no such
-    document in the active guild. All of those are an indistinguishable 404 to
-    the caller, so existence is never confirmed across guilds.
+    ``(None, None)`` when there's no access, no schema, or no such document in
+    the addressed guild. All of those are an indistinguishable 404 to the
+    caller, so existence is never confirmed across guilds.
     """
     from app.db.session import set_rls_context
     from app.db.schema_provisioning import guild_schema_name
     from app.services import access_grants as access_grants_service
     from app.services import guilds as guilds_service
 
-    guild_id = current_user.active_guild_id
-    if guild_id is None:
-        return None, None
     membership = await guilds_service.get_membership(
         session, guild_id=guild_id, user_id=current_user.id
     )
@@ -2345,16 +2344,18 @@ async def _load_download_document(
 @limiter.limit("30/minute")
 async def download_document_file(
     request: Request,
+    guild_id: int,
     document_id: int,
     current_user: UploadUserDep,
     # AdminSessionDep (not RLSSessionDep) because the loader routes the
-    # session into the active guild's schema itself after validating access.
+    # session into the path-addressed guild's schema itself after validating
+    # access.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
 ) -> FileResponse:
     """Download a file-type document — requires read permission on the document."""
     document, guild_role = await _load_download_document(
-        session, current_user, document_id
+        session, current_user, guild_id, document_id
     )
     if (
         document is None
@@ -2389,17 +2390,18 @@ async def download_document_file(
 @limiter.limit("30/minute")
 async def download_document_file_version(
     request: Request,
+    guild_id: int,
     document_id: int,
     version_id: int,
     current_user: UploadUserDep,
     # Same rationale as download_document_file: the loader validates access
-    # and routes the admin session into the active guild's schema itself.
+    # and routes the admin session into the path-addressed guild's schema.
     session: Annotated[AsyncSession, Depends(get_admin_session)],
     inline: bool = False,
 ) -> FileResponse:
     """Download a specific stored version of a file document — read permission."""
     document, guild_role = await _load_download_document(
-        session, current_user, document_id
+        session, current_user, guild_id, document_id
     )
     if document is None or document.document_type != DocumentType.file:
         raise HTTPException(

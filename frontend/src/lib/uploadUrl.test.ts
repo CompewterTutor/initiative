@@ -22,23 +22,26 @@ const getUploadTokenMock = vi.mocked(getUploadToken);
 // so the default-path tests cover the web (same-origin, cookie-auth) flow.
 
 describe("resolveDocumentVersionDownloadUrl", () => {
-  it("builds the version download path", () => {
-    expect(resolveDocumentVersionDownloadUrl(5, 3)).toBe("/api/v1/documents/5/versions/3/download");
+  it("builds the guild-scoped version download path", () => {
+    expect(resolveDocumentVersionDownloadUrl(5, 3, 7)).toBe(
+      "/api/v1/g/7/documents/5/versions/3/download"
+    );
   });
 
   it("appends inline=1 when requested", () => {
-    expect(resolveDocumentVersionDownloadUrl(5, 3, true)).toBe(
-      "/api/v1/documents/5/versions/3/download?inline=1"
+    expect(resolveDocumentVersionDownloadUrl(5, 3, 7, true)).toBe(
+      "/api/v1/g/7/documents/5/versions/3/download?inline=1"
     );
   });
 
   it("returns null when ids are missing", () => {
-    expect(resolveDocumentVersionDownloadUrl(0, 3)).toBeNull();
-    expect(resolveDocumentVersionDownloadUrl(5, 0)).toBeNull();
+    expect(resolveDocumentVersionDownloadUrl(0, 3, 7)).toBeNull();
+    expect(resolveDocumentVersionDownloadUrl(5, 0, 7)).toBeNull();
+    expect(resolveDocumentVersionDownloadUrl(5, 3, 0)).toBeNull();
   });
 
   it("differs from the current-document download path", () => {
-    expect(resolveDocumentVersionDownloadUrl(5, 3)).not.toBe(resolveDocumentDownloadUrl(5));
+    expect(resolveDocumentVersionDownloadUrl(5, 3, 7)).not.toBe(resolveDocumentDownloadUrl(5, 7));
   });
 });
 

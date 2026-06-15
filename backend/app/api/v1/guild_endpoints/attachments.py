@@ -107,7 +107,8 @@ async def upload_attachment(
 
     return AttachmentUploadResponse(
         filename=file.filename or filename,
-        url=f"/uploads/{filename}",
+        # Guild in the path so the served media self-describes its guild.
+        url=f"/uploads/{guild_context.guild_id}/{filename}",
         content_type=file.content_type or f"image/{detected_format}",
         size=len(contents),
     )
