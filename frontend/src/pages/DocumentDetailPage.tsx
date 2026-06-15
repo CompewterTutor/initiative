@@ -114,7 +114,7 @@ import { useGuildPath } from "@/lib/guildUrl";
 import { InitiativeColorDot } from "@/lib/initiativeColors";
 import { findNewMentions } from "@/lib/mentionUtils";
 import { getItem, removeItem, setItem } from "@/lib/storage";
-import { resolveUploadUrl } from "@/lib/uploadUrl";
+import { resolveHeaderlessApiUrl, resolveUploadUrl } from "@/lib/uploadUrl";
 import { cn } from "@/lib/utils";
 
 export const DocumentDetailPage = () => {
@@ -467,15 +467,18 @@ export const DocumentDetailPage = () => {
           stored &&
           stored.documentId === sourceDocumentId
         ) {
-          const isAbsolute =
-            API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://");
-          const baseUrl = isAbsolute ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`;
-          const syncUrl = `${baseUrl}/collaboration/documents/${sourceDocumentId}/sync-content?token=${encodeURIComponent(token)}`;
+          // Header-less auth (cookie on web, scoped upload token on native) —
+          // the long-lived session JWT must never ride in a URL. The guild
+          // rides in the path (`/g/{guildId}/`), like every other guild call.
+          const syncUrl = resolveHeaderlessApiUrl(
+            `/api/v1/g/${activeGuildId}/collaboration/documents/${sourceDocumentId}/sync-content`
+          );
           fetch(syncUrl, {
             method: "POST",
             body: JSON.stringify(stored.content),
             headers: { "Content-Type": "application/json" },
             keepalive: true,
+            credentials: "include",
           }).catch(() => {});
         }
         void navigate({
@@ -768,10 +771,9 @@ export const DocumentDetailPage = () => {
       if (!pending || !tokenRef.current || !activeGuildIdRef.current) return;
       const isAbsolute = API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://");
       const baseUrl = isAbsolute ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`;
-      const url = `${baseUrl}/documents/${pending.documentId}`;
-      // No guild context travels with the request — the server resolves it
-      // from the user's server-held flag, which is this document's guild
-      // (the page required entering it).
+      // The guild rides in the path (`/g/{guildId}/`) — guild context is per-tab
+      // from the URL; the page required entering this document's guild.
+      const url = `${baseUrl}/g/${activeGuildIdRef.current}/documents/${pending.documentId}`;
       fetch(url, {
         method: "PATCH",
         headers: {
@@ -850,10 +852,12 @@ export const DocumentDetailPage = () => {
         return;
       }
 
-      // Build the sync URL
-      const isAbsolute = API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://");
-      const baseUrl = isAbsolute ? API_BASE_URL : `${window.location.origin}${API_BASE_URL}`;
-      const syncUrl = `${baseUrl}/collaboration/documents/${parsedId}/sync-content?token=${encodeURIComponent(token)}`;
+      // Build the sync URL. Header-less auth (cookie on web, scoped upload
+      // token on native) — the long-lived session JWT must never ride in a URL.
+      // The guild rides in the path (`/g/{guildId}/`).
+      const syncUrl = resolveHeaderlessApiUrl(
+        `/api/v1/g/${activeGuildId}/collaboration/documents/${parsedId}/sync-content`
+      );
 
       // Send content via fetch with keepalive (more reliable than sendBeacon, less likely to be blocked)
       fetch(syncUrl, {
@@ -861,6 +865,7 @@ export const DocumentDetailPage = () => {
         body: JSON.stringify(stored.content),
         headers: { "Content-Type": "application/json" },
         keepalive: true, // Ensures request completes even if page unloads
+        credentials: "include", // Web auth is the HttpOnly session cookie
       }).catch(() => {}); // Silently ignore errors on page unload
     };
 

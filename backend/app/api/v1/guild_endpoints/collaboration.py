@@ -17,7 +17,6 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    Query,
     Request,
     WebSocket,
     WebSocketDisconnect,
@@ -29,6 +28,7 @@ from sqlmodel import select
 from app.api.deps import (
     RLSSessionDep,
     SessionDep,
+    UploadUserDep,
     get_current_active_user,
     get_guild_membership,
     GuildContext,
@@ -423,30 +423,27 @@ async def sync_document_content(
     guild_id: int,
     request: Request,
     session: SessionDep,
-    token: str = Query(...),
+    user: UploadUserDep,
 ):
     """
     Sync Lexical content from the frontend to the database.
 
-    Called via navigator.sendBeacon on page unload to keep the content column
-    in sync with yjs_state. sendBeacon can't set headers, so this authenticates
-    with a ``?token=`` query param and takes the guild from the ``/g/{guild_id}``
-    path — the document being synced was open inside that guild.
+    Called via a ``keepalive`` fetch on page unload to keep the content column
+    in sync with yjs_state. Authenticates with the same header-less scheme as
+    ``/uploads/*`` and document downloads (``UploadUserDep``): the HttpOnly
+    session cookie on web, a short-lived uploads-scoped ``?token=`` on native —
+    so the long-lived session JWT never rides in a URL (SEC-12), unlike the
+    earlier ``?token=<session jwt>`` version. The guild comes from the
+    ``/g/{guild_id}`` path — the document being synced was open inside it.
 
     The request body should contain the Lexical serialized state as JSON.
     """
-    # Parse the JSON body (sendBeacon sends raw body)
+    # Parse the JSON body (the keepalive fetch sends a raw body)
     try:
         content = await request.json()
     except Exception as e:
         logger.warning(f"Sync content: Failed to parse JSON body: {e}")
         return {"status": "error", "message": "Invalid JSON body"}
-
-    # Authenticate
-    user = await _get_user_from_token(token, session)
-    if not user:
-        logger.warning(f"Sync content: Auth failed for document {document_id}")
-        return {"status": "error", "message": "Authentication failed"}
 
     # The guild comes from the path; validate membership before scoping RLS to
     # it (the path is only a selector, never a trust boundary).

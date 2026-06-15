@@ -4,14 +4,16 @@ import { apiClient } from "@/api/client";
 import { getUploadToken } from "@/lib/uploadToken";
 
 /**
- * Resolve an `/api/v1/...` path for a download served via iframe/window.open.
- * On native platforms, prepends the API server origin and appends a SHORT-LIVED,
- * uploads-scoped ?token= for auth (native WebViews can't send Authorization
- * headers or HttpOnly cookies). The long-lived session JWT is never put in a URL
- * — see {@link getUploadToken}. On web, returns the API path as-is (same-origin,
- * session cookie handles auth).
+ * Resolve an `/api/v1/...` path for a request that can't carry an Authorization
+ * header — a download served via iframe/window.open, or a `keepalive`/sendBeacon
+ * POST fired on page unload. On native platforms, prepends the API server origin
+ * and appends a SHORT-LIVED, uploads-scoped ?token= for auth (native WebViews
+ * can't send Authorization headers or HttpOnly cookies). The long-lived session
+ * JWT is never put in a URL — see {@link getUploadToken}. On web, returns the API
+ * path as-is (same-origin, the HttpOnly session cookie handles auth — send the
+ * request with `credentials: "include"`).
  */
-function resolveDownloadApiPath(apiPath: string): string {
+export function resolveHeaderlessApiUrl(apiPath: string): string {
   if (!Capacitor.isNativePlatform()) {
     return apiPath;
   }
@@ -49,7 +51,7 @@ export function resolveDocumentDownloadUrl(
     return null;
   }
   const base = `/api/v1/g/${guildId}/documents/${documentId}/download`;
-  return resolveDownloadApiPath(inline ? `${base}?inline=1` : base);
+  return resolveHeaderlessApiUrl(inline ? `${base}?inline=1` : base);
 }
 
 /**
@@ -67,7 +69,7 @@ export function resolveDocumentVersionDownloadUrl(
     return null;
   }
   const base = `/api/v1/g/${guildId}/documents/${documentId}/versions/${versionId}/download`;
-  return resolveDownloadApiPath(inline ? `${base}?inline=1` : base);
+  return resolveHeaderlessApiUrl(inline ? `${base}?inline=1` : base);
 }
 
 /**
