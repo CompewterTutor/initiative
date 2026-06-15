@@ -63,6 +63,7 @@
   "INITIATIVE_MUST_HAVE_PM": "Die Initiative muss mindestens einen Projektmanager haben",
   "INITIATIVE_CANNOT_DELETE_BUILTIN": "Integrierte Rollen können nicht gelöscht werden",
   "INITIATIVE_ROLE_HAS_MEMBERS": "Rolle kann nicht gelöscht werden: Es sind noch Mitglieder zugewiesen",
+  "INITIATIVE_GUILD_ADMIN_ROLE_RESTRICTED": "Gildenadministratoren haben bereits vollen Zugriff und können nur als Projektmanager zugewiesen werden",
   "OIDC_NOT_ENABLED": "OIDC ist nicht aktiviert",
   "OIDC_METADATA_INCOMPLETE": "OIDC-Metadaten unvollständig",
   "SMTP_NOT_CONFIGURED": "SMTP-Einstellungen sind unvollständig.",

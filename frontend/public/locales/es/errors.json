@@ -61,6 +61,7 @@
   "INITIATIVE_MUST_HAVE_PM": "La iniciativa debe tener al menos un gerente de proyecto",
   "INITIATIVE_CANNOT_DELETE_BUILTIN": "No se pueden eliminar los roles integrados",
   "INITIATIVE_ROLE_HAS_MEMBERS": "No se puede eliminar el rol: aún hay miembros asignados",
+  "INITIATIVE_GUILD_ADMIN_ROLE_RESTRICTED": "Los administradores del gremio ya tienen acceso completo y solo se les puede asignar el rol de gerente de proyecto",
   "OIDC_NOT_ENABLED": "OIDC no está habilitado",
   "OIDC_METADATA_INCOMPLETE": "Metadatos de OIDC incompletos",
   "SMTP_NOT_CONFIGURED": "La configuración SMTP está incompleta.",

@@ -26,7 +26,7 @@ from app.models.initiative import (
     InitiativeRoleModel,
     PermissionKey,
 )
-from app.models.guild import GuildRole
+from app.models.guild import GuildMembership, GuildRole
 from app.models.task import Task, TaskAssignee
 from app.core.capabilities import Capability, user_has_capability
 from app.models.user import User
@@ -125,6 +125,35 @@ async def _require_manager_access(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=InitiativeMessages.MANAGER_REQUIRED,
+        )
+
+
+async def _guard_guild_admin_role(
+    session: SessionDep,
+    *,
+    guild_id: int,
+    target_user_id: int,
+    role: InitiativeRoleModel | None,
+    guild_membership: GuildMembership | None = None,
+) -> None:
+    """Restrict which initiative roles a guild admin may be assigned.
+
+    A guild admin already has complete access to every initiative in their
+    guild (see ``permissions.is_request_guild_admin``), so they are implicit
+    full-access members. They may *additionally* hold a manager role — purely
+    for manager-style features like notifications — but must never be assigned a
+    standard member or custom role. This keeps the admin's standing access
+    distinct from per-initiative DAC and is enforced server-side for safety.
+    """
+    if role is not None and role.is_manager:
+        return  # manager role is the one allowed elevation for an admin
+    membership = guild_membership or await guilds_service.get_membership(
+        session, guild_id=guild_id, user_id=target_user_id
+    )
+    if membership and membership.role == GuildRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=InitiativeMessages.GUILD_ADMIN_ROLE_RESTRICTED,
         )
 
 
@@ -863,25 +892,35 @@ async def add_initiative_member(
     # Get the role to assign (default to member role if not specified)
     role_id = payload.role_id
     if role_id is None:
-        member_role = await initiatives_service.get_member_role(
+        resolved_role = await initiatives_service.get_member_role(
             session, initiative_id=initiative_id
         )
-        if not member_role:
+        if not resolved_role:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=InitiativeMessages.MEMBER_ROLE_NOT_FOUND,
             )
-        role_id = member_role.id
+        role_id = resolved_role.id
     else:
         # Verify role exists and belongs to this initiative
-        role = await initiatives_service.get_role_by_id(
+        resolved_role = await initiatives_service.get_role_by_id(
             session, role_id=role_id, initiative_id=initiative_id
         )
-        if not role:
+        if not resolved_role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=InitiativeMessages.ROLE_NOT_FOUND,
             )
+
+    # Guild admins are implicit full-access members; they may only be elevated
+    # to a manager role, never assigned a standard member or custom role.
+    await _guard_guild_admin_role(
+        session,
+        guild_id=initiative.guild_id,
+        target_user_id=payload.user_id,
+        role=resolved_role,
+        guild_membership=guild_membership,
+    )
 
     stmt = select(InitiativeMember).where(
         InitiativeMember.initiative_id == initiative_id,
@@ -1107,6 +1146,15 @@ async def update_initiative_member(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=InitiativeMessages.ROLE_NOT_FOUND,
         )
+
+    # Guild admins may only be elevated to a manager role, never assigned a
+    # standard member or custom role (they already have full access).
+    await _guard_guild_admin_role(
+        session,
+        guild_id=initiative.guild_id,
+        target_user_id=user_id,
+        role=new_role,
+    )
 
     stmt = (
         select(InitiativeMember)

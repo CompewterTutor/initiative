@@ -514,11 +514,14 @@ async def _visible_projects(
 
     DAC: Projects with explicit ProjectPermission OR role-based permission.
     """
-    # A live PAM grant sees all of the guild's projects (like a member of every
-    # initiative); otherwise narrow to projects the user has explicit/role
-    # permission for. The guild scope + RLS apply either way.
+    # A guild admin (full access to all guild data) or a live PAM grant (acts
+    # like a member of every initiative) sees all of the guild's projects in one
+    # bulk, guild-scoped query; otherwise narrow to projects the user has
+    # explicit/role permission for. The guild scope + RLS apply either way.
     conditions = [Initiative.guild_id == guild_id]
-    if not has_active_grant(guild_id):
+    if not has_active_grant(
+        guild_id
+    ) and not permissions_service.is_request_guild_admin(guild_id):
         conditions.append(
             Project.id.in_(
                 permissions_service.visible_project_ids_subquery(current_user.id)

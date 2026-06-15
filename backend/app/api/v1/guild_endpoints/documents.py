@@ -340,11 +340,14 @@ def _build_visible_docs_filters(
     untagged: Optional[bool] = None,
 ):
     """Build common WHERE conditions for visible-document queries."""
-    # A live PAM grant sees all of the guild's documents; otherwise narrow to
-    # documents the user has explicit/role permission for. Guild scope + RLS
+    # A guild admin (full access to all guild data) or a live PAM grant sees all
+    # of the guild's documents in one bulk, guild-scoped query; otherwise narrow
+    # to documents the user has explicit/role permission for. Guild scope + RLS
     # apply either way.
     conditions = [Initiative.guild_id == guild_id]
-    if not has_active_grant(guild_id):
+    if not has_active_grant(
+        guild_id
+    ) and not permissions_service.is_request_guild_admin(guild_id):
         conditions.append(
             Document.id.in_(permissions_service.visible_document_ids_subquery(user_id))
         )
