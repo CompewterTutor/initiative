@@ -179,6 +179,20 @@ def test_csp_websocket_scheme_follows_app_url():
     assert "ws:" in _directive(http, "connect-src")
 
 
+def test_csp_allows_spell_check_dictionary_cdn():
+    # The spell checker fetches its English dictionary from jsDelivr
+    # (frontend/src/lib/spell-check.ts); connect-src must allow it.
+    csp = _settings().content_security_policy
+    assert "https://cdn.jsdelivr.net" in _directive(csp, "connect-src")
+
+
+def test_csp_allows_excalidraw_font_cdn():
+    # The bundled Excalidraw whiteboard loads its .woff2 faces from esm.sh;
+    # font-src must allow it.
+    csp = _settings().content_security_policy
+    assert "https://esm.sh" in _directive(csp, "font-src")
+
+
 def test_csp_captcha_origins_only_when_configured():
     assert "hcaptcha.com" not in _settings().content_security_policy
 
@@ -193,6 +207,30 @@ def test_csp_advanced_tool_origin_only_when_configured():
     csp = on.content_security_policy
     assert "https://tool.example.com" in _directive(csp, "frame-src")
     assert "https://tool.example.com" in _directive(csp, "connect-src")
+
+
+def test_docs_csp_allows_swagger_cdn_but_main_csp_does_not():
+    # Swagger's jsDelivr + Cloudflare beacon scripts are permitted ONLY on the
+    # docs-scoped policy; the app-wide script-src stays 'self' (pentest MED-001).
+    settings = _settings()
+    docs = settings.docs_content_security_policy
+    main = settings.content_security_policy
+
+    assert "https://cdn.jsdelivr.net" in _directive(docs, "script-src")
+    assert "https://static.cloudflareinsights.com" in _directive(docs, "script-src")
+    assert "https://cdn.jsdelivr.net" in _directive(docs, "style-src")
+    # Swagger boots from an inline <script>, and its bundle fetches a .map.
+    assert "'unsafe-inline'" in _directive(docs, "script-src")
+    assert "https://cdn.jsdelivr.net" in _directive(docs, "connect-src")
+
+    # The relaxation must not leak into the global policy.
+    assert "cdn.jsdelivr.net" not in _directive(main, "script-src")
+    assert "cloudflareinsights.com" not in main
+    assert "'unsafe-inline'" not in _directive(main, "script-src")
+    # Docs page keeps the high-value vectors locked down.
+    assert "object-src 'none'" in docs
+    assert "frame-ancestors 'none'" in docs
+    assert "form-action 'self'" in docs
 
 
 def test_app_url_is_https_true_for_https():

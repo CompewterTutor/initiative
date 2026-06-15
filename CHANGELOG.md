@@ -30,9 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Guild admins can again create and manage projects and documents in initiatives they don't explicitly belong to (such as a guild's default initiative) — the create and visibility checks now honor guild-admin access instead of requiring a per-initiative role.
+- My Tasks and Tasks I Created now sort correctly across guilds — tasks from every guild are merged and globally re-sorted by date window (Overdue, Today, This Week, This Month, Later) and due date, instead of being grouped guild-by-guild.
 - A batch of schema-per-guild fixes: property definitions, uploads and document downloads, account deletion/deactivation cleanup, OIDC role sync, cross-guild calendars, and the "added to initiative" notification all read and write the correct guild's data again.
 - The Initiative logo now displays in emails.
 - Corrected malformed stored defaults for tag and task-status colors and icons.
+- Spell-check dictionaries, Excalidraw whiteboard fonts, and the Swagger API docs page are no longer blocked by the Content-Security-Policy.
+- Opening the user or theme menu from the sidebar footer on mobile no longer collapses the sidebar.
 
 ### Security
 
