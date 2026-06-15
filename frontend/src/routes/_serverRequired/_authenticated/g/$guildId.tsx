@@ -3,7 +3,6 @@ import { Loader2, ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { setCurrentGuildId } from "@/api/client";
 import { StatusMessage } from "@/components/StatusMessage";
 import { useGuilds } from "@/hooks/useGuilds";
 
@@ -35,22 +34,15 @@ export const Route = createFileRoute("/_serverRequired/_authenticated/g/$guildId
 
     // beforeLoad ALSO runs for link PRELOADS (defaultPreload: "intent" —
     // hovering any cross-guild link, e.g. a recents tab). A preload must be
-    // side-effect free: switching the server-held context + resetting caches
-    // on hover ping-pongs the whole app between guilds. Only a real
-    // navigation may move the context.
+    // side-effect free: resetting caches on hover would ping-pong the app
+    // between guilds. Only a real navigation adopts the guild.
     if (cause === "preload") {
       return { urlGuildId: guildId, urlGuild: guild };
     }
 
-    setCurrentGuildId(guildId);
-
-    // Push the server-held guild context BEFORE child routes render and
-    // fetch. The backend resolves every request's guild from this flag, so
-    // a query fired before the PUT lands would resolve in whatever guild
-    // the user was in previously — with per-guild entity ids that means
-    // the WRONG entity, surfacing as no-access/not-found errors when
-    // opening cross-guild links (e.g. recent tabs). Idempotent and instant
-    // when the server already holds this guild.
+    // Adopt this tab's guild from the URL into local state (rail highlight,
+    // query keys) before child routes render. Per-tab and local only — the
+    // guild itself travels in each request's /g/{guildId} path.
     await guilds?.syncGuildFromUrl(guildId);
 
     // Provide validated guild info to child routes via route context

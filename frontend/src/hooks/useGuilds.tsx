@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-import { apiClient, setCurrentGuildId } from "@/api/client";
+import { apiClient } from "@/api/client";
 import type { AccessGrantRead, GuildRead } from "@/api/generated/initiativeAPI.schemas";
 import { resetGuildScopedQueries } from "@/api/query-keys";
 import { useAuth } from "@/hooks/useAuth";
@@ -119,9 +119,8 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
 
   const canCreateGuilds = user?.can_create_guilds ?? true;
 
-  // Sync API Client whenever ID changes
+  // Persist this tab's guild as the fresh-tab default (read once at mount).
   useEffect(() => {
-    setCurrentGuildId(activeGuildId);
     persistGuildId(activeGuildId);
   }, [activeGuildId]);
 
@@ -284,7 +283,6 @@ export const GuildProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     setActiveGuildId(guildId);
-    setCurrentGuildId(guildId);
     persistGuildId(guildId);
     await resetGuildScopedQueries();
   }, []);
