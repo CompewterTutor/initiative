@@ -45,7 +45,7 @@ CSP_CONNECT_ORIGINS = [
 # whiteboard lazy-loads its .woff2 faces (Cascadia, Comic Shanns, Excalifont,
 # etc.) from esm.sh at runtime.
 CSP_FONT_ORIGINS = [
-    "https://esm.sh",
+    "https://esm.sh", # Do not promote esm.sh to script-src
 ]
 
 
