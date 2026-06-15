@@ -226,9 +226,11 @@ def _global_sort_key_getter(field: str, tz: str | None):
     if field == "priority":
         # Native PG enum orders by definition order (low→urgent), not
         # alphabetically; replicate that here. TaskPriority is a str-enum, so a
-        # plain-string priority hashes to the same key.
+        # plain-string priority hashes to the same key. Return None for a missing
+        # priority so the nulls-last partition handles it in both directions
+        # (mirrors apply_sorting()'s nulls_last()).
         order = {p: i for i, p in enumerate(TaskPriority)}
-        return lambda t: order.get(t.priority, len(order))
+        return lambda t: order.get(t.priority) if t.priority is not None else None
     if field in _TASK_SORT_FIELDS_STATIC:
         return lambda t, f=field: getattr(t, f, None)
     return None

@@ -25,7 +25,13 @@ from app.testing.factories import (
 
 
 async def _create_task(
-    session, project, title="Test Task", *, created_by_id=None, due_date=None
+    session,
+    project,
+    title="Test Task",
+    *,
+    created_by_id=None,
+    due_date=None,
+    start_date=None,
 ):
     """Create a task in ``project``'s guild schema."""
     from app.db.session import set_rls_context
@@ -44,6 +50,7 @@ async def _create_task(
         guild_id=project.guild_id,
         created_by_id=created_by_id,
         due_date=due_date,
+        start_date=start_date,
     )
     session.add(task)
     await session.commit()
@@ -249,7 +256,6 @@ async def test_list_my_tasks_date_group_sorted_across_guilds(
 
     now = datetime.now(timezone.utc)
     overdue = now - timedelta(days=2)
-    today = now + timedelta(hours=2)
     this_week = now + timedelta(days=3)
     later = now + timedelta(days=60)
 
@@ -269,8 +275,11 @@ async def test_list_my_tasks_date_group_sorted_across_guilds(
     g1_later = await _create_task(
         session, project1, "g1 later", created_by_id=user.id, due_date=later
     )
+    # "Today" via start_date (start <= today → group 1) rather than a narrow
+    # future due_date, so the classification is stable at any time of day —
+    # including right around midnight UTC.
     g2_today = await _create_task(
-        session, project2, "g2 today", created_by_id=user.id, due_date=today
+        session, project2, "g2 today", created_by_id=user.id, start_date=now
     )
     g2_week = await _create_task(
         session, project2, "g2 this week", created_by_id=user.id, due_date=this_week
