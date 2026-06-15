@@ -32,6 +32,7 @@ async def _create_task(
     created_by_id=None,
     due_date=None,
     start_date=None,
+    priority=TaskPriority.medium,
 ):
     """Create a task in ``project``'s guild schema."""
     from app.db.session import set_rls_context
@@ -51,6 +52,7 @@ async def _create_task(
         created_by_id=created_by_id,
         due_date=due_date,
         start_date=start_date,
+        priority=priority,
     )
     session.add(task)
     await session.commit()
@@ -298,3 +300,42 @@ async def test_list_my_tasks_date_group_sorted_across_guilds(
     titles = [t["title"] for t in response.json()["items"]]
     # Overdue → today → this week → later, regardless of which guild owns each.
     assert titles == ["g1 overdue", "g2 today", "g2 this week", "g1 later"]
+
+
+@pytest.mark.integration
+async def test_list_my_tasks_priority_sorted_desc_across_guilds(
+    client: AsyncClient, session: AsyncSession
+):
+    """GET /me/tasks sorts by priority across guilds in PG enum order (low→urgent),
+    not alphabetically — descending therefore yields urgent → high → medium → low.
+    """
+    user = await create_user(session, email="user@example.com")
+    guild1, _, project1 = await _setup_guild_with_project(
+        session, user, guild_name="Guild 1"
+    )
+    guild2, _, project2 = await _setup_guild_with_project(
+        session, user, guild_name="Guild 2"
+    )
+
+    # Split priorities across both guilds so per-guild-only ordering is wrong.
+    g1_low = await _create_task(
+        session, project1, "low", created_by_id=user.id, priority=TaskPriority.low
+    )
+    g1_high = await _create_task(
+        session, project1, "high", created_by_id=user.id, priority=TaskPriority.high
+    )
+    g2_medium = await _create_task(
+        session, project2, "medium", created_by_id=user.id, priority=TaskPriority.medium
+    )
+    g2_urgent = await _create_task(
+        session, project2, "urgent", created_by_id=user.id, priority=TaskPriority.urgent
+    )
+    for task in (g1_low, g1_high, g2_medium, g2_urgent):
+        await _assign(session, task, user.id)
+
+    headers = await get_guild_headers(session, guild1, user)
+    sorting = json.dumps([{"field": "priority", "dir": "desc"}])
+    response = await client.get(f"/api/v1/me/tasks?sorting={sorting}", headers=headers)
+    assert response.status_code == 200, response.text
+    titles = [t["title"] for t in response.json()["items"]]
+    assert titles == ["urgent", "high", "medium", "low"]

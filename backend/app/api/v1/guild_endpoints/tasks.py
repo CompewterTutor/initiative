@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from operator import attrgetter
 from typing import Annotated, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -169,101 +170,76 @@ def _task_sort_fields(tz: str | None = None) -> dict[str, object]:
 TASK_DEFAULT_SORT = [(Task.position, "asc"), (Task.id, "asc")]
 
 
-def _as_aware(dt: datetime | None) -> datetime | None:
-    """Coerce a naive datetime to UTC. Task date columns are ``timestamptz`` so
-    the driver returns aware values, but guard against a stray naive one."""
-    if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
+# Attribute sorters for the cross-guild merge. attrgetter is faster than a
+# lambda and avoids per-row closure overhead on large result sets. ``priority``
+# and ``date_group`` need custom handling (enum order / SQL-carried value) and
+# are resolved separately in _sort_global_task_reads.
+_GLOBAL_SORT_ATTRGETTERS = {
+    "position": attrgetter("position"),
+    "title": attrgetter("title"),
+    "due_date": attrgetter("due_date"),
+    "start_date": attrgetter("start_date"),
+    "created_at": attrgetter("created_at"),
+    "updated_at": attrgetter("updated_at"),
+}
 
-
-def _date_group_value(
-    start: datetime | None, due: datetime | None, tz: str | None
-) -> int:
-    """Python mirror of :func:`_date_group_expression` for the cross-guild merge.
-
-    Returns the same numeric group (0=overdue, 1=today, 2=this week,
-    3=this month, 4=later). Must stay in lockstep with the SQL CASE and the
-    frontend ``getTaskDateStatus``. Day boundaries are evaluated in the user's
-    timezone so "today" matches their local day.
-    """
-    zone = ZoneInfo(tz) if tz else timezone.utc
-    start = _as_aware(start)
-    due = _as_aware(due)
-    now = datetime.now(zone)
-    today = now.date()
-    week_later = now + timedelta(days=7)
-    month_later = now + timedelta(days=30)
-
-    # 0: overdue — due_date is in the past (checked first, mirrors SQL)
-    if due is not None and due < now:
-        return 0
-    # 1: today — start before today, or start/due falls on today (local day)
-    if start is not None and start.astimezone(zone).date() <= today:
-        return 1
-    if due is not None and due.astimezone(zone).date() == today:
-        return 1
-    # 2: this week — start or due within 7 days
-    if start is not None and start <= week_later:
-        return 2
-    if due is not None and due <= week_later:
-        return 2
-    # 3: this month — start or due within 30 days
-    if start is not None and start <= month_later:
-        return 3
-    if due is not None and due <= month_later:
-        return 3
-    # 4: later — everything else
-    return 4
-
-
-def _global_sort_key_getter(field: str, tz: str | None):
-    """Return a callable extracting *field*'s sort value from a TaskListRead, or
-    ``None`` for fields not in the allowed set (mirrors apply_sorting skipping
-    columns absent from ``allowed_fields``)."""
-    if field == "date_group":
-        return lambda t: _date_group_value(t.start_date, t.due_date, tz)
-    if field == "priority":
-        # Native PG enum orders by definition order (low→urgent), not
-        # alphabetically; replicate that here. TaskPriority is a str-enum, so a
-        # plain-string priority hashes to the same key. Return None for a missing
-        # priority so the nulls-last partition handles it in both directions
-        # (mirrors apply_sorting()'s nulls_last()).
-        order = {p: i for i, p in enumerate(TaskPriority)}
-        return lambda t: order.get(t.priority) if t.priority is not None else None
-    if field in _TASK_SORT_FIELDS_STATIC:
-        return lambda t, f=field: getattr(t, f, None)
-    return None
+# Native PG enum orders by definition order (low→urgent), not alphabetically;
+# replicate that here. TaskPriority is a str-enum, so a plain-string priority
+# hashes to the same key.
+_PRIORITY_SORT_ORDER = {p: i for i, p in enumerate(TaskPriority)}
 
 
 def _sort_global_task_reads(
-    items: list[TaskListRead],
+    items: list[tuple[TaskListRead, int]],
     sort_fields: list | None,
-    tz: str | None,
 ) -> list[TaskListRead]:
-    """Reapply the requested sort across the full cross-guild result set.
+    """Order the merged cross-guild rows and drop the carried date_group.
 
-    Each guild's tasks are sorted in SQL, but concatenating guilds loses the
-    global order, so the merged list must be re-sorted before pagination.
-    Mirrors :func:`apply_sorting`: every field places NULLs last regardless of
-    direction, and ``id`` ascending is the final tiebreaker.
+    Cross-schema results can't be ordered by a single SQL query, so this is the
+    *only* sort for the /me task views (the per-guild queries deliberately skip
+    ORDER BY). ``items`` are ``(TaskListRead, date_group)`` pairs where the
+    date_group was computed in SQL — the same :func:`_date_group_expression`
+    used by the guild-scoped endpoint, so there is one source of truth.
+
+    Matches the guild-scoped list's ordering conventions: NULLs sort last
+    regardless of direction, and ``id`` ascending breaks ties.
     """
+    reads = [read for read, _ in items]
     if not sort_fields:
-        return items
+        # Deterministic default when the caller doesn't sort. position is
+        # per-guild so it can't truly order across guilds, but the id tiebreaker
+        # keeps the merge stable; mirrors the SQL endpoint's position-then-id.
+        reads.sort(key=attrgetter("position", "id"))
+        return reads
+
+    date_groups = {id(read): group for read, group in items}
+
+    def _getter(field):
+        if field == "date_group":
+            return lambda r: date_groups[id(r)]
+        if field == "priority":
+            # None priority → None so the nulls-last partition applies it in
+            # both directions (mirrors apply_sorting()'s nulls_last()).
+            return lambda r: (
+                _PRIORITY_SORT_ORDER.get(r.priority) if r.priority is not None else None
+            )
+        return _GLOBAL_SORT_ATTRGETTERS.get(field)
 
     # Stable radix sort: apply the least-significant key first. ``id`` asc is the
-    # final tiebreaker apply_sorting() appends, so it sorts first here.
-    result = sorted(items, key=lambda t: t.id)
+    # final tiebreaker, so it sorts first here.
+    reads.sort(key=attrgetter("id"))
     for sf in reversed(sort_fields):
-        getter = _global_sort_key_getter(sf.field, tz)
+        getter = _getter(sf.field)
         if getter is None:
+            # Unknown field: skipped, like apply_sorting() ignoring columns
+            # absent from allowed_fields.
             continue
         reverse = sf.dir == SortDir.desc
-        non_null = [t for t in result if getter(t) is not None]
-        nulls = [t for t in result if getter(t) is None]
+        non_null = [r for r in reads if getter(r) is not None]
+        nulls = [r for r in reads if getter(r) is None]
         non_null.sort(key=getter, reverse=reverse)
-        result = non_null + nulls
-    return result
+        reads = non_null + nulls
+    return reads
 
 
 def _build_task_filter_fields(
@@ -1068,32 +1044,34 @@ async def _gather_global_task_reads(
     page: int,
     page_size: int,
     sort_fields: list | None = None,
-    tz: str | None = None,
 ) -> tuple[list[TaskListRead], int, int]:
     """Run a per-guild task query across every guild the user belongs to and
     merge into TaskListReads.
 
-    Each guild's tasks are sorted in SQL, but concatenating guilds loses that
-    order (per-schema ``position`` can't order across guilds), so the full
-    merged set is re-sorted with :func:`_sort_global_task_reads` before
-    paginating. Annotation + conversion happen inside each guild's routed
-    context.
+    A single SQL query can't order across guild schemas, so ``build_query`` emits
+    ``(Task, date_group)`` rows *without* ORDER BY and the merged set is sorted
+    once, globally, by :func:`_sort_global_task_reads` before pagination.
+    Annotation + conversion happen inside each guild's routed context.
     """
     target_guilds = await member_guild_ids(
         session, current_user.id, restrict_to=guild_ids
     )
 
-    async def _fetch(guild_session: AsyncSession, _guild_id: int) -> list[TaskListRead]:
-        tasks = list((await guild_session.exec(build_query())).all())
+    async def _fetch(
+        guild_session: AsyncSession, _guild_id: int
+    ) -> list[tuple[TaskListRead, int]]:
+        rows = list((await guild_session.exec(build_query())).all())
+        tasks = [row[0] for row in rows]
         await _annotate_tasks(guild_session, tasks)
         _annotate_task_tags(tasks)
         _annotate_task_properties(tasks)
-        return [_task_to_list_read(task) for task in tasks]
+        # row[1] is the SQL-computed date_group, carried for the global sort.
+        return [(_task_to_list_read(task), row[1]) for task, row in zip(tasks, rows)]
 
     items = await gather_across_guilds(session, current_user.id, target_guilds, _fetch)
-    # Re-sort across ALL guilds before slicing — per-guild SQL order alone leaves
-    # the merged list grouped by guild instead of globally sorted.
-    items = _sort_global_task_reads(items, sort_fields, tz)
+    # Sort across ALL guilds before slicing — the per-guild queries return rows
+    # unordered, so this is where global ordering is established.
+    items = _sort_global_task_reads(items, sort_fields)
     total_count = len(items)
     actual_page = _clamp_page(page, page_size, total_count)
     if page_size > 0:
@@ -1144,8 +1122,10 @@ async def _list_global_tasks(
     )
 
     def _build():
+        # Carry the SQL-computed date_group out for the cross-guild sort; ORDER
+        # BY is omitted because _sort_global_task_reads orders the merged set.
         stmt = (
-            select(Task)
+            select(Task, _date_group_expression(tz).label("date_group"))
             .join(TaskAssignee, TaskAssignee.task_id == Task.id)
             .join(Task.project)
             .join(Project.initiative)
@@ -1154,14 +1134,7 @@ async def _list_global_tasks(
             stmt = stmt.join(TaskStatus, Task.task_status_id == TaskStatus.id).where(
                 TaskStatus.category.in_(tuple(status_category))
             )
-        stmt = stmt.where(*conditions).options(*_global_task_options())
-        return apply_sorting(
-            stmt,
-            Task,
-            sort_fields=sort_fields,
-            allowed_fields=_task_sort_fields(tz),
-            default_sort=TASK_DEFAULT_SORT,
-        )
+        return stmt.where(*conditions).options(*_global_task_options())
 
     return await _gather_global_task_reads(
         session,
@@ -1171,7 +1144,6 @@ async def _list_global_tasks(
         page=page,
         page_size=page_size,
         sort_fields=sort_fields,
-        tz=tz,
     )
 
 
@@ -1213,19 +1185,18 @@ async def _list_global_created_tasks(
     )
 
     def _build():
-        stmt = select(Task).join(Task.project).join(Project.initiative)
+        # Carry the SQL-computed date_group out for the cross-guild sort; ORDER
+        # BY is omitted because _sort_global_task_reads orders the merged set.
+        stmt = (
+            select(Task, _date_group_expression(tz).label("date_group"))
+            .join(Task.project)
+            .join(Project.initiative)
+        )
         if status_category:
             stmt = stmt.join(TaskStatus, Task.task_status_id == TaskStatus.id).where(
                 TaskStatus.category.in_(tuple(status_category))
             )
-        stmt = stmt.where(*conditions).options(*_global_task_options())
-        return apply_sorting(
-            stmt,
-            Task,
-            sort_fields=sort_fields,
-            allowed_fields=_task_sort_fields(tz),
-            default_sort=TASK_DEFAULT_SORT,
-        )
+        return stmt.where(*conditions).options(*_global_task_options())
 
     return await _gather_global_task_reads(
         session,
@@ -1235,7 +1206,6 @@ async def _list_global_created_tasks(
         page=page,
         page_size=page_size,
         sort_fields=sort_fields,
-        tz=tz,
     )
 
 
