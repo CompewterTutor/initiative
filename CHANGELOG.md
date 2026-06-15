@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- My Tasks and Tasks I Created now sort correctly across guilds — tasks from every guild are merged and globally re-sorted by date window (Overdue, Today, This Week, This Month, Later) and due date, instead of being grouped guild-by-guild.
 - A batch of schema-per-guild fixes: property definitions, uploads and document downloads, account deletion/deactivation cleanup, OIDC role sync, cross-guild calendars, and the "added to initiative" notification all read and write the correct guild's data again.
 - The Initiative logo now displays in emails.
 - Corrected malformed stored defaults for tag and task-status colors and icons.
