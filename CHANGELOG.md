@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-06-15
+
 ### Added
 
 - **`SECRET_KEY` rotation.** `SECRET_KEY` encrypts stored data (emails, OIDC/SMTP/AI secrets) and roots the email-lookup hash, so it can't be swapped in place — a bare change would lock out every user and orphan those secrets. To rotate it, set `PREVIOUS_SECRET_KEY` to the old value, set `SECRET_KEY` to a new one, and redeploy: the app re-encrypts everything on startup (idempotent), or run `python -m app.db.secret_key_rotation` manually. Unset `PREVIOUS_SECRET_KEY` once the logs report 0 failures. A failed `SECRET_KEY` validation now spells out this path in the error.
